@@ -343,4 +343,43 @@ class CompileKiteCodecCTaskTest {
         }
         return thrown
     }
+
+    /**
+     * FFmpeg's include directories must never be able to shadow a system header.
+     *
+     * On Debian and Ubuntu the libav* headers live in the MULTIARCH system include directory,
+     * `/usr/include/x86_64-linux-gnu`, right next to `sys/cdefs.h`. Passing that as `-I` puts the
+     * HOST's glibc ahead of the konan sysroot this cross-compile targets, and konan's clang then
+     * read the host's `sys/cdefs.h` against a glibc 2.19 sysroot and produced roughly two hundred
+     * errors starting with `function-like macro '__glibc_clang_prereq' is not defined`.
+     *
+     * `-idirafter` is exactly the right tool: it is searched AFTER the system directories, so the
+     * sysroot wins every header it actually has, while `libavformat/avformat.h`, which no sysroot
+     * has, still resolves. The project's OWN include directory stays `-I`, because those headers
+     * are ours and must win.
+     */
+    @Test
+    fun ffmpegIncludesAreSearchedAfterTheSysrootAndOnlyOursUsesDashI() {
+        val args = CompileKiteCodecCTask.includeArguments(
+            ownInclude = "/work/native/kitecodec-c/include",
+            ffmpegIncludes = listOf("/usr/include/x86_64-linux-gnu", "/work/native-libs/lgpl/linux-x64/include"),
+        )
+        assertEquals(
+            listOf(
+                "-I/work/native/kitecodec-c/include",
+                "-idirafter/usr/include/x86_64-linux-gnu",
+                "-idirafter/work/native-libs/lgpl/linux-x64/include",
+            ),
+            args,
+        )
+    }
+
+    /** With no FFmpeg directories at all, only our own include survives, still as -I. */
+    @Test
+    fun onlyTheProjectIncludeIsEmittedWhenThereAreNoFfmpegDirectories() {
+        assertEquals(
+            listOf("-I/work/include"),
+            CompileKiteCodecCTask.includeArguments(ownInclude = "/work/include", ffmpegIncludes = emptyList()),
+        )
+    }
 }

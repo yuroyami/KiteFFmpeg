@@ -213,8 +213,10 @@ abstract class CompileKiteCodecCTask @Inject constructor(
         val archive = out.resolve(ARCHIVE_NAME)
         archive.delete()
 
-        val includeArgs = (listOf(includeDir.get().asFile.absolutePath) + ffmpegIncludeDirs.get())
-            .map { "-I$it" }
+        val includeArgs = includeArguments(
+            ownInclude = includeDir.get().asFile.absolutePath,
+            ffmpegIncludes = ffmpegIncludeDirs.get(),
+        )
         val defineArgs = defineArguments(buildDefines.get())
 
         logger.lifecycle(
@@ -323,6 +325,27 @@ abstract class CompileKiteCodecCTask @Inject constructor(
          * The compiler Kotlin/Native itself uses on an arm64 Mac, per konan.properties. Overridable
          * through [llvmPackageName] and, failing that, through [resolveLlvmBinDir]'s fallback.
          */
+        /**
+         * The include flags for one compile: ours with `-I`, FFmpeg's with `-idirafter`.
+         *
+         * **The distinction is load bearing on Linux.** Debian and Ubuntu put the libav* headers in
+         * the MULTIARCH system include directory, `/usr/include/<tuple>`, in the same directory as
+         * `sys/cdefs.h`. This task cross-compiles against konan's own sysroot, so passing that
+         * directory as `-I` puts the HOST's glibc ahead of the sysroot's; konan's clang then read a
+         * glibc 2.39 `sys/cdefs.h` against a glibc 2.19 sysroot and emitted about two hundred errors
+         * beginning with `function-like macro '__glibc_clang_prereq' is not defined`.
+         *
+         * `-idirafter` is searched AFTER the system directories, which is exactly the semantics
+         * wanted: the sysroot wins every header it has, and `libavformat/avformat.h`, which no
+         * sysroot has, still resolves. It is applied to vendored trees too, and safely, because a
+         * vendored include directory holds nothing but `libav*` and `libsw*` subdirectories and so
+         * has nothing that could shadow a system header either way.
+         *
+         * Our own include directory keeps `-I`: those headers are the project's and must win.
+         */
+        fun includeArguments(ownInclude: String, ffmpegIncludes: List<String>): List<String> =
+            listOf("-I$ownInclude") + ffmpegIncludes.map { "-idirafter$it" }
+
         const val DEFAULT_LLVM_PACKAGE: String = "llvm-21-aarch64-macos-essentials-97"
 
         /** `file(1)`, which reads the architecture of an object file or an archive. */
