@@ -465,18 +465,27 @@ abstract class CompileKiteCodecCTask @Inject constructor(
          * the triple and the sysroot, and cross-target mixing is prevented by keying [outputDir] on
          * the target name.
          */
-        fun expectedObjectDescription(konanTargetName: String): String = when (konanTargetName) {
-            "macos_arm64", "ios_arm64", "ios_simulator_arm64" -> "Mach-O 64-bit object arm64"
-            "macos_x64", "ios_x64" -> "Mach-O 64-bit object x86_64"
-            "linux_x64", "android_x64" -> "ELF 64-bit LSB relocatable, x86-64"
-            "linux_arm64", "android_arm64" -> "ELF 64-bit LSB relocatable, ARM aarch64"
-            "android_arm32" -> "ELF 32-bit LSB relocatable, ARM, EABI5"
-            "mingw_x64" -> "Intel amd64 COFF object file"
+        fun acceptedObjectDescriptions(konanTargetName: String): List<String> = when (konanTargetName) {
+            "macos_arm64", "ios_arm64", "ios_simulator_arm64" -> listOf("Mach-O 64-bit object arm64")
+            "macos_x64", "ios_x64" -> listOf("Mach-O 64-bit object x86_64")
+            "linux_x64", "android_x64" -> listOf("ELF 64-bit LSB relocatable, x86-64")
+            "linux_arm64", "android_arm64" -> listOf("ELF 64-bit LSB relocatable, ARM aarch64")
+            "android_arm32" -> listOf("ELF 32-bit LSB relocatable, ARM, EABI5")
+            // TWO spellings of one architecture, and the list is the point. `file` renamed this
+            // between releases: the Windows runner says "x86-64 COFF object file" where an older
+            // one said "Intel amd64 COFF object file". The object was right and the build failed on
+            // a string. This guard is about the ARCHITECTURE (register item B1-11), so it accepts
+            // every spelling of the right one and no spelling of a wrong one.
+            "mingw_x64" -> listOf("Intel amd64 COFF object file", "x86-64 COFF object file")
             else -> throw GradleException(
                 "No expected object architecture is known for konan target '$konanTargetName'. Add " +
-                    "one to CompileKiteCodecCTask.expectedObjectDescription.",
+                    "one to CompileKiteCodecCTask.acceptedObjectDescriptions.",
             )
         }
+
+        /** The canonical spelling, used in messages. The check itself uses the full accepted list. */
+        fun expectedObjectDescription(konanTargetName: String): String =
+            acceptedObjectDescriptions(konanTargetName).first()
 
         /**
          * Fails when [fileOutput], the `file -b` description of [objectFile], is not what
@@ -484,11 +493,12 @@ abstract class CompileKiteCodecCTask @Inject constructor(
          * the wrong architecture and a real `file` output.
          */
         fun verifyObjectArchitecture(konanTargetName: String, objectFile: File, fileOutput: String) {
-            val expected = expectedObjectDescription(konanTargetName)
-            if (fileOutput.startsWith(expected)) return
+            val accepted = acceptedObjectDescriptions(konanTargetName)
+            if (accepted.any { fileOutput.startsWith(it) }) return
+            val expected = accepted.joinToString(" or ") { "'$it'" }
             throw GradleException(
                 "Wrong object architecture for konan target '$konanTargetName': " +
-                    "${objectFile.absolutePath} is '$fileOutput', expected '$expected'.\n" +
+                    "${objectFile.absolutePath} is '$fileOutput', expected $expected.\n" +
                     "Archiving it would embed a wrong-architecture library in the klib, which " +
                     "cinterop accepts without complaint and which then fails at the consumer's " +
                     "final link with `ld: archive member '/' not a mach-o file` (register item " +

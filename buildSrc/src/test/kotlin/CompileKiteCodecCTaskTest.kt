@@ -6,6 +6,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -381,5 +382,38 @@ class CompileKiteCodecCTaskTest {
             listOf("-I/work/include"),
             CompileKiteCodecCTask.includeArguments(ownInclude = "/work/include", ffmpegIncludes = emptyList()),
         )
+    }
+
+    /**
+     * `file` renames things, and the guard must survive that without going blind.
+     *
+     * The Windows runner's `file` describes a mingw object as "x86-64 COFF object file"; the guard
+     * had been written against an older wording, "Intel amd64 COFF object file". Both describe the
+     * SAME architecture, so the object was correct and the build failed anyway, on a string. The
+     * guard exists to catch a wrong ARCHITECTURE (register item B1-11), so it accepts every spelling
+     * of the right one and no spelling of a wrong one.
+     */
+    @Test
+    fun bothSpellingsOfAnX8664CoffObjectAreAccepted() {
+        val stand_in = File("/tmp/helpers_codec.o")
+        CompileKiteCodecCTask.verifyObjectArchitecture(
+            "mingw_x64", stand_in,
+            "x86-64 COFF object file, not stripped, 8 sections, symbol offset=0xba7, 63 symbols",
+        )
+        CompileKiteCodecCTask.verifyObjectArchitecture(
+            "mingw_x64", stand_in,
+            "Intel amd64 COFF object file, not stripped, 8 sections",
+        )
+    }
+
+    /** A genuinely wrong architecture still fails, which is the whole point of the guard. */
+    @Test
+    fun aMachOObjectIsStillRefusedForMingw() {
+        val failure = assertFailsWith<GradleException> {
+            CompileKiteCodecCTask.verifyObjectArchitecture(
+                "mingw_x64", File("/tmp/helpers_codec.o"), "Mach-O 64-bit object arm64",
+            )
+        }
+        assertContains(failure.message.orEmpty(), "Wrong object architecture")
     }
 }

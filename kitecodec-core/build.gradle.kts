@@ -827,7 +827,24 @@ tasks.register("buildFFmpegForAll") {
  */
 mavenPublishing {
     publishToMavenCentral()
-    signAllPublications()
+    // Only when a key actually exists. The comment above said signing "only activates when
+    // in-memory GPG keys are present", and that was not true of an unconditional
+    // signAllPublications(): a publishToMavenLocal on a machine with no key failed with
+    // "Cannot perform signing task ':kitecodec-core:signJsPublication' because it has no
+    // configured signatory". That is how the consumer smoke job died once it finally got far
+    // enough to publish. publish.yml sets ORG_GRADLE_PROJECT_signingInMemoryKey, which Gradle
+    // exposes as this property, so the real Central publication still signs everything.
+    // Blank counts as absent: a CI runner that exports the variable from an unset secret gets an
+    // empty string, and isPresent alone would call that a key and fail at signing time instead.
+    if (!providers.gradleProperty("signingInMemoryKey").orNull.isNullOrBlank()) {
+        signAllPublications()
+    } else {
+        logger.lifecycle(
+            "[KiteCodec] no signingInMemoryKey: publications are UNSIGNED. Fine for mavenLocal " +
+                "and CI smoke tests; Maven Central rejects unsigned artifacts, and publish.yml " +
+                "supplies the key.",
+        )
+    }
 
     // Coordinates come from the project defaults: GROUP / VERSION in gradle.properties (applied to
     // allprojects at the root) + this module's name -> io.github.yuroyami:kitecodec-core:<VERSION>.
