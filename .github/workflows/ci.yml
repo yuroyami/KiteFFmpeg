@@ -1,17 +1,24 @@
 # Builds + tests kitecodec-core and runs an end-to-end transcode on every desktop K/N target
 # that can get an FFmpeg toolchain in CI:
 #
-#   - macOS arm64  → Homebrew FFmpeg (8.x), dynamic linking
-#   - Linux x64    → Ubuntu apt FFmpeg (6.x). The def has held no C since B1.3, so there is no
+#   - macOS arm64  → the VENDORED LGPL profile, built from source. This job carries the ratchets
+#                    (public API, cinterop coupling, klib metadata, deleted surface), and as of
+#                    2026-08-23 it reads the vendored tree rather than Homebrew. It used to assert
+#                    an exact Homebrew libavutil version, which is a calendar rather than a gate:
+#                    the formula moved and the job went red. The vendored tree is pinned at n8.0 by
+#                    the build, so the frozen metadata constants now describe the FFmpeg the
+#                    project actually ships.
+#   - Linux x64    → Ubuntu apt FFmpeg. The def has held no C since B1.3, so there is no
 #                    "compat path in ffmpeg.def" for this job to prove (a sentence here once
 #                    claimed one); what it actually proves is that the C units and the cinterop
 #                    declarations compile against the oldest supported headers. The measured
 #                    compilation floor is lavc 60.30.100 and lavu 58.7.100.
 #   - Windows x64  → BtbN mingw shared build dropped into native-libs/mingw-x64 (vendored path)
-#   - macOS arm64  → the VENDORED LGPL profile, built from source (see the vendored-lgpl job).
-#                    The three above all link a full GPL system FFmpeg; this one links what the
-#                    project actually ships, and is the only job that can catch the suite depending
-#                    on codecs, muxers or protocols the released artifact does not contain.
+#   - macOS arm64  → the same VENDORED LGPL profile again, in the vendored-lgpl job, which runs the
+#                    full suite and e2e against it. It is the only job that can catch the suite
+#                    depending on codecs, muxers or protocols the released artifact does not
+#                    contain. It now shares a cache key with the ratchets job above; merging the
+#                    two is the obvious follow-up and has deliberately not been done yet.
 #
 # Android NDK targets get compile checks: each ABI builds its (self-contained, cached) LGPL
 # FFmpeg and compiles the klib.
@@ -37,9 +44,11 @@ concurrency:
 
 jobs:
   macos-arm64:
-    name: macOS arm64 (brew FFmpeg)
+    name: macOS arm64 (vendored LGPL FFmpeg, the ratchets)
     runs-on: macos-latest
-    timeout-minutes: 45
+    # 90, not the old 45: that was sized for `brew install ffmpeg`, and a cold-cache build of the
+    # vendored tree from source is a different order of work. Matches the vendored-lgpl job.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -53,38 +62,56 @@ jobs:
           key: konan-macos-arm64-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: |
             konan-macos-arm64-
-      # Pinned at the interlude (I-15). klib-metadata-baseline.txt freezes 24 FFmpeg version
-      # constants down to their micro values, so an unpinned `brew install ffmpeg` turns every
-      # Homebrew version bump into a red metadata check whose cheapest exit is an --update that
-      # could absorb a real surface change in the same commit. Homebrew offers no formula pinned
-      # to this exact release (ffmpeg@8 is an alias of the moving main formula, checked
-      # 2026-08-10), so the pin is an assert: install, then refuse any header tree other than the
-      # exact avutil version the committed baseline froze. When this step goes red, the move is
-      # deliberate: bump the local FFmpeg, re-baseline with klib-metadata-diff.sh --update, update
-      # the version below in the same commit, and paste the script's SUMMARY block into the
-      # Execution log entry (KPKMP.md section 9's ratchet move table).
-      - name: Install FFmpeg (pinned by assert)
+      # THE VENDORED TREE, not Homebrew. This job used to `brew install ffmpeg` and then assert the
+      # installed libavutil was exactly 60.8.100, because klib-metadata-baseline.txt freezes 24
+      # FFmpeg version constants down to their micro values (interlude I-15). That assert did its
+      # job and then became the problem: Homebrew moved to 60.26.102 and this job went red, and it
+      # would have gone red again on every future bump, because a pin against a moving formula is a
+      # calendar, not a gate. Homebrew has no formula pinned to one release (ffmpeg@8 is an alias of
+      # the moving main formula, checked 2026-08-10).
+      #
+      # The vendored LGPL tree is pinned at n8.0 by the build itself, and its libavutil IS 60.8.100,
+      # so the committed baseline matches it with zero drift (verified: all six counters read 0).
+      # It is also the FFmpeg this project actually ships, which is what the frozen constants ought
+      # to have been describing all along. FFmpegPaths prefers native-libs/ over any system install,
+      # so no flag is needed to select it: building the tree is selecting it.
+      #
+      # Same cache key as the vendored-lgpl job, so whichever runs first pays for the build and the
+      # other restores it. On a cold cache both build, which is the accepted cost of keeping the two
+      # jobs independent. Merging them is the obvious follow-up and is deliberately not done here.
+      - name: Install build deps + the ffmpeg CLI (for e2e assertions only)
+        run: brew install nasm meson ninja svt-av1 aom libvpx opus lame webp freetype harfbuzz fribidi libass ffmpeg jq
+      - name: Cache the vendored FFmpeg and dav1d builds
+        id: ffmpeg-vendored
+        uses: actions/cache@v4
+        with:
+          path: |
+            native-libs/lgpl/macos-arm64
+            native-libs/deps/macos-arm64
+          key: ffmpeg-macos-arm64-lgpl-n8.0-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+      - name: Build the vendored LGPL FFmpeg from source
+        if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
-          brew install ffmpeg
-          V="$(awk '/#define LIBAVUTIL_VERSION_(MAJOR|MINOR|MICRO)/ {printf "%s.", $3}' \
-            "$(brew --prefix)/include/libavutil/version.h")"
-          V="${V%.}"
-          if [ "$V" != "60.8.100" ]; then
-            echo "Homebrew installed FFmpeg with libavutil $V; the committed metadata baseline froze 60.8.100."
-            echo "This is the pin from KPKMP.md I-15 firing, not a broken build."
-            echo "Move it deliberately: re-baseline with native/kitecodec-c/scripts/klib-metadata-diff.sh --update,"
-            echo "update the version in this step, and log the SUMMARY block, all in one commit."
-            exit 1
-          fi
+          git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
+          ./gradlew :kitecodec-core:buildFFmpegForMacosArm64 --stacktrace
+      # The ratchets below read this tree. If it is missing they would silently fall back to the
+      # brew install above, which is the drift this job just stopped having.
+      - name: Confirm the ratchets will read the vendored tree
+        run: test -f native-libs/lgpl/macos-arm64/lib/libavformat.a
       # The two ratchets. apiCheck compares kitecodec-core's klib against the committed dump in
       # kitecodec-core/api, so a public API change fails here instead of shipping.
       # checkCinteropCoupling recounts the Kotlin-to-FFmpeg coupling and fails when it grew.
       #
-      # -Pkitecodec.hostTargetsOnly=true is load bearing, not cosmetic: this runner has only brew
-      # FFmpeg, so no FFmpeg tree resolves for the other ten registered targets, their ffmpeg
+      # -Pkitecodec.hostTargetsOnly=true is load bearing, not cosmetic: this runner builds a tree for
+      # macos-arm64 only, so no FFmpeg resolves for the other ten registered targets, their ffmpeg
       # cinterop is skipped, and compileKotlin<Target> then fails on unresolved `ffmpeg` references.
       # The committed dump is therefore a macosArm64 dump, and apiCheck has to be scoped the same
-      # way it was produced. Widening it to every target needs an FFmpeg tree per target in CI.
+      # way it was produced. This pairing came apart once: the dump was regenerated WITHOUT the flag,
+      # so it listed thirteen targets while the gate could only present three, and apiCheck failed on
+      # the target header alone for days without guarding anything (row KC-APICHECK-RED, fixed
+      # 2026-08-23). If you re-dump, re-dump with this flag. Widening it to every target needs an
+      # FFmpeg tree per target in CI.
       # check-deleted-surface.sh joined this step at the interlude (I-15): it needs no build
       # output, only the tree, and it holds the fifteen deleted ffkmp_ names dead in both
       # repositories. Here it can only scan this one; KitePlayer has no CI yet (B8).
@@ -206,7 +233,7 @@ jobs:
           if-no-files-found: ignore
 
   linux-x64:
-    name: Linux x64 (apt FFmpeg)
+    name: Linux x64 (apt FFmpeg, multiarch include path)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
