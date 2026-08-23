@@ -36,6 +36,36 @@ internal fun linuxIncludeCandidates(target: TargetTriple): List<String> =
 internal fun linuxLibCandidates(target: TargetTriple): List<String> =
     listOf("/usr/lib/${multiarchTuple(target)}", "/usr/lib", "/usr/local/lib")
 
+/** The header trees FFmpeg installs. A distribution that omits one simply has no such directory. */
+internal val FFMPEG_HEADER_TREES = listOf(
+    "libavcodec", "libavdevice", "libavfilter", "libavformat",
+    "libavutil", "libswresample", "libswscale",
+)
+
+/**
+ * Copies ONLY the FFmpeg header trees out of [systemInclude] into [destination].
+ *
+ * **Why this exists.** On Debian and Ubuntu the libav* headers share a directory with glibc's:
+ * `/usr/include/<tuple>` holds `libavformat/` and `sys/cdefs.h` alike. Every consumer of a resolved
+ * include directory hands it to clang with `-I`, and there are two of them, the C helper task and
+ * the cinterop, which is why fixing one still left CI red. Those clang invocations target konan's
+ * own sysroot, so the host's glibc headers won over the sysroot's and the compile collapsed with
+ * `function-like macro '__glibc_clang_prereq' is not defined`.
+ *
+ * Pointing everything at a directory that contains nothing but FFmpeg removes the collision at its
+ * source instead of ordering flags around it, and needs no change in any consumer.
+ */
+internal fun stageFFmpegHeaders(systemInclude: File, destination: File) {
+    destination.mkdirs()
+    FFMPEG_HEADER_TREES.forEach { tree ->
+        val source = systemInclude.resolve(tree)
+        if (!source.isDirectory) return@forEach
+        val target = destination.resolve(tree)
+        target.deleteRecursively()
+        source.copyRecursively(target, overwrite = true)
+    }
+}
+
 /**
  * Resolves where libav* headers and link libraries live for a given Kotlin/Native target.
  *
@@ -135,7 +165,14 @@ data class FFmpegPaths(
                         .firstOrNull { File("$it/libavformat/avformat.h").exists() } ?: return null
                     val lib = linuxLibCandidates(target)
                         .firstOrNull { File("$it/libavformat.so").exists() } ?: return null
-                    FFmpegPaths(include, lib, isStaticVendored = false)
+                    // Never hand out the system include directory itself: on multiarch it carries
+                    // glibc's headers beside FFmpeg's, and konan cross-compiles against its own
+                    // sysroot. See stageFFmpegHeaders. macOS is left alone deliberately: Homebrew's
+                    // prefix has no competing libc headers and that path is green.
+                    val staged = project.layout.buildDirectory.get().asFile
+                        .resolve("ffmpeg-system-headers/${target.dirName}")
+                    stageFFmpegHeaders(File(include), staged)
+                    FFmpegPaths(staged.absolutePath, lib, isStaticVendored = false)
                 }
                 else -> null
             }
