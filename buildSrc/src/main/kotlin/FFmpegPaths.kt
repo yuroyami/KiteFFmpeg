@@ -16,6 +16,26 @@ private val TargetTriple.isIos: Boolean
         this == TargetTriple.IosSimulatorArm64 ||
         this == TargetTriple.IosX64
 
+/** Debian's multiarch tuple for a Linux target, the directory component both lookups below need. */
+private fun multiarchTuple(target: TargetTriple): String =
+    if (target == TargetTriple.LinuxArm64) "aarch64-linux-gnu" else "x86_64-linux-gnu"
+
+/**
+ * Where to look for libav* headers on Linux, in order.
+ *
+ * The multiarch directory comes FIRST and its absence was a real defect: Debian and Ubuntu install
+ * `libavformat-dev` headers to `/usr/include/<tuple>/libavformat/`, not `/usr/include/libavformat/`.
+ * The lib lookup had always known this; the include lookup had not, so a correctly installed apt
+ * FFmpeg resolved to nothing, cinterop was skipped for the host target, and every native file then
+ * failed with `Unresolved reference 'ffmpeg'`.
+ */
+internal fun linuxIncludeCandidates(target: TargetTriple): List<String> =
+    listOf("/usr/include/${multiarchTuple(target)}", "/usr/include", "/usr/local/include")
+
+/** Same ordering rule, and for the same reason: /usr/lib may hold a foreign-architecture copy. */
+internal fun linuxLibCandidates(target: TargetTriple): List<String> =
+    listOf("/usr/lib/${multiarchTuple(target)}", "/usr/lib", "/usr/local/lib")
+
 /**
  * Resolves where libav* headers and link libraries live for a given Kotlin/Native target.
  *
@@ -111,17 +131,10 @@ data class FFmpegPaths(
                     FFmpegPaths("$prefix/include", "$prefix/lib", isStaticVendored = false)
                 }
                 TargetTriple.LinuxX64, TargetTriple.LinuxArm64 -> {
-                    val candidates = listOf("/usr/include", "/usr/local/include")
-                    val include = candidates.firstOrNull { File("$it/libavformat/avformat.h").exists() }
-                        ?: return null
-                    // Multiarch dir for this host first: /usr/lib may hold a foreign-arch copy.
-                    val multiarch = if (target == TargetTriple.LinuxArm64) {
-                        "/usr/lib/aarch64-linux-gnu"
-                    } else {
-                        "/usr/lib/x86_64-linux-gnu"
-                    }
-                    val libCandidates = listOf(multiarch, "/usr/lib", "/usr/local/lib")
-                    val lib = libCandidates.firstOrNull { File("$it/libavformat.so").exists() } ?: return null
+                    val include = linuxIncludeCandidates(target)
+                        .firstOrNull { File("$it/libavformat/avformat.h").exists() } ?: return null
+                    val lib = linuxLibCandidates(target)
+                        .firstOrNull { File("$it/libavformat.so").exists() } ?: return null
                     FFmpegPaths(include, lib, isStaticVendored = false)
                 }
                 else -> null

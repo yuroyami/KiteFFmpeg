@@ -371,18 +371,29 @@ jobs:
       # which is why BuildFFmpegTask passes an explicit -I/-L for the Homebrew prefix.
       # `ffmpeg` itself is for scripts/e2e.sh's CLI generation + ffprobe assertions only. KiteCodec
       # links the vendored tree, not this one.
+      # meson and ninja are for dav1d, which BuildDav1dTask drives and which became a mandatory
+      # dependency of the FFmpeg build with KC-EMBED. Its own preflight says "brew install meson
+      # ninja nasm"; nasm was already here for FFmpeg's x86 asm, the other two were not.
       - name: Install build deps + the ffmpeg CLI (for e2e assertions)
-        run: brew install nasm svt-av1 aom libvpx opus lame webp freetype harfbuzz fribidi libass ffmpeg jq
-      - name: Cache the vendored FFmpeg build
+        run: brew install nasm meson ninja svt-av1 aom libvpx opus lame webp freetype harfbuzz fribidi libass ffmpeg jq
+      # BOTH output trees, because since KC-EMBED the FFmpeg build depends on a dav1d build and
+      # dav1d installs to native-libs/deps/<triple>/dav1d, NOT under native-libs/lgpl/. Caching only
+      # the lgpl path meant a cache hit restored FFmpeg, left dav1d missing, and the dav1d task then
+      # ran and demanded a source tree the workflow never cloned. The key also hashes BuildDav1dTask
+      # so a change to either build task invalidates both trees together.
+      - name: Cache the vendored FFmpeg and dav1d builds
         id: ffmpeg-vendored
         uses: actions/cache@v4
         with:
-          path: native-libs/lgpl/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n8.0-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt') }}
+          path: |
+            native-libs/lgpl/macos-arm64
+            native-libs/deps/macos-arm64
+          key: ffmpeg-macos-arm64-lgpl-n8.0-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
           ./gradlew :kitecodec-core:buildFFmpegForMacosArm64 --stacktrace
       - name: Confirm the vendored tree is what gets linked
         run: test -f native-libs/lgpl/macos-arm64/lib/libavformat.a
@@ -430,15 +441,27 @@ jobs:
             konan-android-
       # The NDK cross-compile of FFmpeg takes ~6 min per ABI, so cache the resulting static libs
       # and only rebuild when the build-task definition (codec set, flags) changes.
+      # Both trees and both sources, for the reason spelled out on the macOS vendored job above:
+      # dav1d became mandatory with KC-EMBED, it installs to native-libs/deps/<triple>/dav1d, and
+      # nothing here ever cloned it. That is why every Android ABI died in under a minute on
+      # buildDav1dFor<Target> with "dav1d source not found".
       - uses: actions/cache@v4
         id: ffmpeg-android
         with:
-          path: native-libs/lgpl/${{ matrix.triple }}
-          key: ffmpeg-${{ matrix.triple }}-lgpl-n8.0-api24-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt') }}
-      - name: Build FFmpeg for Android (NDK)
+          path: |
+            native-libs/lgpl/${{ matrix.triple }}
+            native-libs/deps/${{ matrix.triple }}
+          key: ffmpeg-${{ matrix.triple }}-lgpl-n8.0-api24-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+      - name: Install the dav1d build tools
+        if: steps.ffmpeg-android.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build nasm
+      - name: Build FFmpeg and dav1d for Android (NDK)
         if: steps.ffmpeg-android.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           ./gradlew :kitecodec-core:buildFFmpegFor${{ matrix.task }} --stacktrace
       - name: Compile kitecodec-core klib (${{ matrix.kotlinTarget }})
@@ -497,6 +520,13 @@ jobs:
           sudo apt-get install -y ffmpeg \
             libavformat-dev libavcodec-dev libavfilter-dev \
             libavutil-dev libswscale-dev libswresample-dev
+      # The C helper tasks compile with konan's own LLVM, which only lands in ~/.konan/dependencies
+      # once a Kotlin/Native compile has run. On a fresh runner the C task races it and dies with
+      # "No LLVM package with a usable clang ... Expected llvm-21-aarch64-macos-essentials-97",
+      # which is exactly how both of these jobs failed. publish.yml already carries this warmup for
+      # the same reason (register row KC-CI-KONAN); it was never copied here.
+      - name: Warm the Kotlin/Native toolchain
+        run: ./gradlew :kitecodec-core:compileKotlin${{ matrix.taskSuffix }} -Pkitecodec.hostTargetsOnly=true --stacktrace || true
       # The publish guard accepts hostTargetsOnly for publishToMavenLocal only, so this works with
       # just the runner's system FFmpeg (no android/vendored trees needed).
       - name: Publish library + plugin to mavenLocal
@@ -594,9 +624,16 @@ jobs:
       # Pinned BtbN autobuild (master branch build), never `latest`, which is a moving tag.
       # To bump: pick a newer tag from https://github.com/BtbN/FFmpeg-Builds/releases, download
       # the win64-gpl-shared asset once, and update all three values together.
-      BTBN_TAG: autobuild-2026-07-01-13-54
-      BTBN_ASSET: ffmpeg-N-125384-gd936a51b27-win64-gpl-shared.zip
-      BTBN_SHA256: c283f61f3edaadec96503e796edb8b86bfd1307c314ddc6a429d4038d42dff2e
+      #
+      # KNOWN TO ROT, and it did. The previous pin (autobuild-2026-07-01-13-54) returned 404 on
+      # 2026-08-23: BtbN PRUNES old autobuild releases, so a pin is only good for a few weeks and
+      # this job goes red on a schedule nobody set. Re-pinned here to keep it green today, but the
+      # durable fix is to stop depending on someone else's retention policy and feed this job the
+      # mingw-x64 asset from THIS project's own releases, which is what the vendored-tree jobs
+      # already do and what register row KC-CI-KONAN asks for. Row: KC-BTBN-ROT.
+      BTBN_TAG: autobuild-2026-08-23-13-03
+      BTBN_ASSET: ffmpeg-N-126247-gb79d4c4c0a-win64-gpl-shared.zip
+      BTBN_SHA256: 18bd59b528f286b48163ba7ebcd948ae1c38ff792599c2d42d1581871c642064
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

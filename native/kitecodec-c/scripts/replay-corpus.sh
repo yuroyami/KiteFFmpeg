@@ -61,7 +61,18 @@ esac
 TARGETS="${*:-$ALL_TARGETS}"
 
 CC="${KC_CC:-/usr/bin/clang}"
-[ -x "$CC" ] || { echo "replay-corpus.sh: no compiler at $CC" >&2; exit 1; }
+# A bare NAME resolves through PATH, an explicit path does not. `[ -x clang-18 ]` tests a file
+# named clang-18 in the CURRENT DIRECTORY, so the Linux CI job, which sets KC_CC=clang-18 and has
+# clang-18 installed at /usr/bin, was told there was no compiler and exited 1 every run after a
+# thirty-minute fuzz. Resolve first, then test what was resolved.
+case "$CC" in
+    */*) ;;                                    # an explicit path, absolute or relative: use as given
+    *)   CC="$(command -v "$CC" || true)" ;;   # a bare name: ask PATH, exactly as the shell would
+esac
+[ -n "$CC" ] && [ -x "$CC" ] || {
+    echo "replay-corpus.sh: no compiler at ${KC_CC:-/usr/bin/clang}" >&2
+    exit 1
+}
 
 # FFmpeg flags. Resolved the same way and from the same environment variables as build-host.sh.
 # The duplication is deliberate: this script must not source that one, because that one builds and
