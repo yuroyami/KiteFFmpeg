@@ -236,8 +236,13 @@ public actual class MediaSource internal constructor(
         seekMicros((micros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L))
     }
 
-    internal fun <T> withCodecParameters(stream: StreamInfo, block: (Long) -> T): T =
-        synchronized(stateLock) {
+    internal fun <T> withCodecParameters(stream: StreamInfo, block: (Long) -> T): T {
+        // Before the index is trusted, not after. This is the entry point addCopyStream uses, so
+        // without the check a StreamInfo from a DIFFERENT source resolved to whatever lives at the
+        // same index here, and the remux wrote these codec parameters under the other file's time
+        // base. Native canonicalizes in codecparOf; this half was missed (audit P1-11).
+        requireOwnStream(stream)
+        return synchronized(stateLock) {
             val streamToken = Internals.fmtStream(checkOpen(), stream.index)
             var parameters = 0L
             try {
@@ -248,6 +253,7 @@ public actual class MediaSource internal constructor(
                 Internals.borrowedRelease(streamToken, Internals.KIND_STREAM)
             }
         }
+    }
 
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
         val target = stream ?: primaryVideo

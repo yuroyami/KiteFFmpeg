@@ -561,20 +561,24 @@ public fun <R> Frame.withPlanes(
         "This frame lives in hardware memory and has no readable planes. Use hardwareSurface, or " +
             "download it first."
     }
-    // checkedNative re-runs the open check at dereference time: the info reads above may have
-    // been served from the metadata cache, which proves nothing about the pointer's lifetime.
-    val native = checkedNative
-    val count = ffkmp_frame_plane_count(native)
-    val planes = ArrayList<CPointer<UByteVar>>(count)
-    val strides = ArrayList<Int>(count)
-    val heights = ArrayList<Int>(count)
-    for (i in 0 until count) {
-        val plane = ffkmp_frame_plane(native, i) ?: break
-        planes += plane
-        strides += ffkmp_frame_linesize(native, i)
-        heights += ffkmp_frame_plane_height(native, i)
+    // The LEASE, not a check. checkedNative re-ran the open check but let the pointer escape the
+    // lock immediately, so the plane addresses below were handed to the caller's block with nothing
+    // holding the AVFrame alive: a concurrent close freed it under the block, on the render path
+    // (audit P0-07). withNative holds the frame's lock for the whole call, block included, so a
+    // close waits for the reader instead of racing it.
+    return withNative { native ->
+        val count = ffkmp_frame_plane_count(native)
+        val planes = ArrayList<CPointer<UByteVar>>(count)
+        val strides = ArrayList<Int>(count)
+        val heights = ArrayList<Int>(count)
+        for (i in 0 until count) {
+            val plane = ffkmp_frame_plane(native, i) ?: break
+            planes += plane
+            strides += ffkmp_frame_linesize(native, i)
+            heights += ffkmp_frame_plane_height(native, i)
+        }
+        block(planes, strides, heights)
     }
-    return block(planes, strides, heights)
 }
 
 /**
@@ -587,4 +591,8 @@ public fun <R> Frame.withPlanes(
 @KiteCodecLowLevelApi
 @OptIn(ExperimentalForeignApi::class)
 public val Frame.hardwareSurface: COpaquePointer?
-    get() = ffkmp_frame_hw_surface(checkedNative)
+    // Under the lease for the same reason withPlanes is: checkedNative released the lock before the
+    // call, so a close landing in that window freed the AVFrame this reads through (audit P0-07).
+    // The window is entirely inside this getter, so no test can open it; the guard is the lease
+    // itself, which withPlanes' race test pins.
+    get() = withNative { ffkmp_frame_hw_surface(it) }

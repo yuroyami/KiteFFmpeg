@@ -139,7 +139,7 @@ jobs:
     # Added by B1.6. Deliberately its own job and not steps inside macos-arm64, so that this block
     # can be moved, reordered or merged without touching anything another sub-phase wrote.
     # ---------------------------------------------------------------------------------------------
-    name: FFmpeg identity gate (register item B1-02)
+    name: Host C suites and the FFmpeg identity gate (register items B1-02, KC-CI-C)
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -151,27 +151,34 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Install FFmpeg
         run: brew install ffmpeg
-      # The gate's own evidence, and the reason this job exists. A compatibility gate that has never
-      # fired is a sentence in a document; test_identity compiles src/kitecodec_abi.c five more times
-      # against the doctored header trees under tests/fake_headers/ and asserts one case per verdict,
-      # including the true build, which is the case that would fail if the policy were too strict.
-      # It also asserts that the diagnostic bypass is not a silent default, that it works when set,
-      # and that its warning is printed exactly once per process.
+      # ALL EIGHT suites, not one. Until 2026-08-23 both steps below passed `test_identity` as an
+      # explicit argument, so test_ownership, test_buffers, test_rescale, test_strerror_thread,
+      # test_convert, test_args and test_append ran only on a developer's laptop. Every "C suites
+      # green" line in the log was then a true statement about one machine and a false impression
+      # about this gate (register item KC-CI-C). Passing no suite name runs the whole list, which is
+      # what run-c-tests.sh documents as gate behaviour.
       #
-      # ASan for the same reason plan section 15.3 gives: this is the variant that catches the class
-      # the gate prevents, an out-of-bounds read through a struct field offset that moved.
-      - name: Identity gate, host C suite under ASan
+      # test_identity is still the reason this job is separate, and what it does is worth keeping
+      # written down: it compiles src/kitecodec_abi.c five more times against the doctored header
+      # trees under tests/fake_headers/ and asserts one case per verdict, including the TRUE build,
+      # which is the case that fails if the policy is too strict. It also asserts that the
+      # diagnostic bypass is not a silent default, that it works when set, and that its warning is
+      # printed exactly once per process.
+      #
+      # What each variant is for. ASan catches the class the identity gate exists to prevent, an
+      # out-of-bounds read through a struct field offset that moved. Plain compiles the doctored
+      # objects at -O2, so a shim that only worked at -O1 is a shim that only worked under a
+      # sanitizer. Both are needed; neither replaces the other.
+      - name: Host C suites under ASan
         working-directory: native/kitecodec-c
         run: |
           ./scripts/build-host.sh asan
-          ./scripts/run-c-tests.sh asan test_identity
-      # Plain as well, because the doctored objects are compiled at -O2 there. A shim that only worked
-      # at -O1 would be a shim that only worked under a sanitizer.
-      - name: Identity gate, host C suite plain
+          ./scripts/run-c-tests.sh asan
+      - name: Host C suites plain
         working-directory: native/kitecodec-c
         run: |
           ./scripts/build-host.sh plain
-          ./scripts/run-c-tests.sh plain test_identity
+          ./scripts/run-c-tests.sh plain
       # What the archive promises. The six kc_ functions must be exported and nothing else new must
       # be, the identity gate's undefined symbols must all be on the measured allowlist, and it must
       # be the ONLY unit in the library that writes to a stream: that permission exists for the

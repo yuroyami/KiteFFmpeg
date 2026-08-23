@@ -191,12 +191,20 @@ public actual class MediaSink internal constructor(
             ?: throw FFmpegException(FFmpegError.Internal("Stream ${stream.index} has no codec parameters"))
         val outStream = ffkmp_fmt_new_stream(ctx, null)
             ?: throw FFmpegException(FFmpegError.Internal("avformat_new_stream returned NULL"))
-        val outPar = ffkmp_stream_codecpar(outStream)
-            ?: throw FFmpegException(FFmpegError.Internal("New stream missing codecpar"))
-        check0(ffkmp_codecpar_copy_for_mux(outPar, sourcePar), "avcodec_parameters_copy")
-        // Seed the output time-base with the input's; the muxer may still rewrite it in
-        // avformat_write_header, which is why writeCopyPacket re-reads it per packet.
-        ffkmp_stream_set_time_base(outStream, stream.timeBase.num, stream.timeBase.den)
+        // From here the format context HAS a new stream in it and FFmpeg cannot take one back, so
+        // every failure below leaves a half-configured stream in the muxer. Without the poison the
+        // sink still looked usable and the next call wrote against it. newStreamFor has poisoned
+        // since P1-10; this path mutates identically and was left out (audit P1-10).
+        try {
+            val outPar = ffkmp_stream_codecpar(outStream)
+                ?: throw FFmpegException(FFmpegError.Internal("New stream missing codecpar"))
+            check0(ffkmp_codecpar_copy_for_mux(outPar, sourcePar), "avcodec_parameters_copy")
+            // Seed the output time-base with the input's; the muxer may still rewrite it in
+            // avformat_write_header, which is why writeCopyPacket re-reads it per packet.
+            ffkmp_stream_set_time_base(outStream, stream.timeBase.num, stream.timeBase.den)
+        } catch (error: Throwable) {
+            poison(error)
+        }
 
         declaredStreams += 1
         CopyStream(sink = this, stream = outStream, sourceTimeBase = stream.timeBase, sourceIndex = stream.index)
@@ -259,8 +267,11 @@ public actual class MediaSink internal constructor(
         check(!headerWritten) { "Cannot add encoders after the muxer has started writing." }
         check(!closed) { "MediaSink is closed" }
 
+        // Typed, not Internal. A missing encoder is a condition a caller handles (fall back to
+        // software, pick another codec, name the build), and `when (error)` can only reach it if the
+        // kind survives. The JVM twin was converted; this half was missed (audit P1-04).
         val codec = ffkmp_find_encoder_by_name(codecName)
-            ?: throw FFmpegException(FFmpegError.Internal("No encoder named '$codecName'"))
+            ?: throw FFmpegException(FFmpegError.EncoderNotFound(0, "No encoder named '$codecName'"))
         val codecCtx = ffkmp_codecctx_alloc(codec)
             ?: throw FFmpegException(FFmpegError.Internal("avcodec_alloc_context3 returned NULL"))
         try {

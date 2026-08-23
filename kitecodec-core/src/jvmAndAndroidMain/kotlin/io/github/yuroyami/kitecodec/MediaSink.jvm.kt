@@ -155,7 +155,12 @@ public actual class MediaSink internal constructor(
                 CopyStream(this, outputStream, stream.timeBase, stream.index)
             } catch (error: Throwable) {
                 Internals.borrowedRelease(outputStream, Internals.KIND_STREAM)
-                throw error
+                // fmtNewStream above already put a stream into the format context, and FFmpeg offers
+                // no way to take one back. Releasing the borrowed reference does not undo that, so
+                // without the poison the sink kept looking usable while its muxer held a stream that
+                // was never configured. newStreamFor has poisoned since P1-10; this path, which
+                // mutates exactly the same way, was left out (audit P1-10).
+                poison(error)
             } finally {
                 if (outputParameters != 0L) {
                     Internals.borrowedRelease(outputParameters, Internals.KIND_CODEC_PAR)
@@ -400,6 +405,14 @@ internal class EncoderCore(
         check(codecContext != 0L) { "Encoder is closed" }
         check(!drained) { "This encoder was already drained; its codec cannot accept more frames" }
         try {
+            // The media type this encoder was built for. A video frame handed to an audio encoder
+            // reached FFmpeg and was interpreted as samples, which is a wrong answer rather than a
+            // refusal. Native guards this in its own encode; the JVM half was missed and the row
+            // was closed on the strength of the other one (audit P0-08).
+            val wanted = if (audio) MediaType.Audio else MediaType.Video
+            require(frame.info.type == wanted) {
+                "this encoder encodes $wanted and was given a ${frame.info.type} frame"
+            }
             frame.locked { source ->
                 restampPts(frame, source)
                 val converted = if (audio) 0L else conversionFor(source)

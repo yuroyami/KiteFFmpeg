@@ -134,17 +134,21 @@ public actual class MediaSource internal constructor(
         // Staged, because `associate` built them all and dropped the ones it had already built if
         // a later open threw, leaking one codec context each (audit P0-05).
         val decoders = LinkedHashMap<Int, StreamDecoder>()
+        // The counter accumulates for this source's LIFETIME, as it does on JVM and Native. It used
+        // to be zeroed here and written only in the finally below, so a caller reading it mid-flow
+        // always saw zero and a second pass erased the first one's total, which is not what the
+        // commonMain KDoc promises (audit P1-05).
+        val skippedBefore = corruptDataSkipped
+        var reader: PacketReader? = null
         try {
+            // One try owning both, because openPacketReader takes the cursor lease and can throw.
+            // It used to sit BETWEEN the catch that unwound the decoders and the try that owns
+            // their cleanup, so a throw there leaked every codec context just built, which is the
+            // exact defect P0-05 was opened to fix (audit KC-P0-05-LEAK).
             streams.forEach { decoders[it.index] = openDecoder(it, corruptData = corruptData) }
-        } catch (failure: Throwable) {
-            decoders.values.forEach { built -> runCatching { built.close() } }
-            throw failure
-        }
-        corruptDataSkipped = 0L
-        val reader = openPacketReader(streams)
-        try {
+            val live = openPacketReader(streams).also { reader = it }
             while (true) {
-                val packet = reader.read()
+                val packet = live.read()
                 if (packet == null) {
                     // Drain every decoder before finishing: frames can still be queued inside them.
                     decoders.values.forEach { decoder ->
@@ -156,6 +160,7 @@ public actual class MediaSource internal constructor(
                         }
                         while (true) emit(decoder.receive() ?: break)
                     }
+                    corruptDataSkipped = skippedBefore + decoders.values.sumOf { it.corruptDataSkipped }
                     return@flow
                 }
                 packet.use { p ->
@@ -171,13 +176,16 @@ public actual class MediaSource internal constructor(
                         while (true) emit(decoder.receive() ?: break)
                     }
                 }
+                // Live, per packet: a caller watching a long decode learns it is losing data while
+                // it can still act on that, not only once the flow has finished.
+                corruptDataSkipped = skippedBefore + decoders.values.sumOf { it.corruptDataSkipped }
             }
         } finally {
             // Read the decoders' counts BEFORE closing them: closed decoders answer nothing, and
             // this total is the only record that the decode was short (audit P1-05).
-            corruptDataSkipped = decoders.values.sumOf { it.corruptDataSkipped }
-            reader.close()
-            decoders.values.forEach { it.close() }
+            corruptDataSkipped = skippedBefore + decoders.values.sumOf { it.corruptDataSkipped }
+            reader?.close()
+            decoders.values.forEach { runCatching { it.close() } }
         }
     }
 
@@ -194,9 +202,14 @@ public actual class MediaSource internal constructor(
         // (audit P0-04). Backward, so the target is never overshot before the walk begins.
         val landing = (atMicros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L)
         openPacketReader(emptyList()).use { it.seek(landing, SeekDirection.Backward, null) }
-        val reader = openPacketReader(listOf(target))
-        val decoder = openDecoder(target)
+        // Both opened INSIDE the try. They used to sit outside it, so a throwing openDecoder left
+        // the reader open and readerActive true for ever: that MediaSource could never open another
+        // reader again, and the leak was permanent for the object's life (audit KC-P0-05-LEAK).
+        var reader: PacketReader? = null
+        var decoder: StreamDecoder? = null
         try {
+            val liveReader = openPacketReader(listOf(target)).also { reader = it }
+            val liveDecoder = openDecoder(target).also { decoder = it }
             // The first frame whose own timestamp reaches the target. An untimed frame cannot be
             // compared, so it is passed over rather than guessed at.
             fun Frame.reachesTarget(): Boolean {
@@ -204,31 +217,31 @@ public actual class MediaSource internal constructor(
                 return rescaleQ(pts, target.timeBase, Rational.Tb_us) - startTimeMicros >= atMicros
             }
             while (true) {
-                val packet = reader.read() ?: break
+                val packet = liveReader.read() ?: break
                 packet.use { p ->
-                    while (!decoder.send(p)) {
+                    while (!liveDecoder.send(p)) {
                         while (true) {
-                            val frame = decoder.receive() ?: break
+                            val frame = liveDecoder.receive() ?: break
                             if (frame.reachesTarget()) return frame
                             frame.close()
                         }
                     }
                     while (true) {
-                        val frame = decoder.receive() ?: break
+                        val frame = liveDecoder.receive() ?: break
                         if (frame.reachesTarget()) return frame
                         frame.close()
                     }
                 }
             }
-            while (!decoder.send(null)) {
+            while (!liveDecoder.send(null)) {
                 while (true) {
-                    val frame = decoder.receive() ?: break
+                    val frame = liveDecoder.receive() ?: break
                     if (frame.reachesTarget()) return frame
                     frame.close()
                 }
             }
             while (true) {
-                val frame = decoder.receive() ?: break
+                val frame = liveDecoder.receive() ?: break
                 if (frame.reachesTarget()) return frame
                 frame.close()
             }
@@ -236,8 +249,8 @@ public actual class MediaSource internal constructor(
                 FFmpegError.Internal("no frame at ${atMicros}us (beyond the end of the stream?)"),
             )
         } finally {
-            reader.close()
-            decoder.close()
+            reader?.close()
+            decoder?.close()
         }
     }
 
