@@ -63,6 +63,15 @@ jobs:
             libavformat-dev libavcodec-dev libavfilter-dev \
             libavutil-dev libswscale-dev libswresample-dev
 
+      # The C helper tasks compile with konan's own LLVM, which only lands in
+      # ~/.konan/dependencies once a Kotlin/Native compile has run. On a fresh
+      # runner the C task races it and dies with "No LLVM package with a usable
+      # clang", which is how this workflow failed on every push (register row
+      # KC-CI-KONAN). ci.yml's consumer jobs and publish.yml both carry this
+      # warmup; the docs job was the last one without it.
+      - name: Warm the Kotlin/Native toolchain
+        run: ./gradlew :kitecodec-core:compileKotlinLinuxX64 --stacktrace || true
+
       # The Dokka generation + merge is required: the deployed site must never
       # silently lose its /api/ reference.
       - name: Generate the Dokka API reference and merge it into the site
