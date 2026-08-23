@@ -1,6 +1,5 @@
 // Klib ABI Dump
-// Targets: [androidNativeArm32, androidNativeArm64, androidNativeX64, iosArm64, iosSimulatorArm64, iosX64, js, linuxArm64, linuxX64, macosArm64, macosX64, mingwX64, wasmJs]
-// Alias: native => [androidNativeArm32, androidNativeArm64, androidNativeX64, iosArm64, iosSimulatorArm64, iosX64, linuxArm64, linuxX64, macosArm64, macosX64, mingwX64]
+// Targets: [js, macosArm64, wasmJs]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -1861,11 +1860,11 @@ final fun io.github.yuroyami.kitecodec.dsl/audioFilters(kotlin/Function1<io.gith
 final fun io.github.yuroyami.kitecodec.dsl/escapeFilterValue(kotlin/String): kotlin/String // io.github.yuroyami.kitecodec.dsl/escapeFilterValue|escapeFilterValue(kotlin.String){}[0]
 final fun io.github.yuroyami.kitecodec.dsl/videoFilters(kotlin/Function1<io.github.yuroyami.kitecodec.dsl/VideoFilterBuilder, kotlin/Unit>): io.github.yuroyami.kitecodec.dsl/FilterChain // io.github.yuroyami.kitecodec.dsl/videoFilters|videoFilters(kotlin.Function1<io.github.yuroyami.kitecodec.dsl.VideoFilterBuilder,kotlin.Unit>){}[0]
 
-// Targets: [native]
+// Targets: [macosArm64]
 final val io.github.yuroyami.kitecodec/hardwareSurface // io.github.yuroyami.kitecodec/hardwareSurface|@io.github.yuroyami.kitecodec.Frame{}hardwareSurface[0]
     final fun (io.github.yuroyami.kitecodec/Frame).<get-hardwareSurface>(): kotlinx.cinterop/CPointer<out kotlinx.cinterop/CPointed>? // io.github.yuroyami.kitecodec/hardwareSurface.<get-hardwareSurface>|<get-hardwareSurface>@io.github.yuroyami.kitecodec.Frame(){}[0]
 
-// Targets: [native]
+// Targets: [macosArm64]
 final fun <#A: kotlin/Any?> (io.github.yuroyami.kitecodec/Frame).io.github.yuroyami.kitecodec/withPlanes(kotlin/Function3<kotlin.collections/List<kotlinx.cinterop/CPointer<kotlinx.cinterop/UByteVarOf<kotlin/UByte>>>, kotlin.collections/List<kotlin/Int>, kotlin.collections/List<kotlin/Int>, #A>): #A // io.github.yuroyami.kitecodec/withPlanes|withPlanes@io.github.yuroyami.kitecodec.Frame(kotlin.Function3<kotlin.collections.List<kotlinx.cinterop.CPointer<kotlinx.cinterop.UByteVarOf<kotlin.UByte>>>,kotlin.collections.List<kotlin.Int>,kotlin.collections.List<kotlin.Int>,0:0>){0§<kotlin.Any?>}[0]
 
 // Targets: [wasmJs]
