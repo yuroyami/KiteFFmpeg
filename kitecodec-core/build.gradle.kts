@@ -566,7 +566,14 @@ kotlin {
         getByName("jvmTest").dependsOn(codecContractTest)
         // The macOS native arm runs the same suite, and always did; it only sat inside the phone
         // scope because the source set used to be created there.
-        getByName("macosArm64Test").dependsOn(codecContractTest)
+        //
+        // findByName, not getByName: under -Pkitecodec.hostTargetsOnly=true the registered desktop
+        // target is the HOST's, so on a Linux or Windows runner there is no macosArm64 target and
+        // therefore no macosArm64Test source set. getByName threw at configuration time and took
+        // the whole build with it, which is how the Linux consumer smoke job failed with
+        // "KotlinSourceSet with name 'macosArm64Test' not found". A missing source set here means
+        // the target is not in this build at all, not that the wiring was forgotten.
+        findByName("macosArm64Test")?.dependsOn(codecContractTest)
 
         if (withAndroid) {
             getByName("androidMain").dependsOn(jvmAndAndroidMain)
