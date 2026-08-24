@@ -53,6 +53,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # BEFORE the FFmpeg trees exist, and that ordering is the whole point. konan fetches its LLVM
+      # into ~/.konan/dependencies only when a Kotlin/Native task actually runs. Once a tree IS
+      # present, compileKotlin<Target> depends on the ffmpeg cinterop, which depends on our C helper
+      # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
+      # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
+      # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
+      # references, which is what the `|| true` is for. Warm first, fetch second (KC-CI-KONAN).
+      - name: Warm the Kotlin/Native toolchain
+        run: ./gradlew :kitecodec-core:compileKotlinLinuxX64 --stacktrace || true
+
       # ALL ELEVEN triples, and it has to be all of them. Dokka compiles
       # `compileNativeMainKotlinMetadata`, the shared nativeMain source set, which needs the ffmpeg
       # cinterop for EVERY native target at once; a target with no FFmpeg tree has its cinterop
@@ -78,15 +88,6 @@ jobs:
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
             rm -f "${asset}" "${asset}.sha256"
           done
-
-      # The C helper tasks compile with konan's own LLVM, which only lands in
-      # ~/.konan/dependencies once a Kotlin/Native compile has run. On a fresh
-      # runner the C task races it and dies with "No LLVM package with a usable
-      # clang", which is how this workflow failed on every push (register row
-      # KC-CI-KONAN). ci.yml's consumer jobs and publish.yml both carry this
-      # warmup; the docs job was the last one without it.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kitecodec-core:compileKotlinLinuxX64 --stacktrace || true
 
       # The Dokka generation + merge is required: the deployed site must never
       # silently lose its /api/ reference.

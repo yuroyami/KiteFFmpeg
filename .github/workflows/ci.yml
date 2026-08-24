@@ -8,12 +8,14 @@
 #                    the formula moved and the job went red. The vendored tree is pinned at n8.0 by
 #                    the build, so the frozen metadata constants now describe the FFmpeg the
 #                    project actually ships.
-#   - Linux x64    → Ubuntu apt FFmpeg. The def has held no C since B1.3, so there is no
-#                    "compat path in ffmpeg.def" for this job to prove (a sentence here once
-#                    claimed one); what it actually proves is that the C units and the cinterop
-#                    declarations compile against the oldest supported headers. The measured
-#                    compilation floor is lavc 60.30.100 and lavu 58.7.100.
-#   - Windows x64  → BtbN mingw shared build dropped into native-libs/mingw-x64 (vendored path)
+#   - Linux x64    → the prebuilt static tree from this repo's own companion release. It used to
+#                    use apt, which CANNOT work: Ubuntu's libav* .so files need glibc 2.29/2.34
+#                    while Kotlin/Native links its own 2.19 sysroot, so ld.lld refuses. The old
+#                    claim that this job proved "the oldest supported headers" was never true
+#                    either; it proved whatever Ubuntu shipped that week.
+#   - Windows x64  → the prebuilt static mingw-x64 tree from the same release. BtbN is gone: its
+#                    builds are SHARED, so there is no libavformat.a for the embed to take, and it
+#                    prunes old autobuilds so any pin 404s within weeks.
 #   - macOS arm64  → the same VENDORED LGPL profile again, in the vendored-lgpl job, which runs the
 #                    full suite and e2e against it. It is the only job that can catch the suite
 #                    depending on codecs, muxers or protocols the released artifact does not
@@ -270,6 +272,15 @@ jobs:
           key: konan-linux-x64-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: |
             konan-linux-x64-
+      # BEFORE the FFmpeg trees exist, and that ordering is the whole point. konan fetches its LLVM
+      # into ~/.konan/dependencies only when a Kotlin/Native task actually runs. Once a tree IS
+      # present, compileKotlin<Target> depends on the ffmpeg cinterop, which depends on our C helper
+      # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
+      # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
+      # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
+      # references, which is what the `|| true` is for. Warm first, fetch second (KC-CI-KONAN).
+      - name: Warm the Kotlin/Native toolchain
+        run: ./gradlew :kitecodec-core:compileKotlinLinuxX64 --stacktrace || true
       # NOT apt. A distro FFmpeg cannot be linked by Kotlin/Native on a modern Ubuntu, and this
       # is not a flag problem: Ubuntu 24.04's libav* .so files reference glibc 2.29 and 2.34
       # symbols, while Kotlin/Native links against its own glibc 2.19 sysroot for portability, so
@@ -298,14 +309,6 @@ jobs:
           unzip -q "${asset}" -d native-libs/lgpl/linux-x64
           test -f native-libs/lgpl/linux-x64/lib/libavformat.a
           rm -f "${asset}" "${asset}.sha256"
-      # Warm the Kotlin/Native toolchain before anything reaches the C helper task. konan fetches
-      # its LLVM and per-target sysroots into ~/.konan/dependencies ON DEMAND, when a Kotlin/Native
-      # task actually runs, so on a fresh runner compileKiteCodecCFor<Target> gets there first and
-      # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
-      # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result (register row KC-CI-KONAN).
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kitecodec-core:compileKotlinLinuxX64 --stacktrace || true
       - name: Unit + native tests
         run: ./gradlew :kitecodec-core:linuxX64Test --stacktrace
       - name: Link sample
@@ -605,6 +608,15 @@ jobs:
           key: konan-consumer-${{ matrix.label }}-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: |
             konan-consumer-${{ matrix.label }}-
+      # BEFORE the FFmpeg trees exist, and that ordering is the whole point. konan fetches its LLVM
+      # into ~/.konan/dependencies only when a Kotlin/Native task actually runs. Once a tree IS
+      # present, compileKotlin<Target> depends on the ffmpeg cinterop, which depends on our C helper
+      # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
+      # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
+      # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
+      # references, which is what the `|| true` is for. Warm first, fetch second (KC-CI-KONAN).
+      - name: Warm the Kotlin/Native toolchain
+        run: ./gradlew :kitecodec-core:compileKotlin${{ matrix.taskSuffix }} -Pkitecodec.hostTargetsOnly=true --stacktrace || true
       # THE PREBUILT STATIC TREE, and this is the whole validity of the job.
       #
       # It used to brew/apt install FFmpeg. FFmpegPaths then resolved a SYSTEM, DYNAMIC install, so
@@ -629,13 +641,6 @@ jobs:
           unzip -q "${asset}" -d "native-libs/lgpl/${{ matrix.triple }}"
           test -f "native-libs/lgpl/${{ matrix.triple }}/lib/libavformat.a"
           rm -f "${asset}" "${asset}.sha256"
-      # The C helper tasks compile with konan's own LLVM, which only lands in ~/.konan/dependencies
-      # once a Kotlin/Native compile has run. On a fresh runner the C task races it and dies with
-      # "No LLVM package with a usable clang ... Expected llvm-21-aarch64-macos-essentials-97",
-      # which is exactly how both of these jobs failed. publish.yml already carries this warmup for
-      # the same reason (register row KC-CI-KONAN); it was never copied here.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kitecodec-core:compileKotlin${{ matrix.taskSuffix }} -Pkitecodec.hostTargetsOnly=true --stacktrace || true
       # The publish guard accepts hostTargetsOnly for publishToMavenLocal only, so this works with
       # just the runner's system FFmpeg (no android/vendored trees needed).
       #
@@ -731,32 +736,12 @@ jobs:
           if-no-files-found: ignore
 
   windows-x64:
-    name: Windows x64 (BtbN FFmpeg, mingw)
+    name: Windows x64 (prebuilt static FFmpeg, the shipped profile)
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
       run:
         shell: bash
-    env:
-      # Pinned BtbN autobuild (master branch build), never `latest`, which is a moving tag.
-      # To bump: pick a newer tag from https://github.com/BtbN/FFmpeg-Builds/releases, download
-      # the win64-gpl-shared asset once, and update all three values together.
-      #
-      # KNOWN TO ROT, and it did. The previous pin (autobuild-2026-07-01-13-54) returned 404 on
-      # 2026-08-23: BtbN PRUNES old autobuild releases, so a pin is only good for a few weeks and
-      # this job goes red on a schedule nobody set. Re-pinned here to keep it green today, but the
-      # durable fix is to stop depending on someone else's retention policy and feed this job the
-      # mingw-x64 asset from THIS project's own releases, which is what the vendored-tree jobs
-      # already do and what register row KC-CI-KONAN asks for. Row: KC-BTBN-ROT.
-      BTBN_TAG: autobuild-2026-08-23-13-03
-      # LGPL, not GPL, since 2026-08-23. The GPL variant forced -Pkitecodec.ffmpeg.license=gpl on
-      # the whole build, and build.gradle.kts refuses GPL outright whenever an iOS target is
-      # registered, so CONFIGURATION died before this job ran a single test. The GPL build was only
-      # ever here for libx264 in the e2e encode, and scripts/e2e.sh already probes for libx264 and
-      # falls back to mpeg4 when it is absent, so nothing needed it. LGPL is also what this project
-      # ships (owner decision 2026-08-21), which makes this job link closer to what a consumer gets.
-      BTBN_ASSET: ffmpeg-N-126247-gb79d4c4c0a-win64-lgpl-shared.zip
-      BTBN_SHA256: 1dc7bdaae386fea20ea0b7352eca8763cfb56097197f2e69201d00927c5605c6
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -770,47 +755,41 @@ jobs:
           key: konan-windows-x64-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: |
             konan-windows-x64-
-      - name: Cache FFmpeg download (BtbN win64 gpl shared)
-        id: ffmpeg-btbn
-        uses: actions/cache@v4
-        with:
-          path: ffmpeg.zip
-          key: btbn-${{ env.BTBN_TAG }}-${{ env.BTBN_ASSET }}
-      - name: Download FFmpeg (BtbN win64 gpl shared)
-        if: steps.ffmpeg-btbn.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$env:BTBN_TAG/$env:BTBN_ASSET"
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            try {
-              Invoke-WebRequest -Uri $url -OutFile ffmpeg.zip
-              break
-            } catch {
-              if ($attempt -eq 3) { throw }
-              Write-Host "Download failed (attempt $attempt): $_, retrying..."
-              Start-Sleep -Seconds (10 * $attempt)
-            }
-          }
-      # The shared (DLL) mingw build carries include/ + lib/ import libraries, exactly the
-      # layout FFmpegPaths expects under native-libs/<license>/<target>/. It lands under the `lgpl`
-      # flavour, which is the default, so no license property is passed and no target is refused.
-      # CI never redistributes the binaries.
-      - name: Verify + install FFmpeg
-        shell: pwsh
-        run: |
-          $actual = (Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash.ToLower()
-          if ($actual -ne $env:BTBN_SHA256) {
-            throw "ffmpeg.zip sha256 mismatch: expected $env:BTBN_SHA256, got $actual"
-          }
-          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
-          $dir = Get-ChildItem ffmpeg-tmp -Directory | Select-Object -First 1
-          New-Item -ItemType Directory -Force -Path native-libs/lgpl | Out-Null
-          Move-Item $dir.FullName native-libs/lgpl/mingw-x64
-          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}\native-libs\lgpl\mingw-x64\bin"
-      # Same konan warmup as every other job that reaches the C helper task; see the note on the
-      # macOS ratchets job.
+      # Warm before the tree exists; see the note on the Linux job for why the order matters.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kitecodec-core:compileKotlinMingwX64 --stacktrace || true
+      # BtbN is GONE from this job, and both reasons it had to go were proven on CI.
+      #
+      # 1. Its builds are SHARED: DLLs plus import libraries, no libavformat.a. Since KC-EMBED the
+      #    build embeds STATIC archives into the klib, so this job failed with "Could not find
+      #    'libavformat.a' binary in neither of [native-libs\lgpl\mingw-x64\lib, ...]".
+      # 2. BtbN prunes old autobuild releases, so any pin 404s after a few weeks and the job goes
+      #    red on a schedule nobody set. That is exactly what happened on 2026-08-23 (KC-BTBN-ROT).
+      #
+      # This project publishes its own static mingw-x64 tree, so the job now reads that: same asset
+      # publish.yml uses, checksum-verified, and it is what a Windows consumer actually links.
+      - name: Fetch the prebuilt static FFmpeg (mingw-x64)
+        shell: pwsh
+        env:
+          FFMPEG_VERSION: n8.0
+        run: |
+          $base = "https://github.com/${{ github.repository }}/releases/download/ffmpeg-$env:FFMPEG_VERSION"
+          $asset = "ffmpeg-$env:FFMPEG_VERSION-lgpl-mingw-x64.zip"
+          Invoke-WebRequest -Uri "$base/$asset" -OutFile $asset
+          Invoke-WebRequest -Uri "$base/$asset.sha256" -OutFile "$asset.sha256"
+          $expected = (Get-Content "$asset.sha256").Split()[0].ToLower()
+          $actual = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw "sha256 mismatch: expected $expected, got $actual" }
+          New-Item -ItemType Directory -Force -Path native-libs/lgpl/mingw-x64 | Out-Null
+          Expand-Archive $asset -DestinationPath native-libs/lgpl/mingw-x64 -Force
+          if (-not (Test-Path native-libs/lgpl/mingw-x64/lib/libavformat.a)) {
+            throw "unpacked tree has no lib/libavformat.a"
+          }
+          Remove-Item $asset, "$asset.sha256"
+      # The ffmpeg CLI for scripts/e2e.sh's assertions only; not what gets linked.
+      - name: Install the ffmpeg CLI (for e2e assertions only)
+        shell: pwsh
+        run: choco install ffmpeg -y --no-progress
       - name: Unit + native tests
         run: ./gradlew :kitecodec-core:mingwX64Test --stacktrace
       - name: Link sample
