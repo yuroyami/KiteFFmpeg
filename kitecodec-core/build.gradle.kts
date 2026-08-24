@@ -76,9 +76,12 @@ kotlin {
     explicitApi()
 
     compilerOptions {
+        // -Xcontext-parameters was here and is gone (register row SOL-K1). Context parameters are
+        // no longer behind a flag on this Kotlin, and this module declares none anyway: a grep for
+        // a context declaration across every source set returns nothing. A flag that enables an
+        // unused feature on a compiler that no longer needs the flag is two kinds of dead.
         freeCompilerArgs.addAll(
             "-Xexpect-actual-classes",
-            "-Xcontext-parameters",
         )
     }
 
