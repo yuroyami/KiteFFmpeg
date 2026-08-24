@@ -6,32 +6,83 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 **Versioning policy:** KiteCodec is pre-1.0. During 0.x, minor versions may contain breaking API changes; they are called out here when they happen. From 1.0 on, breaking changes only land in major versions.
 
-## [0.1.2] - 2026-08-24
+## [0.1.3] - 2026-08-24
 
-Bug fixes only. No API change.
+**Start here.** 0.1.0 and 0.1.1 are on Maven Central and stay there; 0.1.2 was tagged and never
+published. This release supersedes all three, and everything they carried is listed below.
 
-### Fixed
+Consumer integration is one line, on every platform:
 
-- **Audio encoders accepted video frames** (JVM, Android). The picture was encoded as sound
-  instead of refused.
-- **One file's stream was accepted by another file's remux** (JVM, Android). Matched by index
-  alone, so the output carried the wrong time base and played at the wrong speed.
+```kotlin
+implementation("io.github.yuroyami:kitecodec-core:0.1.3")
+```
+
+### Fixed in 0.1.3
+
+- **AAC encoding was missing on Linux and Windows.** `aac` was enabled only in the Apple and
+  Android profiles, so `Transcoder.transcode` with default audio settings failed with
+  `No encoder named 'aac'` on those two platforms. Measured, not inferred: `ff_aac_encoder` was
+  present in `macos-arm64` and absent from `linux-x64` and `mingw-x64`. It is now in the shared
+  encoder list, and the companion binaries were rebuilt. Affected 0.1.1 and 0.1.2.
+
+### Fixed, carried from 0.1.2 (never published)
+
+Each of these was broken on some platforms and correct on others, which is why none of them looked
+like bugs.
+
+- **Audio encoders accepted video frames** (JVM, Android). The picture was encoded as sound instead
+  of refused.
+- **One file's stream was accepted by another file's remux** (JVM, Android). Matched by index alone,
+  so the output carried the wrong time base and played at the wrong speed.
 - **A missing encoder could not be caught by kind** (iOS, macOS, Linux, Windows). It threw an
   untyped internal error instead of `EncoderNotFound`, so callers could not fall back.
 - **Video frames could be freed mid-draw** (iOS, macOS, Linux, Windows). `withPlanes` and
   `hardwareSurface` handed out pointers without holding the frame open.
-- **`corruptDataSkipped` read zero during playback** (browser). Reset on every decode and
-  written only at the end, so a second decode erased the first one's total.
+- **`corruptDataSkipped` read zero during playback** (browser). Reset on every decode and written
+  only at the end, so a second decode erased the first one's total.
 - **Two leaks** (browser). A failed reader open leaked one codec context per stream; a failed
   decoder open wedged the source so it never opened another reader.
 - **A failed `addCopyStream` left the writer usable** (all platforms). The muxer kept a
   half-configured stream and went on accepting calls.
 
+### Carried from 0.1.1
+
+- **FFmpeg lives inside the published klibs, and the Gradle plugin is gone.** Each native target's
+  cinterop klib embeds the six libav\* archives plus libdav1d and carries its platform linker
+  flags, so integration is the dependency line above and nothing else. The plugin module, its DSL
+  and its `Local`/`System` consumer modes are deleted.
+- **The Android AAR is a first-class artifact** (`kitecodec-core-android`): self-contained
+  `libkitecodec_jni.so` for `arm64-v8a` and `x86_64`, licence payload under `META-INF/licenses/`,
+  consumer keep rules. Before this an `androidTarget` consumer resolved the JVM artifact and failed
+  at first load.
+- **A real JVM variant.** `jvmMain` used to compile the throw-everything placeholder, so every
+  desktop consumer got a library whose entry points all threw. It builds the real tree now, with the
+  host JNI library inside the jar.
+- **dav1d is mandatory in every build**, so software AV1 decoding always works. All 11 native
+  targets are published, and publication hard-fails if any configured target lacks its FFmpeg tree.
+- **Every FFmpeg profile is portable**, macOS included, so a release asset links on a machine with
+  nothing installed.
+
+### Carried from 0.1.0
+
+- **Apache-2.0 `LICENSE` and `NOTICE`.** The repository previously had no valid licence file at all,
+  which made it legally unusable. `NOTICE` states the FFmpeg LGPL position and the obligations it
+  puts on a consumer.
+- **No GPL builds.** This project builds and publishes the LGPL flavour only; shipping a
+  GPL-flavoured binary would make a consumer's whole application GPL-3.0, which is not a decision a
+  library should make for them.
+
 ### Not tested
 
-The three browser fixes and the `addCopyStream` fix ship without an automated test: there is
-no browser test source set, and the muxer failure cannot be triggered through the public API.
-The other four each landed with one.
+The three browser fixes and the `addCopyStream` fix ship without an automated test: there is no
+browser test source set, and the muxer failure cannot be triggered through the public API. Every
+other fix above landed with one.
+
+### FFmpeg binaries
+
+The companion zips for this release are on `ffmpeg-n8.0-r2`. The older `ffmpeg-n8.0` release is kept
+unchanged, because `NOTICE` names it as the LGPL source offer for 0.1.0 and 0.1.1, which are on
+Maven Central permanently. A consumer needs neither: FFmpeg is already inside the artifact.
 
 ## [0.1.0] - 2026-08-21
 
