@@ -63,37 +63,35 @@ jobs:
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kitecodec-core:compileKotlinLinuxX64 --stacktrace || true
 
-      # ALL ELEVEN triples, and it has to be all of them. Dokka compiles
-      # `compileNativeMainKotlinMetadata`, the shared nativeMain source set, which needs the ffmpeg
-      # cinterop for EVERY native target at once; a target with no FFmpeg tree has its cinterop
-      # skipped and the metadata compile then fails with `Unresolved reference 'ffmpeg'`.
+      # The HOST triple only, and scoped to match. Fetching all eleven was a mistake: it gave the
+      # iOS and macOS targets FFmpeg trees, which registered their C helper tasks, which then tried
+      # to run `xcrun` on an Ubuntu runner and failed with "A problem occurred starting process
+      # 'command 'xcrun''". A Linux box cannot build Apple targets no matter what it is handed.
       #
-      # apt cannot serve this even for Linux: Ubuntu's libav* .so files reference glibc 2.29/2.34
-      # while Kotlin/Native links its own glibc 2.19 sysroot. These are the same prebuilt static
-      # zips publish.yml uses, from this repository's own companion release, checksum-verified.
-      - name: Fetch the prebuilt static FFmpeg (all 11 triples)
+      # dokkaGenerate below therefore runs with -Pkitecodec.hostTargetsOnly=true, so only linuxX64
+      # is registered and the shared nativeMain metadata compiles against that one. The documented
+      # native API is the same either way: it lives in nativeMain, which is shared across every
+      # native target. What is lost is per-target ABI detail, not documentation.
+      - name: Fetch the prebuilt static FFmpeg (linux-x64)
         env:
           FFMPEG_VERSION: n8.0
         run: |
           set -euo pipefail
           base="https://github.com/${{ github.repository }}/releases/download/ffmpeg-${FFMPEG_VERSION}"
-          for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
-                        linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
-            asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
-            curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-            curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-            shasum -a 256 -c "${asset}.sha256"
-            mkdir -p "native-libs/lgpl/${triple}"
-            unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
-            test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
-            rm -f "${asset}" "${asset}.sha256"
-          done
+          asset="ffmpeg-${FFMPEG_VERSION}-lgpl-linux-x64.zip"
+          curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
+          curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
+          shasum -a 256 -c "${asset}.sha256"
+          mkdir -p native-libs/lgpl/linux-x64
+          unzip -q "${asset}" -d native-libs/lgpl/linux-x64
+          test -f native-libs/lgpl/linux-x64/lib/libavformat.a
+          rm -f "${asset}" "${asset}.sha256"
 
       # The Dokka generation + merge is required: the deployed site must never
       # silently lose its /api/ reference.
       - name: Generate the Dokka API reference and merge it into the site
         run: |
-          ./gradlew dokkaGenerate --no-configuration-cache
+          ./gradlew dokkaGenerate -Pkitecodec.hostTargetsOnly=true --no-configuration-cache
           mkdir -p site/api
           cp -r build/dokka/html/. site/api/
 
