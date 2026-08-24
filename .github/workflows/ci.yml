@@ -551,9 +551,10 @@ jobs:
   # plugin resolution from mavenLocal, klib + bundled cinterop compile, final native link, and
   # runtime symbol resolution.
   #
-  # System-source smoke (FFmpegSource.System against the runner's brew/apt FFmpeg).
-  # TODO(post-first-release): add a Prebuilt-source variant once the ffmpeg-n8.0 release assets
-  # are public, to also smoke the fetch + static-link path.
+  # Post-KC-EMBED this is a ONE-DEPENDENCY-LINE smoke: no plugin, no FFmpeg source selection, no
+  # kitecodec { } block, because none of those exist any more. FFmpeg rides inside the klib. The
+  # sentence that stood here described FFmpegSource.System and a Prebuilt variant to add later;
+  # both were the deleted plugin's vocabulary.
   consumer-e2e:
     name: Consumer e2e smoke (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
@@ -632,12 +633,19 @@ jobs:
           rootProject.name = "kitecodec-smoke"
           EOF
           cat > "$consumer/build.gradle.kts" <<EOF
-          import io.github.yuroyami.kitecodec.gradle.FFmpegLicense
-          import io.github.yuroyami.kitecodec.gradle.FFmpegSource
-
+          // ONE DEPENDENCY LINE, and no plugin. That is the whole point of this smoke test.
+          //
+          // Until 2026-08-24 this generated consumer applied id("io.github.yuroyami.kitecodec"),
+          // imported FFmpegLicense and FFmpegSource, and configured a kitecodec { ffmpeg { } }
+          // block. KC-EMBED deleted every one of those: FFmpeg now lives inside the klibs and the
+          // Gradle plugin was removed entirely (commit aae752e, "plugin plumbing deleted"). So this
+          // job had been asking mavenLocal for a plugin that no longer exists and failing with
+          // "Plugin [id: 'io.github.yuroyami.kitecodec'] was not found", which nobody noticed
+          // because every other job was red too. What it tests now is what a real consumer actually
+          // writes, which is also the product claim being made: add the dependency, get a working
+          // FFmpeg.
           plugins {
               id("org.jetbrains.kotlin.multiplatform") version "$KOTLIN_VERSION"
-              id("io.github.yuroyami.kitecodec") version "$VERSION"
           }
 
           kotlin {
@@ -650,13 +658,6 @@ jobs:
                   commonMain.dependencies {
                       implementation("io.github.yuroyami:kitecodec-core:$VERSION")
                   }
-              }
-          }
-
-          kitecodec {
-              ffmpeg {
-                  license = FFmpegLicense.LGPL
-                  source = FFmpegSource.System
               }
           }
           EOF
