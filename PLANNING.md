@@ -26,8 +26,11 @@ Git has both files if you want the originals: `git show 39470ab:SOLSUPREME.md` a
 ## The two things a KiteCodec reader most often wants
 
 1. **The release gate.** A public claim about the pair is blocked until every box in
-   KPKMP-FUTURE.md 17.17 is green. The correctness half is nearly done; the distribution half has
-   not started and needs credentials this machine does not have.
-2. **The licence decision.** The portable Linux and Windows "GPL" build tasks currently produce
-   trees with no GPL code in them, and a test enforces that. 17.17 states the choice and its
-   consequences. It is an owner decision, not an executor one.
+   KPKMP-FUTURE.md 17.17 is green. The correctness half is nearly done. The distribution half is
+   now split: KiteCodec's is finished (on Maven Central, its whole `P0-11..P0-19` program closed
+   2026-08-24), and KitePlayer's has not started, which is `KP-PROD` phase 1 in 17.15.
+2. **What replaced the licence decision.** The portable Linux and Windows "GPL" build tasks are
+   gone: they produced trees with no GPL code in them, so `P0-14` closed by deletion on 2026-08-21
+   rather than being decided. Every profile this repository builds is portable and LGPL, and a test
+   enforces it. The open owner decisions now live in 17.15 marked `[owner]`, and none of them are
+   KiteCodec's any more.
