@@ -112,17 +112,21 @@ FFmpeg `dup()`s the descriptor, so the caller keeps ownership, and its `fstat` m
 
 Probe rather than assume. `FFmpeg.hasEncoder("libx264")` is cheap. It turns a runtime failure on a user's machine into a clear message.
 
-Want libx264 / libx265? That is the **GPL flavor, and it is opt-in**. It is currently the only route to libx264 in a vendored build:
+Want libx264 / libx265? **KiteCodec does not build them and has no task that will.** The GPL build
+tasks were deleted on 2026-08-21: distributing a GPL-flavoured binary makes the consuming
+application GPL-3.0, and that is not a decision a library should take on anyone's behalf.
+
+What is still supported is linking a GPL tree **you** built and own:
 
 ```bash
-# builds --enable-gpl --enable-version3 + libx264/libx265 into native-libs/gpl/<target>/
-./gradlew :kitecodec-core:buildFFmpegForMacosArm64Gpl     # or :buildFFmpegForAllGpl
-
-# then select the GPL tree when building KiteCodec:
+# You produce this tree yourself, however you like, and put it here:
+#   native-libs/gpl/<target>/{include,lib}
 ./gradlew build -Pkitecodec.ffmpeg.license=gpl
 ```
 
-See [Licensing](#licensing) below before you ship a GPL-flavor binary.
+The flavour name is a path segment and an entry in the identity report, so the build knows what it
+linked. iOS targets refuse the GPL flavour outright rather than producing an App-Store-unsafe binary.
+See [Licensing](#licensing) below before you ship one.
 
 ## Mobile Apple local substrate
 
@@ -147,16 +151,22 @@ The mobile Apple profile is the current STANDARD software-playback set from `sha
 
 Windows has **no system-FFmpeg discovery**: `FFmpegPaths` resolves macOS (Homebrew) and Linux (apt) installs, but for `mingwX64` it requires a populated `native-libs/<license>/mingw-x64/` tree. You provide it in one of two ways.
 
-**Option A: drop in a BtbN build (what CI does).** The [BtbN FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases) shared builds carry `include/` and `lib/` (import libraries) in exactly the layout `FFmpegPaths` expects. Download one, unzip, and move it into place:
+**Option A: use this repository's own prebuilt static tree (what CI does).** Every KiteCodec
+release publishes an `ffmpeg-<version>-lgpl-mingw-x64.zip` beside a `.sha256`, built from the same
+configure line the published klibs embed. CI downloads it, verifies the checksum and unzips it into
+place, which is why the Windows job tests the SHIPPED profile rather than somebody else's build:
 
 ```powershell
-# The "gpl" BtbN variant contains libx264, so it lands under the gpl flavor.
-# CI pins an exact autobuild tag, asset name and SHA-256 rather than using `latest`,
-# which is a moving target. Do the same for anything reproducible.
-Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip" -OutFile ffmpeg.zip
-Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
-Move-Item ffmpeg-tmp\ffmpeg-master-latest-win64-gpl-shared native-libs\gpl\mingw-x64
+# Tag and asset are pinned, never "latest", and the checksum is verified before use.
+$tag  = "ffmpeg-n8.0-r2"
+$name = "ffmpeg-n8.0-lgpl-mingw-x64.zip"
+Invoke-WebRequest -Uri "https://github.com/yuroyami/KiteCodec/releases/download/$tag/$name" -OutFile $name
+Expand-Archive $name -DestinationPath native-libs\lgpl\mingw-x64
 ```
+
+CI used to take a BtbN autobuild here. It stopped on 2026-08-24, for two reasons worth repeating:
+BtbN prunes old autobuilds, so a pinned tag eventually 404s, and a third-party build is not the
+build this project ships, so testing against it proved the wrong thing.
 
 Then build with `-Pkitecodec.ffmpeg.license=gpl` (matching the flavor directory), and make sure the `bin\` directory with the DLLs is on `PATH` at run time. An LGPL BtbN variant exists too (`...-win64-lgpl-shared.zip`); put it under `native-libs\lgpl\mingw-x64` and skip the property. This is exactly how [CI](https://github.com/yuroyami/KiteCodec/blob/main/.github/workflows/ci.yml) runs the Windows tests and e2e transcode on every push.
 
@@ -205,16 +215,23 @@ The Apache 2.0 license covers KiteCodec's own Kotlin code. The FFmpeg you link a
 
 | Flavor | FFmpeg license | Encoders | Use for |
 |---|---|---|---|
-| **LGPL** (default) | LGPL-2.1+ (no `--enable-gpl`) | Desktop VideoToolbox, Android MediaCodec and desktop svtav1 / opus / mp3lame. The mobile Apple local profile is software playback and does not add VideoToolbox. | Commercial / closed-source / App Store distribution (mind the [LGPL obligations](licensing.md)) |
-| **GPL** (opt-in) | GPL, effectively **GPL-3.0**, since the build also sets `--enable-version3` | Adds libx264 / libx265 for quality-focused software encode | GPL-compatible projects only (open-source apps, server tools, internal use) |
+| **LGPL** (the only one built here) | LGPL-2.1+ (no `--enable-gpl`) | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `aac`, `flac` and the three `pcm_*` everywhere; plus VideoToolbox encode on macOS and MediaCodec encode on Android. No third-party encoder is linked: no svtav1, opus or mp3lame. | Commercial / closed-source / App Store distribution (mind the [LGPL obligations](licensing.md)) |
+| **GPL** (a tree you supply) | GPL, and GPL-3.0 if your own build sets `--enable-version3` | Whatever you configured, typically libx264 / libx265 | GPL-compatible projects only (open-source apps, server tools, internal use) |
 
-The LGPL flavor is what `buildFFmpegFor<Target>` produces and what the build links by default. The GPL flavor is a loud opt-in: build with `buildFFmpegFor<Target>Gpl` and select it with `-Pkitecodec.ffmpeg.license=gpl`. This GPL opt-in is currently the **only** route to libx264 / libx265 in a vendored build.
+`buildFFmpegFor<Target>` produces the LGPL flavour and that is what the build links by default.
+**There is no `buildFFmpegFor<Target>Gpl` task**: those were deleted on 2026-08-21 rather than kept
+as an opt-in, because publishing a GPL-flavoured Release asset makes the licence decision for every
+consumer who downloads it. `-Pkitecodec.ffmpeg.license=gpl` still selects `native-libs/gpl/<target>/`,
+so a GPL tree is one you build, own and point the build at.
 
 !!! warning "GPL is not App-Store-safe"
-    The GPL flavor adds libx264 / libx265 by enabling `--enable-gpl` (and `--enable-version3`, making the effective license GPL-3.0). A binary that links those must not ship through the iOS App Store or any other closed-source / commercial channel. Stay on LGPL; the local mobile Apple profile is software playback only and does not pretend to offer a hardware encoder.
+    A build linking libx264 / libx265 is GPL, and `--enable-version3` makes it GPL-3.0. A binary that
+    links those must not ship through the iOS App Store or any other closed-source or commercial
+    channel. The iOS targets refuse the GPL flavour rather than let that happen by accident.
 
-!!! note "`kitecodec-gpl` is planned, not published"
-    A separate `kitecodec-gpl` artifact that packages the GPL flavor as a drop-in dependency is planned but does not exist yet. It is a README-only skeleton, commented out of `settings.gradle.kts`. Today the GPL flavor is reached only through the build tasks and the `kitecodec.ffmpeg.license` property described above.
+!!! note "`kitecodec-gpl` does not exist"
+    A separate `kitecodec-gpl` artifact packaging a GPL flavour is a README-only skeleton, commented
+    out of `settings.gradle.kts`, and nothing schedules it. Do not plan around it.
 
 For distribution obligations (shipping license texts, offering FFmpeg source, the LGPL relinking requirement for static builds), see the [Licensing guide](licensing.md).
 

@@ -20,12 +20,17 @@ To work on the static-linking path or the FFmpeg build tasks themselves:
 
 ```bash
 git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
-brew install nasm pkg-config svt-av1 libvpx aom opus lame webp freetype harfbuzz fribidi libass
-./gradlew :kitecodec-core:buildFFmpegForMacosArm64        # LGPL default
-./gradlew :kitecodec-core:buildFFmpegForMacosArm64Gpl     # GPL flavour (x264/x265)
+brew install nasm meson ninja                             # nasm for x86_64 asm, meson/ninja for dav1d
+./gradlew :kitecodec-core:buildFFmpegForMacosArm64        # LGPL, and the only flavour built here
 ```
 
-Outputs land in `native-libs/<license>/<target>/`, and the cinterop picks them up on the next sync (GPL via `-Pkitecodec.ffmpeg.license=gpl`). Full prerequisites: [docs/troubleshooting.md](docs/troubleshooting.md#vendored-build-prerequisites).
+Every profile is portable as of 2026-08-22: no third-party media libraries are needed on any target,
+which is why that `brew install` line is three packages rather than eleven. **There is no
+`buildFFmpegForMacosArm64Gpl` task**; the GPL build tasks were deleted on 2026-08-21.
+
+Outputs land in `native-libs/lgpl/<target>/`, and the cinterop picks them up on the next sync. If
+you build your own GPL tree, put it under `native-libs/gpl/<target>/` and select it with
+`-Pkitecodec.ffmpeg.license=gpl`. Full prerequisites: [docs/troubleshooting.md](docs/troubleshooting.md#vendored-build-prerequisites).
 
 ## Running the tests
 

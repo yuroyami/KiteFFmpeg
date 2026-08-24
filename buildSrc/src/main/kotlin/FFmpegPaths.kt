@@ -183,14 +183,17 @@ data class FFmpegPaths(
 /**
  * Which FFmpeg license profile a vendored build was produced under.
  *
- *   - [LGPL] is the default: no `--enable-gpl`, no x264 / x265. Desktop builds include their
- *     permissive encoder/text stack, Android uses MediaCodec, and iOS uses the standard software
- *     playback core plus SDK zlib. Safe for the App Store and closed-source distribution.
- *   - [GPL] is desktop-only and adds libx264 / libx265 for quality-focused software encode.
- *     Open-source / server use only; it makes the linked binary GPL. iOS rejects it.
+ *   - [LGPL] is the ONLY flavour this project builds: no `--enable-gpl`, no x264 / x265. Every
+ *     profile is portable (SDK zlib, VideoToolbox on Apple, MediaCodec on Android) and is safe for
+ *     the App Store and closed-source distribution.
+ *   - [GPL] labels a tree the CONSUMER built, not one this project produces. The
+ *     `:buildFFmpegFor<Target>Gpl` tasks this KDoc used to name were deleted on 2026-08-21, and
+ *     [BuildFFmpegTask] refuses a GPL licence outright now. iOS refuses it a second time.
  *
- * The [dirName] segment keeps the two flavours apart under `native-libs/`; [taskSuffix] disambiguates
- * the desktop `:buildFFmpegFor<Target>Gpl` Gradle tasks.
+ * The enum outlived those tasks because it labels a TREE rather than naming a feature: [dirName]
+ * keeps the flavours apart under `native-libs/` and rides into the identity report, so a consumer
+ * linking their own x264 build can say so and the build knows what it linked. [taskSuffix] is
+ * vestigial, since no task carries it any more.
  */
 enum class FFmpegLicense(val dirName: String, val taskSuffix: String) {
     LGPL("lgpl", ""),
@@ -220,7 +223,8 @@ enum class TargetTriple(val dirName: String, val gradleSuffix: String) {
      * demands x264, svt-av1, opus, libass and six more libraries that have never been cross-built
      * for these triples, and building nine dependencies three ways is not what phase W buys. The
      * reduced profile is the 17.6 `standard` tier and plays the whole 17.5 matrix; a consumer who
-     * wants the GPL stack builds it through the plugin, which is what the plugin is for.
+     * wants that stack builds their own tree and selects it with `-Pkitecodec.ffmpeg.license`. (This
+     * line used to say "through the plugin". KC-EMBED deleted the plugin module on 2026-08-22.)
      */
     val isPortableDesktop: Boolean get() = this == LinuxX64 || this == LinuxArm64 || this == MingwX64
 

@@ -53,12 +53,31 @@ WHAT THIS MEANS IF YOU SHIP AN APP USING KITECODEC
     object files, or providing a written offer, are the usual routes.
 
 --------------------------------------------------------------------------------
-Components the linked FFmpeg may bundle
+Components the published artifacts actually contain
 --------------------------------------------------------------------------------
 
-Which of these are present depends on the build profile and on the optional
-toggles you set. Each carries its own licence, and enabling one adds its
-obligations to yours.
+This list was read out of the shipped lib/ directories, not from a configure
+line, and it is complete for every artifact this project publishes.
+
+  FFmpeg          LGPL-2.1-or-later   https://ffmpeg.org
+                  (the eight libav* libraries, bundled)
+  dav1d           BSD-2-Clause        https://code.videolan.org/videolan/dav1d
+                  (bundled; it is the software AV1 decoder)
+  zlib            zlib                https://zlib.net
+                  (linked from the platform SDK or the system, not bundled)
+
+Nothing else is linked. In particular there is no SVT-AV1, libvpx, libaom,
+libopus, libmp3lame, libwebp, libass, FreeType, HarfBuzz or FriBidi in any
+published artifact. A wider "fat" desktop profile enabled several of those and
+was removed on 2026-08-22, because it could not produce a self-contained
+artifact.
+
+--------------------------------------------------------------------------------
+Components a tree YOU build may add
+--------------------------------------------------------------------------------
+
+KiteCodec can link an FFmpeg tree you built yourself. If you enable any of the
+following, its licence and its obligations become yours, not this project's.
 
   SVT-AV1         BSD-3-Clause-Clear  https://gitlab.com/AOMediaCodec/SVT-AV1
   libvpx          BSD-3-Clause        https://chromium.googlesource.com/webm/libvpx
@@ -66,12 +85,12 @@ obligations to yours.
   libopus         BSD-3-Clause        https://opus-codec.org
   libmp3lame      LGPL v2             https://lame.sourceforge.io
   libwebp         BSD-3-Clause        https://developers.google.com/speed/webp
-  dav1d           BSD-2-Clause        https://code.videolan.org/videolan/dav1d
   libass          ISC                 https://github.com/libass/libass
   FreeType        FTL or GPLv2        https://freetype.org
   HarfBuzz        MIT                 https://harfbuzz.github.io
   FriBidi         LGPL v2.1           https://github.com/fribidi/fribidi
-  zlib            zlib                https://zlib.net
+  x264            GPL-2.0-or-later    https://www.videolan.org/developers/x264.html
+  x265            GPL-2.0-or-later    https://bitbucket.org/multicoreware/x265_git
 
 The complete component list, per-component licences, and the distribution
 obligations they carry are documented at:

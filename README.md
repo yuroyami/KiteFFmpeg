@@ -195,8 +195,9 @@ and `FFmpeg.hasFilter(...)` answer capability questions: FFmpeg marks the `eq`
 filter `deps="gpl"`, so `hasFilter("eq")` is false in an LGPL build.
 
 `libx264` and `libx265` exist only in a GPL FFmpeg build, and the vendored
-default profile is LGPL. Asking for one there throws `FFmpegException` from
-`addVideoEncoder`, before a single frame is read.
+profile is LGPL with no GPL counterpart. Asking for one there throws
+`FFmpegException` from `addVideoEncoder`, before a single frame is read. They are
+still reachable: point the build at your own FFmpeg tree and they resolve normally.
 
 **The runtime is checked against the headers before anything else happens.** The
 first call into KiteCodec compares the six `LIB*_VERSION_INT` values frozen into
@@ -234,16 +235,21 @@ This layer exists because [KitePlayer](https://github.com/yuroyami/KitePlayer)
 is built on it, and it is public because any real-time consumer needs the same
 things. The safe batch API remains the front door.
 
-| | Desktop LGPL | Desktop GPL | Mobile Apple LGPL | Android LGPL |
-|---|---|---|---|---|
-| Always | `mpeg4`, `mjpeg`, `png`, `aac`, `flac`, `pcm_*` | same | `mpeg4`, `mjpeg`, `png`, `flac`, `pcm_*` | same as Desktop LGPL |
-| Software video | `libsvtav1` | + `libx264`, `libx265` | playback decoders only | none |
-| Hardware video | `h264_videotoolbox` / `hevc_videotoolbox` | same | none | `h264_mediacodec`, `hevc_mediacodec` |
-| Audio | + `libopus`, `libmp3lame` | same | shared playback decoders | none |
+**What the published builds can ENCODE.** Every row below was read out of the
+shipped `libavcodec.a` with `nm`, not from the configure line that produced it.
+There is one flavour, LGPL, and every target shares the same software set.
 
-`mpeg4` is the only video encoder guaranteed on every target. A Linux or Windows
-LGPL build has `libsvtav1` and no hardware encoder at all. The full codec,
-container and filter list is in [Platform support](docs/platforms.md).
+| | macOS | Linux / Windows | iOS | Android |
+|---|---|---|---|---|
+| Video, software | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p` | same | same | same |
+| Video, hardware | `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | none | none | `h264_mediacodec`, `hevc_mediacodec` |
+| Audio | `aac`, `flac`, `pcm_s16le`, `pcm_s24le`, `pcm_f32le` | same | same | same |
+
+**No third-party encoder is linked into any published build**: no `libx264`, no
+`libx265`, no `libsvtav1`, no `libopus`, no `libmp3lame`. `mpeg4` is the software
+video baseline everywhere and `aac` is the audio one. Decoding is far wider than
+this table, which covers encode only; the full codec, container and filter list is
+in [Platform support](docs/platforms.md).
 
 ## Targets
 
@@ -329,7 +335,7 @@ MediaCodec is reached only by asking FFmpeg for a named decoder such as
 | Hardware decode, and zero-copy hwframes | Hardware *encode* does work. `h264_videotoolbox` is verified on macOS arm64. Pass `allow_sw` on VMs and CI runners, where the encoder exists but the hardware block does not. |
 | Direct MediaCodec or Android UI integration | The Android loader attaches its `JavaVM`, then callers may select an FFmpeg-owned named decoder. There is no direct `MediaCodec` API, Compose component, Android View, Android playback or physical-device qualification here. |
 | `https` in the vendored profile | It needs a TLS backend cross-compiled per target. Use `http`, a local file, or link a system FFmpeg. |
-| A stable API | 0.1.x is pre-1.0. The version policy is deliberate: the minor stays frozen and only the patch digit moves, each bump owner-approved, so 0.1.x is the series to depend on. `explicitApi()` is on, every public declaration states its visibility and return type, and there is now a committed klib dump under `kitecodec-core/api/` that `apiCheck` verifies in every local gate (a macOS CI job is configured to run it too, and has not run yet), so an accidental signature change fails a build. That is a change being visible, not a promise that it will not happen. |
+| A stable API | 0.1.x is pre-1.0. The version policy is deliberate: the minor stays frozen and only the patch digit moves, each bump owner-approved, so 0.1.x is the series to depend on. `explicitApi()` is on, every public declaration states its visibility and return type, and there is a committed klib dump under `kitecodec-core/api/` that `apiCheck` verifies in every local gate and in CI, where the macOS ratchets job runs it on every push, so an accidental signature change fails a build. That is a change being visible, not a promise that it will not happen. |
 
 ## Build and test it here
 

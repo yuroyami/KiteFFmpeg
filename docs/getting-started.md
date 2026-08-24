@@ -124,7 +124,7 @@ promise that a JVM jar or Android AAR is already available.
 
 !!! note "`kitecodec-gpl` does not exist"
 
-    `kitecodec-core` is the LGPL default and is safe for commercial distribution. A `kitecodec-gpl` add-on packaging libx264 / libx265 has a README in the repository and nothing else. It has no build script, and it is commented out of `settings.gradle.kts`. The GPL flavor is reached through the `Gpl` build tasks plus `-Pkitecodec.ffmpeg.license=gpl`.
+    `kitecodec-core` is LGPL and is safe for commercial distribution. A `kitecodec-gpl` add-on packaging libx264 / libx265 has a README in the repository and nothing else: no build script, and commented out of `settings.gradle.kts`. There are no `Gpl` build tasks either, so a GPL flavour is a tree you build and own, selected with `-Pkitecodec.ffmpeg.license=gpl`.
 
 ## Step 3: Probe what your build can do
 

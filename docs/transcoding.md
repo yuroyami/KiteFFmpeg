@@ -117,7 +117,7 @@ The `options` map passes codec-specific settings straight through (`preset`, `cr
 `CodecId` is a thin value class wrapping the FFmpeg codec name. Pick whichever the linked FFmpeg build provides:
 
 - Always present, every profile: `CodecId("mpeg4")`, `CodecId.Mjpeg`, `CodecId.Png`
-- Software video encoders: `CodecId.Libx264`, `CodecId.Libx265` (GPL builds only), `libsvtav1` (LGPL, royalty-free AV1)
+- Software video encoders: `CodecId.Libx264`, `CodecId.Libx265`, both GPL-only and in neither published artifact. The software video encoder every KiteCodec build carries is `mpeg4`.
 - Generic codec ids: `CodecId.H264`, `CodecId.Hevc`, `CodecId.Av1`, `CodecId.Vp9`
 - Hardware video encoders with standing runtime evidence: `CodecId.H264VideoToolbox`, `CodecId.HevcVideoToolbox` on the qualified macOS profile. MediaCodec names exist in the Android FFmpeg profile, but this stage only claims named-decoder selection through `openDecoder`, not Android encoder or playback qualification.
 
@@ -134,7 +134,7 @@ The `options` map passes codec-specific settings straight through (`preset`, `cr
     ).first { FFmpeg.hasEncoder(it.name) }
     ```
 
-    `libx264` and `libx265` exist only in a GPL-flavor FFmpeg. The vendored default is LGPL and excludes them, so asking for one there throws `FFmpegException` from `addVideoEncoder` before a frame is read. Enable them with the `buildFFmpegFor<Target>Gpl` tasks plus `-Pkitecodec.ffmpeg.license=gpl`, or with the Gradle plugin's `license = FFmpegLicense.GPL`. Read [Licensing](licensing.md) first, because that choice makes your whole application GPL-3.0.
+    `libx264` and `libx265` exist only in a GPL-flavour FFmpeg, and no published KiteCodec artifact carries one, so asking for either throws `FFmpegException` from `addVideoEncoder` before a frame is read. There is no task that will build one for you: point the build at your own GPL tree under `native-libs/gpl/<target>/` with `-Pkitecodec.ffmpeg.license=gpl`. Read [Licensing](licensing.md) first, because that choice makes your whole application GPL.
 
 ## Audio encoding, copy, or drop
 

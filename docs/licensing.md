@@ -9,12 +9,17 @@ KiteCodec's own Kotlin code is **Apache-2.0**. The FFmpeg it links against is no
 
 You choose the license when FFmpeg is built, not in Kotlin code:
 
-| Flavor | Configure | Effective license | libx264 / libx265 |
-|---|---|---|---|
-| **LGPL** (default) | no `--enable-gpl` | LGPL-2.1+ | no |
-| **GPL** (opt-in) | `--enable-gpl --enable-version3` | **GPL-3.0** | yes |
+| Flavor | Configure | Effective license | libx264 / libx265 | Who builds it |
+|---|---|---|---|---|
+| **LGPL** | no `--enable-gpl` | LGPL-2.1+ | no | KiteCodec, and this is what ships |
+| **GPL** | `--enable-gpl`, usually `--enable-version3` | **GPL-3.0** with version3 | yes | you, in your own tree |
 
-`buildFFmpegFor<Target>` produces the LGPL flavor. The GPL flavor comes from the `buildFFmpegFor<Target>Gpl` task variants plus `-Pkitecodec.ffmpeg.license=gpl`. The GPL flavor also passes `--enable-version3`, so the effective license of the combined work is GPL version 3, not "GPL-2.0+" generically. [Platform support](platforms.md#licensing) explains how to select a flavor.
+`buildFFmpegFor<Target>` produces the LGPL flavour, and every published artifact carries it.
+**There is no GPL task.** `buildFFmpegFor<Target>Gpl` existed once and was deleted on 2026-08-21:
+shipping a GPL-flavoured binary decides the licence of every application that links it, which is not
+a library's decision to make. `-Pkitecodec.ffmpeg.license=gpl` still selects
+`native-libs/gpl/<target>/`, so the GPL route is a tree you build and own.
+[Platform support](platforms.md#licensing) explains how to select a flavour.
 
 ## LGPL obligations when you distribute
 
@@ -53,32 +58,30 @@ The GPL flavor is different in kind: linking it makes the **whole combined work 
 - you cannot use App Store, closed-source or proprietary distribution,
 - open-source apps, server-side tools and internal tools are fine. The GPL's obligations trigger on *distribution*, so purely internal or server use does not require releasing source to the world.
 
-If any of that is a problem, stay on the LGPL flavor. Use hardware encoders or `libsvtav1` instead of x264 and x265.
+If any of that is a problem, stay on the LGPL flavour. Use the hardware encoders (VideoToolbox on
+Apple, MediaCodec on Android) or the `mpeg4` software baseline instead of x264 and x265.
 
 ## Third-party components
 
-The FFmpeg build is not only FFmpeg. The desktop profiles ([`BuildFFmpegTask.kt`](https://github.com/yuroyami/KiteCodec/blob/main/buildSrc/src/main/kotlin/BuildFFmpegTask.kt)) enable these external libraries. Each has its own license that you must also pass through.
+The FFmpeg build is not only FFmpeg, but it is very nearly so. This list was read out of the
+published `lib/` directories rather than from the configure line, and it is short on purpose: a
+self-contained artifact can only bundle what cross-compiles for all eleven targets.
 
-| Component | License | Flavor |
+| Component | License | Where it is |
 |---|---|---|
-| FFmpeg (libav\*) | LGPL-2.1+ (GPL parts only in the GPL flavor) | both |
-| SVT-AV1 (`libsvtav1`) | BSD-3-Clause-Clear + Alliance for Open Media patent license | both |
-| libvpx | BSD-3-Clause | both |
-| libaom | BSD-2-Clause + Alliance for Open Media patent license | both |
-| libopus | BSD-3-Clause | both |
-| libmp3lame | **LGPL-2.0+** (same shipping obligations as FFmpeg itself) | both |
-| libwebp | BSD-3-Clause | both |
-| FreeType | FTL (BSD-style, with attribution) / GPL-2.0 dual | both |
-| HarfBuzz | MIT-style ("Old MIT") | both |
-| FriBidi | **LGPL-2.1+** | both |
-| libass | ISC | both |
-| zlib / bzip2 | zlib / BSD-style | both |
-| x264 | **GPL-2.0+** | GPL only |
-| x265 | **GPL-2.0+** | GPL only |
+| FFmpeg (libav\*) | LGPL-2.1+ | bundled in every published artifact |
+| dav1d | BSD-2-Clause | bundled in every published artifact; it is the software AV1 decoder |
+| zlib | zlib license | linked from the platform SDK or the system, not bundled |
 
-The Android profile enables none of these external libraries. It is FFmpeg (LGPL) plus MediaCodec plus zlib only.
+**Nothing else is linked.** No SVT-AV1, libvpx, libaom, libopus, libmp3lame, libwebp, FreeType,
+HarfBuzz, FriBidi or libass. An earlier "fat" desktop profile enabled most of those and was deleted
+on 2026-08-22, because it could never produce a self-contained Release asset: Homebrew ships
+graphite2 shared-only, so the result always trailed dynamic dependencies.
 
-Permissive components (BSD, MIT, ISC) only require you to reproduce their license text and copyright notice. The LGPL ones, libmp3lame and FriBidi, carry the same obligations as FFmpeg above.
+x264 and x265 appear only in a GPL tree you build yourself, and both are **GPL-2.0+**.
+
+Permissive components (BSD, zlib) only require you to reproduce their licence text and copyright
+notice. FFmpeg's LGPL obligations are the ones with real work in them, and they are above.
 
 ## Patents: a separate question
 
