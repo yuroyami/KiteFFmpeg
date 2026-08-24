@@ -6,6 +6,58 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 **Versioning policy:** KiteCodec is pre-1.0. During 0.x, minor versions may contain breaking API changes; they are called out here when they happen. From 1.0 on, breaking changes only land in major versions.
 
+## [0.1.2] - 2026-08-24
+
+A correctness release. Every fix below is a bug that was real in 0.1.1, and each one was
+broken on some platforms and fine on others, which is why none of them looked like bugs:
+the same call did the right thing on the backend you happened to test and the wrong thing
+on the one you shipped.
+
+No API changed. Upgrading is a version bump.
+
+### Fixed
+
+- **An audio encoder accepted a video frame and encoded the picture as sound.** JVM and
+  Android only. The frame reached FFmpeg, which read the luma plane as samples and produced
+  audio out of it. It is now refused with a message naming both the encoder's type and the
+  frame's, which is what the Apple and desktop-native backends already did.
+- **A stream from one file could be handed to another file's remux.** JVM and Android only.
+  The stream was matched by index alone, so passing a stream that belonged to a different
+  source wrote this file's codec parameters under the other file's time base. The result was
+  a file that plays at the wrong speed rather than an error. Streams are now checked against
+  the source that owns them.
+- **A missing encoder was not catchable.** iOS, macOS, Linux and Windows. Asking for an
+  encoder the build does not carry threw an untyped internal error, so `when (error)` fell
+  through to the else branch and a recoverable situation looked like a library bug. It now
+  throws the same typed `EncoderNotFound` the JVM has always thrown, so you can fall back to
+  another codec.
+- **Video frames could be freed while the renderer was still reading them.** iOS, macOS,
+  Linux and Windows. `withPlanes` and `hardwareSurface` checked that the frame was open and
+  then handed out raw pointers without holding it, so a close on another thread could free
+  the picture underneath a draw in progress. Both now hold the frame for the whole call.
+- **The damaged-data counter always read zero during playback.** Browser build only. It was
+  reset at the start of every decode and written only at the end, so a caller watching a long
+  decode never learned it was losing frames, and a second decode erased the first one's
+  total. It now counts live and accumulates for the source's lifetime, which is what the
+  documentation always promised and what the other platforms already did.
+- **Two leaks in the browser build.** Opening the packet reader could fail after the decoders
+  were already built, leaking one codec context per stream. Separately, a failed decoder open
+  left the source permanently wedged: it believed a reader was still active and would never
+  open another one for the rest of its life.
+- **A failed remux left the writer looking usable.** All platforms. Adding a stream to copy
+  mutates the output before the work that can fail, and FFmpeg cannot take a stream back, so
+  a failure left a half-configured stream in the muxer while the sink still accepted calls.
+  It now refuses further use and says why.
+
+### Notes
+
+- The three browser fixes and the remux fix have no automated test yet. The browser build
+  has no test source set at all, and the remux failure cannot be triggered through the public
+  API. They were verified by reading the code against the other platforms' behaviour; the
+  other four each landed with a test that was watched to fail first.
+- Nothing about how 0.1.1 was packaged or published was wrong. These are code defects that
+  shipped inside it.
+
 ## [0.1.0] - 2026-08-21
 
 First public release. The repository went public on this date; everything before it
