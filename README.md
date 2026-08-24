@@ -85,7 +85,7 @@ linker configuration.
 kotlin {
     macosArm64()          // any supported target; see the table below
     sourceSets.commonMain.dependencies {
-        implementation("io.github.yuroyami:kitecodec-core:0.1.1")
+        implementation("io.github.yuroyami:kitecodec-core:0.1.3")
     }
 }
 ```
@@ -106,7 +106,7 @@ Stated exactly, because rounding this up is how people lose an afternoon.
 
 | Thing | Status |
 |---|---|
-| `kitecodec-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.1** |
+| `kitecodec-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.3** |
 | FFmpeg zips, ALL 11 triples (dav1d inside every one) | **published** on the `ffmpeg-n8.0` release, one canonical copy for every KiteCodec version. Build evidence and the LGPL source offer; consumers need none of them |
 
 **KC-EMBED, 2026-08-22.** The Gradle plugin is deleted and dav1d is mandatory.
