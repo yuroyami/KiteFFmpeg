@@ -29,7 +29,7 @@ class HwaccelIntegrationTest {
     private val cleanup = mutableListOf<String>()
 
     private fun tmp(name: String): String {
-        val dir = getenv("TMPDIR")?.toKString()?.trimEnd('/') ?: "/tmp"
+        val dir = systemTempRoot()
         val path = "$dir/hwaccel-$name"
         cleanup += path
         return path

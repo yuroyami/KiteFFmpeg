@@ -102,11 +102,8 @@ class CloseRaceTest {
     }
 
     private fun tmpPath(name: String): String {
-        val root = sequenceOf("TMPDIR", "TEMP", "TMP")
-            .mapNotNull { platform.posix.getenv(it)?.toKString() }
-            .firstOrNull { it.isNotBlank() }
-            ?: "/tmp"
-        return "${root.trimEnd('/')}/kitecodec-$name"
+        val root = systemTempRoot()
+        return "$root/kitecodec-$name"
     }
 
     private fun writeTinyVideo(path: String) {

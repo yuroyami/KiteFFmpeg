@@ -26,11 +26,8 @@ class PipelineRoundTripTest {
     private val tmpFiles = mutableListOf<String>()
 
     private fun tmp(name: String): String {
-        val root = sequenceOf("TMPDIR", "TEMP", "TMP")
-            .mapNotNull { getenv(it)?.toKString() }
-            .firstOrNull { it.isNotBlank() }
-            ?: error("No temporary directory: TMPDIR, TEMP, and TMP are all missing or blank")
-        return "${root.trimEnd('/', '\\')}/kitecodec-test-$name".also { tmpFiles += it }
+        val root = systemTempRoot()
+        return "$root/kitecodec-test-$name".also { tmpFiles += it }
     }
 
     @AfterTest
