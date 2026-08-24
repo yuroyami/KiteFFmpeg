@@ -45,6 +45,13 @@ env:
   # FFmpeg release whose prebuilt assets kitecodec-core compiles against and embeds. Keep in
   # sync with BuildFFmpegTask.DEFAULT_SOURCE_REF (buildSrc); the root build asserts they agree.
   FFMPEG_VERSION: n8.0
+  # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from,
+  # because on 2026-08-24 they stopped being the same thing. The aac encoder was missing from the
+  # Linux and Windows profiles, so those binaries had to be rebuilt; they went to a NEW tag rather
+  # than over ffmpeg-n8.0, because NOTICE names that release as the LGPL source offer for artifacts
+  # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
+  # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
+  FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
 
 jobs:
   check-version:
@@ -97,7 +104,7 @@ jobs:
           # byte-identical across every KiteCodec release, so ONE canonical `ffmpeg-<version>`
           # release holds them and every KiteCodec version fetches from it. Storing a copy per
           # version release cost 127 MB each for nothing (owner call, 2026-08-22).
-          base="https://github.com/${{ github.repository }}/releases/download/ffmpeg-${FFMPEG_VERSION}"
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
                         linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
             asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"

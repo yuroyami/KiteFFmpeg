@@ -86,9 +86,12 @@ jobs:
       - name: Fetch the prebuilt static FFmpeg (linux-x64)
         env:
           FFMPEG_VERSION: n8.0
+          # See ci.yml: the zips moved to a new tag on 2026-08-24 for the aac fix; ffmpeg-n8.0 is
+          # left untouched because NOTICE names it as the LGPL source offer for published artifacts.
+          FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
         run: |
           set -euo pipefail
-          base="https://github.com/${{ github.repository }}/releases/download/ffmpeg-${FFMPEG_VERSION}"
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           asset="ffmpeg-${FFMPEG_VERSION}-lgpl-linux-x64.zip"
           curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
           curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"

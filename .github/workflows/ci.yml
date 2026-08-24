@@ -45,9 +45,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Same canonical companion release publish.yml pulls from. The zips are keyed to the FFmpeg
-  # version, not to KiteCodec's, so one release serves every version.
+  # The FFmpeg version the zips were built from; asset filenames carry it.
   FFMPEG_VERSION: n8.0
+  # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from,
+  # because on 2026-08-24 they stopped being the same thing. The aac encoder was missing from the
+  # Linux and Windows profiles, so those binaries had to be rebuilt; they went to a NEW tag rather
+  # than over ffmpeg-n8.0, because NOTICE names that release as the LGPL source offer for artifacts
+  # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
+  # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
+  FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
 
 jobs:
   macos-arm64:
@@ -310,7 +316,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y ffmpeg jq
-          base="https://github.com/${{ github.repository }}/releases/download/ffmpeg-${FFMPEG_VERSION}"
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           asset="ffmpeg-${FFMPEG_VERSION}-lgpl-linux-x64.zip"
           curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
           curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
@@ -582,7 +588,7 @@ jobs:
       - name: Fetch the prebuilt static FFmpeg (${{ matrix.triple }})
         run: |
           set -euo pipefail
-          base="https://github.com/${{ github.repository }}/releases/download/ffmpeg-${FFMPEG_VERSION}"
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${{ matrix.triple }}.zip"
           curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
           curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
@@ -722,8 +728,9 @@ jobs:
         shell: pwsh
         env:
           FFMPEG_VERSION: n8.0
+          FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
         run: |
-          $base = "https://github.com/${{ github.repository }}/releases/download/ffmpeg-$env:FFMPEG_VERSION"
+          $base = "https://github.com/${{ github.repository }}/releases/download/$env:FFMPEG_ASSET_TAG"
           $asset = "ffmpeg-$env:FFMPEG_VERSION-lgpl-mingw-x64.zip"
           Invoke-WebRequest -Uri "$base/$asset" -OutFile $asset
           Invoke-WebRequest -Uri "$base/$asset.sha256" -OutFile "$asset.sha256"
