@@ -736,6 +736,21 @@ tasks.register<io.github.yuroyami.kitecodec.buildtools.GenerateWasmBindingTask>(
     outputDir.set(rootDir.resolve("native-libs/deps/wasm32/binding"))
 }
 
+// KC-WASM-MIRROR. The generator writes into gitignored native-libs/, so the file that actually
+// COMPILES is a committed copy under wasmJsMain. This holds the two equal; without it the drift
+// only shows up at runtime in a browser.
+val checkWasmBindingMirror =
+    tasks.register<io.github.yuroyami.kitecodec.buildtools.CheckWasmBindingMirrorTask>("checkWasmBindingMirror") {
+        group = "verification"
+        description = "Fails if the committed wasm binding differs from what generateWasmBinding would write."
+        signatureBaseline.set(rootDir.resolve("native/kitecodec-c/signature-baseline.txt"))
+        mirrorFile.set(
+            rootDir.resolve("kitecodec-core/src/wasmJsMain/kotlin/io/github/yuroyami/kitecodec/wasm/KiteCodecWasm.kt"),
+        )
+    }
+
+tasks.named("check") { dependsOn(checkWasmBindingMirror) }
+
 tasks.register<io.github.yuroyami.kitecodec.buildtools.CompileKiteCodecCWasmTask>("compileKiteCodecCForWasm") {
     dependsOn("buildFFmpegForWasm")
     sourceDir.set(rootDir.resolve("native/kitecodec-c/src"))

@@ -135,11 +135,19 @@ jobs:
       # FFmpeg tree per target in CI.
       # check-deleted-surface.sh joined this step at the interlude (I-15): it needs no build
       # output, only the tree, and it holds the fifteen deleted ffkmp_ names dead in both
-      # repositories. Here it can only scan this one; KitePlayer has no CI yet (B8).
-      - name: Public API baseline + FFmpeg coupling ratchet + deleted surface
+      # repositories. Here it can only scan this one; KitePlayer got its own CI on 2026-08-24 and
+      # this script is not in it yet.
+      #
+      # checkWasmBindingMirror joined on 2026-08-24 (row KC-WASM-MIRROR). generateWasmBinding writes
+      # into gitignored native-libs/, so the file that actually COMPILES is a committed copy under
+      # wasmJsMain. Two copies with nothing comparing them drift, and the drift only shows up at
+      # runtime in a browser. It regenerates in memory from signature-baseline.txt and compares; it
+      # needs no build output, which is why it sits with the other cheap gates.
+      - name: Public API baseline + FFmpeg coupling ratchet + deleted surface + wasm binding mirror
         run: |
           ./gradlew :kitecodec-core:apiCheck -Pkitecodec.hostTargetsOnly=true --stacktrace
           ./gradlew checkCinteropCoupling --stacktrace
+          ./gradlew :kitecodec-core:checkWasmBindingMirror --stacktrace
           ./native/kitecodec-c/scripts/check-deleted-surface.sh
       # The third ratchet, and the only guard on the cinterop klib: apiCheck covers kitecodec-core's
       # own klib, and the cinterop klib is a separate artifact holding every FFmpeg binding and every
