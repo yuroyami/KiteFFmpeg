@@ -1,0 +1,92 @@
+# Coverage-guided fuzzing of the C string entry points. Plan sub-phase B1.5, register item B1-13.
+#
+# WHY THIS IS NOT IN ci.yml ANY MORE (moved 2026-08-24). It fuzzes six targets for five minutes
+# each, so it takes half an hour by design, and jobs run in parallel: that ONE job was the reason a
+# full CI run measured 31 minutes while every other job finished inside four. Fuzzing is valuable
+# BECAUSE it runs long, which is exactly why it should not be the thing standing between a push and
+# the answer to "does this still build". The cheap half, replaying the committed corpus under ASan
+# and UBSan, stayed in ci.yml as its own job and still runs on every push; that is a regression
+# test, and this is the search.
+#
+# It still guards what it was built to guard: any change under native/kitecodec-c/ fuzzes on push
+# and on pull request, because that is the code these targets exercise. Everything else gets it
+# nightly, plus on demand.
+#
+# macOS cannot run this and the reason is not a preference. libclang_rt.fuzzer_osx.a ships with
+# neither Apple clang 17 nor konan's LLVM 21, and Homebrew LLVM is not installed on the proving
+# machine, so -fsanitize=fuzzer fails at the link there. Only the header directory
+# lib/clang/17/include/fuzzer exists; -fsanitize=fuzzer-no-link compiles but produces
+# instrumentation with no driver, which fuzzes nothing. So the six targets get two drivers over one
+# body: libFuzzer here, and the committed-corpus replay under ASan and UBSan everywhere else.
+#
+# LeakSanitizer is the second thing this runner has and macOS does not (register item B1-14):
+# detect_leaks=1 on an ASan binary built by Apple clang answers "detect_leaks is not supported on
+# this platform". run-fuzz.sh turns it on here.
+#
+# STATUS, corrected 2026-08-24. This job's comment used to say it had never been executed, because
+# there is no Linux host on the proving machine and it was written from local compile checks only.
+# It has now run for real and PASSED, twice, on 2026-08-23 and 2026-08-24: six targets, five
+# minutes each, plus the corpus replay. The one classification worry that note raised has not
+# materialised yet, and the budget flags in run-fuzz.sh (-max_len, -rss_limit_mb, -malloc_limit_mb,
+# -timeout) are what keep an out-of-memory or a timeout rare rather than hidden.
+name: Fuzz
+
+on:
+  schedule:
+    # 03:00 UTC daily. Nothing depends on the hour; it is simply outside the working day.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "native/kitecodec-c/**"
+      - ".github/workflows/fuzz.yml"
+  pull_request:
+    paths:
+      - "native/kitecodec-c/**"
+      - ".github/workflows/fuzz.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz-linux:
+    name: Fuzz the C string entry points (libFuzzer, ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    # Six targets at five minutes each is 30 minutes of fuzzing, plus the FFmpeg install and the
+    # instrumented build of the helper layer once per target.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      # clang-18 is ubuntu-24.04's default clang. libclang-rt-18-dev is the package that actually
+      # carries libclang_rt.fuzzer.a, and it is the whole reason this job can exist: without it the
+      # link fails exactly as it does on macOS, and run-fuzz.sh's preflight says so and exits 3
+      # rather than burying the reason in a linker error.
+      - name: Install clang, the libFuzzer runtime and FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 libclang-rt-18-dev pkg-config \
+            libavformat-dev libavcodec-dev libavfilter-dev \
+            libavutil-dev libswscale-dev libswresample-dev
+      - name: Fuzz all six targets, five minutes each
+        env:
+          KC_CC: clang-18
+          KC_FUZZ_SECONDS: 300
+          KC_ARTIFACT_DIR: ${{ github.workspace }}/fuzz-artifacts
+        run: ./native/kitecodec-c/scripts/run-fuzz.sh
+      # Any crash, timeout or out-of-memory artifact libFuzzer saved. Uploaded on failure only,
+      # because on success there are none and an empty artifact is noise. The corpus a run grew is
+      # deliberately NOT uploaded or committed: growing the committed corpus is a decision somebody
+      # makes after reading the new inputs, never a side effect of CI.
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts
+          path: fuzz-artifacts/**
+          retention-days: 14
+          if-no-files-found: ignore

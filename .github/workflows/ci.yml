@@ -191,6 +191,16 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      # ~/.konan holds the Kotlin/Native distribution AND the per-target LLVM and sysroots konan
+      # downloads on demand. Without this the job re-fetches all of it every run; with it, a warm
+      # runner skips the download entirely. Every other Kotlin/Native job here already cached it,
+      # these two were simply missed.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-identity-gate-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-identity-gate-
       - name: Install FFmpeg
         run: brew install ffmpeg
       # ALL EIGHT suites, not one. Until 2026-08-23 both steps below passed `test_identity` as an
@@ -326,84 +336,24 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # The only place coverage-guided fuzzing can happen. Plan sub-phase B1.5, register item B1-13.
-  #
-  # macOS cannot run this and the reason is not a preference. libclang_rt.fuzzer_osx.a ships with
-  # neither Apple clang 17 nor konan's LLVM 21, and Homebrew LLVM is not installed on the proving
-  # machine, so -fsanitize=fuzzer fails at the link there. Only the header directory
-  # lib/clang/17/include/fuzzer exists; -fsanitize=fuzzer-no-link compiles but produces
-  # instrumentation with no driver, which fuzzes nothing. So the six targets get two drivers over
-  # one body: libFuzzer here, and a committed-corpus replay under ASan and UBSan everywhere else.
-  # native/kitecodec-c/scripts/replay-corpus.sh is that replay and it is a regression test, not a
-  # fuzz run. This job is the fuzz run.
-  #
-  # LeakSanitizer is the second thing this job has and macOS does not (register item B1-14):
-  # detect_leaks=1 on an ASan binary built by Apple clang answers "detect_leaks is not supported on
-  # this platform". run-fuzz.sh turns it on here.
-  #
-  # HONEST STATUS, and it belongs in the file rather than only in a report: at the time this job was
-  # added, it had never been executed. There is no Linux host on the proving machine. What WAS
-  # verified locally is every step except the fuzzer link and the fuzz run itself: the compile of all
-  # ten helper units plus the shared plumbing plus all six targets under
-  # -fsanitize=fuzzer-no-link,address,undefined with -Wall -Wextra -Werror, and run-fuzz.sh's own
-  # preflight, which detects a toolchain that cannot link libFuzzer and exits 3 with one sentence.
-  # The first real run may need one thing classified that a replay never sees: a caller-supplied
-  # filter description can exhaust memory or time long before it corrupts anything, and an
-  # out-of-memory or a timeout is a resource finding rather than a memory-safety one. The budget
-  # flags in run-fuzz.sh (-max_len, -rss_limit_mb, -malloc_limit_mb, -timeout) are set to keep that
-  # rare rather than to hide it, and resource policy is B8's by the same wording that gives it the
-  # container bytes.
-  fuzz-linux:
-    name: Fuzz the C string entry points (libFuzzer, ubuntu-24.04)
+  replay-corpus:
+    # The committed corpus replayed under ASan and UBSan. This is a REGRESSION TEST, not a fuzz
+    # run: it is a couple of minutes and it belongs on every push. The 30-minute fuzzer that GROWS
+    # the corpus moved to fuzz.yml on 2026-08-24, because a deliberate half-hour of fuzzing was the
+    # only reason a full CI run took 31 minutes when every other job finishes inside four, and it
+    # was therefore standing between every push and the answer to "does this build".
+    name: Replay the committed corpus (ASan + UBSan, ubuntu-24.04)
     runs-on: ubuntu-24.04
-    # Six targets at five minutes each is 30 minutes of fuzzing, plus the FFmpeg install and the
-    # instrumented build of the helper layer once per target.
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      # clang-18 is ubuntu-24.04's default clang. libclang-rt-18-dev is the package that actually
-      # carries libclang_rt.fuzzer.a, and it is the whole reason this job can exist: without it the
-      # link fails here exactly as it does on macOS, and run-fuzz.sh's preflight says so and exits 3
-      # rather than burying the reason in a linker error.
-      - name: Install clang, the libFuzzer runtime and FFmpeg
+      - name: Install clang, the sanitizer runtime and FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-18 libclang-rt-18-dev pkg-config \
             libavformat-dev libavcodec-dev libavfilter-dev \
             libavutil-dev libswscale-dev libswresample-dev
-      - name: Fuzz all six targets, five minutes each
-        env:
-          KC_CC: clang-18
-          KC_FUZZ_SECONDS: 300
-          KC_ARTIFACT_DIR: ${{ github.workspace }}/fuzz-artifacts
-        run: ./native/kitecodec-c/scripts/run-fuzz.sh
-      # Any crash, timeout or out-of-memory artifact libFuzzer saved. Uploaded on failure only,
-      # because on success there are none and an empty artifact is noise. The corpus a run grew is
-      # deliberately NOT uploaded or committed: growing the committed corpus is a decision somebody
-      # makes after reading the new inputs, never a side effect of CI.
-      - name: Upload crash artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fuzz-artifacts
-          path: fuzz-artifacts/**
-          retention-days: 14
-          if-no-files-found: ignore
-      # The replay driver, on the same runner, right after the fuzz run. It is cheap, it is the thing
-      # every other gate runs, and running it here proves the committed corpus and the replay build
-      # work on a second platform rather than only on the machine that wrote them.
-      #
-      # The helper archive is built inline here rather than with native/kitecodec-c/scripts/
-      # build-host.sh, and that is not a shortcut. build-host.sh is macOS only by construction: it
-      # also builds the allocation interposer, and that needs `-dynamiclib`, `-install_name` and the
-      # Mach-O `__DATA,__interpose` section, none of which exist on Linux. The interposer exists
-      # because LeakSanitizer is unsupported on macOS arm64 (register item B1-14), which is exactly
-      # the instrument this runner HAS, so Linux never needs it. Making build-host.sh conditional is
-      # a change to a file B1.5 does not own; until that lands, six lines of clang here keep the
-      # Linux replay honest. replay-corpus.sh never builds the helper layer itself, deliberately, so
-      # it needs the archive at that exact path.
       - name: Replay the committed corpus under ASan and UBSan
-        if: always()
         env:
           KC_CC: clang-18
         run: |

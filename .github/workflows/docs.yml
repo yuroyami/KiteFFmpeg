@@ -53,6 +53,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # ~/.konan holds the Kotlin/Native distribution AND the per-target LLVM and sysroots konan
+      # downloads on demand. Without this the job re-fetches all of it every run; with it, a warm
+      # runner skips the download entirely. Every other Kotlin/Native job here already cached it,
+      # these two were simply missed.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-docs-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-docs-
+
       # BEFORE the FFmpeg trees exist, and that ordering is the whole point. konan fetches its LLVM
       # into ~/.konan/dependencies only when a Kotlin/Native task actually runs. Once a tree IS
       # present, compileKotlin<Target> depends on the ffmpeg cinterop, which depends on our C helper
