@@ -416,4 +416,43 @@ class CompileKiteCodecCTaskTest {
         }
         assertContains(failure.message.orEmpty(), "Wrong object architecture")
     }
+
+    /**
+     * Build metadata reaches the compiler through a generated header, not through `-D`.
+     *
+     * `-DNAME="value"` is broken on Windows in two independent ways. Java's process launcher does
+     * not preserve the inner quotes, so clang saw `-DKC_BUILD_FFMPEG_REF=n8.0` and reported
+     * `use of undeclared identifier 'n8'`. And even with quotes intact, the provisioning directory
+     * on Windows is a path like `D:\a\KiteCodec`, whose backslashes are escape sequences inside a
+     * C string literal: `\a` is a bell character.
+     *
+     * A generated header sidesteps both. The values are written as properly escaped C string
+     * literals, and the file reaches every translation unit through `-include`, which carries no
+     * quoting at all.
+     */
+    @Test
+    fun theGeneratedHeaderEscapesWindowsPathsIntoValidCStringLiterals() {
+        val header = CompileKiteCodecCTask.buildDefinesHeader(
+            mapOf(
+                "KC_BUILD_FFMPEG_REF" to "n8.0",
+                "KC_BUILD_FFMPEG_DIR" to """D:\a\KiteCodec\native-libs""",
+            ),
+        )
+        assertContains(header, """#define KC_BUILD_FFMPEG_REF "n8.0"""")
+        assertContains(header, """#define KC_BUILD_FFMPEG_DIR "D:\\a\\KiteCodec\\native-libs"""")
+    }
+
+    /** A value carrying a quote must not be able to end the literal early. */
+    @Test
+    fun theGeneratedHeaderEscapesEmbeddedQuotes() {
+        val header = CompileKiteCodecCTask.buildDefinesHeader(mapOf("KC_X" to """a"b"""))
+        assertContains(header, """#define KC_X "a\"b"""")
+    }
+
+    /** Emitted in sorted order, so the header is byte-stable and does not flap the up-to-date check. */
+    @Test
+    fun theGeneratedHeaderIsSortedAndStable() {
+        val header = CompileKiteCodecCTask.buildDefinesHeader(mapOf("KC_Z" to "z", "KC_A" to "a"))
+        assertTrue(header.indexOf("KC_A") < header.indexOf("KC_Z"), "defines must be emitted in key order")
+    }
 }

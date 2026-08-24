@@ -53,15 +53,31 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # KiteCodec links FFmpeg from its Kotlin/Native code, so the Dokka job
-      # needs the FFmpeg dev libraries present on the runner to analyze/compile
-      # the native source sets. Install them before any gradle step.
-      - name: Install FFmpeg dev libraries
+      # ALL ELEVEN triples, and it has to be all of them. Dokka compiles
+      # `compileNativeMainKotlinMetadata`, the shared nativeMain source set, which needs the ffmpeg
+      # cinterop for EVERY native target at once; a target with no FFmpeg tree has its cinterop
+      # skipped and the metadata compile then fails with `Unresolved reference 'ffmpeg'`.
+      #
+      # apt cannot serve this even for Linux: Ubuntu's libav* .so files reference glibc 2.29/2.34
+      # while Kotlin/Native links its own glibc 2.19 sysroot. These are the same prebuilt static
+      # zips publish.yml uses, from this repository's own companion release, checksum-verified.
+      - name: Fetch the prebuilt static FFmpeg (all 11 triples)
+        env:
+          FFMPEG_VERSION: n8.0
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libavformat-dev libavcodec-dev libavfilter-dev \
-            libavutil-dev libswscale-dev libswresample-dev
+          set -euo pipefail
+          base="https://github.com/${{ github.repository }}/releases/download/ffmpeg-${FFMPEG_VERSION}"
+          for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
+                        linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
+            asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
+            curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
+            curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
+            shasum -a 256 -c "${asset}.sha256"
+            mkdir -p "native-libs/lgpl/${triple}"
+            unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
+            test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
+            rm -f "${asset}" "${asset}.sha256"
+          done
 
       # The C helper tasks compile with konan's own LLVM, which only lands in
       # ~/.konan/dependencies once a Kotlin/Native compile has run. On a fresh
