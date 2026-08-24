@@ -413,7 +413,17 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // can only encode video via libsvtav1 (slow) or mjpeg (intra-only), and the library's own
         // round-trip tests and sample have nothing portable to write with. flac and the pcm_* set
         // are what make the already-enabled flac/wav MUXERS able to write anything at all.
-        "--enable-encoder=mpeg4,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg",
+        //
+        // aac JOINED THIS LIST 2026-08-24, and its absence here was a real shipped defect. It was
+        // named only in desktopAppleArgs() and in the Android profile, so macOS and Android had it
+        // while LINUX AND WINDOWS DID NOT: measured on the released trees, ff_aac_encoder is
+        // present in macos-arm64 and absent from linux-x64 and mingw-x64. A consumer calling
+        // Transcoder.transcode with default audio settings therefore got "No encoder named 'aac'"
+        // on those two platforms, in 0.1.1 and 0.1.2. Nothing justified the split: the native aac
+        // encoder is dependency-free, which is the same reason every other name on this line is
+        // here. The flag had simply landed in an Apple-only block. mp4/mov without an AAC encoder
+        // is also the odd combination, since that is the pairing the format is usually written with.
+        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg",
 
         // buffer/buffersink/abuffer/abuffersink are how KiteCodec feeds and drains every graph.
         // Without them ffkmp_graph_build_* returns AVERROR_FILTER_NOT_FOUND.
@@ -445,13 +455,13 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * self-contained Release asset because Homebrew ships graphite2 shared-only, and KitePlayer
      * renders subtitles through its own libass chain anyway. Decoding is untouched: the read
      * side is wide by class in [sharedCoreArgs], and software AV1 is the dav1d switch's job.
-     * aac stays because the NATIVE encoder is dependency-free and the old profile carried it.
+     * aac is no longer named here: it moved to the shared encoder list on 2026-08-24, because
+     * being dependency-free is a reason EVERY profile should carry it, not just this one.
      */
     private fun desktopAppleArgs(): List<String> = listOf(
         "--disable-autodetect",
         "--enable-zlib",
         "--enable-audiotoolbox",
-        "--enable-encoder=aac",
     ) + appleHardwareArgs()
 
     /**
@@ -747,7 +757,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             "--strip=${toolchainBin.resolve("llvm-strip").absolutePath}",
             "--enable-mediacodec", "--enable-jni",
             // Adds to the dependency-free encoder set in sharedCoreArgs.
-            "--enable-encoder=aac,h264_mediacodec,hevc_mediacodec",
+            "--enable-encoder=h264_mediacodec,hevc_mediacodec",
             // Adds to the shared sw set. av1/vp9/vp8 ride along because FFmpeg has NO native
             // software AV1 decoder (av1dec.c is a hwaccel shell): on Android the MediaCodec
             // wrappers are the only AV1 route this profile can offer, and most devices carry

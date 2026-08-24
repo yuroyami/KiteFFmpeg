@@ -672,7 +672,7 @@ class BuildFFmpegTaskTest {
         // select, so these two are hard-off instead of coming back through the class.
         "--disable-protocol=udp,rtp",
         "--enable-muxer=mp4,mov,ipod,webm,matroska,matroska_audio,mp3,wav,flac,ogg,opus,mpegts,image2",
-        "--enable-encoder=mpeg4,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg",
+        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg",
         "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad",
         "--enable-pthreads",
         "--enable-pic",
@@ -746,7 +746,7 @@ class BuildFFmpegTaskTest {
             "--strip=$toolchainBin/llvm-strip",
             "--enable-mediacodec",
             "--enable-jni",
-            "--enable-encoder=aac,h264_mediacodec,hevc_mediacodec",
+            "--enable-encoder=h264_mediacodec,hevc_mediacodec",
             // av1/vp9/vp8 joined here because FFmpeg has no native software AV1 decoder, so on
             // Android the MediaCodec wrappers are the only AV1 route this profile can offer.
             "--enable-decoder=h264_mediacodec,hevc_mediacodec,av1_mediacodec,vp9_mediacodec,vp8_mediacodec",

@@ -117,6 +117,9 @@ private fun printInfo() {
     val chosen = pickVideoEncoder(preferHardware = false)
     println("KITECODEC_VIDEO_ENCODER=${chosen.name}")
     println("KITECODEC_VIDEO_CODEC=${outputCodecNameFor(chosen)}")
+    val chosenAudio = pickAudioEncoder()
+    println("KITECODEC_AUDIO_ENCODER=${chosenAudio.name}")
+    println("KITECODEC_AUDIO_CODEC=${outputCodecNameFor(chosenAudio)}")
 }
 
 /**
@@ -139,6 +142,24 @@ internal fun pickVideoEncoder(preferHardware: Boolean): CodecId {
     val candidates = listOf(CodecId.Libx264, CodecId("mpeg4"), CodecId("libsvtav1"), CodecId.Mjpeg)
     return candidates.firstOrNull { FFmpeg.hasEncoder(it.name) }
         ?: error("The linked FFmpeg has no usable video encoder (tried ${candidates.joinToString { it.name }}).")
+}
+
+/**
+ * The audio encoder to use, probed rather than assumed, for the reason [pickVideoEncoder] gives.
+ *
+ * The video side has been probing since the libx264 lesson; audio was left hard-coded to `aac`,
+ * and that turned out to be the same bug with a different name. `aac` was enabled only in the
+ * Apple and Android profiles, so a Linux or Windows consumer calling `transcode` with default
+ * audio settings got `No encoder named 'aac'` (fixed for future builds on 2026-08-24 by moving
+ * `aac` into the shared encoder list, but a build made before that still lacks it).
+ *
+ * Preference order is deliberate: `aac` first because it is what mp4 and mov are normally written
+ * with, then the dependency-free fallbacks the shared profile has always guaranteed.
+ */
+internal fun pickAudioEncoder(): CodecId {
+    val candidates = listOf(CodecId.Aac, CodecId.Flac, CodecId.PcmS16)
+    return candidates.firstOrNull { FFmpeg.hasEncoder(it.name) }
+        ?: error("The linked FFmpeg has no usable audio encoder (tried ${candidates.joinToString { it.name }}).")
 }
 
 /** The `codec_name` ffprobe reports for a stream written by [encoder]. */
@@ -221,7 +242,7 @@ private fun transcode(
             // An empty filter argument means "no graph at all": decoder frames go straight to the
             // encoder. Passing "" through would hand libavfilter an unparseable description.
             videoFilter = if (spec != null) filter.takeIf { it.isNotBlank() } else null,
-            audioSpec = if (audio == AudioChoice.Encode) AudioEncoderSpec(codec = CodecId.Aac) else null,
+            audioSpec = if (audio == AudioChoice.Encode) AudioEncoderSpec(codec = pickAudioEncoder()) else null,
             audioCopy = audio == AudioChoice.Copy,
             subtitleCopy = subtitles,
             startMicros = startMicros,

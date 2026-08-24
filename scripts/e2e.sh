@@ -42,6 +42,15 @@ KC_VENCODER=$(printf '%s\n' "$KC_INFO" | sed -n 's/^KITECODEC_VIDEO_ENCODER=//p'
 [ -n "$KC_VCODEC" ] || { echo "FAIL: '$KEXE info' did not report KITECODEC_VIDEO_CODEC"; exit 1; }
 echo "== kitecodec will encode video with $KC_VENCODER (ffprobe reports '$KC_VCODEC')"
 
+# Same for audio, and for the same reason. This suite asserted a literal 'aac' in eight places
+# while the shared LGPL profile enabled aac only on Apple and Android, so on Linux and Windows the
+# sample died with "No encoder named 'aac'" inside Transcoder and this script reported a core dump.
+# The video side learned this lesson from libx264; audio had simply never been asked.
+KC_ACODEC=$(printf '%s\n' "$KC_INFO" | sed -n 's/^KITECODEC_AUDIO_CODEC=//p' | head -1)
+KC_AENCODER=$(printf '%s\n' "$KC_INFO" | sed -n 's/^KITECODEC_AUDIO_ENCODER=//p' | head -1)
+[ -n "$KC_ACODEC" ] || { echo "FAIL: '$KEXE info' did not report KITECODEC_AUDIO_CODEC"; exit 1; }
+echo "== kitecodec will encode audio with $KC_AENCODER (ffprobe reports '$KC_ACODEC')"
+
 # The generator uses the system ffmpeg CLI, which is a separate install from the FFmpeg KiteCodec
 # links, so pick a codec it actually has rather than assuming libx264 there either.
 if "$FFMPEG" -hide_banner -loglevel error -encoders 2>/dev/null | grep -qE '^ V[.A-Z]* +libx264 '; then
@@ -72,7 +81,7 @@ echo "== kitecodec transcode A/V with filter chain"
 
 "$FFPROBE" -v error -show_entries stream=codec_name,codec_type -of csv=p=0 "$WORK/out.mp4"
 has_stream "$WORK/out.mp4" "$KC_VCODEC" video || { echo "FAIL: no $KC_VCODEC video stream in output"; exit 1; }
-has_stream "$WORK/out.mp4" aac audio  || { echo "FAIL: no aac audio stream in output"; exit 1; }
+has_stream "$WORK/out.mp4" "$KC_ACODEC" audio  || { echo "FAIL: no $KC_ACODEC audio stream in output"; exit 1; }
 
 width=$("$FFPROBE" -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$WORK/out.mp4")
 [ "$width" = "160" ] || { echo "FAIL: output width $width != 160 (scale filter not applied?)"; exit 1; }
@@ -155,7 +164,7 @@ done
 echo "== kitecodec audio-only transcode (no video input)"
 "$FFMPEG" -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=330:duration=2" -c:a pcm_s16le "$WORK/tone.wav"
 "$KEXE" transcode "$WORK/tone.wav" "$WORK/tone.m4a"
-has_stream "$WORK/tone.m4a" aac audio || { echo "FAIL: audio-only output missing aac"; exit 1; }
+has_stream "$WORK/tone.m4a" "$KC_ACODEC" audio || { echo "FAIL: audio-only output missing $KC_ACODEC"; exit 1; }
 if has_stream_type "$WORK/tone.m4a" video; then echo "FAIL: audio-only output has video"; exit 1; fi
 ao_dur=$("$FFPROBE" -v error -show_entries format=duration -of csv=p=0 "$WORK/tone.m4a")
 awk -v d="$ao_dur" 'BEGIN { exit !(d > 1.7 && d < 2.3) }' \
