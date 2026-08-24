@@ -1,6 +1,6 @@
 # KiteCodec
 
-**One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; the local Android proof uses a narrow JNI bridge exercised by an unpublished JVM harness. Public JVM, JS and WasmJs expose an invariant unsupported placeholder contract only. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
+**One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; JVM and Android use a narrow JNI bridge, and both are published. The JVM jar carries a macOS arm64 library only, so JVM consumers on other hosts, along with `js` and `wasmJs`, get an invariant unsupported placeholder contract. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
 
 ```kotlin
 // One call: demux -> decode -> filter -> encode -> mux, in a single pass.
@@ -60,12 +60,13 @@ The bindings link against libav\*, so FFmpeg has to be present at build time. Fo
     ./gradlew :kitecodec-core:linuxX64Test
     ```
 
-JVM and Android actuals now exist in source, alongside the Kotlin/Native targets. The phone proof's
-unpublished JVM harness uses a test-only macOS arm64 JNI dylib; public JVM always uses the
-nonthrowing placeholder. The local Android target is API 24+ and models an AAR
-with `arm64-v8a` and `x86_64` JNI libraries plus 16 KiB ELF/app packaging; no jar/AAR is public and
-no Android playback qualification is claimed. JS and WasmJs compile as unsupported placeholders:
-they report no capabilities and reject media operations predictably. See [Platform support](platforms.md).
+JVM and Android are published artifacts, not source-only actuals. The Android AAR on Maven Central
+declares `minSdkVersion 26` in its own manifest and carries `libkitecodec_jni.so` for `arm64-v8a`
+and `x86_64` with 16 KiB ELF/app packaging. The JVM jar carries a **macOS arm64** library and only
+that one, so a JVM consumer on Linux or Windows gets the typed unavailable placeholder rather than a
+codec. No Android playback is qualified on a physical device. JS and WasmJs compile as unsupported
+placeholders: they report no capabilities and reject media operations predictably. See
+[Platform support](platforms.md).
 
 ## What you can do
 
@@ -166,10 +167,9 @@ See **[Filtering](filtering.md)**.
 ## Status
 
 KiteCodec is pre-1.0 and actively developed. The public pipeline is implemented for Kotlin/Native
-and now has JVM/Android actuals for the same common contracts. Native runtime evidence remains the
-qualified baseline; the phone-scope unpublished JVM harness proves the JNI boundary, while public
-JVM tests prove the typed placeholder contract and the Android evidence stops at
-source, link and packaging checks. It does not establish physical-device playback, UI integration
+and JVM and Android are published actuals for the same common contracts. Native runtime evidence
+remains the qualified baseline; the JVM JNI boundary is proved by 41 tests over real FFmpeg on an
+arm64 Mac, and the Android evidence stops at source, link and packaging checks. It does not establish physical-device playback, UI integration
 or a full product tier. Web variants are T1 placeholders, not a codec-runtime claim. Nothing is
 published, and the FFmpeg release the Gradle plugin fetches from does not exist yet.
 

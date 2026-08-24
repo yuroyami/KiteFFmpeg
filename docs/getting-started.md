@@ -6,13 +6,12 @@ FFmpeg's libav* libraries.
 
 !!! warning "Before you start"
 
-    Kotlin/Native, JVM and Android actuals exist in source, but nothing is publicly published. The
-    local phone proof's unpublished JVM harness uses a test-only macOS arm64 dylib; public JVM uses
-    the typed unavailable placeholder in every scope. The Android `minSdk 24` model packages
-    `arm64-v8a` and `x86_64` JNI inputs with 16 KiB checks but has no public AAR or Android playback
-    qualification. This guide therefore uses the established in-repository Kotlin/Native path or
-    a private `publishToMavenLocal` proof. Public JVM, JS and WasmJs variants exist only as
-    explicit unsupported placeholders: they make common dependency resolution predictable but
+    KiteCodec is on Maven Central: `io.github.yuroyami:kitecodec-core:0.1.3`, one dependency line,
+    with FFmpeg embedded inside the artifacts. The Android AAR is real, declares `minSdkVersion 26`
+    and carries `arm64-v8a` and `x86_64` JNI libraries; no Android playback is qualified on a
+    physical device. The JVM jar carries a **macOS arm64** library and only that one, so a JVM
+    consumer on Linux or Windows gets the typed unavailable placeholder instead of a codec. JS and
+    WasmJs are placeholders in every scope: they make common dependency resolution predictable but
     perform no media work.
     The consumer script, release status and per-target evidence are in the
     [README](https://github.com/yuroyami/KiteCodec#targets).
@@ -80,9 +79,17 @@ KiteCodec links against FFmpeg's libav* libraries. You need them present before 
 
 ## Step 2: Wire the module
 
-Nothing is published, so the runnable instructions below cover repository-local Kotlin/Native.
-The JVM/Android actuals and Web placeholders are compile/test inputs here, not public consumer
-coordinates.
+**The normal way is one dependency line**, and it needs nothing else on disk because FFmpeg rides
+inside the published artifacts:
+
+```kotlin
+sourceSets.commonMain.dependencies {
+    implementation("io.github.yuroyami:kitecodec-core:0.1.3")
+}
+```
+
+The rest of this step covers working INSIDE the repository, which is what a contributor needs and
+what the runnable examples below assume. A consumer does not need any of it.
 
 **Inside the KiteCodec repository.** The `:kitecodec-sample` module already depends on `:kitecodec-core` and is the fastest way to run the API against real arguments. Everything below works from a plain clone.
 

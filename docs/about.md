@@ -2,7 +2,7 @@
 
 **One coroutine-first Kotlin API for video and audio.** KiteCodec binds to FFmpeg's libav\*
 libraries through Kotlin/Native cinterop or, in the local Android proof, a dynamically registered
-JNI adapter over the same opaque C helpers. An unpublished JVM harness tests that adapter. Public
+JNI adapter over the same opaque C helpers, and both are published. 41 tests exercise that adapter over real FFmpeg on an arm64 Mac. Public
 JVM, JS and WasmJs use an invariant unsupported placeholder implementation. There is no `ffmpeg`
 subprocess, and memory stays constant regardless of input length.
 
@@ -28,12 +28,17 @@ There is one status table for the whole project, and it lives in the [README](ht
 
 The two things a reader most often needs from it:
 
-- **KiteCodec cannot be consumed from Maven Central today.** Neither `kitecodec-core` nor the Gradle plugin has been published, and the FFmpeg Release assets the plugin's default `FFmpegSource.Prebuilt` downloads do not exist. See [Release status](https://github.com/yuroyami/KiteCodec#release-status) for the blocker.
-- **JVM, Android and Web actuals exist in source.** The phone proof's unpublished JVM harness loads
-  a test-only macOS arm64 dylib; public JVM uses the unavailable placeholder in every scope.
-  Android is `minSdk 24` with `arm64-v8a` and `x86_64` JNI inputs and 16 KiB ELF/app packaging.
-  There is no public runtime jar or AAR and no Android playback claim. JS and WasmJs are tested
-  placeholders whose media operations always fail with typed `FFmpegError.Unsupported`.
+- **KiteCodec IS on Maven Central.** `io.github.yuroyami:kitecodec-core:0.1.3`, one dependency line,
+  FFmpeg embedded inside the artifacts. There is no Gradle plugin any more and no FFmpeg download
+  step: the plugin was deleted and FFmpeg moved inside the published klibs, so a consumer needs
+  nothing on disk. This paragraph said the opposite until 2026-08-24, which was three published
+  versions out of date.
+- **JVM, Android and Web.** The published Android AAR is real: its own manifest declares
+  `minSdkVersion 26` and it carries `libkitecodec_jni.so` for `arm64-v8a` and `x86_64`. The
+  published JVM jar carries a **macOS arm64** library and only that one, so a JVM consumer on Linux
+  or Windows still gets the typed unavailable placeholder. No Android playback is qualified on a
+  physical device. JS and WasmJs are tested placeholders whose media operations fail with typed
+  `FFmpegError.Unsupported`.
 
 !!! note "Frame ownership"
     Frames emitted by the public `Flow` APIs (`MediaSource.decodedFrames`, `MediaSource.decodeStreams`, `FilterGraph.process`) are **owned by the collector**. Each stays valid until you close it, so buffering operators such as `buffer()` and `toList()` are safe. Every collected frame must be closed, or its native buffers leak. Frames passed to a callback (`FilterGraph.feedInput`'s `onOutput`) are valid only for the duration of that call. `Frame.copy()` takes an O(1) owned snapshot. The native `AVFrame*` is deliberately not exposed in `commonMain`.

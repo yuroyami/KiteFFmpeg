@@ -22,7 +22,11 @@ You should get an acknowledgement within a week. Please allow a fix to land befo
 
 ## Supported versions
 
-KiteCodec is pre-1.0 and not yet published to a public repository; there are no maintained release branches. Security fixes land on `main` only.
+KiteCodec is pre-1.0 and IS published to Maven Central, and this line said the opposite until
+2026-08-24. That matters here rather than only being untidy: a published artifact cannot be
+withdrawn, so a security fix reaches users as a NEW version and never as a correction to an old one.
+There are no maintained release branches; fixes land on `main` and ship in the next patch. Versions
+already on Central stay exactly as they are.
 
 | Version | Supported |
 |---|---|

@@ -13,17 +13,20 @@ There is one target table for the project and it lives in the [README](https://g
 
 Two points decide whether KiteCodec is usable for you:
 
-- Kotlin/Native implementations live in `nativeMain`; the regular Android implementation and an
-  unpublished JVM harness compile the JNI sources from `jvmAndAndroidMain`. That harness loads a
-  test-only macOS arm64 dylib. Public `jvmMain` uses `unsupportedMain` in every scope, so diagnostics
-  remain readable without trying to load an absent native library. The Android model
-  is `minSdk 24` and packages `arm64-v8a` plus `x86_64` JNI inputs with 16 KiB alignment/packaging
-  checks. There is no functional public JVM jar or Android AAR and no Android playback claim.
-  Public JVM, `js` and `wasmJs` compile and publish the common API, but intentionally report
-  no capabilities and reject every media operation with typed `FFmpegError.Unsupported`.
-- Nothing is published. The native target rows, the local mobile-Apple path, and the JVM/Android
-  source-and-host gates are evidence tiers, not a public artifact set. `mingwX64` builds and tests
-  in CI but has no prebuilt asset; `iosX64`, `macosX64` and `linuxArm64` remain unqualified.
+- Kotlin/Native implementations live in `nativeMain`; the Android implementation and the JVM one
+  compile the JNI sources from `jvmAndAndroidMain`. **Both are published and both are real.** The
+  Android AAR on Maven Central declares `minSdkVersion 26` in its own manifest and carries
+  `libkitecodec_jni.so` for `arm64-v8a` and `x86_64` with 16 KiB alignment and packaging checks. The
+  JVM jar carries `libkitecodec_jni.dylib` for **macOS arm64 and no other host**, so a JVM consumer
+  on Linux or Windows still falls back to `unsupportedMain` and gets readable diagnostics rather
+  than a codec. No Android playback is qualified on a physical device. `js` and `wasmJs` compile and
+  publish the common API but report no capabilities and reject every media operation with typed
+  `FFmpegError.Unsupported`.
+- **KiteCodec is published**: `io.github.yuroyami:kitecodec-core:0.1.3` on Maven Central, one
+  dependency line, FFmpeg embedded inside the artifacts. There is no Gradle plugin and no FFmpeg
+  download step. `mingwX64` builds and tests in CI and has prebuilt FFmpeg assets; `iosX64`,
+  `macosX64` and `linuxArm64` remain unqualified. This paragraph said "Nothing is published" until
+  2026-08-24, which was three published versions out of date.
 
 ## FFmpeg is a prerequisite
 
@@ -189,13 +192,12 @@ It is deliberately different from the desktop one:
 
 !!! note "Two Android target models"
     The `compileKotlinAndroidNative*` flow above produces Kotlin/Native `.klib` files. Separately,
-    `-Pkitecodec.phoneTargetsOnly=true` registers a regular Android KMP target and the three local
-    Apple targets. JVM, JS and WasmJs are registered in every scope and remain placeholders; the
-    phone scope adds an unpublished JNI JVM harness without changing their artifacts. The AAR model packages exactly
-    `arm64-v8a` and `x86_64` JNI libraries at
-    `minSdk 24`. Both arms are link- and package-checked with 16 KiB constraints; x86_64 has no
-    runtime qualification. No AAR is public, and the selector is a Maven-local proof scope refused
-    by remote publication.
+    `-Pkitecodec.phoneTargetsOnly=true` narrows a LOCAL build to the Android KMP target and the
+    three Apple targets. It is a build-scope selector, refused by remote publication; it is not what
+    decides whether an artifact exists. The published AAR carries exactly `arm64-v8a` and `x86_64`
+    JNI libraries at `minSdk 26`. Both arms are link- and package-checked with 16 KiB constraints;
+    x86_64 has no runtime qualification. `js` and `wasmJs` remain typed placeholders in every
+    scope.
 
 ## Licensing
 
