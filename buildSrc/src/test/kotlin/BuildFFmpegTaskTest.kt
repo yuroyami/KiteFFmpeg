@@ -756,4 +756,64 @@ class BuildFFmpegTaskTest {
             "--enable-libdav1d", "--enable-decoder=libdav1d", "--pkg-config=pkg-config",
         ) + "--prefix=$installPrefix"
     }
+    /**
+     * SOL-B4. The macOS trees carried NO deployment floor at all, so they took the SDK's.
+     *
+     * MEASURED 2026-08-25 on the committed archive: `otool -l native-libs/lgpl/macos-arm64/lib/
+     * libavutil.a` reported `minos 26.0`, while Kotlin/Native links these objects at 12.0
+     * (`minVersion.macos` in konan.properties for Kotlin 2.4.10) and the C helper layer compiled
+     * at 11.0. Three floors, one product. The iOS branches always passed `-mios-version-min`; the
+     * macOS branches simply never did, which is how the SDK default got in.
+     *
+     * 26.0 is the dangerous direction: an object built for a NEWER floor than the binary linking
+     * it means the product claims macOS 12 support while embedding code that asks for 26.
+     */
+    @Test
+    fun `both macOS targets pin the same deployment floor Kotlin Native links against`() {
+        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+
+        fun ccFor(target: TargetTriple): String =
+            task.configureArguments(
+                target = target,
+                license = FFmpegLicense.LGPL,
+                installPrefix = "/scratch/install",
+                dav1dRoot = java.io.File("/stub/dav1d"),
+            ).single { it.startsWith("--cc=") }
+
+        val expected = "-mmacosx-version-min=${BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET}"
+        assertEquals("12.0", BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET, "the floor is konan's own")
+
+        val arm64 = ccFor(TargetTriple.MacosArm64)
+        val x64 = ccFor(TargetTriple.MacosX64)
+        assertTrue(expected in arm64, "macosArm64 must pin the floor, was: $arm64")
+        assertTrue(expected in x64, "macosX64 must pin the floor, was: $x64")
+    }
+
+    /**
+     * The floor is ONE constant, not a number repeated per branch.
+     *
+     * This row exists because three places each picked their own and nothing compared them. A fix
+     * that writes "12.0" twice re-creates the defect the moment one of them is edited.
+     */
+    @Test
+    fun `the two macOS targets cannot drift apart because they read one constant`() {
+        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+
+        fun floorIn(target: TargetTriple): String =
+            task.configureArguments(
+                target = target,
+                license = FFmpegLicense.LGPL,
+                installPrefix = "/scratch/install",
+                dav1dRoot = java.io.File("/stub/dav1d"),
+            ).single { it.startsWith("--cc=") }
+                .substringAfter("-mmacosx-version-min=")
+                .substringBefore(' ')
+
+        val arm64Floor = floorIn(TargetTriple.MacosArm64)
+        // Non-empty first: substringAfter returns the whole string when the flag is ABSENT, so a
+        // fix deleted from BOTH branches would otherwise satisfy the equality below vacuously.
+        assertEquals(BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET, arm64Floor, "the flag must be present")
+        assertEquals(arm64Floor, floorIn(TargetTriple.MacosX64))
+    }
+
 }

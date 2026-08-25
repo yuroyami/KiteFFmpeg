@@ -587,14 +587,16 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         target: TargetTriple,
         konanBin: (TargetTriple) -> KonanTools,
     ): List<String> = when (target) {
+        // SOL-B4: the floor is PASSED, never inherited. Without it clang takes the SDK's, which
+        // measured 26.0 on the committed archives while Kotlin/Native links these objects at 12.0.
         TargetTriple.MacosArm64 -> listOf(
             "--arch=arm64", "--target-os=darwin",
-            "--cc=clang -arch arm64",
+            "--cc=clang -arch arm64 -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET",
             "--enable-cross-compile",
         )
         TargetTriple.MacosX64 -> listOf(
             "--arch=x86_64", "--target-os=darwin",
-            "--cc=clang -arch x86_64",
+            "--cc=clang -arch x86_64 -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET",
             "--enable-cross-compile",
         )
         // Linux and Windows cross-build with the SAME toolchain Kotlin/Native links against:
@@ -825,6 +827,22 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
          * actually needs a newer NDK symbol.
          */
         const val ANDROID_API = 24
+
+        /**
+         * The macOS deployment floor for every vendored tree, and the ONE place it is written.
+         *
+         * SOL-B4. Three floors used to disagree in one product, measured 2026-08-25: the archives
+         * carried `minos 26.0` because the macOS branches passed no `-mmacosx-version-min` at all
+         * and inherited the SDK's, the C helper layer compiled at 11.0, and Kotlin/Native links at
+         * 12.0. The archive was the dangerous one: an object built for a NEWER floor than the
+         * binary linking it means the product claims 12.0 support while carrying code that asks
+         * for 26.
+         *
+         * 12.0 is not a preference. It is `minVersion.macos` from konan.properties for the Kotlin
+         * this repository pins, so it is the floor the linker imposes whatever anything else says.
+         * `CompileKiteCodecCTask` reads this same constant; raising it means raising konan first.
+         */
+        const val MACOS_DEPLOYMENT_TARGET = "12.0"
 
         /** The FFmpeg tag `vendor/ffmpeg` is expected to be checked out at. */
         const val DEFAULT_SOURCE_REF = "n8.0"

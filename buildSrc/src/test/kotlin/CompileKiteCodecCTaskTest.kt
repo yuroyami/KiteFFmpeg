@@ -455,4 +455,25 @@ class CompileKiteCodecCTaskTest {
         val header = CompileKiteCodecCTask.buildDefinesHeader(mapOf("KC_Z" to "z", "KC_A" to "a"))
         assertTrue(header.indexOf("KC_A") < header.indexOf("KC_Z"), "defines must be emitted in key order")
     }
+    /**
+     * SOL-B4. The C helper layer targets the SAME macOS floor as everything else in the product.
+     *
+     * It compiled at `macos11.0` while Kotlin/Native links at 12.0 and the FFmpeg archives had
+     * inherited the SDK's 26.0. Three floors in one binary, none of them agreeing. 11.0 was the
+     * harmless one of the three, but it was still a fourth number to keep in sync by hand, and
+     * this row exists because hand-synced numbers drifted.
+     */
+    @Test
+    fun `both macOS C targets compile at the one deployment floor`() {
+        val floor = BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET
+        assertEquals(
+            "arm64-apple-macos$floor",
+            CompileKiteCodecCTask.specFor("macos_arm64").triple,
+        )
+        assertEquals(
+            "x86_64-apple-macos$floor",
+            CompileKiteCodecCTask.specFor("macos_x64").triple,
+        )
+    }
+
 }

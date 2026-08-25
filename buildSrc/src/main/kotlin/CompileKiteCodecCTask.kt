@@ -415,8 +415,16 @@ abstract class CompileKiteCodecCTask @Inject constructor(
          * behaviour on any of these targets.
          */
         fun specFor(konanTargetName: String): CTargetSpec = when (konanTargetName) {
-            "macos_arm64" -> CTargetSpec("arm64-apple-macos11.0", appleSdk = "macosx")
-            "macos_x64" -> CTargetSpec("x86_64-apple-macos11.0", appleSdk = "macosx")
+            // SOL-B4: one floor for the whole product, defined in BuildFFmpegTask. These read it
+            // rather than restating it, because a hand-synced number is what this row was about.
+            "macos_arm64" -> CTargetSpec(
+                "arm64-apple-macos${BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET}",
+                appleSdk = "macosx",
+            )
+            "macos_x64" -> CTargetSpec(
+                "x86_64-apple-macos${BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET}",
+                appleSdk = "macosx",
+            )
             "ios_arm64" -> CTargetSpec("arm64-apple-ios14.0", appleSdk = "iphoneos")
             "ios_simulator_arm64" -> CTargetSpec("arm64-apple-ios14.0-simulator", appleSdk = "iphonesimulator")
             "ios_x64" -> CTargetSpec("x86_64-apple-ios14.0-simulator", appleSdk = "iphonesimulator")
