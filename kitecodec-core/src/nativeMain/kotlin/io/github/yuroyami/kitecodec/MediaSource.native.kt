@@ -612,7 +612,9 @@ private class DecoderState(
                 ?: throw FFmpegException(FFmpegError.Internal("Stream ${stream.index} missing codecpar"))
             val codecId = ffkmp_codecpar_codec_id(codecpar)
             val codec = ffkmp_find_decoder_by_id(codecId)
-                ?: throw FFmpegException(FFmpegError.DecoderNotFound(0, "No decoder for codec id $codecId"))
+                ?: throw FFmpegException(
+                    FFmpegError.DecoderNotFound(0, decoderNotFoundMessage(stream.codec, requested = null)),
+                )
 
             val codecCtx = ffkmp_codecctx_alloc(codec)
                 ?: throw FFmpegException(FFmpegError.Internal("avcodec_alloc_context3 returned NULL"))

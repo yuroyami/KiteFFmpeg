@@ -316,7 +316,7 @@ public actual class MediaSource internal constructor(
             val named = withCString(m, decoder.name) { ffkmp_find_decoder_by_name(m, it) }
             if (named == 0) {
                 throw FFmpegException(
-                    FFmpegError.DecoderNotFound(0, "no decoder named '${decoder.name}' in the web build"),
+                    FFmpegError.DecoderNotFound(0, decoderNotFoundMessage(stream.codec, requested = decoder)),
                 )
             }
             if (ffkmp_codec_id(m, named) != codecId) {
@@ -331,7 +331,7 @@ public actual class MediaSource internal constructor(
         }
         if (codec == 0) {
             throw FFmpegException(
-                FFmpegError.DecoderNotFound(0, "no decoder for ${stream.codec.name} in the web build"),
+                FFmpegError.DecoderNotFound(0, decoderNotFoundMessage(stream.codec, requested = null)),
             )
         }
         val ctx = ffkmp_codecctx_alloc(m, codec)

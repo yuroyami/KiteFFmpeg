@@ -154,3 +154,30 @@ public class FFmpegException(public val error: FFmpegError) : RuntimeException(e
     /** The raw `AVERROR_*` code, or 0 for internal errors. */
     public val code: Int get() = error.code
 }
+
+/**
+ * Why a decoder could not be opened, in words the caller can act on (KC-CAPS).
+ *
+ * Opened by the owner from a real incident: a device threw FFmpeg's bare `-78` on an AV1 file and
+ * nothing on hand could say whether that build carried dav1d. An hour of binary archaeology later
+ * the answer was "the installed app was stale". Three of the refusal sites printed `codec id 226`,
+ * a number nobody can act on, while the stream's own codec name sat in scope at every one of them.
+ *
+ * So the message names the codec, and then names the two calls that answer the two questions the
+ * incident actually raised: does this build carry it, and WHICH build am I running.
+ *
+ * [requested] separates two failures that read alike and mean opposite things. A null means this
+ * build has no decoder for the stream's codec at all. A value means the specific implementation
+ * asked for is absent, and the default decoder may still play the stream perfectly well.
+ */
+internal fun decoderNotFoundMessage(streamCodec: CodecId, requested: CodecId?): String =
+    if (requested == null) {
+        "no decoder for codec '${streamCodec.name}' in this build. " +
+            "FFmpeg.hasDecoder(\"${streamCodec.name}\") answers that without opening a file, and " +
+            "FFmpeg.identity says which build is actually loaded."
+    } else {
+        "no decoder named '${requested.name}' in this build, requested for a '${streamCodec.name}' " +
+            "stream. FFmpeg.hasDecoder(\"${requested.name}\") answers that without opening a file, " +
+            "and FFmpeg.identity says which build is actually loaded. Omit the decoder to let " +
+            "FFmpeg choose its default for '${streamCodec.name}'."
+    }

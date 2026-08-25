@@ -241,8 +241,9 @@ public actual class StreamDecoder internal constructor(
                     Internals.findDecoderByName(requestedDecoder.name)
                 }
                 if (codec == 0L) {
-                    val what = requestedDecoder?.let { "named '${it.name}'" } ?: "for codec id $codecId"
-                    throw FFmpegException(FFmpegError.DecoderNotFound(0, "No decoder $what"))
+                    throw FFmpegException(
+                        FFmpegError.DecoderNotFound(0, decoderNotFoundMessage(stream.codec, requestedDecoder)),
+                    )
                 }
                 if (requestedDecoder != null && Internals.codecId(codec) != codecId) {
                     throw FFmpegException(

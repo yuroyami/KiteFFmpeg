@@ -482,10 +482,14 @@ public actual class StreamDecoder internal constructor(
             val codecId = ffkmp_codecpar_codec_id(codecpar)
             val codec = if (decoder == null) {
                 ffkmp_find_decoder_by_id(codecId)
-                    ?: throw FFmpegException(FFmpegError.DecoderNotFound(0, "No decoder for codec id $codecId"))
+                    ?: throw FFmpegException(
+                        FFmpegError.DecoderNotFound(0, decoderNotFoundMessage(stream.codec, requested = null)),
+                    )
             } else {
                 ffkmp_find_decoder_by_name(decoder.name)
-                    ?: throw FFmpegException(FFmpegError.DecoderNotFound(0, "No decoder named ${decoder.name}"))
+                    ?: throw FFmpegException(
+                        FFmpegError.DecoderNotFound(0, decoderNotFoundMessage(stream.codec, requested = decoder)),
+                    )
             }
             if (decoder != null && ffkmp_codec_id(codec) != codecId) {
                 throw FFmpegException(

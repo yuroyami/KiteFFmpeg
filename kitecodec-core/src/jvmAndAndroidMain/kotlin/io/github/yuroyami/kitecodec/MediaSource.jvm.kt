@@ -409,7 +409,9 @@ private class DecoderState(val stream: StreamInfo, var context: Long) {
                 val codecId = Internals.codecParId(parameters)
                 codec = Internals.findDecoderById(codecId)
                 if (codec == 0L) {
-                    throw FFmpegException(FFmpegError.DecoderNotFound(0, "No decoder for codec id $codecId"))
+                    throw FFmpegException(
+                        FFmpegError.DecoderNotFound(0, decoderNotFoundMessage(stream.codec, requested = null)),
+                    )
                 }
                 val context = Internals.codecCtxAlloc(codec)
                 try {
