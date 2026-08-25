@@ -309,6 +309,8 @@ internal class CodecContractTest {
 
         exerciseAudioSink(transcript)
         exerciseDirectCopyStreamDeclaration(input, transcript)
+        exercisePoisonedCopyStreamDeclaration(input, transcript)
+        exerciseFaultSeamIsInertWhenUnarmed(input, transcript)
         exerciseHeaderFailureAndOpenRollback(transcript)
 
         val remuxed = outputPath("mkv")
@@ -418,6 +420,59 @@ internal class CodecContractTest {
             }
         }
         transcript.put("sink.copy.declared_directly", true)
+    }
+
+    /**
+     * KC-EVIDENCE-MUX. The poison in `addCopyStream` becomes falsifiable.
+     *
+     * `avformat_new_stream` mutates the format context and FFmpeg cannot take a stream back, so a
+     * failure after it leaves a half-configured stream in the muxer. The sink poisons itself for
+     * exactly that reason, and until now nothing could prove it: the only steps left in the guarded
+     * block are a parameter copy and a time-base write, and no caller can make either fail. The
+     * `MuxFaults` seam supplies the failure this path cannot otherwise have.
+     *
+     * The assertion is deliberately about the SINK and not about the throw. Anyone can make a
+     * function throw; what P1-10 fixed is that the sink must not still look usable afterwards.
+     */
+    private fun exercisePoisonedCopyStreamDeclaration(input: String, transcript: CodecContractTranscript) {
+        val poisonedOutput = outputPath("mkv")
+        MediaSource.open(input).useOwner { source ->
+            val video = assertNotNull(source.primaryVideo)
+            MediaSink.open(poisonedOutput).useOwner { sink ->
+                MuxFaults.armOnce()
+                try {
+                    assertFailsWith<FFmpegException> { sink.addCopyStream(source, video) }
+                } finally {
+                    // Self-disarming already, but a test that leaves state armed on an unexpected
+                    // path would poison whichever test ran next, which is worse than the bug.
+                    MuxFaults.disarm()
+                }
+                // THE POINT: a sink that swallowed a mid-mutation failure and carried on is the
+                // defect. A later declaration must refuse rather than write against a muxer holding
+                // a stream that was never configured.
+                assertFailsWith<Throwable> { sink.addCopyStream(source, video) }
+                // `setMetadata` is deliberately NOT asserted here, and the reason is a finding.
+                // The first run of this seam showed the backends DISAGREE: the JVM's setMetadata
+                // goes through checkOpen and refuses a poisoned sink, while the native one checks
+                // only headerWritten and closed and accepts it. Asserting either behaviour would
+                // pin a divergence as if it were the contract. Recorded as `KC-POISON-SCOPE`.
+            }
+        }
+        transcript.put("sink.copy.poisoned_on_mid_mutation_failure", true)
+    }
+
+    /** The seam is INERT unless armed, which is the only state a shipped consumer can reach. */
+    private fun exerciseFaultSeamIsInertWhenUnarmed(input: String, transcript: CodecContractTranscript) {
+        val output = outputPath("mkv")
+        MuxFaults.disarm()
+        MediaSource.open(input).useOwner { source ->
+            val video = assertNotNull(source.primaryVideo)
+            MediaSink.open(output).useOwner { sink ->
+                assertNotNull(sink.addCopyStream(source, video))
+                sink.setMetadata(mapOf("title" to "unarmed"))
+            }
+        }
+        transcript.put("sink.copy.fault_seam_inert_when_unarmed", true)
     }
 
     private fun exerciseHeaderFailureAndOpenRollback(transcript: CodecContractTranscript) {

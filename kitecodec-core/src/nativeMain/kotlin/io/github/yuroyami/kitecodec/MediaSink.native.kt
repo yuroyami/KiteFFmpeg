@@ -196,6 +196,9 @@ public actual class MediaSink internal constructor(
         // sink still looked usable and the next call wrote against it. newStreamFor has poisoned
         // since P1-10; this path mutates identically and was left out (audit P1-10).
         try {
+            // KC-EVIDENCE-MUX: the only way to reach the poison below from a test. Inert unless a
+            // test armed it, and self-disarming, so production always takes the false branch.
+            MuxFaults.failIfArmed("addCopyStream/native")
             val outPar = ffkmp_stream_codecpar(outStream)
                 ?: throw FFmpegException(FFmpegError.Internal("New stream missing codecpar"))
             check0(ffkmp_codecpar_copy_for_mux(outPar, sourcePar), "avcodec_parameters_copy")
