@@ -21,11 +21,19 @@ import kotlin.js.JsAny
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
     """() => {
-        const buffer = new ArrayBuffer(1 << 17);
+        const buffer = new ArrayBuffer(1 << 21);
         const HEAPU8 = new Uint8Array(buffer);
         const HEAP32 = new Int32Array(buffer);
         let brk = 8;
-        const malloc = (n) => { const p = brk; brk = (brk + n + 7) & ~7; return p; };
+        let mallocCount = 0;
+        let lastMalloc = 0;
+        const malloc = (n) => {
+            const p = brk;
+            brk = (brk + n + 7) & ~7;
+            mallocCount++;
+            lastMalloc = p;
+            return p;
+        };
         const cstr = (s) => {
             const b = new TextEncoder().encode(s);
             const p = malloc(b.length + 1);
@@ -58,6 +66,8 @@ import kotlin.js.JsAny
                 return new TextDecoder().decode(HEAPU8.subarray(p, z));
             },
             __stage: stage,
+            __mallocCount: () => mallocCount,
+            __lastMalloc: () => lastMalloc,
             _kc_ffmpeg_report_get: (p) => { HEAPU8.copyWithin(p, stage, stage + 2176); },
             _kc_ffmpeg_library_name: (i) => (i >= 0 && i < libs.length) ? libs[i] : 0,
             _kc_verdict_name: (v) => (v >= 0 && v < verdicts.length) ? verdicts[v] : 0,
@@ -75,6 +85,21 @@ internal external fun incompleteCodecModule(): JsAny
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => m.__stage")
 internal external fun stagedReportPointer(module: JsAny): Int
+
+/**
+ * How many times the fake's `_malloc` has been called.
+ *
+ * The only way to assert that a refusal allocated NOTHING. A pointer comparison cannot say it: a
+ * bump allocator that was never called and one that was called and rewound look identical.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__mallocCount()")
+internal external fun mallocCount(module: JsAny): Int
+
+/** The pointer the fake's most recent `_malloc` handed out, so a test can read what was staged. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__lastMalloc()")
+internal external fun lastMallocPointer(module: JsAny): Int
 
 /** Test-only writer. Production reads C strings out of this heap and never writes one. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

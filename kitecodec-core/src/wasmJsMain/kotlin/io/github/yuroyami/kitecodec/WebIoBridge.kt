@@ -32,7 +32,35 @@ internal class WebIoBridge private constructor(
         /** Sources above this are refused rather than silently doubling the page's memory use. */
         private const val MAX_BYTES = 512L * 1024 * 1024
 
+        /**
+         * Stages [io] and takes ownership of it (KC-WEB-IO).
+         *
+         * The bridge closes the source on EVERY path, exactly once, because staging consumes it
+         * whole: on return there is nothing left for a caller to read, and on a throw there is no
+         * caller who could know how far it got. `MediaByteSource` promises close runs exactly once
+         * and this backend used to never call it at all.
+         */
         fun install(io: MediaByteSource): WebIoBridge {
+            val bridge = try {
+                stage(io)
+            } catch (failure: Throwable) {
+                // The real cause is already on its way up. A close that also fails here has nothing
+                // to add and must not replace it; Kotlin common has no addSuppressed to chain them.
+                runCatching { io.close() }
+                throw failure
+            }
+            try {
+                io.close()
+            } catch (failure: Throwable) {
+                // A source whose close throws is the source's defect, but the bridge must not leak
+                // its registered callbacks and staging buffer over it.
+                bridge.release()
+                throw failure
+            }
+            return bridge
+        }
+
+        private fun stage(io: MediaByteSource): WebIoBridge {
             val module = requireModule()
             val size = io.size
                 ?: throw FFmpegException(
@@ -75,7 +103,10 @@ internal class WebIoBridge private constructor(
         private fun drain(io: MediaByteSource, module: JsAny, buffer: Int, total: Int) {
             val chunk = ByteArray(CHUNK)
             var written = 0
-            io.seek(0)
+            // Only a source that says it is seekable may be rewound. `MediaByteSource` promises
+            // seek is never called otherwise, and a non-seekable source that is mid-stream is
+            // CORRUPTED by a rewind rather than merely unhelped by one; it stages from where it is.
+            if (io.seekable) io.seek(0)
             while (written < total) {
                 val want = minOf(CHUNK, total - written)
                 val got = io.read(chunk, 0, want)
@@ -93,15 +124,29 @@ internal class WebIoBridge private constructor(
     }
 }
 
-/** Copies [length] bytes of [bytes] into codec memory at [pointer]. */
-@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+/**
+ * Copies [length] bytes of [bytes] into codec memory at [pointer], in ONE crossing (KC-WEB-IO).
+ *
+ * This used to cross into JavaScript once per BYTE, so staging a 200 MB file made 200 million
+ * calls. Kotlin/Wasm and the codec are separate modules with separate memories, so the bytes have
+ * to travel as a JS value; they travel as a string of code units 0..255, and the loop that writes
+ * them into the heap runs JS-side where it is one tight loop over a typed array.
+ *
+ * Latin-1 by construction, never text: every byte becomes exactly one code unit below 0x100, so
+ * nothing is ever in the surrogate range and no encoding step can be tempted to reinterpret it.
+ * `WebIoBridgeTest` stages a 0..255 ramp across a chunk boundary precisely to hold this true; an
+ * ASCII fixture would pass while the high half of every byte value was mangled.
+ */
 internal fun writeBytes(module: JsAny, pointer: Int, bytes: ByteArray, length: Int) {
-    for (i in 0 until length) writeByte(module, pointer + i, bytes[i].toInt() and 0xFF)
+    if (length <= 0) return
+    val packed = StringBuilder(length)
+    for (i in 0 until length) packed.append(((bytes[i].toInt()) and 0xFF).toChar())
+    writeChunk(module, pointer, packed.toString())
 }
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-@JsFun("(m, p, v) => { m.HEAPU8[p] = v; }")
-private external fun writeByte(module: JsAny, pointer: Int, value: Int)
+@JsFun("(m, p, s) => { const n = s.length; for (let i = 0; i < n; i++) m.HEAPU8[p + i] = s.charCodeAt(i); }")
+private external fun writeChunk(module: JsAny, pointer: Int, packed: String)
 
 /**
  * Registers the two callbacks in the codec module's function table and returns both indices.
