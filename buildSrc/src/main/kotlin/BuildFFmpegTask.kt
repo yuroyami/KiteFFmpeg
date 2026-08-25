@@ -951,6 +951,26 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // them is genuinely stale. --pkg-config=pkg-config is filtered by key above.
 
         /**
+         * A deployment floor, wherever it rides.
+         *
+         * The platform name may itself carry a hyphen (`ios-simulator`), so device and simulator
+         * floors stay distinguishable rather than collapsing onto one token.
+         */
+        private val DEPLOYMENT_FLOOR = Regex("""-m([a-z][a-z-]*)-version-min=([0-9][0-9.]*)""")
+
+        /**
+         * The synthetic key the extracted floor is filed under, and it is `--` prefixed ON PURPOSE.
+         *
+         * [recipeFingerprint] must be IDEMPOTENT: `CheckFFmpegRecipesTask` stores an already
+         * fingerprinted set as its `@Input` and hands it back to [staleReason], which fingerprints
+         * it again. Every other token survives that because every other token is a real `--flag`.
+         * A bare `deployment-floor=...` did not survive the `--` filter, so the expected side lost
+         * it while the installed side kept it, and every iOS tree was reported stale for a floor
+         * that had never moved. This is never passed to configure; it exists only in the set.
+         */
+        private const val DEPLOYMENT_FLOOR_KEY = "--deployment-floor"
+
+        /**
          * The CAPABILITY half of a configure command, as a comparable set.
          *
          * Everything that decides what the resulting FFmpeg can DO (which decoders, demuxers,
@@ -963,19 +983,34 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
          * `--cc=clang -arch arm64 ...` into fragments; the fragments do not start with `--` and are
          * dropped, and the `--cc=clang` head is dropped by key, so the shredding cannot invent a
          * difference.
+         *
+         * **The deployment floor is the one exception, and it is read back OUT of that shredding**
+         * (KC-FLOOR-DRIFT). Which OS version a tree runs on is a capability, not a build location,
+         * but it rides inside `--cc`, which is machine-specific by key and therefore stripped. The
+         * floor was invisible on both sides: the task's unsplit `--cc=...` string is dropped by key,
+         * and the installed side's `-mmacosx-version-min=12.0'` fragment starts with ONE dash, so
+         * the `--` filter dropped it too. SOL-B4 pinned the macOS floor on 2026-08-25 and this check
+         * could not have noticed if a tree ignored the pin. Scanning every token for the floor
+         * pattern catches it from either rendering, and quoting is handled by the value pattern
+         * stopping before the quote rather than by trimming.
          */
-        public fun recipeFingerprint(args: List<String>): Set<String> = args.asSequence()
-            .map { it.trim() }
-            .filter { it.startsWith("--") }
-            .map { arg ->
-                val equals = arg.indexOf('=')
-                if (equals < 0) arg else {
-                    arg.substring(0, equals) + "=" + arg.substring(equals + 1).trim('\'', '"')
+        public fun recipeFingerprint(args: List<String>): Set<String> {
+            val capabilities = args.asSequence()
+                .map { it.trim() }
+                .filter { it.startsWith("--") }
+                .map { arg ->
+                    val equals = arg.indexOf('=')
+                    if (equals < 0) arg else {
+                        arg.substring(0, equals) + "=" + arg.substring(equals + 1).trim('\'', '"')
+                    }
                 }
-            }
-            .filterNot { it.substringBefore('=') in MACHINE_SPECIFIC_CONFIGURE_KEYS }
-            .filterNot { '/' in it.substringAfter('=', "") }
-            .toSet()
+                .filterNot { it.substringBefore('=') in MACHINE_SPECIFIC_CONFIGURE_KEYS }
+                .filterNot { '/' in it.substringAfter('=', "") }
+            val floors = args.asSequence()
+                .flatMap { DEPLOYMENT_FLOOR.findAll(it) }
+                .map { "$DEPLOYMENT_FLOOR_KEY=${it.groupValues[1]}:${it.groupValues[2]}" }
+            return (capabilities + floors).toSet()
+        }
 
         /**
          * Why an installed tree no longer matches the recipe this checkout describes, or null when

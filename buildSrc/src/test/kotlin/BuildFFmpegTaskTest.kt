@@ -816,4 +816,110 @@ class BuildFFmpegTaskTest {
         assertEquals(arm64Floor, floorIn(TargetTriple.MacosX64))
     }
 
+    /**
+     * KC-FLOOR-DRIFT. The deployment floor is a CAPABILITY, so the staleness check must see it.
+     *
+     * SOL-B4 pinned the macOS floor on 2026-08-25 and the pin was invisible to this check the day
+     * it landed. The floor rides inside `--cc`, and `--cc` is machine-specific by key, so it is
+     * stripped. The installed side fares no better: splitting the `config.log` line on spaces
+     * shreds `--cc='clang -arch arm64 -mmacosx-version-min=12.0'` into fragments, and
+     * `-mmacosx-version-min=12.0'` starts with ONE dash, so the `--` filter drops it too.
+     *
+     * A tree baked before the pin therefore compared EQUAL to a recipe that carries it, which is
+     * the same silence the av1_videotoolbox row above was opened for.
+     */
+    @Test
+    fun `a tree baked before the macOS floor was pinned is reported stale`() {
+        val installed =
+            "/scratch/kitecodec-ffmpeg-1/configure --enable-static " +
+                "--cc='clang -arch arm64' --prefix=/scratch/install"
+        val expected = listOf(
+            "--enable-static",
+            "--cc=clang -arch arm64 -mmacosx-version-min=12.0",
+            "--prefix=/somewhere/else",
+        )
+        val reason = BuildFFmpegTask.staleReason(installed, expected)
+        assertTrue(reason != null, "a tree with no deployment floor must not match one that pins it")
+        assertTrue("12.0" in reason!!, "the reason must name the floor now asked for: $reason")
+    }
+
+    /** The other direction: a tree pinned at a floor the recipe has since MOVED is stale too. */
+    @Test
+    fun `a tree baked at a different macOS floor is reported stale`() {
+        val installed =
+            "/scratch/c/configure --enable-static " +
+                "--cc='clang -arch arm64 -mmacosx-version-min=11.0' --prefix=/scratch/install"
+        val expected = listOf(
+            "--enable-static",
+            "--cc=clang -arch arm64 -mmacosx-version-min=12.0",
+            "--prefix=/elsewhere",
+        )
+        val reason = BuildFFmpegTask.staleReason(installed, expected)
+        assertTrue(reason != null, "11.0 and 12.0 are different products")
+        assertTrue("11.0" in reason!! && "12.0" in reason, "name both sides: $reason")
+    }
+
+    /**
+     * And the floor must not become a NEW false positive.
+     *
+     * The same recipe rendered by FFmpeg and by the task still has to compare equal: the installed
+     * side arrives quoted and shredded, the task side arrives as one unsplit string, and the SDK
+     * path between them moves with every Xcode update.
+     */
+    @Test
+    fun `one floor rendered both ways compares equal despite quoting and a moved SDK`() {
+        val installed =
+            "/scratch/c/configure --enable-static " +
+                "--cc='clang -arch arm64 -isysroot /Xcode17/SDK/iphoneos -mios-version-min=14.0' " +
+                "--prefix=/scratch/install"
+        val expected = listOf(
+            "--enable-static",
+            "--cc=clang -arch arm64 -isysroot /Xcode26/SDK/iphoneos -mios-version-min=14.0",
+            "--prefix=/completely/different",
+        )
+        assertEquals(
+            null,
+            BuildFFmpegTask.staleReason(installed, expected),
+            "an Xcode move must still not read as a recipe change",
+        )
+    }
+
+    /** The simulator floor carries a hyphen in its platform name and must survive intact. */
+    @Test
+    fun `the iOS simulator floor is not confused with the device floor`() {
+        val device = BuildFFmpegTask.recipeFingerprint(
+            listOf("--cc=clang -arch arm64 -mios-version-min=14.0"),
+        )
+        val simulator = BuildFFmpegTask.recipeFingerprint(
+            listOf("--cc=clang -arch arm64 -mios-simulator-version-min=14.0"),
+        )
+        assertTrue(device.isNotEmpty(), "the device floor must reach the fingerprint")
+        assertTrue(simulator.isNotEmpty(), "the simulator floor must reach the fingerprint")
+        assertTrue(device != simulator, "device and simulator floors are different products")
+    }
+
+    /**
+     * Fingerprinting a fingerprint must change nothing, and this is not a theoretical nicety.
+     *
+     * `CheckFFmpegRecipesTask` stores `expectedRecipeFingerprint()` in its `@Input` and then hands
+     * that ALREADY-fingerprinted set to `staleReason`, which fingerprints it a second time. Every
+     * token survived that because every token was a real `--flag`. The first synthetic token added
+     * to this set (the deployment floor, KC-FLOOR-DRIFT) did not, so the expected side silently
+     * lost it while the installed side kept it, and the check reported every iOS tree stale for a
+     * floor that had never moved. CAUGHT BY RUNNING THE REAL TASK, not by any unit test here.
+     */
+    @Test
+    fun `fingerprinting a fingerprint is the same fingerprint`() {
+        val args = listOf(
+            "--enable-static",
+            "--enable-hwaccel=h264_videotoolbox,av1_videotoolbox",
+            "--cc=clang -arch arm64 -isysroot /Xcode26/SDK/iphoneos -mios-version-min=14.0",
+            "--prefix=/scratch/install",
+        )
+        val once = BuildFFmpegTask.recipeFingerprint(args)
+        val twice = BuildFFmpegTask.recipeFingerprint(once.toList())
+        assertEquals(once, twice, "a second pass must not drop or invent a token")
+        assertTrue(once.any { "14.0" in it }, "the floor must be in the set to begin with")
+    }
+
 }
