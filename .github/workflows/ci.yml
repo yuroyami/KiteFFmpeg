@@ -268,6 +268,23 @@ jobs:
           ./gradlew :kitecodec-core:macosArm64Test --tests '*FFmpegIdentityTest*' \
             -Pkitecodec.hostTargetsOnly=true --stacktrace
           ./gradlew :buildSrc:test --stacktrace
+      # The web backend, which until now NO job here ran a single test against. 2,316 lines of
+      # wasmJsMain shipped on the strength of "it compiles": the register carried twelve rows marked
+      # done with nothing that could fail if they regressed, and three Wasm fixes landed on
+      # 2026-08-23 with no source set to test them (register rows KC-EVIDENCE-WASM, KC-WASM-MODEL).
+      #
+      # It runs here because it needs nothing this job does not already have. There is no FFmpeg,
+      # no konan and no native toolchain in this path: the tests drive the backend through a FAKE
+      # emscripten module, which works because every generated external takes the codec module as
+      # its first argument. That seam is why this was testable all along without building FFmpeg
+      # for the web first.
+      #
+      # NODE, not browser. The browser task drives the same code through webpack, which is a
+      # separate and currently unproven path (KitePlayer hit `RangeError: Invalid array length`
+      # inside it). Claiming browser coverage from a node run would be the exact kind of untrue
+      # green this suite exists to stop.
+      - name: Web backend tests (wasmJs, node)
+        run: ./gradlew :kitecodec-core:wasmJsNodeTest -Pkitecodec.hostTargetsOnly=true --stacktrace
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
