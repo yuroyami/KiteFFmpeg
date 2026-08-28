@@ -370,6 +370,15 @@ KC_API int  ffkmp_fmt_open_input_io(kc_fmt_ctx **out,
  */
 KC_API void ffkmp_fmt_close_input_io(kc_fmt_ctx **ctx);
 
+/* KC-CANCEL. Requests that every current and future blocking call on this input context
+ * return AVERROR_EXIT: FFmpeg polls the interrupt seam at the top of its blocking loops, so
+ * a read or seek already in flight returns promptly and later calls fail fast. One-way by
+ * design; there is no clear. The context stays owned and its paired close remains both legal
+ * and required. This is the ONE call that may run from another thread while a read or seek
+ * is blocked on the same context; it must still never run concurrently with, or after, the
+ * close. No-op on NULL and on a context this layer did not open. */
+KC_API void ffkmp_fmt_interrupt(kc_fmt_ctx *ctx);
+
 /* The opaque the caller gave ffkmp_fmt_open_input_io, or NULL when ctx is NULL, was not
  * opened by that call, or the bridge marker is absent. Callers that park per-open state
  * behind opaque (the JNI adapter's callback refs) recover it here BEFORE the close frees

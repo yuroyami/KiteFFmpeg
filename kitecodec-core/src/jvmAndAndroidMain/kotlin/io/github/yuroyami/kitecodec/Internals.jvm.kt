@@ -72,6 +72,7 @@ internal object Internals {
     private external fun nativeFmtChapterGet(token: Long, index: Int, outFields: LongArray): Int
     private external fun nativeFmtChapterMetadata(token: Long, index: Int): Long
     private external fun nativeFmtCloseInput(token: Long)
+    private external fun nativeFmtInterrupt(token: Long)
     private external fun nativeFmtFindStreamInfo(token: Long): Int
     private external fun nativeFmtNbStreams(token: Long): Int
     private external fun nativeFmtStream(token: Long, index: Int): Long
@@ -317,6 +318,7 @@ internal object Internals {
         unusedKeysOut: Array<String?>?,
     ) = token("custom io open") { nativeFmtOpenInputIo(io, seekable, size, keys, values, unusedKeysOut) }
     internal fun fmtCloseInputIo(token: Long) = checked { nativeFmtCloseInputIo(token) }
+    internal fun fmtInterrupt(token: Long) = checked { nativeFmtInterrupt(token) }
     internal fun fmtChapterCount(token: Long) = checked { nativeFmtChapterCount(token) }
     internal fun fmtChapterGet(token: Long, index: Int, outFields: LongArray) = checked { nativeFmtChapterGet(token, index, outFields) }
     internal fun fmtChapterMetadata(token: Long, index: Int) = nativeFmtChapterMetadata(token, index)

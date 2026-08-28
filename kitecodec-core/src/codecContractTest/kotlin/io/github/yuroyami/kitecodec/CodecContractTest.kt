@@ -201,6 +201,80 @@ internal class CodecContractTest {
         }
     }
 
+    @Test
+    fun packetReaderReselectsExactlyAndRejectedSelectionsAreNonMutating() {
+        MediaSource.open(mediaPath()).useOwner { source ->
+            val video = assertNotNull(source.primaryVideo)
+            val audio = assertNotNull(source.primaryAudio)
+            val reader = source.openPacketReader(listOf(video))
+
+            fun assertNextFrom(expected: StreamInfo) {
+                reader.seek(0L)
+                val packet = assertNotNull(reader.read())
+                try {
+                    assertEquals(expected.index, packet.streamIndex)
+                    assertEquals(expected.timeBase, packet.timeBase)
+                } finally {
+                    packet.close()
+                }
+            }
+
+            try {
+                assertNextFrom(video)
+
+                // Validation happens before either FFmpeg flags or the exact Kotlin delivery map
+                // change, so every refusal below must leave video as the live selection.
+                assertFailsWith<IllegalArgumentException> { reader.reselect(emptyList()) }
+                assertNextFrom(video)
+                assertFailsWith<IllegalArgumentException> { reader.reselect(listOf(audio, audio)) }
+                assertNextFrom(video)
+                assertFailsWith<IllegalArgumentException> {
+                    reader.reselect(listOf(video.copy(index = Int.MAX_VALUE)))
+                }
+                assertNextFrom(video)
+                assertFailsWith<IllegalArgumentException> {
+                    reader.reselect(
+                        listOf(video.copy(metadata = video.metadata + ("foreign" to "stream"))),
+                    )
+                }
+                assertNextFrom(video)
+
+                // Live means the next delivered packet is filtered by the new selection without
+                // an intervening reopen or seek. The demux cursor remains wherever the video read
+                // above left it.
+                reader.reselect(listOf(audio))
+                val switchedPacket = assertNotNull(reader.read())
+                try {
+                    assertEquals(audio.index, switchedPacket.streamIndex)
+                    assertEquals(audio.timeBase, switchedPacket.timeBase)
+                } finally {
+                    switchedPacket.close()
+                }
+
+                reader.reselect(listOf(video, audio))
+                reader.seek(0L)
+                val seen = buildSet {
+                    while (size < 2) {
+                        val packet = reader.read() ?: break
+                        packet.use { add(it.streamIndex) }
+                    }
+                }
+                assertEquals(setOf(video.index, audio.index), seen)
+            } finally {
+                reader.close()
+            }
+
+            assertFailsWith<IllegalStateException> { reader.reselect(listOf(video)) }
+
+            // Closing returned both the cursor lease and the source's default discard state. A
+            // later reader can select either stream normally.
+            source.openPacketReader(listOf(audio)).useOwner { next ->
+                next.seek(0L)
+                assertEquals(audio.index, assertNotNull(next.read()).use { it.streamIndex })
+            }
+        }
+    }
+
     private fun exerciseFramesAndFilters(transcript: CodecContractTranscript) {
         val videoBytes = yuv420(16, 16, 3)
         Frame.ofVideo(videoBytes, 16, 16, PixelFormat.Yuv420p, ptsMicros = 123_456L).useOwner { frame ->

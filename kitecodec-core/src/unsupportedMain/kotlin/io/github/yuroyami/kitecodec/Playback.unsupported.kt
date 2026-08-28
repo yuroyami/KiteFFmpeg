@@ -48,6 +48,10 @@ public actual class PacketReader private constructor() : AutoCloseable {
     public actual fun seek(micros: Long, direction: SeekDirection, notEarlierThan: Long?): Unit =
         placeholderBackendUnavailable("Seeking a packet reader")
 
+    @Throws(FFmpegException::class)
+    public actual fun reselect(streams: List<StreamInfo>): Unit =
+        placeholderBackendUnavailable("Reselecting packet reader streams")
+
     actual override fun close(): Unit = Unit
 }
 

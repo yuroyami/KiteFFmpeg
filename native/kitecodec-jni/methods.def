@@ -88,6 +88,7 @@ KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtChapterCount",  "(
 KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtChapterGet",    "(JI[J)I",                kj_fmt_chapter_get)
 KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtChapterMetadata", "(JI)J",                kj_fmt_chapter_metadata)
 KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtCloseInput",    "(J)V",                   kj_fmt_close_input)
+KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtInterrupt",     "(J)V",                   kj_fmt_interrupt)
 KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtFindStreamInfo","(J)I",                   kj_fmt_find_stream_info)
 KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtNbStreams",     "(J)I",                   kj_fmt_nb_streams)
 KJ_METHOD("io/github/yuroyami/kitecodec/Internals", "nativeFmtStream",        "(JI)J",                  kj_fmt_stream)

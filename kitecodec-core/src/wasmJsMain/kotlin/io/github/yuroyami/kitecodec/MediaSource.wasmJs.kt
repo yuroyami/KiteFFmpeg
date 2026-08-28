@@ -2,6 +2,11 @@ package io.github.yuroyami.kitecodec
 
 import io.github.yuroyami.kitecodec.dsl.DecoderOptions
 import io.github.yuroyami.kitecodec.wasm.ffkmp_codecctx_alloc
+import io.github.yuroyami.kitecodec.wasm.ffkmp_disposition_attached_pic
+import io.github.yuroyami.kitecodec.wasm.ffkmp_disposition_default
+import io.github.yuroyami.kitecodec.wasm.ffkmp_disposition_forced
+import io.github.yuroyami.kitecodec.wasm.ffkmp_disposition_hearing_impaired
+import io.github.yuroyami.kitecodec.wasm.ffkmp_disposition_visual_impaired
 import io.github.yuroyami.kitecodec.wasm.ffkmp_codecctx_free
 import io.github.yuroyami.kitecodec.wasm.ffkmp_codecctx_from_par
 import io.github.yuroyami.kitecodec.wasm.ffkmp_codecctx_open
@@ -25,6 +30,7 @@ import io.github.yuroyami.kitecodec.wasm.ffkmp_dict_get
 import io.github.yuroyami.kitecodec.wasm.ffkmp_find_decoder_by_id
 import io.github.yuroyami.kitecodec.wasm.ffkmp_find_decoder_by_name
 import io.github.yuroyami.kitecodec.wasm.ffkmp_fmt_close_input_io
+import io.github.yuroyami.kitecodec.wasm.ffkmp_fmt_interrupt
 import io.github.yuroyami.kitecodec.wasm.ffkmp_fmt_duration
 import io.github.yuroyami.kitecodec.wasm.ffkmp_fmt_find_stream_info
 import io.github.yuroyami.kitecodec.wasm.ffkmp_fmt_iformat_name
@@ -37,6 +43,9 @@ import io.github.yuroyami.kitecodec.wasm.ffkmp_media_type_subtitle
 import io.github.yuroyami.kitecodec.wasm.ffkmp_media_type_video
 import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_avg_frame_rate
 import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_codecpar
+import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_discard_all
+import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_discard_none
+import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_disposition
 import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_duration_micros
 import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_index
 import io.github.yuroyami.kitecodec.wasm.ffkmp_stream_rotation_degrees
@@ -119,6 +128,49 @@ public actual class MediaSource internal constructor(
         readerActive = false
     }
 
+    /** Applies all FFmpeg discard flags, rolling back to [previous] before surfacing a failure. */
+    internal fun applyPacketReaderSelection(selected: Set<Int>, previous: Set<Int>) {
+        alive()
+        check(readerActive) { "This MediaSource has no active PacketReader" }
+        try {
+            setStreamDiscardSelection(selected)
+        } catch (failure: Throwable) {
+            try {
+                setStreamDiscardSelection(previous)
+            } catch (rollback: Throwable) {
+                failure.addSuppressed(rollback)
+            }
+            throw failure
+        }
+    }
+
+    private fun setStreamDiscardSelection(selected: Set<Int>) {
+        val m = requireModule()
+        val live = alive()
+        streams.forEach { info ->
+            val stream = ffkmp_fmt_stream(m, live, info.index)
+            if (stream == 0) {
+                throw FFmpegException(
+                    FFmpegError.Internal("FFmpeg lost stream index ${info.index} from this MediaSource"),
+                )
+            }
+            if (info.index in selected) {
+                ffkmp_stream_discard_none(m, stream)
+            } else {
+                ffkmp_stream_discard_all(m, stream)
+            }
+        }
+    }
+
+    /** Restores defaults before returning the demux-cursor lease. Safe after source close. */
+    internal fun closePacketReader() {
+        try {
+            if (!closed) setStreamDiscardSelection(streams.mapTo(HashSet()) { it.index })
+        } finally {
+            endPacketReader()
+        }
+    }
+
     public actual var corruptData: CorruptData = CorruptData.Skip
 
     /**
@@ -190,7 +242,9 @@ public actual class MediaSource internal constructor(
     }
 
     public actual suspend fun seekMicros(micros: Long) {
-        openPacketReader(emptyList()).use { it.seek(micros, SeekDirection.Backward, null) }
+        val anchor = streams.firstOrNull()
+            ?: throw FFmpegException(FFmpegError.InvalidArgument(0, "cannot seek media with no streams"))
+        openPacketReader(listOf(anchor)).use { it.seek(micros, SeekDirection.Backward, null) }
     }
 
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
@@ -201,7 +255,7 @@ public actual class MediaSource internal constructor(
         // asked for: returning it answered a sparse-keyframe file with a picture seconds early
         // (audit P0-04). Backward, so the target is never overshot before the walk begins.
         val landing = (atMicros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L)
-        openPacketReader(emptyList()).use { it.seek(landing, SeekDirection.Backward, null) }
+        openPacketReader(listOf(target)).use { it.seek(landing, SeekDirection.Backward, null) }
         // Both opened INSIDE the try. They used to sit outside it, so a throwing openDecoder left
         // the reader open and readerActive true for ever: that MediaSource could never open another
         // reader again, and the leak was permanent for the object's life (audit KC-P0-05-LEAK).
@@ -256,19 +310,31 @@ public actual class MediaSource internal constructor(
 
     public actual fun openPacketReader(streams: List<StreamInfo>): PacketReader {
         val context = alive()
+        val selection = canonicalPacketSelection(this.streams, streams)
         beginPacketReader()
         try {
+            applyPacketReaderSelection(
+                selected = selection.keys,
+                previous = this.streams.mapTo(HashSet()) { it.index },
+            )
             return PacketReader(
+                source = this,
                 context = context,
                 timeBases = this.streams.associate { it.index to it.timeBase },
-                wanted = streams.map { it.index }.toSet(),
+                wanted = selection.keys,
                 startTimeMicros = startTimeMicros,
                 lifetime = lifetime,
-                onClosed = ::endPacketReader,
+                onClosed = ::closePacketReader,
             )
         } catch (failure: Throwable) {
             // The lease was taken and the reader that would return it never existed.
-            endPacketReader()
+            try {
+                if (!closed) setStreamDiscardSelection(this.streams.mapTo(HashSet()) { it.index })
+            } catch (cleanup: Throwable) {
+                failure.addSuppressed(cleanup)
+            } finally {
+                endPacketReader()
+            }
             throw failure
         }
     }
@@ -362,6 +428,13 @@ public actual class MediaSource internal constructor(
         return StreamDecoder(ctx, stream, lifetime, corruptData)
     }
 
+    public actual fun interrupt() {
+        /* Single-threaded runtime: nothing can be blocked while this runs, so the flag only
+           makes later calls fail fast, which is still the honest half of the contract. */
+        if (closed) return
+        ffkmp_fmt_interrupt(requireModule(), context)
+    }
+
     actual override fun close() {
         if (closed) return
         closed = true
@@ -446,6 +519,12 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
     val video = ffkmp_media_type_video(m)
     val audio = ffkmp_media_type_audio(m)
     val subtitle = ffkmp_media_type_subtitle(m)
+    // Hoisted like the media-type constants: one call per open, not one per stream.
+    val dispositionDefault = ffkmp_disposition_default(m)
+    val dispositionForced = ffkmp_disposition_forced(m)
+    val dispositionHearingImpaired = ffkmp_disposition_hearing_impaired(m)
+    val dispositionVisualImpaired = ffkmp_disposition_visual_impaired(m)
+    val dispositionAttachedPic = ffkmp_disposition_attached_pic(m)
     return (0 until ffkmp_fmt_nb_streams(m, context)).map { i ->
         val native = ffkmp_fmt_stream(m, context, i)
         val par = ffkmp_stream_codecpar(m, native)
@@ -486,6 +565,15 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                 null
             },
             rotationDegrees = ffkmp_stream_rotation_degrees(m, native),
+            disposition = ffkmp_stream_disposition(m, native).let { flags ->
+                Disposition(
+                    default = flags and dispositionDefault != 0,
+                    forced = flags and dispositionForced != 0,
+                    hearingImpaired = flags and dispositionHearingImpaired != 0,
+                    visualImpaired = flags and dispositionVisualImpaired != 0,
+                    attachedPicture = flags and dispositionAttachedPic != 0,
+                )
+            },
         )
     }
 }

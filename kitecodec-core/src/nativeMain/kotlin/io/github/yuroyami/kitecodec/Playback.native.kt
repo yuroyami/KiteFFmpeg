@@ -215,7 +215,7 @@ public actual enum class SeekDirection {
 public actual class PacketReader internal constructor(
     private val source: MediaSource,
     private val ctx: CPointer<kc_fmt_ctx>,
-    private val timeBaseByStream: Map<Int, Rational>,
+    private var timeBaseByStream: Map<Int, Rational>,
 ) : AutoCloseable {
 
     private val scratch: CPointer<kc_packet> = ffkmp_packet_alloc()
@@ -294,6 +294,17 @@ public actual class PacketReader internal constructor(
         if (rc < 0) throw FFmpegException(avError(rc))
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun reselect(streams: List<StreamInfo>) {
+        check(!closed) { "PacketReader is closed" }
+        val next = canonicalPacketSelection(source.streams, streams)
+        val previous = timeBaseByStream
+        source.applyPacketReaderSelection(next.keys, previous.keys)
+        // The Kotlin map is the exact delivery filter for demuxers that still surface packets from
+        // streams marked AVDISCARD_ALL. Change it only after the native transaction succeeds.
+        timeBaseByStream = next
+    }
+
     actual override fun close() {
         if (closed) return
         closed = true
@@ -302,8 +313,14 @@ public actual class PacketReader internal constructor(
         // discard flags belong to the demuxer and outlive the reader, so leaving them set would
         // make the batch decode API return zero frames for every stream this reader skipped, with
         // no error to explain it.
-        source.restoreStreamDiscardDefaults()
-        source.endPacketReader()
+        try {
+            source.restoreStreamDiscardDefaults()
+        } finally {
+            // Returning the cursor lease is owed even when restoring an FFmpeg discard flag
+            // fails. Keep the restoration failure as the primary exception, but never strand the
+            // source in reader-active state (closed is already true, so close cannot be retried).
+            source.endPacketReader()
+        }
     }
 }
 

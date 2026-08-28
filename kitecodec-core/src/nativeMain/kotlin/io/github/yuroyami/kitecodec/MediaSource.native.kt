@@ -56,6 +56,7 @@ import ffmpeg.ffkmp_fmt_open_input2
 import ffmpeg.ffkmp_fmt_metadata
 import ffmpeg.ffkmp_fmt_nb_streams
 import ffmpeg.ffkmp_fmt_open_input
+import ffmpeg.ffkmp_fmt_interrupt
 import ffmpeg.ffkmp_fmt_read_frame
 import ffmpeg.ffkmp_fmt_seek_micros
 import ffmpeg.ffkmp_fmt_start_time
@@ -172,6 +173,37 @@ public actual class MediaSource internal constructor(
 
     internal fun endPacketReader() = synchronized(stateLock) { readerActive = false }
 
+    /** Applies a new live-reader selection and restores [previous] if any backend step fails. */
+    internal fun applyPacketReaderSelection(selected: Set<Int>, previous: Set<Int>): Unit =
+        synchronized(stateLock) {
+            check(!closed) { "MediaSource is closed" }
+            check(readerActive) { "This MediaSource has no active PacketReader" }
+            try {
+                setStreamDiscardSelection(selected)
+            } catch (failure: Throwable) {
+                try {
+                    setStreamDiscardSelection(previous)
+                } catch (rollback: Throwable) {
+                    failure.addSuppressed(rollback)
+                }
+                throw failure
+            }
+        }
+
+    private fun setStreamDiscardSelection(selected: Set<Int>) {
+        for (info in streams) {
+            val stream = ffkmp_fmt_stream(ctx, info.index.toUInt())
+                ?: throw FFmpegException(
+                    FFmpegError.Internal("FFmpeg lost stream index ${info.index} from this MediaSource"),
+                )
+            if (info.index in selected) {
+                ffkmp_stream_discard_none(stream)
+            } else {
+                ffkmp_stream_discard_all(stream)
+            }
+        }
+    }
+
     /**
      * Undoes the stream selection [openPacketReader] applied, putting every stream back on
      * AVDISCARD_DEFAULT.
@@ -181,10 +213,9 @@ public actual class MediaSource internal constructor(
      * batch decode API would return zero frames for them and report no error, because a discarded
      * packet is skipped inside libavformat and looks exactly like a stream with nothing in it.
      */
-    internal fun restoreStreamDiscardDefaults() {
-        for (info in streams) {
-            ffkmp_fmt_stream(ctx, info.index.toUInt())?.let { ffkmp_stream_discard_none(it) }
-        }
+    internal fun restoreStreamDiscardDefaults(): Unit = synchronized(stateLock) {
+        check(!closed) { "MediaSource is closed" }
+        setStreamDiscardSelection(streams.mapTo(HashSet()) { it.index })
     }
 
     private val isClosed: Boolean get() = synchronized(stateLock) { closed }
@@ -470,9 +501,7 @@ public actual class MediaSource internal constructor(
      */
     @KiteCodecLowLevelApi
     public actual fun openPacketReader(streams: List<StreamInfo>): PacketReader {
-        require(streams.isNotEmpty()) { "Need at least one stream to read" }
-        require(streams.distinctBy { it.index }.size == streams.size) { "Duplicate stream indices" }
-        streams.forEach(::requireOwnStream)
+        val selection = canonicalPacketSelection(this.streams, streams)
 
         synchronized(stateLock) {
             check(!closed) { "MediaSource is closed" }
@@ -481,17 +510,21 @@ public actual class MediaSource internal constructor(
             readerActive = true
         }
         try {
-            val selected = streams.map { it.index }.toSet()
-            for (info in this.streams) {
-                val ptr = ffkmp_fmt_stream(ctx, info.index.toUInt()) ?: continue
-                if (info.index in selected) ffkmp_stream_discard_none(ptr) else ffkmp_stream_discard_all(ptr)
-            }
-            return PacketReader(this, ctx, streams.associate { it.index to it.timeBase })
+            applyPacketReaderSelection(
+                selected = selection.keys,
+                previous = this.streams.mapTo(HashSet()) { it.index },
+            )
+            return PacketReader(this, ctx, selection)
         } catch (t: Throwable) {
             // Same reason close() restores them: a half-opened reader must not leave the demuxer
             // skipping streams nobody selected.
-            restoreStreamDiscardDefaults()
-            endPacketReader()
+            try {
+                restoreStreamDiscardDefaults()
+            } catch (cleanup: Throwable) {
+                t.addSuppressed(cleanup)
+            } finally {
+                endPacketReader()
+            }
             throw t
         }
     }
@@ -537,6 +570,13 @@ public actual class MediaSource internal constructor(
             "StreamInfo(index=${supplied.index}) does not belong to this MediaSource. Pass entries " +
                 "from THIS source's streams list; stream identity is source-bound."
         }
+    }
+
+    public actual fun interrupt() {
+        /* Deliberately NOT under stateLock: the whole point is reaching a context another thread
+           is blocked on. The contract forbids calling this concurrently with or after close, so
+           the pointer is live for the duration of the call. */
+        ffkmp_fmt_interrupt(ctx)
     }
 
     actual override fun close() {

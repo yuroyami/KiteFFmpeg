@@ -161,6 +161,16 @@ JNIEXPORT void JNICALL kj_fmt_close_input(JNIEnv *env, jclass cls, jlong token)
     if (ctx != NULL) ffkmp_fmt_close_input(&ctx);
 }
 
+/* KC-CANCEL: the one entry point callable from another thread while a read or seek is blocked
+   on the same context. The handle table resolves or throws as usual; the C seam is a single
+   volatile write. */
+JNIEXPORT void JNICALL kj_fmt_interrupt(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    if (ctx != NULL) ffkmp_fmt_interrupt(ctx);
+}
+
 /* Returns the CLOSE result so the caller can fail a write that only failed at the very end, such
    as a full disk discovered while the final buffer was flushed (audit P1-13). Zero when there was
    nothing to close, which is also what success looks like. */

@@ -525,6 +525,9 @@ internal external fun ffkmp_fmt_close_input(module: JsAny, a0: Int): Unit
 @JsFun("(m, a0) => m._ffkmp_fmt_close_input_io(a0)")
 internal external fun ffkmp_fmt_close_input_io(module: JsAny, a0: Int): Unit
 
+@JsFun("(m, a0) => m._ffkmp_fmt_interrupt(a0)")
+internal external fun ffkmp_fmt_interrupt(module: JsAny, a0: Int): Unit
+
 @JsFun("(m, a0) => m._ffkmp_fmt_free_output(a0)")
 internal external fun ffkmp_fmt_free_output(module: JsAny, a0: Int): Int
 

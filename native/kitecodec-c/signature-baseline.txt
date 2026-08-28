@@ -180,6 +180,7 @@ KC_API void ffkmp_dict_free(kc_dict **dict);
 KC_API void ffkmp_fmt_avoid_negative_ts(kc_fmt_ctx *ctx);
 KC_API void ffkmp_fmt_close_input(kc_fmt_ctx **ctx);
 KC_API void ffkmp_fmt_close_input_io(kc_fmt_ctx **ctx);
+KC_API void ffkmp_fmt_interrupt(kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_free_output(kc_fmt_ctx **ctx);
 KC_API void ffkmp_frame_free(kc_frame *f);
 KC_API void ffkmp_frame_sample_aspect_ratio(kc_frame *f, int *n, int *d);

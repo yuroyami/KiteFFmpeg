@@ -70,6 +70,14 @@ public sealed class FFmpegError(public val code: Int, public val message: String
     /** Generic I/O failure (`AVERROR(EIO)`). */
     public class Io(code: Int, message: String) : FFmpegError(code, message)
 
+    /**
+     * The call was interrupted through [MediaSource.interrupt] (`AVERROR_EXIT`, KC-CANCEL).
+     *
+     * Not a property of the media: the owner abandoned the source, and every later blocking
+     * call on it fails with this too. Close the source; nothing else on it is owed an answer.
+     */
+    public class Interrupted(code: Int, message: String) : FFmpegError(code, message)
+
     /** Any `AVERROR_*` code without a dedicated category above. */
     public class AvError(code: Int, message: String) : FFmpegError(code, message)
 
@@ -105,6 +113,7 @@ public sealed class FFmpegError(public val code: Int, public val message: String
         private fun tag(a: Char, b: Char, c: Char, d: Char): Int = tag(a.code, b, c, d)
 
         internal val AVERROR_EOF                = tag('E', 'O', 'F', ' ')
+        internal val AVERROR_EXIT               = tag('E', 'X', 'I', 'T')
         internal val AVERROR_INVALIDDATA        = tag('I', 'N', 'D', 'A')
         internal val AVERROR_PATCHWELCOME       = tag('P', 'A', 'W', 'E')
         internal val AVERROR_DECODER_NOT_FOUND  = tag(0xF8, 'D', 'E', 'C')
@@ -126,6 +135,7 @@ public sealed class FFmpegError(public val code: Int, public val message: String
         /** Classify a raw `AVERROR_*` [code] into the semantic hierarchy. */
         internal fun fromCode(code: Int, message: String): FFmpegError = when (code) {
             AVERROR_EOF                 -> EndOfFile(code, message)
+            AVERROR_EXIT                -> Interrupted(code, message)
             AVERROR_INVALIDDATA         -> InvalidData(code, message)
             AVERROR_PATCHWELCOME        -> Unsupported(code, message)
             AVERROR_DECODER_NOT_FOUND   -> DecoderNotFound(code, message)

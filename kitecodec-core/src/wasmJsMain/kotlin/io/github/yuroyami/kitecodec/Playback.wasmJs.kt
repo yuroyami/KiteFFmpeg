@@ -86,9 +86,10 @@ public actual enum class SeekDirection {
 }
 
 public actual class PacketReader internal constructor(
+    private val source: MediaSource,
     private val context: Int,
     private val timeBases: Map<Int, Rational>,
-    private val wanted: Set<Int>,
+    private var wanted: Set<Int>,
     /** The container's own origin, so [seek] can convert the public timeline onto it. */
     private val startTimeMicros: Long,
     private val lifetime: SourceLifetime,
@@ -113,7 +114,7 @@ public actual class PacketReader internal constructor(
                 throw FFmpegException(FFmpegError.Internal("reading a packet failed with $rc"))
             }
             val index = ffkmp_packet_stream_index(m, packet)
-            if (wanted.isEmpty() || index in wanted) {
+            if (index in wanted) {
                 return Packet(packet, timeBases[index] ?: MICRO)
             }
             // Not a stream this reader was opened for: drop it and keep going rather than hand the
@@ -144,6 +145,16 @@ public actual class PacketReader internal constructor(
         }
         val rc = ffkmp_fmt_seek_file(m, context, -1, min, target, max, flags)
         if (rc < 0) throw FFmpegException(FFmpegError.Internal("seek to ${micros}us failed with $rc"))
+    }
+
+    public actual fun reselect(streams: List<StreamInfo>) {
+        if (closed) throw FFmpegException(FFmpegError.Internal("this packet reader is closed"))
+        lifetime.check("packet reader")
+        val next = canonicalPacketSelection(source.streams, streams)
+        val previous = wanted
+        source.applyPacketReaderSelection(next.keys, previous)
+        // The set remains the exact delivery gate even for demuxers that ignore discard hints.
+        wanted = next.keys
     }
 
     actual override fun close() {

@@ -76,6 +76,100 @@ import kotlin.js.JsAny
 )
 internal external fun fakeCodecModule(): JsAny
 
+/**
+ * Adds the smallest real-demux surface needed to exercise [PacketReader] over two subtitle
+ * streams. The scripted demuxer deliberately ignores its discard flags: this models containers
+ * where those flags are advisory and proves the Kotlin `wanted` set remains the exact gate.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurface(fakeCodecModule())
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        const CONTEXT = 0x500;
+        const STREAM = 0x600;
+        const CODECPAR = 0x700;
+        const EOF = -541478725;
+        const packets = [0, 0, 1, 0, 1, 0, 1];
+        const packetStreams = new Map();
+        const selected = [true, true];
+        let cursor = 0;
+        let openCount = 0;
+
+        const codecName = m._malloc(9);
+        m.stringToUTF8("webvtt", codecName, 9);
+
+        m._ffkmp_fmt_open_input_io = (out, opaque, readFn, seekFn, size, keys, values, n, unused) => {
+            m.HEAP32[out >> 2] = CONTEXT;
+            m.HEAP32[unused >> 2] = 0;
+            openCount++;
+            return 0;
+        };
+        m._ffkmp_fmt_find_stream_info = () => 0;
+        m._ffkmp_fmt_start_time = () => 0n;
+        m._ffkmp_fmt_nb_streams = (ctx) => ctx === CONTEXT ? 2 : 0;
+        m._ffkmp_fmt_stream = (ctx, index) =>
+            ctx === CONTEXT && index >= 0 && index < 2 ? STREAM + index : 0;
+        m._ffkmp_stream_codecpar = (stream) => CODECPAR + (stream - STREAM);
+        m._ffkmp_stream_index = (stream) => stream - STREAM;
+        m._ffkmp_stream_time_base = (stream, num, den) => {
+            m.HEAP32[num >> 2] = 1;
+            m.HEAP32[den >> 2] = 1000;
+        };
+        m._ffkmp_stream_duration_micros = () => 0n;
+        m._ffkmp_stream_rotation_degrees = () => 0;
+        m._ffkmp_codecpar_codec_type = () => 3;
+        m._ffkmp_codecpar_codec_id = () => 1;
+        m._ffkmp_codecpar_bit_rate = () => 0n;
+        m._ffkmp_codec_id_name = () => codecName;
+        m._ffkmp_media_type_video = () => 0;
+        m._ffkmp_media_type_audio = () => 1;
+        m._ffkmp_media_type_subtitle = () => 3;
+
+        // Real AV_DISPOSITION_* bit values, so the fake cannot drift from the header:
+        // stream 0 is default+forced (1|64), stream 1 is hearing-impaired (128).
+        m._ffkmp_stream_disposition = (stream) => stream === STREAM ? 65 : 128;
+        m._ffkmp_disposition_default = () => 1;
+        m._ffkmp_disposition_forced = () => 64;
+        m._ffkmp_disposition_hearing_impaired = () => 128;
+        m._ffkmp_disposition_visual_impaired = () => 256;
+        m._ffkmp_disposition_attached_pic = () => 1024;
+
+        m._ffkmp_stream_discard_none = (stream) => { selected[stream - STREAM] = true; };
+        m._ffkmp_stream_discard_all = (stream) => { selected[stream - STREAM] = false; };
+        m._ffkmp_packet_alloc = () => m._malloc(16);
+        m._ffkmp_fmt_read_frame = (ctx, packet) => {
+            if (cursor >= packets.length) return EOF;
+            packetStreams.set(packet, packets[cursor++]);
+            return 0;
+        };
+        m._ffkmp_packet_stream_index = (packet) => packetStreams.get(packet) ?? -1;
+        m._ffkmp_packet_unref = (packet) => { packetStreams.delete(packet); };
+        m._ffkmp_packet_free = (packet) => { packetStreams.delete(packet); };
+        m._ffkmp_averror_eof = () => EOF;
+        m._ffkmp_fmt_close_input_io = (slot) => { m.HEAP32[slot >> 2] = 0; };
+
+        m.__packetReaderCursor = () => cursor;
+        m.__packetReaderOpenCount = () => openCount;
+        m.__packetReaderSelectionMask = () => (selected[0] ? 1 : 0) | (selected[1] ? 2 : 0);
+        return m;
+    }""",
+)
+private external fun installFakePacketReaderSurface(module: JsAny): JsAny
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__packetReaderCursor()")
+internal external fun fakePacketReaderCursor(module: JsAny): Int
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__packetReaderOpenCount()")
+internal external fun fakePacketReaderOpenCount(module: JsAny): Int
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__packetReaderSelectionMask()")
+internal external fun fakePacketReaderSelectionMask(module: JsAny): Int
+
 /** A module missing most of what the backend reads, for the diagnostic `attach` refuses on. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("""() => ({ ccall: () => 0, UTF8ToString: () => null, addFunction: () => 0, removeFunction: () => {} })""")

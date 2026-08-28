@@ -85,6 +85,7 @@ ffkmp_fmt_chapter_get
 ffkmp_fmt_chapter_metadata
 ffkmp_fmt_close_input
 ffkmp_fmt_close_input_io
+ffkmp_fmt_interrupt
 ffkmp_fmt_duration
 ffkmp_fmt_find_stream_info
 ffkmp_fmt_free_output

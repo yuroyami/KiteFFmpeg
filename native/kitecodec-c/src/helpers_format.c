@@ -16,17 +16,60 @@
 
 /* ════════════ AVFormatContext (input + output) ════════════ */
 
+/* KC-CANCEL: the one interrupt seam for every input open. The opaque is always a plain int
+   cell; for the custom-AVIO open it lives inside the bridge and dies with it, for path opens
+   it is its own allocation freed by the paired close. FFmpeg polls it at the top of every
+   blocking loop and returns AVERROR_EXIT once it reads nonzero. One-way by design: an
+   interrupted context is being abandoned, and clearing the flag mid-flight is how a
+   cancelled read resumes into freed state. */
+static int kc_interrupt_check(void *opaque) {
+    return opaque ? *(volatile int *)opaque : 0;
+}
+
+/* Entry-point poll. FFmpeg itself only polls the seam inside find_stream_info and the URL
+   protocol IO loop, so a fully buffered read never sees it; the fail-fast half of the
+   contract is therefore checked HERE, at our own entry points. Every context this layer
+   opens carries an int cell as the opaque, so the read is safe by construction. */
+static int kc_ctx_interrupted(AVFormatContext *s) {
+    return s && s->interrupt_callback.callback == kc_interrupt_check
+        && s->interrupt_callback.opaque
+        && *(volatile int *)s->interrupt_callback.opaque;
+}
+
+KC_API void ffkmp_fmt_interrupt(AVFormatContext *ctx) {
+    if (!ctx || ctx->interrupt_callback.callback != kc_interrupt_check) return;
+    volatile int *cell = (volatile int *)ctx->interrupt_callback.opaque;
+    if (cell) *cell = 1;
+}
+
 KC_API int  ffkmp_fmt_open_input(AVFormatContext **out, const char *path) {
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
     if (!path) return AVERROR(EINVAL);
-    AVFormatContext *c = NULL;
+    AVFormatContext *c = avformat_alloc_context();
+    if (!c) return AVERROR(ENOMEM);
+    int *cell = av_mallocz(sizeof(int));
+    if (!cell) { avformat_free_context(c); return AVERROR(ENOMEM); }
+    c->interrupt_callback.callback = kc_interrupt_check;
+    c->interrupt_callback.opaque = cell;
+    /* On failure avformat_open_input frees the context it was handed; the cell is ours. */
     int rc = avformat_open_input(&c, path, NULL, NULL);
-    if (rc < 0) return rc;
+    if (rc < 0) { av_freep(&cell); return rc; }
     *out = c; return 0;
 }
 KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
-    if (ctx && *ctx) { AVFormatContext *p = *ctx; avformat_close_input(&p); *ctx = NULL; }
+    if (!ctx || !*ctx) return;
+    AVFormatContext *p = *ctx;
+    /* The path opens own their interrupt cell; grab it before the context is freed. A
+       custom-io context must never surrender its cell here: that pointer is INTERIOR to the
+       bridge, and freeing it would corrupt the heap on top of the AVIO leak this misuse
+       already was. The flag is the provenance check. */
+    void *cell = (p->interrupt_callback.callback == kc_interrupt_check &&
+                  !(p->flags & AVFMT_FLAG_CUSTOM_IO))
+        ? p->interrupt_callback.opaque : NULL;
+    avformat_close_input(&p);
+    *ctx = NULL;
+    av_free(cell);
 }
 /* KD-4 (KPKMP 17.10): true pre-open options. The pairs are applied between allocation and open,
  * which is the only moment probesize, fflags and format forcing can act. Keys FFmpeg does not
@@ -48,9 +91,14 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
         int rc = av_dict_set(&options, keys[i], values[i], 0);
         if (rc < 0) { av_dict_free(&options); return rc; }
     }
-    AVFormatContext *c = NULL;
+    AVFormatContext *c = avformat_alloc_context();
+    if (!c) { av_dict_free(&options); return AVERROR(ENOMEM); }
+    int *cell = av_mallocz(sizeof(int));
+    if (!cell) { avformat_free_context(c); av_dict_free(&options); return AVERROR(ENOMEM); }
+    c->interrupt_callback.callback = kc_interrupt_check;
+    c->interrupt_callback.opaque = cell;
     int rc = avformat_open_input(&c, path, NULL, &options);
-    if (rc < 0) { av_dict_free(&options); return rc; }
+    if (rc < 0) { av_freep(&cell); av_dict_free(&options); return rc; }
     if (unused) *unused = options;    /* the caller owns the remainder, possibly NULL */
     else av_dict_free(&options);
     *out = c;
@@ -87,6 +135,7 @@ KC_API int  ffkmp_fmt_find_stream_info(AVFormatContext *c) {
     return c ? avformat_find_stream_info(c, NULL) : AVERROR(EINVAL);
 }
 KC_API int  ffkmp_fmt_seek_micros(AVFormatContext *ctx, int stream_index, int64_t micros) {
+    if (kc_ctx_interrupted(ctx)) return AVERROR_EXIT;
     if (!ctx) return AVERROR(EINVAL);
     /* Interlude guard (I-12): an index at or past nb_streams used to index ctx->streams[]
      * unchecked, reproduced as signal 11 through this exported entry point. -1 keeps its
@@ -96,6 +145,7 @@ KC_API int  ffkmp_fmt_seek_micros(AVFormatContext *ctx, int stream_index, int64_
     return av_seek_frame(ctx, stream_index, target, AVSEEK_FLAG_BACKWARD);
 }
 KC_API int  ffkmp_fmt_read_frame(AVFormatContext *c, AVPacket *p) {
+    if (kc_ctx_interrupted(c)) return AVERROR_EXIT;
     return (c && p) ? av_read_frame(c, p) : AVERROR(EINVAL);
 }
 
@@ -194,12 +244,18 @@ typedef struct kc_io_bridge {
     kc_io_read_fn read_fn;
     kc_io_seek_fn seek_fn;
     int64_t       size;
+    /* KC-CANCEL: the interrupt cell for this open, pointed at by the context's
+       interrupt_callback and freed with the bridge. */
+    volatile int  interrupted;
 } kc_io_bridge;
 
 /* FFmpeg's read_packet: >0 bytes, AVERROR_EOF at end, never 0 since n7. The caller contract
    (KC_IO_EOF / KC_IO_ERR) maps here so the Kotlin side never needs an FFmpeg constant. */
 static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
+    /* KC-CANCEL: FFmpeg's own poll sites never see a custom AVIO, so an interrupted long scan
+       is broken here, between caller reads, which is exactly where a network stall spins. */
+    if (b->interrupted) return AVERROR_EXIT;
     int r = b->read_fn(b->opaque, buf, len);
     if (r > 0) return r;
     if (r == KC_IO_EOF) return AVERROR_EOF;
@@ -208,6 +264,7 @@ static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
 
 static int64_t kc_io_seek(void *opaque, int64_t offset, int whence) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
+    if (b->interrupted) return AVERROR_EXIT;
     if (whence & AVSEEK_SIZE) return b->size >= 0 ? b->size : AVERROR(ENOSYS);
     whence &= ~AVSEEK_FORCE;
     if (!b->seek_fn) return AVERROR(ENOSYS);
@@ -258,6 +315,8 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     }
     c->pb = pb;
     c->flags |= AVFMT_FLAG_CUSTOM_IO;
+    c->interrupt_callback.callback = kc_interrupt_check;
+    c->interrupt_callback.opaque = (void *)&bridge->interrupted;
 
     AVDictionary *options = NULL;
     for (int i = 0; i < n; i++) {

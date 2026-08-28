@@ -1253,6 +1253,7 @@ final class io.github.yuroyami.kitecodec/MediaSource : kotlin/AutoCloseable { //
     final fun close() // io.github.yuroyami.kitecodec/MediaSource.close|close(){}[0]
     final fun decodeStreams(kotlin.collections/List<io.github.yuroyami.kitecodec/StreamInfo>): kotlinx.coroutines.flow/Flow<io.github.yuroyami.kitecodec/Frame> // io.github.yuroyami.kitecodec/MediaSource.decodeStreams|decodeStreams(kotlin.collections.List<io.github.yuroyami.kitecodec.StreamInfo>){}[0]
     final fun decodedFrames(io.github.yuroyami.kitecodec/StreamInfo): kotlinx.coroutines.flow/Flow<io.github.yuroyami.kitecodec/Frame> // io.github.yuroyami.kitecodec/MediaSource.decodedFrames|decodedFrames(io.github.yuroyami.kitecodec.StreamInfo){}[0]
+    final fun interrupt() // io.github.yuroyami.kitecodec/MediaSource.interrupt|interrupt(){}[0]
     final fun openDecoder(io.github.yuroyami.kitecodec/StreamInfo, kotlin/Int = ..., kotlin/Boolean = ..., io.github.yuroyami.kitecodec/CodecId? = ..., io.github.yuroyami.kitecodec.dsl/DecoderOptions? = ..., io.github.yuroyami.kitecodec/HardwareAccel? = ..., io.github.yuroyami.kitecodec/CorruptData = ...): io.github.yuroyami.kitecodec/StreamDecoder // io.github.yuroyami.kitecodec/MediaSource.openDecoder|openDecoder(io.github.yuroyami.kitecodec.StreamInfo;kotlin.Int;kotlin.Boolean;io.github.yuroyami.kitecodec.CodecId?;io.github.yuroyami.kitecodec.dsl.DecoderOptions?;io.github.yuroyami.kitecodec.HardwareAccel?;io.github.yuroyami.kitecodec.CorruptData){}[0]
     final fun openPacketReader(kotlin.collections/List<io.github.yuroyami.kitecodec/StreamInfo>): io.github.yuroyami.kitecodec/PacketReader // io.github.yuroyami.kitecodec/MediaSource.openPacketReader|openPacketReader(kotlin.collections.List<io.github.yuroyami.kitecodec.StreamInfo>){}[0]
     final suspend fun extractFrame(kotlin/Long, io.github.yuroyami.kitecodec/StreamInfo? = ...): io.github.yuroyami.kitecodec/Frame // io.github.yuroyami.kitecodec/MediaSource.extractFrame|extractFrame(kotlin.Long;io.github.yuroyami.kitecodec.StreamInfo?){}[0]
@@ -1299,6 +1300,7 @@ final class io.github.yuroyami.kitecodec/Packet : kotlin/AutoCloseable { // io.g
 final class io.github.yuroyami.kitecodec/PacketReader : kotlin/AutoCloseable { // io.github.yuroyami.kitecodec/PacketReader|null[0]
     final fun close() // io.github.yuroyami.kitecodec/PacketReader.close|close(){}[0]
     final fun read(): io.github.yuroyami.kitecodec/Packet? // io.github.yuroyami.kitecodec/PacketReader.read|read(){}[0]
+    final fun reselect(kotlin.collections/List<io.github.yuroyami.kitecodec/StreamInfo>) // io.github.yuroyami.kitecodec/PacketReader.reselect|reselect(kotlin.collections.List<io.github.yuroyami.kitecodec.StreamInfo>){}[0]
     final fun seek(kotlin/Long, io.github.yuroyami.kitecodec/SeekDirection = ..., kotlin/Long? = ...) // io.github.yuroyami.kitecodec/PacketReader.seek|seek(kotlin.Long;io.github.yuroyami.kitecodec.SeekDirection;kotlin.Long?){}[0]
 }
 
@@ -1783,6 +1785,10 @@ sealed class io.github.yuroyami.kitecodec/FFmpegError { // io.github.yuroyami.ki
 
     final class Internal : io.github.yuroyami.kitecodec/FFmpegError { // io.github.yuroyami.kitecodec/FFmpegError.Internal|null[0]
         constructor <init>(kotlin/String) // io.github.yuroyami.kitecodec/FFmpegError.Internal.<init>|<init>(kotlin.String){}[0]
+    }
+
+    final class Interrupted : io.github.yuroyami.kitecodec/FFmpegError { // io.github.yuroyami.kitecodec/FFmpegError.Interrupted|null[0]
+        constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kitecodec/FFmpegError.Interrupted.<init>|<init>(kotlin.Int;kotlin.String){}[0]
     }
 
     final class InvalidArgument : io.github.yuroyami.kitecodec/FFmpegError { // io.github.yuroyami.kitecodec/FFmpegError.InvalidArgument|null[0]

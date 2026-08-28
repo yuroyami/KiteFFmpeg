@@ -150,6 +150,24 @@ public expect class MediaSource : AutoCloseable {
         corruptData: CorruptData = CorruptData.Skip,
     ): StreamDecoder
 
+    /**
+     * Requests that every current and future blocking call on this source return with a typed
+     * [FFmpegError.Interrupted] failure (KC-CANCEL).
+     *
+     * FFmpeg polls an interrupt seam at the top of its blocking loops, so a read or seek already
+     * in flight returns promptly and later calls fail fast. One-way by design: an interrupted
+     * source is being abandoned, and there is no way to clear the flag, because a cancelled read
+     * resuming into freed state is the bug this exists to prevent. [close] stays both legal and
+     * required.
+     *
+     * This is the ONE member callable from another thread while a read, seek or decode is blocked
+     * on this source. It must still never run concurrently with, or after, [close].
+     *
+     * On wasmJs the runtime is single threaded, so nothing can be blocked while this runs; the
+     * flag is still set and later calls still fail fast.
+     */
+    public fun interrupt()
+
     override fun close()
 
     public companion object {

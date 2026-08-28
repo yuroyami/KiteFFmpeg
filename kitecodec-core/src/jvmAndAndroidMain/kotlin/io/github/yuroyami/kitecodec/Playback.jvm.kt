@@ -54,7 +54,7 @@ public actual enum class SeekDirection { Backward, Forward, Any }
 public actual class PacketReader internal constructor(
     private val source: MediaSource,
     private val formatToken: Long,
-    private val timeBaseByStream: Map<Int, Rational>,
+    private var timeBaseByStream: Map<Int, Rational>,
 ) : AutoCloseable {
     private var scratch = Internals.packetAlloc()
 
@@ -104,6 +104,17 @@ public actual class PacketReader internal constructor(
         }
         val rc = Internals.fmtSeekFile(formatToken, -1, min, target, max, flags)
         if (rc < 0) throw FFmpegException(avError(rc))
+    }
+
+    @Throws(FFmpegException::class)
+    public actual fun reselect(streams: List<StreamInfo>): Unit = synchronized(lock) {
+        check(scratch != 0L) { "PacketReader is closed" }
+        val next = canonicalPacketSelection(source.streams, streams)
+        val previous = timeBaseByStream
+        source.applyPacketReaderSelection(next.keys, previous.keys)
+        // Publish only after every backend flag was applied. read() uses this map as the exact
+        // delivery gate even when a demuxer treats AVDISCARD_ALL as advisory.
+        timeBaseByStream = next
     }
 
     actual override fun close() {

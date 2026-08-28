@@ -48,16 +48,43 @@ public actual class MediaSource internal constructor(
     private fun endDemux() = synchronized(stateLock) { demuxing = false }
     internal fun endPacketReader() = synchronized(stateLock) { readerActive = false }
 
-    internal fun restoreStreamDiscardDefaults(): Unit = synchronized(stateLock) {
-        val context = checkOpen()
+    /**
+     * Applies a live reader selection as one source-state transaction. The reader publishes its
+     * matching Kotlin delivery map only after this returns, so a failed flag change can never make
+     * it hand a caller an unrequested packet. Restore the previous FFmpeg flags before surfacing a
+     * setup failure; JNI's discard setter is currently infallible for a live stream token, but the
+     * rollback keeps that invariant true if the bridge later gains a fallible implementation.
+     */
+    internal fun applyPacketReaderSelection(selected: Set<Int>, previous: Set<Int>): Unit =
+        synchronized(stateLock) {
+            check(formatToken != 0L) { "MediaSource is closed" }
+            check(readerActive) { "This MediaSource has no active PacketReader" }
+            try {
+                setStreamDiscardSelection(formatToken, selected)
+            } catch (failure: Throwable) {
+                try {
+                    setStreamDiscardSelection(formatToken, previous)
+                } catch (rollback: Throwable) {
+                    failure.addSuppressed(rollback)
+                }
+                throw failure
+            }
+        }
+
+    private fun setStreamDiscardSelection(context: Long, selected: Set<Int>) {
         streams.forEach { info ->
             val stream = Internals.fmtStream(context, info.index)
             try {
-                Internals.streamDiscard(stream, false)
+                Internals.streamDiscard(stream, info.index !in selected)
             } finally {
                 Internals.borrowedRelease(stream, Internals.KIND_STREAM)
             }
         }
+    }
+
+    internal fun restoreStreamDiscardDefaults(): Unit = synchronized(stateLock) {
+        val context = checkOpen()
+        setStreamDiscardSelection(context, streams.mapTo(HashSet()) { it.index })
     }
 
     public actual val isSeekable: Boolean = Internals.fmtIsSeekable(formatToken)
@@ -280,9 +307,7 @@ public actual class MediaSource internal constructor(
 
     @KiteCodecLowLevelApi
     public actual fun openPacketReader(streams: List<StreamInfo>): PacketReader {
-        require(streams.isNotEmpty()) { "Need at least one stream to read" }
-        require(streams.distinctBy { it.index }.size == streams.size) { "Duplicate stream indices" }
-        streams.forEach(::requireOwnStream)
+        val selection = canonicalPacketSelection(this.streams, streams)
         val context = synchronized(stateLock) {
             check(formatToken != 0L) { "MediaSource is closed" }
             check(!demuxing) { "A decode flow is collecting on this MediaSource" }
@@ -291,16 +316,11 @@ public actual class MediaSource internal constructor(
             formatToken
         }
         try {
-            val selected = streams.mapTo(HashSet()) { it.index }
-            this.streams.forEach { info ->
-                val token = Internals.fmtStream(context, info.index)
-                try {
-                    Internals.streamDiscard(token, info.index !in selected)
-                } finally {
-                    Internals.borrowedRelease(token, Internals.KIND_STREAM)
-                }
-            }
-            return PacketReader(this, context, streams.associate { it.index to it.timeBase })
+            applyPacketReaderSelection(
+                selected = selection.keys,
+                previous = this.streams.mapTo(HashSet()) { it.index },
+            )
+            return PacketReader(this, context, selection)
         } catch (error: Throwable) {
             try {
                 restoreStreamDiscardDefaults()
@@ -345,6 +365,13 @@ public actual class MediaSource internal constructor(
             "StreamInfo(index=${supplied.index}) does not belong to this MediaSource. Pass entries " +
                 "from THIS source's streams list; stream identity is source-bound."
         }
+    }
+
+    public actual fun interrupt() {
+        /* Deliberately NOT under the demux lock: the whole point is reaching a context another
+           thread is blocked on. The handle table resolves or refuses a stale token, so this
+           cannot dereference a closed context. */
+        Internals.fmtInterrupt(formatToken)
     }
 
     actual override fun close() {

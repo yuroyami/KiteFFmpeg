@@ -56,6 +56,8 @@ public actual class MediaSource private constructor() : AutoCloseable {
     public actual var corruptDataSkipped: Long = 0L
         private set
 
+    public actual fun interrupt(): Unit = Unit
+
     actual override fun close(): Unit = Unit
 
     public actual companion object {

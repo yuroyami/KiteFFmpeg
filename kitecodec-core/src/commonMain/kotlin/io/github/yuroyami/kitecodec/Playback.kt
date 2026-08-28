@@ -110,7 +110,51 @@ public expect class PacketReader : AutoCloseable {
         notEarlierThan: Long? = null,
     )
 
+    /**
+     * Changes which streams [read] delivers without reopening this reader or moving its demuxer
+     * cursor.
+     *
+     * Every entry must come from the [MediaSource.streams] list of the source that opened this
+     * reader. The list must be non-empty and contain no duplicate indices. Invalid requests leave
+     * the previous selection unchanged.
+     *
+     * This operation changes delivery from the demuxer's *current* cursor onward. It does not seek
+     * backwards to recover packets from a newly selected stream, clear caller-owned queues or flush
+     * decoders. A player that has read ahead and needs the new stream at its presentation position
+     * must perform its own seek/cache refresh.
+     *
+     * Reading, seeking, reselecting and closing must be serialized by the caller. On JVM/Android
+     * they are additionally mutually excluded inside the reader; callers must not rely on that
+     * implementation detail for portable code.
+     */
+    @Throws(FFmpegException::class)
+    public fun reselect(streams: List<StreamInfo>)
+
     override fun close()
+}
+
+/**
+ * Canonicalizes a packet-reader selection against the immutable stream table published by its
+ * source. StreamInfo is a public data class and can be forged, so an index alone is not enough:
+ * accepting foreign timing metadata would stamp this source's packets with another source's time
+ * base.
+ */
+internal fun canonicalPacketSelection(
+    sourceStreams: List<StreamInfo>,
+    requestedStreams: List<StreamInfo>,
+): Map<Int, Rational> {
+    require(requestedStreams.isNotEmpty()) { "Need at least one stream to read" }
+    require(requestedStreams.distinctBy { it.index }.size == requestedStreams.size) {
+        "Duplicate stream indices"
+    }
+    val sourceByIndex = sourceStreams.associateBy { it.index }
+    requestedStreams.forEach { supplied ->
+        require(sourceByIndex[supplied.index] == supplied) {
+            "StreamInfo(index=${supplied.index}) does not belong to this MediaSource. Pass entries " +
+                "from THIS source's streams list; stream identity is source-bound."
+        }
+    }
+    return requestedStreams.associate { it.index to it.timeBase }
 }
 
 /**

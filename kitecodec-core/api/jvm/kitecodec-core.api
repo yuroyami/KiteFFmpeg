@@ -346,6 +346,10 @@ public final class io/github/yuroyami/kitecodec/FFmpegError$Internal : io/github
 	public fun <init> (Ljava/lang/String;)V
 }
 
+public final class io/github/yuroyami/kitecodec/FFmpegError$Interrupted : io/github/yuroyami/kitecodec/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
 public final class io/github/yuroyami/kitecodec/FFmpegError$InvalidArgument : io/github/yuroyami/kitecodec/FFmpegError {
 	public fun <init> (ILjava/lang/String;)V
 }
@@ -590,6 +594,7 @@ public final class io/github/yuroyami/kitecodec/MediaSource : java/lang/AutoClos
 	public final fun getStartTimeMicros ()J
 	public final fun getStreams ()Ljava/util/List;
 	public final fun getUnusedOpenOptions ()Ljava/util/List;
+	public final fun interrupt ()V
 	public final fun isSeekable ()Z
 	public final fun openDecoder-2kuZ4VM (Lio/github/yuroyami/kitecodec/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kitecodec/dsl/DecoderOptions;Lio/github/yuroyami/kitecodec/HardwareAccel;Lio/github/yuroyami/kitecodec/CorruptData;)Lio/github/yuroyami/kitecodec/StreamDecoder;
 	public static synthetic fun openDecoder-2kuZ4VM$default (Lio/github/yuroyami/kitecodec/MediaSource;Lio/github/yuroyami/kitecodec/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kitecodec/dsl/DecoderOptions;Lio/github/yuroyami/kitecodec/HardwareAccel;Lio/github/yuroyami/kitecodec/CorruptData;ILjava/lang/Object;)Lio/github/yuroyami/kitecodec/StreamDecoder;
@@ -639,6 +644,7 @@ public final class io/github/yuroyami/kitecodec/Packet : java/lang/AutoCloseable
 public final class io/github/yuroyami/kitecodec/PacketReader : java/lang/AutoCloseable {
 	public fun close ()V
 	public final fun read ()Lio/github/yuroyami/kitecodec/Packet;
+	public final fun reselect (Ljava/util/List;)V
 	public final fun seek (JLio/github/yuroyami/kitecodec/SeekDirection;Ljava/lang/Long;)V
 	public static synthetic fun seek$default (Lio/github/yuroyami/kitecodec/PacketReader;JLio/github/yuroyami/kitecodec/SeekDirection;Ljava/lang/Long;ILjava/lang/Object;)V
 }
