@@ -18,6 +18,23 @@ building filter graphs.
 > **Read [Release status](#release-status) before you plan around this.** What is
 > published and what is not is stated there exactly, with no rounding up.
 
+> **This project was called KiteCodec until 2026-08-29.** The name now says what it is: a
+> binding for FFmpeg, which is the only media engine it will ever wrap. Two things follow.
+>
+> The artifact is `io.github.yuroyami:kiteffmpeg-core`, and its version line starts again at
+> **0.1.0**. That number is smaller than the old `kitecodec-core` 0.1.3 and is NEWER than it: a
+> new artifact id starts its own line, and 0.1.0 carries everything 0.1.3 had plus the FFmpeg
+> n8.1.2 trees, the interrupt seam and the stream disposition work. The old coordinates stay on
+> Maven Central exactly as they were and receive nothing further.
+>
+> Names beginning `kc_`, `ffkmp_` and `libkitecodec` inside the C layer are unchanged on purpose.
+> They are internal to the build and invisible to anything that depends on this library, and
+> renaming them would move every symbol and signature baseline for no one's benefit.
+
+> **Not affiliated with the FFmpeg project.** FFmpeg is a trademark of Fabrice Bellard, and this
+> is an independent Kotlin binding that links FFmpeg's LGPL libraries. It is neither endorsed by
+> nor a product of the FFmpeg project. See [NOTICE](NOTICE) for the licence and the source offer.
+
 ## What you get
 
 One call runs the whole media pipeline: demux, decode, filter, encode, mux. It
