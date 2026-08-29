@@ -649,6 +649,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_close_input_io(ctx: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */> */>?): kotlin/Unit
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_interrupt")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_fmt_interrupt(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Unit
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_io_opaque")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_io_opaque(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlinx/cinterop/CPointer<out kotlinx/cinterop/CPointed>? /* = kotlinx/cinterop/COpaquePointer^? */
@@ -696,10 +700,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_iformat_name")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_iformat_name(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?
-
-      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_metadata")
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_fmt_metadata(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlinx/cinterop/CPointer<cnames/structs/AVDictionary /* = ffmpeg/kc_dict^ */>?
     }
   }
 
@@ -707,6 +707,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_metadata")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_fmt_metadata(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlinx/cinterop/CPointer<cnames/structs/AVDictionary /* = ffmpeg/kc_dict^ */>?
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_alloc_output2")
       @kotlinx/cinterop/ExperimentalForeignApi

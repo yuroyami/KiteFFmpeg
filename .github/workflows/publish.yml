@@ -44,7 +44,7 @@ permissions:
 env:
   # FFmpeg release whose prebuilt assets kitecodec-core compiles against and embeds. Keep in
   # sync with BuildFFmpegTask.DEFAULT_SOURCE_REF (buildSrc); the root build asserts they agree.
-  FFMPEG_VERSION: n8.0
+  FFMPEG_VERSION: n8.1.2
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from,
   # because on 2026-08-24 they stopped being the same thing. The aac encoder was missing from the
   # Linux and Windows profiles, so those binaries had to be rebuilt; they went to a NEW tag rather

@@ -3,7 +3,7 @@
 # Exact scope: 188 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 213 records.
+# records are sorted without deduplication. There must be exactly 214 records.
 #
 # THE MOVE (also in KPKMP.md section 9's ratchet move table): change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
