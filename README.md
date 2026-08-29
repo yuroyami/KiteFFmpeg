@@ -1,4 +1,4 @@
-# KiteCodec
+# KiteFFmpeg
 
 Video and audio processing for Kotlin Multiplatform: read a media file, change it,
 and write it back. Native targets reach FFmpeg's libav\* libraries through cinterop. The JVM and
@@ -8,7 +8,7 @@ needs one dependency line and nothing else. JS and WasmJs variants use an explic
 placeholder: diagnostics and capability probes work, while every media operation fails immediately
 with the typed `FFmpegError.Unsupported`. There is no `ffmpeg` process to launch and no log output to parse.
 
-[![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteCodec/ci.yml?label=CI)](https://github.com/yuroyami/KiteCodec/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteFFmpeg/ci.yml?label=CI)](https://github.com/yuroyami/KiteFFmpeg/actions/workflows/ci.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.10-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
@@ -41,11 +41,11 @@ Progress arrives as a typed callback. Failures arrive as one `FFmpegException`
 over a sealed 18-case `FFmpegError`. Frames arrive as a `Flow<Frame>`.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.AudioEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import kotlinx.coroutines.runBlocking
 
 // demux -> decode -> filter -> encode -> mux, video and audio, in one pass.
@@ -85,7 +85,7 @@ linker configuration.
 kotlin {
     macosArm64()          // any supported target; see the table below
     sourceSets.commonMain.dependencies {
-        implementation("io.github.yuroyami:kitecodec-core:0.1.3")
+        implementation("io.github.yuroyami:kiteffmpeg-core:0.1.3")
     }
 }
 ```
@@ -106,8 +106,8 @@ Stated exactly, because rounding this up is how people lose an afternoon.
 
 | Thing | Status |
 |---|---|
-| `kitecodec-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.3** |
-| FFmpeg zips, ALL 11 triples (dav1d inside every one) | **published** on the `ffmpeg-n8.0` release, one canonical copy for every KiteCodec version. Build evidence and the LGPL source offer; consumers need none of them |
+| `kiteffmpeg-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.3** |
+| FFmpeg zips, ALL 11 triples (dav1d inside every one) | **published** on the `ffmpeg-n8.0` release, one canonical copy for every KiteFFmpeg version. Build evidence and the LGPL source offer; consumers need none of them |
 
 **KC-EMBED, 2026-08-22.** The Gradle plugin is deleted and dav1d is mandatory.
 Each native target's cinterop klib embeds the six libav\* archives plus
@@ -117,19 +117,19 @@ memory corruption is gone by construction: FFmpeg travels inside the klib that
 was compiled against it. The GitHub release zips remain as build evidence, the
 LGPL source-offer anchor, and the input the publication pipeline embeds.
 
-**Inside this repository** the `:kitecodec-core:buildFFmpegFor<Target>` tasks
+**Inside this repository** the `:kiteffmpeg-core:buildFFmpegFor<Target>` tasks
 cross-compile the vendored trees (each bake builds dav1d first), record their
-configure line at `lib/kitecodec/ffmpeg-configure.txt`, and
-`:kitecodec-core:checkFFmpegRecipes` reports a stale tree;
-`-Pkitecodec.ffmpeg.autoBake=true` re-bakes automatically. A host without
+configure line at `lib/kiteffmpeg/ffmpeg-configure.txt`, and
+`:kiteffmpeg-core:checkFFmpegRecipes` reports a stale tree;
+`-Pkiteffmpeg.ffmpeg.autoBake=true` re-bakes automatically. A host without
 vendored trees falls back to a system (brew/apt) FFmpeg for its own desktop
 target only, via `ffmpeg-system.def`; published artifacts always embed.
 
 ## Licensing of the embedded FFmpeg
 
-KiteCodec's own code is Apache-2.0. The embedded FFmpeg is **LGPL-2.1-or-later**
+KiteFFmpeg's own code is Apache-2.0. The embedded FFmpeg is **LGPL-2.1-or-later**
 and dav1d is BSD-2-Clause, and every artifact says so: the POM declares all
-three licences, the JVM jar carries `META-INF/licenses/kitecodec-ffmpeg/`
+three licences, the JVM jar carries `META-INF/licenses/kiteffmpeg-ffmpeg/`
 (COPYING.LGPLv2.1 plus a third-party notice), and the exact FFmpeg source
 tarball is attached to the matching `v<version>` GitHub release.
 
@@ -200,7 +200,7 @@ profile is LGPL with no GPL counterpart. Asking for one there throws
 still reachable: point the build at your own FFmpeg tree and they resolve normally.
 
 **The runtime is checked against the headers before anything else happens.** The
-first call into KiteCodec compares the six `LIB*_VERSION_INT` values frozen into
+first call into KiteFFmpeg compares the six `LIB*_VERSION_INT` values frozen into
 this artifact at compile time against what the linked libraries report, and
 refuses to start on a mismatch that can corrupt memory: a different major, or a
 runtime minor below the header minor, or six libraries that disagree with each
@@ -219,7 +219,7 @@ says it was used.
 The batch API above fuses demuxing and decoding into one pass, which is right
 for transcoding and wrong for a player: a player needs audio and video decoding
 to proceed independently, and it needs to seek while both run. For that there
-is a second surface, gated behind the `@KiteCodecLowLevelApi` opt-in because it
+is a second surface, gated behind the `@KiteFFmpegLowLevelApi` opt-in because it
 hands out explicitly owned packets, frames and decoder state with manual lifetimes:
 
 - `MediaSource.openPacketReader(...)` reads owned packets one at a time and
@@ -309,20 +309,20 @@ every configured one, so it cannot silently drop a target. JVM, JS and WasmJs
 are portable variants included in every publication scope; JS and WasmJs are
 invariant unsupported placeholders.
 `publishToMavenLocal` also
-accepts `-Pkitecodec.hostTargetsOnly=true`, which publishes the host's own desktop native target
+accepts `-Pkiteffmpeg.hostTargetsOnly=true`, which publishes the host's own desktop native target
 plus those three portable variants. On an arm64 Mac it accepts the mutually exclusive
-`-Pkitecodec.applePhoneTargetsOnly=true` for exactly macosArm64, iosArm64 and
+`-Pkiteffmpeg.applePhoneTargetsOnly=true` for exactly macosArm64, iosArm64 and
 iosSimulatorArm64. Every remote publish explicitly refuses the phone selector.
 Both exceptions are local smoke paths, not release paths.
 
 The Android AAR is published, targets `minSdk 26`, and packages `arm64-v8a` and `x86_64` JNI
-libraries with 16 KiB ELF and app-packaging rules. `-Pkitecodec.phoneTargetsOnly=true` narrows a
+libraries with 16 KiB ELF and app-packaging rules. `-Pkiteffmpeg.phoneTargetsOnly=true` narrows a
 LOCAL build to the regular Android target plus the three Apple ones; it is a build-scope selector
 refused by every remote publish, not the thing that decides whether an artifact exists. Those
 packaging and link proofs are still not a device playback result: no Android playback has been
 qualified on physical hardware.
 MediaCodec is reached only by asking FFmpeg for a named decoder such as
-`h264_mediacodec`; KiteCodec does not call the platform codec API directly.
+`h264_mediacodec`; KiteFFmpeg does not call the platform codec API directly.
 
 ## Limits
 
@@ -335,7 +335,7 @@ MediaCodec is reached only by asking FFmpeg for a named decoder such as
 | Hardware decode, and zero-copy hwframes | Hardware *encode* does work. `h264_videotoolbox` is verified on macOS arm64. Pass `allow_sw` on VMs and CI runners, where the encoder exists but the hardware block does not. |
 | Direct MediaCodec or Android UI integration | The Android loader attaches its `JavaVM`, then callers may select an FFmpeg-owned named decoder. There is no direct `MediaCodec` API, Compose component, Android View, Android playback or physical-device qualification here. |
 | `https` in the vendored profile | It needs a TLS backend cross-compiled per target. Use `http`, a local file, or link a system FFmpeg. |
-| A stable API | 0.1.x is pre-1.0. The version policy is deliberate: the minor stays frozen and only the patch digit moves, each bump owner-approved, so 0.1.x is the series to depend on. `explicitApi()` is on, every public declaration states its visibility and return type, and there is a committed klib dump under `kitecodec-core/api/` that `apiCheck` verifies in every local gate and in CI, where the macOS ratchets job runs it on every push, so an accidental signature change fails a build. That is a change being visible, not a promise that it will not happen. |
+| A stable API | 0.1.x is pre-1.0. The version policy is deliberate: the minor stays frozen and only the patch digit moves, each bump owner-approved, so 0.1.x is the series to depend on. `explicitApi()` is on, every public declaration states its visibility and return type, and there is a committed klib dump under `kiteffmpeg-core/api/` that `apiCheck` verifies in every local gate and in CI, where the macOS ratchets job runs it on every push, so an accidental signature change fails a build. That is a change being visible, not a promise that it will not happen. |
 
 ## Build and test it here
 
@@ -345,11 +345,11 @@ video encoder by probing (`libx264`, then `mpeg4`, then `libsvtav1`, then
 
 ```bash
 brew install ffmpeg
-./gradlew :kitecodec-sample:linkDebugExecutableMacosArm64
-KEXE=kitecodec-sample/build/bin/macosArm64/debugExecutable/kitecodec-sample.kexe
+./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
+KEXE=kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
 $KEXE transcode in.mp4 out.mp4 "scale=1280:720" -acopy   # also: info, probe, thumbnail, remux
 
-./gradlew :kitecodec-core:macosArm64Test          # or linuxX64Test / mingwX64Test
+./gradlew :kiteffmpeg-core:macosArm64Test          # or linuxX64Test / mingwX64Test
 scripts/e2e.sh "$KEXE"
 ```
 
@@ -371,7 +371,7 @@ cd native/kitecodec-c
 ./scripts/check-deleted-surface.sh  # nothing refers to a deleted helper, in either repo
 ./scripts/symbol-audit.sh         # what the archive needs, exports and keeps private
 ./scripts/replay-corpus.sh        # every committed fuzz seed, under ASan and UBSan
-cd ../.. && ./gradlew :kitecodec-core:apiCheck checkCinteropCoupling
+cd ../.. && ./gradlew :kiteffmpeg-core:apiCheck checkCinteropCoupling
 ```
 
 Four limits of this machine are measured rather than assumed, and they shape all
@@ -388,7 +388,7 @@ each instrument can and cannot prove is written out in
 
 Every sample command and every build step is written out in
 [Getting started](docs/getting-started.md). The binding design, the `ffkmp_*` C
-helpers and the timestamp rules are in [About KiteCodec](docs/about.md).
+helpers and the timestamp rules are in [About KiteFFmpeg](docs/about.md).
 
 ## License
 

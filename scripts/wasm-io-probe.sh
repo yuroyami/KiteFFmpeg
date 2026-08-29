@@ -19,8 +19,8 @@ esac
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FF="$ROOT/native-libs/lgpl/wasm32"
-KC="$ROOT/native-libs/deps/wasm32/kitecodec/libkitecodec.a"
-EXPORTS="$ROOT/native-libs/deps/wasm32/binding/kitecodec-exports.json"
+KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
+EXPORTS="$ROOT/native-libs/deps/wasm32/binding/kiteffmpeg-exports.json"
 [ -f "$MEDIA" ] || { echo "no media at $MEDIA. Run KitePlayer's ./scripts/testmedia.sh" >&2; exit 1; }
 [ -f "$KC" ] || { echo "missing $KC" >&2; exit 1; }
 

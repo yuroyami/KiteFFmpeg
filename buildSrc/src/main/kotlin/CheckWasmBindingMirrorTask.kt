@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -11,7 +11,7 @@ import org.gradle.api.tasks.TaskAction
 /**
  * Holds the COMPILED wasm binding equal to the one the generator would write (register KC-WASM-MIRROR).
  *
- * [GenerateWasmBindingTask] writes `KiteCodecWasm.kt` into `native-libs/`, which is gitignored, so
+ * [GenerateWasmBindingTask] writes `KiteFFmpegWasm.kt` into `native-libs/`, which is gitignored, so
  * the file that actually COMPILES is a committed copy under `wasmJsMain`. Two copies with nothing
  * comparing them is a drift that surfaces at runtime in a browser, which is the most expensive place
  * this project has to find anything.
@@ -45,7 +45,7 @@ abstract class CheckWasmBindingMirrorTask : DefaultTask() {
         val expected = GenerateWasmBindingTask.kotlinBinding(exported)
         val actual = mirror.readText()
         if (expected == actual) {
-            logger.lifecycle("[KiteCodec wasm] binding mirror matches the generator: ${exported.size} externals")
+            logger.lifecycle("[KiteFFmpeg wasm] binding mirror matches the generator: ${exported.size} externals")
             return
         }
 
@@ -57,7 +57,7 @@ abstract class CheckWasmBindingMirrorTask : DefaultTask() {
             appendLine(firstDifference(expected, actual))
             appendLine()
             appendLine("Regenerate and copy it back:")
-            appendLine("  ./gradlew :kitecodec-core:generateWasmBinding")
+            appendLine("  ./gradlew :kiteffmpeg-core:generateWasmBinding")
             appendLine("  cp native-libs/deps/wasm32/binding/${GenerateWasmBindingTask.KOTLIN_FILE} ${mirror.path}")
         })
     }

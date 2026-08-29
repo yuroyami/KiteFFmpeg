@@ -1,5 +1,5 @@
 /* Ordinary maintained source since the interlude (I-12). Lifted at B1.3 from the def body of
- * kitecodec-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
+ * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
  * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
  * script itself is retired because an anchor no revision can replace forbids every future edit.
@@ -97,7 +97,7 @@ static int kc_pixfmt_convertible(int fmt, int as_output) {
    The converter is CACHED per thread through sws_getCachedContext, which reuses the existing
    context while the geometry and formats match and rebuilds it when they change: the repository's
    own allocation baseline measured 9 to 61 allocations per call for the create-and-free shape
-   this replaces (audit KiteCodec P1-4). One context per calling thread is deliberate: swscale
+   this replaces (audit KiteFFmpeg P1-4). One context per calling thread is deliberate: swscale
    contexts are not thread-safe, and decode/encode paths are thread-confined already.
 
    Colour is configured, not assumed: the source's matrix and range feed sws_setColorspaceDetails

@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -37,7 +37,7 @@ abstract class BuildDav1dTask : DefaultTask() {
     abstract val outputDir: DirectoryProperty
 
     init {
-        group = "kitecodec"
+        group = "kiteffmpeg"
         description = "Cross-compile dav1d as a static library for the given target."
     }
 
@@ -66,7 +66,7 @@ abstract class BuildDav1dTask : DefaultTask() {
         val meson = which("meson") ?: throw GradleException("meson not found. brew install meson ninja nasm")
         val ninja = which("ninja") ?: throw GradleException("ninja not found. brew install ninja")
 
-        val scratch = Files.createTempDirectory("kitecodec-dav1d").toFile()
+        val scratch = Files.createTempDirectory("kiteffmpeg-dav1d").toFile()
         try {
             val build = scratch.resolve("build")
             val install = scratch.resolve("install")
@@ -101,7 +101,7 @@ abstract class BuildDav1dTask : DefaultTask() {
             pc.writeText(
                 pc.readText().replace(Regex("^prefix=.*$", RegexOption.MULTILINE)) { "prefix=\${pcfiledir}/../.." },
             )
-            logger.lifecycle("[KiteCodec] dav1d ${sourceRef.get()} (${target.dirName}) installed into $output")
+            logger.lifecycle("[KiteFFmpeg] dav1d ${sourceRef.get()} (${target.dirName}) installed into $output")
         } finally {
             scratch.deleteRecursively()
         }
@@ -182,7 +182,7 @@ abstract class BuildDav1dTask : DefaultTask() {
             // meson LINKS a sanity program before it believes the compiler works, which is more
             // than dav1d's own static archive would ever need.
             TargetTriple.LinuxX64, TargetTriple.LinuxArm64, TargetTriple.MingwX64 -> {
-                val konan = KonanCross.resolve(target) { logger.lifecycle("[KiteCodec dav1d] $it") }
+                val konan = KonanCross.resolve(target) { logger.lifecycle("[KiteFFmpeg dav1d] $it") }
                 val cpuFamily = when (target) {
                     TargetTriple.LinuxArm64 -> "aarch64"
                     else -> "x86_64"
@@ -254,7 +254,7 @@ abstract class BuildDav1dTask : DefaultTask() {
             ?.absolutePath
 
     private fun runIn(workDir: File, command: List<String>) {
-        logger.lifecycle("[KiteCodec dav1d] " + command.joinToString(" "))
+        logger.lifecycle("[KiteFFmpeg dav1d] " + command.joinToString(" "))
         val proc = ProcessBuilder(command).directory(workDir).redirectErrorStream(true).start()
         proc.inputStream.bufferedReader().useLines { lines -> lines.forEach { logger.lifecycle("  $it") } }
         val code = proc.waitFor()
@@ -267,9 +267,9 @@ abstract class BuildDav1dTask : DefaultTask() {
 
         /**
          * Every target this task can write a cross file for, and therefore every target
-         * `:kitecodec-core` may register a `buildDav1dFor<Target>` task for.
+         * `:kiteffmpeg-core` may register a `buildDav1dFor<Target>` task for.
          *
-         * ONE list, read by both the registration in `kitecodec-core/build.gradle.kts` and the
+         * ONE list, read by both the registration in `kiteffmpeg-core/build.gradle.kts` and the
          * refusal above, because the two drifting apart produces the worst shape of this bug: a
          * task that exists, runs, and dies on "needs its cross file written first".
          *

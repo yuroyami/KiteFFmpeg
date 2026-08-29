@@ -1,7 +1,7 @@
 name: Docs
 
 # Builds the MkDocs Material site + the Dokka API reference and deploys both to
-# GitHub Pages (https://yuroyami.github.io/KiteCodec/). The API reference lands at
+# GitHub Pages (https://yuroyami.github.io/KiteFFmpeg/). The API reference lands at
 # /api/ to match the "API reference ▸" link in mkdocs.yml.
 
 on:
@@ -72,14 +72,14 @@ jobs:
       # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
       # references, which is what the `|| true` is for. Warm first, fetch second (KC-CI-KONAN).
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kitecodec-core:compileKotlinLinuxX64 --stacktrace || true
+        run: ./gradlew :kiteffmpeg-core:compileKotlinLinuxX64 --stacktrace || true
 
       # The HOST triple only, and scoped to match. Fetching all eleven was a mistake: it gave the
       # iOS and macOS targets FFmpeg trees, which registered their C helper tasks, which then tried
       # to run `xcrun` on an Ubuntu runner and failed with "A problem occurred starting process
       # 'command 'xcrun''". A Linux box cannot build Apple targets no matter what it is handed.
       #
-      # dokkaGenerate below therefore runs with -Pkitecodec.hostTargetsOnly=true, so only linuxX64
+      # dokkaGenerate below therefore runs with -Pkiteffmpeg.hostTargetsOnly=true, so only linuxX64
       # is registered and the shared nativeMain metadata compiles against that one. The documented
       # native API is the same either way: it lives in nativeMain, which is shared across every
       # native target. What is lost is per-target ABI detail, not documentation.
@@ -105,7 +105,7 @@ jobs:
       # silently lose its /api/ reference.
       - name: Generate the Dokka API reference and merge it into the site
         run: |
-          ./gradlew dokkaGenerate -Pkitecodec.hostTargetsOnly=true --no-configuration-cache
+          ./gradlew dokkaGenerate -Pkiteffmpeg.hostTargetsOnly=true --no-configuration-cache
           mkdir -p site/api
           cp -r build/dokka/html/. site/api/
 

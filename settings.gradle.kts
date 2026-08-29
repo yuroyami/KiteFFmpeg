@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "KiteCodec"
-include(":kitecodec-core")
-include(":kitecodec-sample")
-// include(":kitecodec-gpl"): uncomment once kitecodec-gpl/build.gradle.kts is implemented (see kitecodec-gpl/README.md)
+rootProject.name = "KiteFFmpeg"
+include(":kiteffmpeg-core")
+include(":kiteffmpeg-sample")
+// include(":kiteffmpeg-gpl"): uncomment once kiteffmpeg-gpl/build.gradle.kts is implemented (see kiteffmpeg-gpl/README.md)

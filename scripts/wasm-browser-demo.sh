@@ -11,14 +11,14 @@ set -euo pipefail
 PORT="${1:-8713}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FF="$ROOT/native-libs/lgpl/wasm32"
-KC="$ROOT/native-libs/deps/wasm32/kitecodec/libkitecodec.a"
+KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
 CLIP="${KITE_DEMO_CLIP:-$ROOT/../KitePlayer/testmedia/sync1080p30.mp4}"
 OUT="$ROOT/build/wasm-browser-demo"
-[ -f "$KC" ] || { echo "run :kitecodec-core:compileKiteCodecCForWasm first" >&2; exit 1; }
+[ -f "$KC" ] || { echo "run :kiteffmpeg-core:compileKiteFFmpegCForWasm first" >&2; exit 1; }
 [ -f "$CLIP" ] || { echo "no clip at $CLIP" >&2; exit 1; }
 
 rm -rf "$OUT"; mkdir -p "$OUT"
-python3 - "$ROOT/native-libs/deps/wasm32/binding/kitecodec-exports.json" "$OUT/exports.json" <<'PY'
+python3 - "$ROOT/native-libs/deps/wasm32/binding/kiteffmpeg-exports.json" "$OUT/exports.json" <<'PY'
 import json, sys
 names = json.load(open(sys.argv[1]))
 # open_input_io is the hand-written callback entry the generator excludes; the demo needs it.

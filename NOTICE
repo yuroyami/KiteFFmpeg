@@ -1,27 +1,27 @@
-KiteCodec
+KiteFFmpeg
 Copyright 2026 Yuroyami
 
-This product includes software developed as part of the KiteCodec project
-(https://github.com/yuroyami/KiteCodec), licensed under the Apache License,
+This product includes software developed as part of the KiteFFmpeg project
+(https://github.com/yuroyami/KiteFFmpeg), licensed under the Apache License,
 Version 2.0. See LICENSE.
 
 --------------------------------------------------------------------------------
 FFmpeg
 --------------------------------------------------------------------------------
 
-KiteCodec is a binding. It contains no FFmpeg source, and this repository ships no
+KiteFFmpeg is a binding. It contains no FFmpeg source, and this repository ships no
 FFmpeg binaries in its git tree. FFmpeg is NOT covered by this NOTICE or by
-KiteCodec's Apache-2.0 licence.
+KiteFFmpeg's Apache-2.0 licence.
 
-Since KC-EMBED (2026-08-22), KiteCodec's PUBLISHED ARTIFACTS (the per-target
+Since KC-EMBED (2026-08-22), KiteFFmpeg's PUBLISHED ARTIFACTS (the per-target
 klibs, the JVM jar's bundled native library, and the Android AAR's JNI
 libraries) EMBED compiled FFmpeg with the dav1d AV1 decoder. Those FFmpeg
 portions remain LGPL-2.1-or-later (dav1d: BSD-2-Clause); the artifact POMs
 declare all three licences, the JVM jar carries the licence texts under
-META-INF/licenses/kitecodec-ffmpeg/, and the complete corresponding FFmpeg
+META-INF/licenses/kiteffmpeg-ffmpeg/, and the complete corresponding FFmpeg
 source is attached to the `ffmpeg-<version>` GitHub release, which is the single
 canonical home for it (the binaries are keyed to the FFmpeg version, not to
-KiteCodec's, so every KiteCodec release points at the same one). An application
+KiteFFmpeg's, so every KiteFFmpeg release points at the same one). An application
 that ships these artifacts must give its users the LGPL notice and keep that
 source available; that release asset satisfies the source half.
 
@@ -43,7 +43,7 @@ obligations are yours.
 
 WHAT THIS MEANS IF YOU SHIP AN APP USING KITECODEC
 
-  - The LGPL applies to FFmpeg, not to your application, and not to KiteCodec's
+  - The LGPL applies to FFmpeg, not to your application, and not to KiteFFmpeg's
     own Apache-2.0 code.
   - State that your application uses FFmpeg under the LGPL, and make the
     corresponding FFmpeg source available to your users. Linking to the tag above
@@ -76,7 +76,7 @@ artifact.
 Components a tree YOU build may add
 --------------------------------------------------------------------------------
 
-KiteCodec can link an FFmpeg tree you built yourself. If you enable any of the
+KiteFFmpeg can link an FFmpeg tree you built yourself. If you enable any of the
 following, its licence and its obligations become yours, not this project's.
 
   SVT-AV1         BSD-3-Clause-Clear  https://gitlab.com/AOMediaCodec/SVT-AV1
@@ -94,5 +94,5 @@ following, its licence and its obligations become yours, not this project's.
 
 The complete component list, per-component licences, and the distribution
 obligations they carry are documented at:
-https://yuroyami.github.io/KiteCodec/licensing/
+https://yuroyami.github.io/KiteFFmpeg/licensing/
 (source: docs/licensing.md in this repository).

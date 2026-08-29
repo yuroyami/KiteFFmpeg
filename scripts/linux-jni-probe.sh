@@ -3,7 +3,7 @@
 #
 # Not "the file is in the jar": a 137 KB library with unresolved FFmpeg symbols passed that check
 # once, because ELF -shared allows undefined symbols by default. This loads the library through the
-# ordinary loader, with no kitecodec.jni.path override, and asserts what the API answers.
+# ordinary loader, with no kiteffmpeg.jni.path override, and asserts what the API answers.
 #
 #   ./scripts/linux-jni-probe.sh                 # linux/arm64 against the published 0.0.9 jar
 #   ./scripts/linux-jni-probe.sh linux/amd64     # the x64 library
@@ -12,7 +12,7 @@ set -euo pipefail
 
 PLATFORM="${1:-linux/arm64}"
 VERSION="${KITE_JNI_VERSION:-0.0.9}"
-JAR="${KITE_JNI_JAR:-$HOME/.m2/repository/io/github/yuroyami/kitecodec-core-jvm/$VERSION/kitecodec-core-jvm-$VERSION.jar}"
+JAR="${KITE_JNI_JAR:-$HOME/.m2/repository/io/github/yuroyami/kiteffmpeg-core-jvm/$VERSION/kiteffmpeg-core-jvm-$VERSION.jar}"
 IMAGE="${KITE_JDK_IMAGE:-eclipse-temurin:21-jdk}"
 [ -f "$JAR" ] || { echo "no jar at $JAR" >&2; exit 1; }
 
@@ -27,7 +27,7 @@ for pattern in "kotlin-stdlib-2.*.jar" "kotlinx-coroutines-core-jvm-*.jar" "atom
 done
 
 cat > "$WORK/Probe.java" <<'JAVA'
-import io.github.yuroyami.kitecodec.FFmpeg;
+import io.github.yuroyami.kiteffmpeg.FFmpeg;
 
 public class Probe {
     public static void main(String[] args) {

@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.testfixtures.ProjectBuilder
 import java.nio.file.Files
@@ -26,7 +26,7 @@ class BuildFFmpegTaskTest {
     @Test
     fun `a tree baked before the av1 hwaccel pin is reported stale, naming the flag`() {
         val installed =
-            "/scratch/kitecodec-ffmpeg-1/configure --enable-static --disable-shared " +
+            "/scratch/kiteffmpeg-ffmpeg-1/configure --enable-static --disable-shared " +
                 "--enable-videotoolbox --enable-hwaccel='h264_videotoolbox,hevc_videotoolbox' " +
                 "--enable-libdav1d --prefix=/scratch/install"
         val expected = listOf(
@@ -49,10 +49,10 @@ class BuildFFmpegTaskTest {
     @Test
     fun `the same recipe rendered by ffmpeg and by the task compares equal`() {
         val installed =
-            "/tmp/kitecodec-ffmpeg-abc/configure --enable-static " +
+            "/tmp/kiteffmpeg-ffmpeg-abc/configure --enable-static " +
                 "--enable-protocol='file,fd,pipe' --enable-hwaccel='h264_videotoolbox' " +
                 "--cc='clang -arch arm64 -isysroot /Xcode17/SDK/iphoneos -mios-version-min=14.0' " +
-                "--prefix=/tmp/kitecodec-ffmpeg-abc/install"
+                "--prefix=/tmp/kiteffmpeg-ffmpeg-abc/install"
         val expected = listOf(
             "--enable-static",
             "--enable-protocol=file,fd,pipe",
@@ -136,7 +136,7 @@ class BuildFFmpegTaskTest {
     @Test
     fun androidArm64AndX64UseTheExactApi24MediaCodecJniPicArguments() {
         val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
-        val root = Files.createTempDirectory("kitecodec-android-args-test")
+        val root = Files.createTempDirectory("kiteffmpeg-android-args-test")
         try {
             val toolchainBin = root.resolve("toolchains/llvm/prebuilt/test-host/bin").createDirectories()
             toolchainBin.resolve("aarch64-linux-android24-clang").createFile()
@@ -409,7 +409,7 @@ class BuildFFmpegTaskTest {
         // KC-EMBED (2026-08-22): the dav1d switch is dead, dav1d is recipe. The three arguments
         // sit immediately before --prefix on every profile.
         val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
-        val root = Files.createTempDirectory("kitecodec-av1sw-args-test")
+        val root = Files.createTempDirectory("kiteffmpeg-av1sw-args-test")
         try {
             val toolchainBin = root.resolve("toolchains/llvm/prebuilt/test-host/bin").createDirectories()
             toolchainBin.resolve("aarch64-linux-android24-clang").createFile()
@@ -499,7 +499,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun hashPathSourceIsCopiedToAHashFreeScratchTreeWithoutBuildState() {
-        val root = Files.createTempDirectory("kitecodec-source-test")
+        val root = Files.createTempDirectory("kiteffmpeg-source-test")
         try {
             val source = root.resolve("source#checkout").createDirectories()
             source.resolve("configure").createFile()
@@ -543,7 +543,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun invalidScratchInstallNeverReplacesAnExistingGoodOutput() {
-        val root = Files.createTempDirectory("kitecodec-replacement-test")
+        val root = Files.createTempDirectory("kiteffmpeg-replacement-test")
         try {
             val goodOutput = createCompleteInstall(
                 root.resolve("native-libs/lgpl/ios-arm64").createDirectories(),
@@ -572,7 +572,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun configureEvidenceNormalizesOnlyTheLogMarkerAndUsesTheStableInstalledPath() {
-        val root = Files.createTempDirectory("kitecodec-configure-evidence-test")
+        val root = Files.createTempDirectory("kiteffmpeg-configure-evidence-test")
         try {
             val configLog = root.resolve("build/ffbuild/config.log").apply {
                 parent.createDirectories()
@@ -602,7 +602,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun missingConfigureLogIsRefusedBeforeWritingAnInstallRecord() {
-        val root = Files.createTempDirectory("kitecodec-missing-configure-log-test")
+        val root = Files.createTempDirectory("kiteffmpeg-missing-configure-log-test")
         try {
             val install = root.resolve("install").createDirectories()
             val missingLog = root.resolve("build/ffbuild/config.log")
@@ -831,7 +831,7 @@ class BuildFFmpegTaskTest {
     @Test
     fun `a tree baked before the macOS floor was pinned is reported stale`() {
         val installed =
-            "/scratch/kitecodec-ffmpeg-1/configure --enable-static " +
+            "/scratch/kiteffmpeg-ffmpeg-1/configure --enable-static " +
                 "--cc='clang -arch arm64' --prefix=/scratch/install"
         val expected = listOf(
             "--enable-static",

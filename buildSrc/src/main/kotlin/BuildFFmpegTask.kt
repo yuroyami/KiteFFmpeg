@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -86,7 +86,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * [sourceRef], which is what keeps its tracked-by-ref identity honest. Content-tracked, so
      * editing a patch rebuilds. Each application is `patch -p1` with `--forward` and a rejected
      * hunk fails the build loudly. The applied list and each patch's SHA-256 are written beside
-     * the configure evidence in the install tree (`lib/kitecodec/ffmpeg-patches.txt`), so a
+     * the configure evidence in the install tree (`lib/kiteffmpeg/ffmpeg-patches.txt`), so a
      * provenance question about a prebuilt tree has a one-file answer. First patch and the reason
      * it exists: KPKMP hotfix window 2c, the h264_mp4toannexb 4-byte start codes the Goldfish
      * API 36 MediaCodec decoder requires (measured 2026-08-12).
@@ -101,7 +101,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * a dependency from the host is fine. True for anything that becomes a Release asset, where a
      * missing archive means the zip cannot link on a consumer's machine.
      *
-     * Set with `-Pkitecodec.ffmpeg.selfContained=true`.
+     * Set with `-Pkiteffmpeg.ffmpeg.selfContained=true`.
      */
     @get:Input
     @get:Optional
@@ -111,7 +111,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     abstract val outputDir: DirectoryProperty
 
     init {
-        group = "kitecodec"
+        group = "kiteffmpeg"
         description = "Cross-compile FFmpeg for the given Kotlin/Native target."
         license.convention(FFmpegLicense.LGPL)
     }
@@ -173,7 +173,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
 
             writeConfigureEvidence(scratchBuild.resolve("ffbuild/config.log"), scratchInstall)
             run {
-                val evidenceDir = scratchInstall.resolve("lib/kitecodec").also(Files::createDirectories)
+                val evidenceDir = scratchInstall.resolve("lib/kiteffmpeg").also(Files::createDirectories)
                 val digest = java.security.MessageDigest.getInstance("SHA-256")
                 val lines = buildString {
                     appendLine("# Source patches applied to the scratch FFmpeg before configure, in order.")
@@ -192,10 +192,10 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             replaceOutputTree(scratchInstall, outputDir.toPath())
             succeeded = true
             logger.lifecycle(
-                "[KiteCodec] FFmpeg ${sourceRef.get()} (${license.dirName}) installed into $outputDir",
+                "[KiteFFmpeg] FFmpeg ${sourceRef.get()} (${license.dirName}) installed into $outputDir",
             )
         } catch (failure: Throwable) {
-            logger.error("[KiteCodec] FFmpeg scratch retained after failure: $scratch")
+            logger.error("[KiteFFmpeg] FFmpeg scratch retained after failure: $scratch")
             throw failure
         } finally {
             if (succeeded) scratch.toFile().deleteRecursively()
@@ -238,7 +238,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * so an API bump moves this with it instead of leaving a stale literal behind.
      */
     private fun stubNdkToolchainBin(): File {
-        val dir = Files.createTempDirectory("kitecodec-recipe-stub-ndk").toFile()
+        val dir = Files.createTempDirectory("kiteffmpeg-recipe-stub-ndk").toFile()
         dir.deleteOnExit()
         listOf("aarch64-linux-android", "armv7a-linux-androideabi", "x86_64-linux-android").forEach {
             dir.resolve("$it$ANDROID_API-clang").apply { createNewFile(); deleteOnExit() }
@@ -275,14 +275,14 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
 
     /**
      * The cross-built dav1d install for [target]. MANDATORY since the axis died (owner decision
-     * 2026-08-22, KC-EMBED): every KiteCodec FFmpeg carries the dav1d AV1 software decoder,
+     * 2026-08-22, KC-EMBED): every KiteFFmpeg FFmpeg carries the dav1d AV1 software decoder,
      * because FFmpeg has no native software AV1 decoder and a build without one plays zero AV1.
      */
     private fun dav1dRoot(target: TargetTriple): File {
         val root = outputDir.get().asFile.parentFile.parentFile.resolve("deps/${target.dirName}/dav1d")
         require(root.resolve("lib/libdav1d.a").isFile) {
             "native-libs/deps/${target.dirName}/dav1d/lib/libdav1d.a does not exist, and dav1d is " +
-                "mandatory in every KiteCodec FFmpeg. Run :kitecodec-core:buildDav1dFor${target.gradleSuffix} first."
+                "mandatory in every KiteFFmpeg FFmpeg. Run :kiteffmpeg-core:buildDav1dFor${target.gradleSuffix} first."
         }
         return root
     }
@@ -310,7 +310,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             if (found == null) missing += archive else found.copyTo(libDir.resolve(archive), overwrite = true)
         }
         if (missing.isEmpty()) {
-            logger.lifecycle("[KiteCodec] bundled ${wanted.size} third-party static archives into $libDir")
+            logger.lifecycle("[KiteFFmpeg] bundled ${wanted.size} third-party static archives into $libDir")
             return
         }
 
@@ -327,15 +327,15 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         if (requireSelfContained.getOrElse(false)) {
             throw GradleException(
                 "$explanation\n" +
-                    "-Pkitecodec.ffmpeg.selfContained=true was set (a distributable build), so " +
+                    "-Pkiteffmpeg.ffmpeg.selfContained=true was set (a distributable build), so " +
                     "this is fatal: the resulting zip would not link on a consumer's machine.",
             )
         }
         logger.warn(
-            "warning: [KiteCodec] $outputDir is NOT self-contained.\n" +
+            "warning: [KiteFFmpeg] $outputDir is NOT self-contained.\n" +
                 "$explanation\n" +
                 "Local builds link these from the host instead, which is fine for development. " +
-                "Pass -Pkitecodec.ffmpeg.selfContained=true to make this a hard failure.",
+                "Pass -Pkiteffmpeg.ffmpeg.selfContained=true to make this a hard failure.",
         )
     }
 
@@ -425,7 +425,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // is also the odd combination, since that is the pairing the format is usually written with.
         "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg",
 
-        // buffer/buffersink/abuffer/abuffersink are how KiteCodec feeds and drains every graph.
+        // buffer/buffersink/abuffer/abuffersink are how KiteFFmpeg feeds and drains every graph.
         // Without them ffkmp_graph_build_* returns AVERROR_FILTER_NOT_FOUND.
         // Only filters EVERY profile can actually provide. Two kinds of exception live elsewhere,
         // because configure silently drops a filter whose dependencies are unmet. Listing one
@@ -480,7 +480,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     ) + appleHwaccelDecodeArgs()
 
     /**
-     * VideoToolbox hardware DECODE (KiteCodec window 3, KPKMP 17.4.8 S2.a). Unlike MediaCodec
+     * VideoToolbox hardware DECODE (KiteFFmpeg window 3, KPKMP 17.4.8 S2.a). Unlike MediaCodec
      * there is no named decoder to enable: VideoToolbox decode is an hwaccel behind the ordinary
      * `h264`/`hevc` decoders. Since the 17.4.9 wide profile the hwaccel class compiles whole, so
      * this list is a PIN rather than the sole source: it guarantees the two hwaccels the player's
@@ -511,7 +511,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      *
      * The missing half is a decoder chosen BY NAME plus a policy: open native `av1` with
      * VideoToolbox attached, and fall back to `libdav1d` in software when the hardware refuses.
-     * KiteCodec has no by-name decoder path today. Until it does, this pin only guarantees the
+     * KiteFFmpeg has no by-name decoder path today. Until it does, this pin only guarantees the
      * hwaccel is present for that work to use.
      */
 
@@ -543,11 +543,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
                 "Kotlin/Native distribution, so a build that has already compiled Kotlin/Native " +
                 "code has them."
         }
-        val llvmBin = CompileKiteCodecCTask.resolveLlvmBinDir(
+        val llvmBin = CompileKiteFFmpegCTask.resolveLlvmBinDir(
             dependencies,
-            CompileKiteCodecCTask.DEFAULT_LLVM_PACKAGE,
-        ) { message -> logger.lifecycle("[KiteCodec] $message") }
-        fun tool(name: String): String = (CompileKiteCodecCTask.resolveTool(llvmBin, name)
+            CompileKiteFFmpegCTask.DEFAULT_LLVM_PACKAGE,
+        ) { message -> logger.lifecycle("[KiteFFmpeg] $message") }
+        fun tool(name: String): String = (CompileKiteFFmpegCTask.resolveTool(llvmBin, name)
             ?: throw GradleException(
                 "Cannot cross-build FFmpeg for $target: no $name under ${llvmBin.absolutePath}.",
             )).absolutePath
@@ -557,7 +557,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // turned off in the configure args instead of hunting for a strip that can do it: these
         // are static archives, and a consumer's own link strips what it does not use.
         val archiver = tool("llvm-ar")
-        val spec = CompileKiteCodecCTask.specFor(target.konanTargetName)
+        val spec = CompileKiteFFmpegCTask.specFor(target.konanTargetName)
         val sysrootRelative = requireNotNull(spec.konanSysroot) { "$target has no konan sysroot" }
         val sysroot = dependencies.resolve(sysrootRelative)
         require(sysroot.isDirectory) {
@@ -607,7 +607,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         //
         // The konan "gcc" packages are not compilers on this host: their binaries are Linux ELF
         // and Windows PE respectively, shipped for their headers and libraries. Only the sysroot
-        // is used, exactly as CompileKiteCodecCTask already does for the C helper layer.
+        // is used, exactly as CompileKiteFFmpegCTask already does for the C helper layer.
         TargetTriple.LinuxX64, TargetTriple.LinuxArm64, TargetTriple.MingwX64 -> {
             val tools = konanBin(target)
             val arch = when (target) {
@@ -736,7 +736,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * Android profile: LGPL (no `--enable-gpl`, no third-party libs), NDK clang toolchain,
      * MediaCodec hardware video encode/decode. `--enable-jni` is required by the MediaCodec
      * wrapper; at runtime the app must hand FFmpeg its JavaVM via `av_jni_set_java_vm` before
-     * using `*_mediacodec` codecs (the surrounding KiteCodec Android substrate will own that call).
+     * using `*_mediacodec` codecs (the surrounding KiteFFmpeg Android substrate will own that call).
      */
     private fun androidArgs(target: TargetTriple, toolchainBin: File): List<String> {
         val (arch, cpu, ccPrefix) = when (target) {
@@ -795,7 +795,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     }
 
     private fun runIn(workDir: File, command: List<String>, env: Map<String, String> = emptyMap()) {
-        logger.lifecycle("[KiteCodec build] " + command.joinToString(" "))
+        logger.lifecycle("[KiteFFmpeg build] " + command.joinToString(" "))
         val builder = ProcessBuilder(command).directory(workDir).redirectErrorStream(true)
         builder.environment().putAll(env)
         val proc = builder.start()
@@ -840,7 +840,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
          *
          * 12.0 is not a preference. It is `minVersion.macos` from konan.properties for the Kotlin
          * this repository pins, so it is the floor the linker imposes whatever anything else says.
-         * `CompileKiteCodecCTask` reads this same constant; raising it means raising konan first.
+         * `CompileKiteFFmpegCTask` reads this same constant; raising it means raising konan first.
          */
         const val MACOS_DEPLOYMENT_TARGET = "12.0"
 
@@ -930,7 +930,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         )
 
         /** Stable installed provenance path consumed by packaging and release evidence. */
-        const val CONFIGURE_EVIDENCE_RELATIVE_PATH = "lib/kitecodec/ffmpeg-configure.txt"
+        const val CONFIGURE_EVIDENCE_RELATIVE_PATH = "lib/kiteffmpeg/ffmpeg-configure.txt"
 
         /**
          * Configure keys whose values describe THIS MACHINE rather than the recipe.
@@ -1049,7 +1049,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         /** Creates the unique hash-free workspace that is the only path configure and make see. */
         internal fun createScratchWorkspace(temporaryRoot: Path): Path {
             Files.createDirectories(temporaryRoot)
-            val workspace = Files.createTempDirectory(temporaryRoot, "kitecodec-ffmpeg-")
+            val workspace = Files.createTempDirectory(temporaryRoot, "kiteffmpeg-ffmpeg-")
             require('#' !in workspace.toAbsolutePath().toString()) {
                 "java.io.tmpdir must resolve to a path without '#': $workspace"
             }

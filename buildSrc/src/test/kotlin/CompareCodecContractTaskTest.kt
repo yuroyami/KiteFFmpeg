@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
@@ -18,7 +18,7 @@ class CompareCodecContractTaskTest {
 
     @Test
     fun bothTranscriptFilesAreDeclaredInputs() {
-        val root = Files.createTempDirectory("kitecodec-contract-input-test").toFile()
+        val root = Files.createTempDirectory("kiteffmpeg-contract-input-test").toFile()
         try {
             val jvm = root.resolve("jvm.txt").apply { writeText("identity=accepted\n") }
             val macos = root.resolve("macosArm64.txt").apply { writeText("identity=accepted\n") }

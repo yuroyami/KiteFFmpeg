@@ -7,7 +7,7 @@
 # lib/libdav1d.a and the packaging refuses a tree without it.
 #
 # Zips the {include,lib} tree at native-libs/<license>/<triple> (NOT the parent dir, so the archive
-# root is {include,lib}, exactly what the kitecodec Gradle plugin's unzip expects) into
+# root is {include,lib}, exactly what the kiteffmpeg Gradle plugin's unzip expects) into
 # dist/ffmpeg-<version>-<license>-<triple>.zip plus a matching .sha256. Every profile
 # is portable (2026-08-22): nothing is bundled from the runner; the mandatory dav1d archive is
 # already inside the tree, put there by BuildFFmpegTask.
@@ -53,7 +53,7 @@ fi
 # BuildFFmpegTask installs the normalized configure invocation with the tree it describes. This
 # installed record is the only provenance source: a vendor checkout may contain an unrelated or
 # stale ffbuild/config.log, especially when packaging a cross-compiled tree.
-configure_record="${src}/lib/kitecodec/ffmpeg-configure.txt"
+configure_record="${src}/lib/kiteffmpeg/ffmpeg-configure.txt"
 if [ ! -f "${configure_record}" ]; then
   echo "::error::missing installed configure evidence ${configure_record}" >&2
   exit 1
@@ -97,7 +97,7 @@ done
 commit="$(git -C "${ffmpeg_src}" rev-parse HEAD 2>/dev/null || echo "unknown")"
 
 cat > "${stage}/BUILD-INFO.txt" <<EOF
-FFmpeg build info: KiteCodec vendored binaries
+FFmpeg build info: KiteFFmpeg vendored binaries
 ===============================================
 FFmpeg version:   ${version}
 Git commit:       ${commit}

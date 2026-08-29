@@ -118,7 +118,7 @@ description. It is not a defect in the library and it is not a finding.
 
 What IS worth recording is the property underneath it: **an unbounded caller string reaches the
 avfilter parser through `ffkmp_graph_build_video` and `ffkmp_graph_build_video_multi` with no length
-policy anywhere in KiteCodec.** Nothing here says that is wrong. It says it is unbounded, that the
+policy anywhere in KiteFFmpeg.** Nothing here says that is wrong. It says it is unbounded, that the
 audio path is bounded and the video path is not, and that a length or time policy for
 caller-supplied filter text is B8's, alongside the resource classification that container fuzzing
 needs anyway. The committed video corpus therefore stops at 4096 bytes, which is half of
@@ -277,7 +277,7 @@ The signal is caused by a READ memory access
     #1 av_opt_find2
 ```
 
-It is not reachable from KiteCodec's own Kotlin today: `MediaSink` passes the keys of a
+It is not reachable from KiteFFmpeg's own Kotlin today: `MediaSink` passes the keys of a
 `Map<String, String>`, which cannot hold a null key. It becomes reachable the moment any other C
 consumer calls the exported symbol, which is what `KC_API` now makes possible.
 

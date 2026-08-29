@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
@@ -18,10 +18,10 @@ import kotlin.test.assertTrue
 class CheckCinteropCouplingTaskTest {
 
     private val repoRoot: File = File(
-        System.getProperty("kitecodec.repo.root") ?: "..",
+        System.getProperty("kiteffmpeg.repo.root") ?: "..",
     ).canonicalFile
 
-    private val sourceDir: File get() = repoRoot.resolve("kitecodec-core/src")
+    private val sourceDir: File get() = repoRoot.resolve("kiteffmpeg-core/src")
 
     private val committedBaseline: File get() = repoRoot.resolve("native/kitecodec-c/coupling-baseline.txt")
 

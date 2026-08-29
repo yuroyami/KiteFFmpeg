@@ -15,10 +15,10 @@ case "$MODE" in real|--falsify) ;; *) echo "usage: $0 [--falsify]" >&2; exit 2 ;
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FF="$ROOT/native-libs/lgpl/wasm32"
-KC="$ROOT/native-libs/deps/wasm32/kitecodec/libkitecodec.a"
-EXPORTS="$ROOT/native-libs/deps/wasm32/binding/kitecodec-exports.json"
+KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
+EXPORTS="$ROOT/native-libs/deps/wasm32/binding/kiteffmpeg-exports.json"
 for required in "$KC" "$EXPORTS" "$FF/lib/libavfilter.a"; do
-  [ -e "$required" ] || { echo "missing $required. Run :kitecodec-core:generateWasmBinding and :compileKiteCodecCForWasm." >&2; exit 1; }
+  [ -e "$required" ] || { echo "missing $required. Run :kiteffmpeg-core:generateWasmBinding and :compileKiteFFmpegCForWasm." >&2; exit 1; }
 done
 
 WORK=$(mktemp -d)

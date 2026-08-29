@@ -5,11 +5,11 @@ Use `Transcoder.transcode` to run a complete audio and video pipeline from a sin
 ## Basic workflow
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.AudioEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
@@ -39,7 +39,7 @@ regardless of how long the input is.
 `transcode` is a `suspend fun`, so call it from a coroutine. It suspends until the whole file is written, and it honors cancellation at the demux loop.
 
 !!! note "Requires FFmpeg present at link time"
-    KiteCodec binds to FFmpeg's libav\* libraries. The library is consumed by building from source today; install FFmpeg first (`brew install ffmpeg` on macOS, `apt install` on Linux) or use a vendored static build. See [Platform support](platforms.md) for what runs where.
+    KiteFFmpeg binds to FFmpeg's libav\* libraries. The library is consumed by building from source today; install FFmpeg first (`brew install ffmpeg` on macOS, `apt install` on Linux) or use a vendored static build. See [Platform support](platforms.md) for what runs where.
 
 ## The option surface
 
@@ -84,10 +84,10 @@ suspend fun transcode(
 `VideoEncoderSpec` describes the output video stream:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.PixelFormat
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.PixelFormat
+import io.github.yuroyami.kiteffmpeg.Rational
 
 val spec = VideoEncoderSpec(
     codec = CodecId.Libx264,            // codec selector
@@ -100,7 +100,7 @@ val spec = VideoEncoderSpec(
 )
 ```
 
-The `frameRate` is a [`Rational`](https://yuroyami.github.io/KiteCodec/api/), not a `Double`, so rates like NTSC's 29.97 are exact rather than approximated:
+The `frameRate` is a [`Rational`](https://yuroyami.github.io/KiteFFmpeg/api/), not a `Double`, so rates like NTSC's 29.97 are exact rather than approximated:
 
 ```kotlin
 Rational(30, 1)        // 30 fps
@@ -110,14 +110,14 @@ Rational(30000, 1001)  // 29.97 fps, exact
 
 `Rational` also ships common rates as companion constants: `Rational.Fps24`, `Rational.Fps25`, `Rational.Fps30`, `Rational.Fps60`, `Rational.Fps2997`, `Rational.Fps2398`.
 
-The `options` map passes codec-specific settings straight through (`preset`, `crf`, `allow_sw`, and so on). KiteCodec does not validate them. They reach the encoder unchanged.
+The `options` map passes codec-specific settings straight through (`preset`, `crf`, `allow_sw`, and so on). KiteFFmpeg does not validate them. They reach the encoder unchanged.
 
 ### Choosing a codec
 
 `CodecId` is a thin value class wrapping the FFmpeg codec name. Pick whichever the linked FFmpeg build provides:
 
 - Always present, every profile: `CodecId("mpeg4")`, `CodecId.Mjpeg`, `CodecId.Png`
-- Software video encoders: `CodecId.Libx264`, `CodecId.Libx265`, both GPL-only and in neither published artifact. The software video encoder every KiteCodec build carries is `mpeg4`.
+- Software video encoders: `CodecId.Libx264`, `CodecId.Libx265`, both GPL-only and in neither published artifact. The software video encoder every KiteFFmpeg build carries is `mpeg4`.
 - Generic codec ids: `CodecId.H264`, `CodecId.Hevc`, `CodecId.Av1`, `CodecId.Vp9`
 - Hardware video encoders with standing runtime evidence: `CodecId.H264VideoToolbox`, `CodecId.HevcVideoToolbox` on the qualified macOS profile. MediaCodec names exist in the Android FFmpeg profile, but this stage only claims named-decoder selection through `openDecoder`, not Android encoder or playback qualification.
 
@@ -125,7 +125,7 @@ The `options` map passes codec-specific settings straight through (`preset`, `cr
     Whether a given encoder is present depends on how FFmpeg was built. Check at runtime rather than hard-coding a name:
 
     ```kotlin
-    import io.github.yuroyami.kitecodec.FFmpeg
+    import io.github.yuroyami.kiteffmpeg.FFmpeg
 
     val codec = listOf(
         CodecId.H264VideoToolbox,
@@ -134,7 +134,7 @@ The `options` map passes codec-specific settings straight through (`preset`, `cr
     ).first { FFmpeg.hasEncoder(it.name) }
     ```
 
-    `libx264` and `libx265` exist only in a GPL-flavour FFmpeg, and no published KiteCodec artifact carries one, so asking for either throws `FFmpegException` from `addVideoEncoder` before a frame is read. There is no task that will build one for you: point the build at your own GPL tree under `native-libs/gpl/<target>/` with `-Pkitecodec.ffmpeg.license=gpl`. Read [Licensing](licensing.md) first, because that choice makes your whole application GPL.
+    `libx264` and `libx265` exist only in a GPL-flavour FFmpeg, and no published KiteFFmpeg artifact carries one, so asking for either throws `FFmpegException` from `addVideoEncoder` before a frame is read. There is no task that will build one for you: point the build at your own GPL tree under `native-libs/gpl/<target>/` with `-Pkiteffmpeg.ffmpeg.license=gpl`. Read [Licensing](licensing.md) first, because that choice makes your whole application GPL.
 
 ## Audio encoding, copy, or drop
 
@@ -145,8 +145,8 @@ There are three ways to treat audio, and they are mutually exclusive.
     Pass an `AudioEncoderSpec`. The audio is decoded, optionally filtered, and re-encoded:
 
     ```kotlin
-    import io.github.yuroyami.kitecodec.AudioEncoderSpec
-    import io.github.yuroyami.kitecodec.CodecId
+    import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
+    import io.github.yuroyami.kiteffmpeg.CodecId
 
     Transcoder.transcode(
         input  = "input.mp4",
@@ -242,7 +242,7 @@ For the full filter syntax, multi-input composition (overlay, amix), and how to 
 
 `startMicros` and `endMicros` cut a clip out of the input. Both are in microseconds.
 
-Both values count from the start of the content. They are not raw container timestamps. Some containers begin their timeline at a nonzero point, and MPEG-TS files typically begin near 1.4 s. KiteCodec converts your value onto that timeline for you, so `startMicros = 0` always means the first frame of the content.
+Both values count from the start of the content. They are not raw container timestamps. Some containers begin their timeline at a nonzero point, and MPEG-TS files typically begin near 1.4 s. KiteFFmpeg converts your value onto that timeline for you, so `startMicros = 0` always means the first frame of the content.
 
 ```kotlin
 // ffmpeg -ss 12.3 -to 45.6
@@ -289,7 +289,7 @@ Transcoder.transcode(
     endMicros   = 45_600_000,
     metadata = mapOf(
         "title"  to "My clip",
-        "artist" to "KiteCodec",
+        "artist" to "KiteFFmpeg",
     ),
 )
 ```
@@ -299,7 +299,7 @@ Transcoder.transcode(
 Pass an `onProgress` lambda to observe the run. It receives a `TranscodeProgress`:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.TranscodeProgress
+import io.github.yuroyami.kiteffmpeg.TranscodeProgress
 
 Transcoder.transcode(
     input  = "input.mp4",
@@ -327,8 +327,8 @@ The callback fires roughly every 30 encoded video frames, or roughly every 100 f
 Every failure inside FFmpeg surfaces as an `FFmpegException` carrying a typed `FFmpegError`:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpegException
-import io.github.yuroyami.kitecodec.FFmpegError
+import io.github.yuroyami.kiteffmpeg.FFmpegException
+import io.github.yuroyami.kiteffmpeg.FFmpegError
 
 try {
     Transcoder.transcode(input, output, spec = videoSpec)
@@ -350,11 +350,11 @@ try {
 A frame-exact clip, scaled down, with re-encoded audio, copied subtitles, metadata, and live progress:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.AudioEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
 
 suspend fun makeClip() {
     Transcoder.transcode(
@@ -385,4 +385,4 @@ suspend fun makeClip() {
 - [Filtering](filtering.md): full filter syntax and multi-input composition.
 - [Encoding and muxing](encoding-muxing.md): drive encoders and the muxer directly when you need more control than one call gives.
 - [Decoding](decoding.md): open a source and pull frames yourself.
-- [API reference](https://yuroyami.github.io/KiteCodec/api/)
+- [API reference](https://yuroyami.github.io/KiteFFmpeg/api/)

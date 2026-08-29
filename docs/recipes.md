@@ -1,14 +1,14 @@
 # Recipes
 
-Short, working solutions to common KiteCodec tasks. Each snippet is copy-pasteable and uses only real APIs from `io.github.yuroyami.kitecodec`. The high-level calls (`Transcoder.transcode`, `Remuxer.remux`) are `suspend` functions, so run them inside a coroutine.
+Short, working solutions to common KiteFFmpeg tasks. Each snippet is copy-pasteable and uses only real APIs from `io.github.yuroyami.kiteffmpeg`. The high-level calls (`Transcoder.transcode`, `Remuxer.remux`) are `suspend` functions, so run them inside a coroutine.
 
 !!! note "Imports"
-    Every public type lives in the flat `io.github.yuroyami.kitecodec` package. The snippets below assume the relevant types are imported. The `suspend` calls run inside `runBlocking { }` or any coroutine scope.
+    Every public type lives in the flat `io.github.yuroyami.kiteffmpeg` package. The snippets below assume the relevant types are imported. The `suspend` calls run inside `runBlocking { }` or any coroutine scope.
 
 ## Probe what this build can do
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpeg
+import io.github.yuroyami.kiteffmpeg.FFmpeg
 
 val v = FFmpeg.versions
 println("avcodec ${v.avcodec}, avformat ${v.avformat}, avfilter ${v.avfilter}")
@@ -27,8 +27,8 @@ Builds differ. A hardware encoder like `h264_videotoolbox` exists on macOS but n
 ## Extract one thumbnail at a timestamp, encode to JPEG bytes
 
 ```kotlin
-import io.github.yuroyami.kitecodec.MediaSource
-import io.github.yuroyami.kitecodec.CodecId
+import io.github.yuroyami.kiteffmpeg.MediaSource
+import io.github.yuroyami.kiteffmpeg.CodecId
 
 MediaSource.open("input.mp4").use { src ->
     src.extractFrame(atMicros = 90_000_000).use { frame ->
@@ -43,10 +43,10 @@ MediaSource.open("input.mp4").use { src ->
 ## Cut a frame-exact clip
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
@@ -67,7 +67,7 @@ Transcoder.transcode(
 ## Watermark overlay (two inputs)
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FilterGraph
+import io.github.yuroyami.kiteffmpeg.FilterGraph
 
 // Composite a logo into the bottom-right corner.
 val graph = FilterGraph.buildVideoMulti(
@@ -87,9 +87,9 @@ Multi-input graphs take a push callback rather than a `Flow`. Label inputs `[in0
 ## Audio-only: mp3 to aac
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.AudioEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
 
 Transcoder.transcode(
     input  = "song.mp3",
@@ -104,10 +104,10 @@ Passing `spec = null` runs an audio-only pipeline. AAC's fixed 1024-sample frame
 ## Stream-copy passthrough (audioCopy)
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
@@ -131,11 +131,11 @@ Transcoder.transcode(
 ## Report progress while transcoding
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.AudioEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
@@ -165,4 +165,4 @@ Transcoder.transcode(
 - [Filtering](filtering.md): single-input and multi-input `FilterGraph`s.
 - [Encoding & muxing](encoding-muxing.md): drive `VideoEncoder` / `AudioEncoder` through a `MediaSink`.
 - [Remuxing](remuxing.md): lossless `Remuxer.remux(...)` and keyframe-snapped trim.
-- [API reference](https://yuroyami.github.io/KiteCodec/api/): every public type and signature.
+- [API reference](https://yuroyami.github.io/KiteFFmpeg/api/): every public type and signature.

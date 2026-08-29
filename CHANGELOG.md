@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to KiteCodec are documented here.
+All notable changes to KiteFFmpeg are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-**Versioning policy:** KiteCodec is pre-1.0. During 0.x, minor versions may contain breaking API changes; they are called out here when they happen. From 1.0 on, breaking changes only land in major versions.
+**Versioning policy:** KiteFFmpeg is pre-1.0. During 0.x, minor versions may contain breaking API changes; they are called out here when they happen. From 1.0 on, breaking changes only land in major versions.
 
 ## [0.1.3] - 2026-08-24
 
@@ -14,7 +14,7 @@ published. This release supersedes all three, and everything they carried is lis
 Consumer integration is one line, on every platform:
 
 ```kotlin
-implementation("io.github.yuroyami:kitecodec-core:0.1.3")
+implementation("io.github.yuroyami:kiteffmpeg-core:0.1.3")
 ```
 
 ### Fixed in 0.1.3
@@ -51,7 +51,7 @@ like bugs.
   cinterop klib embeds the six libav\* archives plus libdav1d and carries its platform linker
   flags, so integration is the dependency line above and nothing else. The plugin module, its DSL
   and its `Local`/`System` consumer modes are deleted.
-- **The Android AAR is a first-class artifact** (`kitecodec-core-android`): self-contained
+- **The Android AAR is a first-class artifact** (`kiteffmpeg-core-android`): self-contained
   `libkitecodec_jni.so` for `arm64-v8a` and `x86_64`, licence payload under `META-INF/licenses/`,
   consumer keep rules. Before this an `androidTarget` consumer resolved the JVM artifact and failed
   at first load.
@@ -99,7 +99,7 @@ was private and unpublished.
   LGPL flavour only. Distributing a GPL-flavoured binary makes the consumer's whole
   application GPL-3.0, which is not a decision a library should make on their behalf.
   `FFmpegLicense.GPL` survives as a LABEL for a tree you built yourself (it is a path
-  segment and rides into the identity report); what is gone is KiteCodec producing one.
+  segment and rides into the identity report); what is gone is KiteFFmpeg producing one.
   This also deletes register row P0-14, where `portableDesktopArgs()` ignored the licence
   argument and wrote trees containing no GPL code into directories named `gpl` - a
   curiosity while private, a false public statement about licensing once published.
@@ -110,17 +110,17 @@ Nothing yet.
 
 ## [0.1.1] - 2026-08-22
 
-**The first release on Maven Central**, and the first anyone can consume with one dependency line. 0.1.0 existed only as source and local artifacts; everything below shipped publicly for the first time in 0.1.1, The 11 FFmpeg companion zips live on the `ffmpeg-n8.0` release, one canonical copy shared by every KiteCodec version, because they are keyed to the FFmpeg version rather than to this one; they are build evidence and the LGPL source offer, and a consumer needs none of them.
+**The first release on Maven Central**, and the first anyone can consume with one dependency line. 0.1.0 existed only as source and local artifacts; everything below shipped publicly for the first time in 0.1.1, The 11 FFmpeg companion zips live on the `ffmpeg-n8.0` release, one canonical copy shared by every KiteFFmpeg version, because they are keyed to the FFmpeg version rather than to this one; they are build evidence and the LGPL source offer, and a consumer needs none of them.
 
 ### Added
-- **The Android AAR is a first-class published artifact** (`kitecodec-core-android`): self-contained `libkitecodec_jni.so` for `arm64-v8a` and `x86_64` with FFmpeg + dav1d statically inside, the LGPL licence payload under `META-INF/licenses/`, and consumer keep rules. Before this, an `androidTarget` consumer resolved the JVM artifact and failed at first load.
+- **The Android AAR is a first-class published artifact** (`kiteffmpeg-core-android`): self-contained `libkitecodec_jni.so` for `arm64-v8a` and `x86_64` with FFmpeg + dav1d statically inside, the LGPL licence payload under `META-INF/licenses/`, and consumer keep rules. Before this, an `androidTarget` consumer resolved the JVM artifact and failed at first load.
 
 ### Changed
 - **KC-EMBED: FFmpeg now lives INSIDE the published klibs, and the Gradle plugin is gone.**
   Owner decision 2026-08-22. Each native target's cinterop klib embeds the six libav\*
   archives plus libdav1d (the same `staticLibraries` slot `libkitecodec.a` always rode) and
   carries its platform linker flags, so the whole consumer integration is
-  `implementation("io.github.yuroyami:kitecodec-core:<v>")`. Proven the day it landed: a
+  `implementation("io.github.yuroyami:kiteffmpeg-core:<v>")`. Proven the day it landed: a
   project with nothing but that line linked a macOS executable (which ran, identity gate
   green), an iOS simulator framework and a Windows PE32+ executable. The plugin module,
   its DSL (`source`/`license`/`dav1d`/`libass`/`repo`/`releaseTag`/`pinnedSha256`), its
@@ -146,29 +146,29 @@ Nothing yet.
   and software AV1 is the dav1d flavour's job. A consumer's macOS link set shrinks to
   `-lz` plus the five media frameworks; an old fat Local tree reads as stale in
   `checkFFmpegRecipes` and rebakes portable.
-- **Release assets moved to the KiteCodec version tag.** Prebuilts now live on `v<version>`
+- **Release assets moved to the KiteFFmpeg version tag.** Prebuilts now live on `v<version>`
   (`v0.1.0`), not on `ffmpeg-<ffversion>`. The plugin's new `ffmpeg.releaseTag` property
   defaults to the plugin's OWN version tag through a generated constant, so a plugin version
-  always fetches the assets released with it. Every KiteCodec release ships the FULL set:
+  always fetches the assets released with it. Every KiteFFmpeg release ships the FULL set:
   11 triples x 2 flavours (plain and dav1d) = 22 zips, built by `release-binaries.yml`.
 - **`BuildDav1dTask` covers all 11 triples.** android-arm32, ios-x64 and macos-x64 gained
   cross files (all three proven on this machine), so every triple has a dav1d flavour.
 
 ### Added
-- **`checkFFmpegRecipes`, and `-Pkitecodec.ffmpeg.autoBake=true`.** A vendored FFmpeg tree is a dead artifact: nothing rebuilt it and nothing compared it, so a recipe change in `buildSrc` and the `.a` files on disk drifted apart in silence. Measured: `av1_videotoolbox` was pinned into the Apple hwaccel list on 2026-08-19 and every Apple tree still lacked it a day later with no check red anywhere. Every bake already stamped its exact configure line into the tree; nobody read it. `checkFFmpegRecipes` now reads it and names the capability flags that moved, with the task to re-run. `-Pkitecodec.ffmpeg.autoBake=true` is the automatic half: the compile tasks depend on the bake, so Gradle re-bakes exactly when its inputs moved and skips it as UP-TO-DATE when they did not. Opt-in, because a first bake is tens of minutes. Machine-specific flags (`--prefix`, `--cc`, SDK paths) are excluded so an Xcode update never reads as drift, and the dav1d toggle is excluded because the plugin's dav1d contract already guards it in both directions.
+- **`checkFFmpegRecipes`, and `-Pkiteffmpeg.ffmpeg.autoBake=true`.** A vendored FFmpeg tree is a dead artifact: nothing rebuilt it and nothing compared it, so a recipe change in `buildSrc` and the `.a` files on disk drifted apart in silence. Measured: `av1_videotoolbox` was pinned into the Apple hwaccel list on 2026-08-19 and every Apple tree still lacked it a day later with no check red anywhere. Every bake already stamped its exact configure line into the tree; nobody read it. `checkFFmpegRecipes` now reads it and names the capability flags that moved, with the task to re-run. `-Pkiteffmpeg.ffmpeg.autoBake=true` is the automatic half: the compile tasks depend on the bake, so Gradle re-bakes exactly when its inputs moved and skips it as UP-TO-DATE when they did not. Opt-in, because a first bake is tens of minutes. Machine-specific flags (`--prefix`, `--cc`, SDK paths) are excluded so an Xcode update never reads as drift, and the dav1d toggle is excluded because the plugin's dav1d contract already guards it in both directions.
 
-- **`kitecodecCleanCache` and `kitecodec { cleanCacheOnClean = true }`.** `clean` wipes `build/`, but nothing ever wiped what the plugin GRABBED: downloaded FFmpeg archives live in the shared Gradle cache (`<gradle-user-home>/caches/kitecodec`) and outlived every project clean invisibly. The task is the visible handle; the property hooks it into `clean` for consumers who want a cleared project to mean cleared provisioning too. Default off, because the cache is shared by every project on the machine. `ffmpeg.localRoot` is never touched either way: the plugin only reads that tree and must not delete what it did not create.
-- **`kitecodecInfo`.** Prints one line per wired Kotlin/Native target: source, license, version, dav1d, libass, and where the binaries come from (the download URL or the resolved lib directory). The provisioning decisions all happen across lazy providers at configuration time, which made them invisible; this makes them a sentence instead of a link-failure autopsy.
+- **`kiteffmpegCleanCache` and `kiteffmpeg { cleanCacheOnClean = true }`.** `clean` wipes `build/`, but nothing ever wiped what the plugin GRABBED: downloaded FFmpeg archives live in the shared Gradle cache (`<gradle-user-home>/caches/kiteffmpeg`) and outlived every project clean invisibly. The task is the visible handle; the property hooks it into `clean` for consumers who want a cleared project to mean cleared provisioning too. Default off, because the cache is shared by every project on the machine. `ffmpeg.localRoot` is never touched either way: the plugin only reads that tree and must not delete what it did not create.
+- **`kiteffmpegInfo`.** Prints one line per wired Kotlin/Native target: source, license, version, dav1d, libass, and where the binaries come from (the download URL or the resolved lib directory). The provisioning decisions all happen across lazy providers at configuration time, which made them invisible; this makes them a sentence instead of a link-failure autopsy.
 
 - **A real JVM variant, so a desktop app is one dependency line.** `jvmMain` compiled
   `unsupportedMain` until now, so every JVM consumer got a library whose every entry point threw,
   while the working JNI implementation was compiled only for Android. The jvm target builds the
   real tree now, its test source set runs the shared codec-contract suite (41 tests green over real
-  FFmpeg), and the host JNI library rides inside the jar under `kitecodec-native/<os>-<arch>/`,
+  FFmpeg), and the host JNI library rides inside the jar under `kiteffmpeg-native/<os>-<arch>/`,
   self-contained: the libraries the link pulls from a package manager travel with it, their load
   commands rewritten to `@loader_path` and each one re-signed, because Apple silicon refuses an
   invalidated signature with SIGKILL and no exception. `JniLibrary` tries an explicit
-  `kitecodec.jni.path`, then `java.library.path`, then the bundle. The JVM API dump gains
+  `kiteffmpeg.jni.path`, then `java.library.path`, then the bundle. The JVM API dump gains
   `MediaByteSource` and the `MediaSource.open` overload that takes one, which the placeholder never
   had.
 - **FFmpeg for Linux and Windows.** `buildFFmpegForLinuxX64`, `...LinuxArm64` and `...MingwX64`
@@ -176,7 +176,7 @@ Nothing yet.
   matches what Kotlin/Native links against, at a reduced profile (software codecs plus zlib, no
   third-party encoder or text stack). Measured: 109 native tests pass on linuxArm64 in a container
   over the result, and the whole stack links to a PE32+ binary for Windows.
-  `-Pkitecodec.withDesktopTargets=true` adds the three triples to a publication instead of
+  `-Pkiteffmpeg.withDesktopTargets=true` adds the three triples to a publication instead of
   replacing its Apple and Android variants.
 - **Owned stream colour and typed VP9 metadata.** Video stream snapshots now carry container/probe
   colour declarations plus typed VP9 profile, level, bit depth and chroma subsampling across both
@@ -209,22 +209,22 @@ Nothing yet.
   model with 16 KiB ELF alignment and packaging-model checks. This is source and host/build
   evidence only: no jar or AAR is public, no Android playback or UI surface is claimed, and
   MediaCodec selection is only through FFmpeg named decoders such as `h264_mediacodec`.
-- **A local-only mobile Apple substrate.** On an arm64 Mac, `-Pkitecodec.applePhoneTargetsOnly=true` registers exactly macosArm64, iosArm64 and iosSimulatorArm64, is mutually exclusive with the standing target selectors, is accepted only by `publishToMavenLocal` and is refused by remote publication before repository work. The iOS FFmpeg tasks use the shared STANDARD software-playback set, `--disable-autodetect`, SDK zlib and SDK cross flags, with no desktop third-party stack, GPL build or hardware encode. (VideoToolbox DECODE was added to every Apple target later, by the window 3 entry below; encode remains desktop-only.) `BuildFFmpegTask`, repository path resolution, the Apple-phone selector and Local-plugin validation refuse their iOS GPL cases before tree lookup with the stable diagnostic `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.` `FFmpegSource.Local` consumes a complete `<localRoot>/<license>/<target>/{include,lib}` tree without network access, validates all six archives and headers for every wired target, links iOS with exactly zlib and puts the local macOS search path before its host fallback. Nothing was publicly published or released.
-- **The FFmpeg helper layer is real C now, with its own build, tests, sanitizer runs and fuzz targets.** It used to be 949 lines of text inside `kitecodec-core/src/nativeInterop/cinterop/ffmpeg.def`, which had no translation unit and therefore no object file, no test, no sanitizer run and no coverage; 19 of the 176 helpers were never called from Kotlin at all. The extraction produced `native/kitecodec-c/`: nine translation units, one per subsystem, compiled per Kotlin/Native target into a static archive that cinterop embeds, with `KC_API` on the exported helpers and `-fvisibility=hidden` on everything else. The generator and `scripts/verify-lift.sh` proved that historical move byte for byte and were then retired; these are ordinary maintained sources now. The opaque migration below subsequently changed the def and Kotlin call sites without changing the public Kotlin API.
+- **A local-only mobile Apple substrate.** On an arm64 Mac, `-Pkiteffmpeg.applePhoneTargetsOnly=true` registers exactly macosArm64, iosArm64 and iosSimulatorArm64, is mutually exclusive with the standing target selectors, is accepted only by `publishToMavenLocal` and is refused by remote publication before repository work. The iOS FFmpeg tasks use the shared STANDARD software-playback set, `--disable-autodetect`, SDK zlib and SDK cross flags, with no desktop third-party stack, GPL build or hardware encode. (VideoToolbox DECODE was added to every Apple target later, by the window 3 entry below; encode remains desktop-only.) `BuildFFmpegTask`, repository path resolution, the Apple-phone selector and Local-plugin validation refuse their iOS GPL cases before tree lookup with the stable diagnostic `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.` `FFmpegSource.Local` consumes a complete `<localRoot>/<license>/<target>/{include,lib}` tree without network access, validates all six archives and headers for every wired target, links iOS with exactly zlib and puts the local macOS search path before its host fallback. Nothing was publicly published or released.
+- **The FFmpeg helper layer is real C now, with its own build, tests, sanitizer runs and fuzz targets.** It used to be 949 lines of text inside `kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def`, which had no translation unit and therefore no object file, no test, no sanitizer run and no coverage; 19 of the 176 helpers were never called from Kotlin at all. The extraction produced `native/kitecodec-c/`: nine translation units, one per subsystem, compiled per Kotlin/Native target into a static archive that cinterop embeds, with `KC_API` on the exported helpers and `-fvisibility=hidden` on everything else. The generator and `scripts/verify-lift.sh` proved that historical move byte for byte and were then retired; these are ordinary maintained sources now. The opaque migration below subsequently changed the def and Kotlin call sites without changing the public Kotlin API.
 - **The compatible half of the opaque C surface, ABI 1.1.** `kitecodec_handles.h` adds the eleven forward-declared aliases `kc_codec`, `kc_codec_ctx`, `kc_codec_par`, `kc_dict`, `kc_dict_entry`, `kc_filter_ctx`, `kc_filter_graph`, `kc_fmt_ctx`, `kc_frame`, `kc_packet` and `kc_stream`, with no FFmpeg include. The helper surface adds the seven wrappers `ffkmp_codecctx_send_packet`, `ffkmp_codecctx_receive_frame`, `ffkmp_codecctx_send_frame`, `ffkmp_codecctx_receive_packet`, `ffkmp_find_encoder_by_name`, `ffkmp_find_decoder_by_name` and `ffkmp_filter_exists`, plus the five accessors `ffkmp_media_type_video`, `ffkmp_media_type_audio`, `ffkmp_media_type_subtitle`, `ffkmp_media_type_data` and `ffkmp_media_type_attachment`. Those twelve functions were compatible additions: the export set moved from 163 to 175, comprising 169 `ffkmp_` and six `kc_` symbols, and the C ABI moved from 1.0 to 1.1. They remained dormant from Kotlin until the ABI 2.0 migration adopted them.
 - **Breaking C and cinterop change: the opaque boundary is complete at ABI 2.0.** The 140 original helper declarations that named FFmpeg types now use the eleven `kc_*` aliases, `kitecodec_helpers.h` no longer supplies FFmpeg typedefs or layouts transitively, and the cinterop def parses only the helper, handle and ABI headers. Raw libav functions, constants and struct layouts disappear from the klib; eleven incomplete forward tags remain behind the aliases and Kotlin source is forbidden to name them directly. Native consumers must use the `kc_*` handles and `ffkmp_*` functions; six Kotlin implementation files migrate to those names while the public Kotlin API remains byte-for-byte unchanged. The export set stays at 175, the new 189-record signature ratchet holds declaration shape, and nothing has been publicly published.
 - **Required C arguments now fail with `AVERROR(EINVAL)` instead of reaching FFmpeg as invalid pointers.** The sixteen guarded entry points are `ffkmp_frame_get_buffer`, `ffkmp_codecpar_from_context`, `ffkmp_codecpar_copy_for_mux`, `ffkmp_fmt_open_input`, `ffkmp_fmt_find_stream_info`, `ffkmp_fmt_read_frame`, `ffkmp_fmt_alloc_output2`, `ffkmp_fmt_write_frame`, `ffkmp_codecctx_open`, `ffkmp_codecctx_from_par`, `ffkmp_graph_build_video`, `ffkmp_graph_build_audio`, `ffkmp_graph_build_video_multi`, `ffkmp_graph_build_audio_multi`, `ffkmp_graph_send` and `ffkmp_graph_receive`. Six nullable controls preserve the intentional FFmpeg meanings: a NULL audio-filter description selects `anull`; a NULL graph-send frame signals EOF; a NULL mux packet flushes; a NULL output-format name permits inference; a NULL codec lets `ffkmp_codecctx_open` use the codec remembered by its context; and a NULL path is valid for `ffkmp_fmt_alloc_output2` when a nonempty format is supplied.
 - **New public types for the identity gate.** `FFmpegIdentity` and `FFmpegLibraryIdentity` carry the whole report as Kotlin values (per-library header and runtime version triples, verdicts, both licence strings, the provisioning sentence, whether the bypass was used); `FFmpegError.IncompatibleFFmpegRuntime` is the typed failure a rejection throws, with the identity attached; and `Versions` gains per-library header/runtime accessors (`avutilHeader` and siblings). All are in the committed API dump.
 - **An FFmpeg header versus runtime identity gate, called before anything allocates.** In the direction that matters, older headers against a newer runtime, every symbol resolves and the link succeeds while measured field offsets are wrong and 48 of the helpers read or write through one of them; reconnaissance reproduced wrong values read and then a SIGSEGV inside `av_frame_free`. A generated unit inside the same C compilation freezes the six `LIB*_VERSION_INT` macros, and `kc_init` compares them to the six `*_version()` functions under `pthread_once`. Policy: major must be equal, runtime minor at or above header minor, micro reported and never fatal, plus a cross-library `*_configuration()` agreement check that catches a mixed install. The verdict carries a report with both licence strings, the provisioning sentence and the runtime configuration, and KitePlayer surfaces a rejection as an ordinary typed playback error rather than a crash. `KITECODEC_FFMPEG_ABI_BYPASS=1`, and only that exact value, downgrades a rejection to a warning printed once per process for diagnosis; the report records that it was used.
 - **`ffmpeg.version` in the Gradle plugin DSL is validated.** A consumer writing `version = "n7.1"` with the default prebuilt source used to download FFmpeg 7.1 archives and link them against a klib whose stubs were compiled against n8.0 headers, which links cleanly and corrupts at runtime. Configuration now fails with a sentence naming both refs and the two ways out. One build-time assertion also holds the `n8.0` expectation in `BuildFFmpegTask`, the plugin and `publish.yml` to the same value, and to the vendored checkout when it is present.
-- **A committed klib ABI baseline and coupling ratchets.** `kitecodec-core/api/kitecodec-core.klib.api` exists and `apiCheck` runs in the macOS CI job, so an accidental public signature change now fails a build instead of shipping. `native/kitecodec-c/coupling-baseline.txt` plus `./gradlew checkCinteropCoupling` require zero direct FFmpeg imports, calls and named raw structs from Kotlin while reporting opaque `ffkmp_*` traffic separately. The C signature baseline independently holds all 189 public declaration records, so an alias retarget or parameter change cannot hide behind an unchanged symbol name.
+- **A committed klib ABI baseline and coupling ratchets.** `kiteffmpeg-core/api/kiteffmpeg-core.klib.api` exists and `apiCheck` runs in the macOS CI job, so an accidental public signature change now fails a build instead of shipping. `native/kitecodec-c/coupling-baseline.txt` plus `./gradlew checkCinteropCoupling` require zero direct FFmpeg imports, calls and named raw structs from Kotlin while reporting opaque `ffkmp_*` traffic separately. The C signature baseline independently holds all 189 public declaration records, so an alias retarget or parameter change cannot hide behind an unchanged symbol name.
 - **A C test suite, three sanitizer variants and six fuzz targets.** Seven suites run 274 cases per variant and 822 across plain, ASan and TSan. They cover the 39 ownership helpers for exact allocation pairing under a Mach-O interposer, I-12's two argument guards, all 12 fixed buffer sites and the four size-taking copy helpers at their limit and one byte past it, the arithmetic helpers at their overflow vectors, `ffkmp_strerror`'s thread affinity, the per call `SwsContext` in `ffkmp_frame_convert_pixfmt`, one case per identity verdict against doctored header trees, and the 22 cases in `test_args`. Each of the six suites that preceded `test_args` was proved load bearing by mutating copies of the sources and requiring the failure. The six fuzz targets cover every C entry point that parses a caller's string; they run as a corpus replay over 103 committed textual seeds in every gate, and a Linux CI job is configured to build them as libFuzzer targets but has not run yet, so no coverage-guided search has happened so far.
-- The low-level playback layer, behind the `@KiteCodecLowLevelApi` opt-in, built for and consumed by [KitePlayer](https://github.com/yuroyami/KitePlayer): `MediaSource.openPacketReader` (owned packets, transactional stream selection, `avformat_seek_file` with a real min/max window and flag set), `MediaSource.openDecoder` (one independent decoder per stream: `send`/`receive`/`flush`/`isDrained`; the first exposure of `avcodec_flush_buffers` anywhere in the binding), `Frame.withPlanes` (zero-copy plane pointers with row pitches; video frames only, audio rejects with a clear message) and `Frame.hardwareSurface`.
+- The low-level playback layer, behind the `@KiteFFmpegLowLevelApi` opt-in, built for and consumed by [KitePlayer](https://github.com/yuroyami/KitePlayer): `MediaSource.openPacketReader` (owned packets, transactional stream selection, `avformat_seek_file` with a real min/max window and flag set), `MediaSource.openDecoder` (one independent decoder per stream: `send`/`receive`/`flush`/`isDrained`; the first exposure of `avcodec_flush_buffers` anywhere in the binding), `Frame.withPlanes` (zero-copy plane pointers with row pitches; video frames only, audio rejects with a clear message) and `Frame.hardwareSurface`.
 - Overflow-safe timestamp helpers on the low-level types: `Packet.ptsMicros`/`dtsMicros`/`durationMicros` and `Frame.ptsMicros`/`durationMicros`, all through the 128-bit `av_rescale_q`, null on `AV_NOPTS_VALUE`.
 - Colour metadata on `FrameInfo` (`ColorInfo`: matrix, primaries, transfer, range, chroma siting, with the conventional SD/HD guess applied at frame height), plus frame duration, keyframe flag, sample aspect ratio and `isHardware`.
 - On `StreamInfo`: `Disposition` flags, `rotationDegrees` from the display matrix, per-stream start times, and `channelLayoutMask` (also on audio `FrameInfo`), the native channel order mask so 5.1 side and 5.1 back are distinguishable.
 - `MediaSource.isSeekable`, read from the real I/O context instead of assumed.
-- `MediaSource.startTimeMicros`: where a container's timeline begins. Raw stream/frame timestamps are absolute and include it; every parameter KiteCodec takes (`seekMicros`, `extractFrame`, trim bounds) is content-relative. Exposed so callers can convert between the two.
+- `MediaSource.startTimeMicros`: where a container's timeline begins. Raw stream/frame timestamps are absolute and include it; every parameter KiteFFmpeg takes (`seekMicros`, `extractFrame`, trim bounds) is content-relative. Exposed so callers can convert between the two.
 - Vendored FFmpeg profile now also builds `mpeg4` (encode + decode), `flac`, and the `pcm_s16le`/`s24le`/`f32le` encoders, the dependency-free baseline every profile shares. Previously the LGPL build had **no** video encoder except libsvtav1 and mjpeg, and the already-enabled `wav`/`flac` muxers had no encoder to feed them.
 - Vendored FFmpeg profile gained the MPEG-TS muxer/demuxer, the `matroska_audio` muxer (`.mka`), and the `http`/`tcp` protocols. (`https` still needs a TLS backend and is not built; see the note in `BuildFFmpegTask`.)
 - CI job `vendored-lgpl`: builds the shipped LGPL profile from source and runs the unit tests, native tests and full e2e against **that**, not against Homebrew's FFmpeg.
@@ -235,7 +235,7 @@ Nothing yet.
 - `Rational`: `Comparable`, `plus`/`minus`/`div`/`unaryMinus`, overflow-safe construction and scalar multiply.
 - `StreamInfo.metadata` (per-stream tags, `language`, `title`, …), 10-bit pixel format constants (`yuv420p10le`, `p010le`, …), `s64`/`s64p` sample formats.
 - Explicit API mode + `@Throws` annotations across the public surface; kotlinx binary-compatibility-validator wired (klib mode).
-- Maven publishing (vanniktech plugin, Central Portal, signing, Dokka javadoc jar) for `kitecodec-core`; Gradle Plugin Portal metadata + a TestKit functional test for `kitecodec-gradle-plugin`.
+- Maven publishing (vanniktech plugin, Central Portal, signing, Dokka javadoc jar) for `kiteffmpeg-core`; Gradle Plugin Portal metadata + a TestKit functional test for `kiteffmpeg-gradle-plugin`.
 
 ### Changed
 - **BREAKING: the `ffmpeg.dav1d` toggle is now a contract enforced in BOTH directions.** Before, `if (archive.exists()) linkerOpts("-ldav1d")` meant the tree decided and the toggle only validated one way: a consumer whose tree carried dav1d linked it without one line of their build saying so, and `dav1d = false` silently linked it anyway. dav1d is compiled into `libavcodec` when FFmpeg itself is built, so a link-time toggle can neither add nor subtract it; what it now does is refuse a mismatch loudly at task realisation, with the one-line fix in the message. Consumers whose Local tree carries dav1d must state `ffmpeg { dav1d = true }` from this release on.
@@ -247,7 +247,7 @@ Nothing yet.
 - `MediaSink.addVideoEncoder` now converts frames whose pixel format differs from the encoder's instead of failing. An unfiltered transcode of a 10-bit source, or a filter chain without a trailing `format=`, used to die with a bare `EINVAL`. Frame *dimensions* still throw, a size mismatch is a config error, and silently rescaling would hide it.
 - `MediaSink.close()` now drains every encoder before writing the trailer, as its documentation always claimed. A sink closed without an explicit `finish()` used to discard whatever the encoder still had buffered.
 - `AudioEncoder.sampleRate` / `.channels` now report what the encoder actually opened with rather than what was requested.
-- The sample and `scripts/e2e.sh` pick their video encoder by probing the linked FFmpeg instead of hard-coding `libx264` (GPL-only). `kitecodec-sample info` prints the choice for scripts to read.
+- The sample and `scripts/e2e.sh` pick their video encoder by probing the linked FFmpeg instead of hard-coding `libx264` (GPL-only). `kiteffmpeg-sample info` prints the choice for scripts to read.
 - **Breaking:** `FFmpegError` no longer extends `RuntimeException`. It is a plain sealed hierarchy carried by `FFmpegException` (the only thrown type).
 - **Breaking (contract):** frames emitted by `decodedFrames`/`decodeStreams`/`FilterGraph.process` are now OWNED by the collector, safe to buffer (`toList()`, `buffer()`), and each must be closed. Callback-style outputs (`feedInput`) keep the callback-scope rule.
 - `Rational.Zero.inverse` and division by zero now throw instead of constructing an invalid rational.
@@ -274,8 +274,8 @@ Nothing yet.
 - `.m4a` and `.mka` map to FFmpeg's separate `ipod` and `matroska_audio` muxers. Neither was enabled, so writing either extension failed with "Unable to choose an output format".
 - Decoding no longer aborts the whole file on a recoverable error. Every seek into a stream carrying its parameter sets in band (MPEG-TS) lands before the next SPS/PPS, so the first packets after it decode to nothing; that used to throw instead of being skipped, which made trimming a broadcast capture impossible.
 - Seeking before a decode now aims deliberately early (`seekForDecode`). Indexless containers resolve a seek by searching byte positions and can land past the keyframe they aimed at, after which the decoder emits nothing until the next IDR, a whole GOP of requested content silently dropped.
-- `BuildFFmpegTask` verified nothing after `make install`. A prefix GNU make cannot parse (any path containing `#`) truncates `libdir` to empty, so the install becomes a silent no-op that still exits 0, and `FFmpegPaths` then falls back to the system FFmpeg, exactly the "publication silently drops a target" failure the publish guard exists to prevent. It now copies source to a unique hash-free temporary tree, excluding `.git` and every `build` subtree while preserving executability, and runs configure, make and install only there. It normalizes the first `ffbuild/config.log` line into the installed `lib/kitecodec/ffmpeg-configure.txt`, requires that single-line provenance record while verifying the six archives and headers in scratch and in a Java/NIO sibling staging copy, and only then replaces the final tree. Packaging reads that installed record alone and refuses missing, blank, multiline or obsolete unavailable evidence. Failure retains scratch for diagnosis and never replaces the last good output.
-- `kitecodec-sample` ignored `-Pkitecodec.ffmpeg.license`, always resolving the LGPL tree even when the library it links was built against the GPL one.
+- `BuildFFmpegTask` verified nothing after `make install`. A prefix GNU make cannot parse (any path containing `#`) truncates `libdir` to empty, so the install becomes a silent no-op that still exits 0, and `FFmpegPaths` then falls back to the system FFmpeg, exactly the "publication silently drops a target" failure the publish guard exists to prevent. It now copies source to a unique hash-free temporary tree, excluding `.git` and every `build` subtree while preserving executability, and runs configure, make and install only there. It normalizes the first `ffbuild/config.log` line into the installed `lib/kiteffmpeg/ffmpeg-configure.txt`, requires that single-line provenance record while verifying the six archives and headers in scratch and in a Java/NIO sibling staging copy, and only then replaces the final tree. Packaging reads that installed record alone and refuses missing, blank, multiline or obsolete unavailable evidence. Failure retains scratch for diagnosis and never replaces the last good output.
+- `kiteffmpeg-sample` ignored `-Pkiteffmpeg.ffmpeg.license`, always resolving the LGPL tree even when the library it links was built against the GPL one.
 - **The vendored macOS FFmpeg build never configured.** It died on `ERROR: libmp3lame >= 3.98.3 not found` even with the dependency installed: `BuildFFmpegTask` passed no `--extra-cflags`/`--extra-ldflags` for the Homebrew prefix, and lame ships no pkg-config file. It now passes both, plus `PKG_CONFIG_PATH`.
 - **`--enable-videotoolbox` never produced a VideoToolbox encoder.** Under `--disable-everything` each encoder must be named explicitly; `h264_videotoolbox`/`hevc_videotoolbox` were not, so vendored Apple builds advertised hardware encode and had none. (The Android profile always listed `h264_mediacodec` correctly.)
 - Trim windows on containers that do not start at zero (MPEG-TS) selected the wrong range, see the seek/trim change above.
@@ -308,7 +308,7 @@ Everything below grew from `0.0.1` and is listed for orientation rather than as 
 - Capability probing (`FFmpeg.versions`, `hasEncoder`/`hasDecoder`/`hasFilter`, `buildConfiguration`).
 - Hardware encode via `h264_videotoolbox` (verified on macOS arm64; `allow_sw` for VMs). Android exposes FFmpeg MediaCodec names, but this changelog does not turn them into an Android playback or encoder qualification.
 - FFmpeg build tasks (`buildFFmpegFor<Target>[Gpl]`): vendored static FFmpeg cross-compile, LGPL by default with a GPL opt-in flavour, Android NDK MediaCodec profile.
-- `kitecodec-gradle-plugin`: provisions prebuilt/system FFmpeg for consumer builds with SHA-256 verification (in-repo; not yet published).
+- `kiteffmpeg-gradle-plugin`: provisions prebuilt/system FFmpeg for consumer builds with SHA-256 verification (in-repo; not yet published).
 - Documentation site (MkDocs Material) and CI (macOS / Ubuntu / Windows unit + e2e, plus a vendored-LGPL job that exercises the shipped profile).
 
 ### Known gaps
@@ -323,5 +323,5 @@ Everything below grew from `0.0.1` and is listed for orientation rather than as 
 
 Initial development baseline: project structure, consolidated FFmpeg cinterop binding (`ffmpeg.def` + `ffkmp_*` helpers), and the first working decode/encode paths on macOS arm64. Everything listed under [Unreleased] grew from here; treat 0.0.1 as the "it exists and transcodes" milestone rather than a supported release.
 
-[Unreleased]: https://github.com/yuroyami/KiteCodec/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/yuroyami/KiteCodec/releases/tag/v0.0.1
+[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/v0.0.1

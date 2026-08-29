@@ -2,8 +2,8 @@
 #
 # The compatibility instrument for the `ffmpeg` cinterop surface.
 #
-# `apiCheck` guards kitecodec-core's own klib. It says nothing about the cinterop klib, which is
-# a separate artifact and is where KiteCodec's opaque kc_/ffkmp_ bindings live. This script is that
+# `apiCheck` guards kiteffmpeg-core's own klib. It says nothing about the cinterop klib, which is
+# a separate artifact and is where KiteFFmpeg's opaque kc_/ffkmp_ bindings live. This script is that
 # missing guard: it dumps the cinterop klib's metadata, first rejects any raw libav surface, then
 # filters it, compares it against a committed baseline, and reports which declarations were added
 # and which were removed.
@@ -108,10 +108,10 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-KLIB_DIR="$REPO/kitecodec-core/build/classes/kotlin/$TARGET/main/cinterop/kitecodec-core-cinterop-ffmpeg"
+KLIB_DIR="$REPO/kiteffmpeg-core/build/classes/kotlin/$TARGET/main/cinterop/kiteffmpeg-core-cinterop-ffmpeg"
 if [ ! -d "$KLIB_DIR" ]; then
     echo "klib-metadata-diff.sh: no cinterop klib at $KLIB_DIR" >&2
-    echo "  build it first:  ./gradlew :kitecodec-core:cinteropFfmpeg$TARGET" >&2
+    echo "  build it first:  ./gradlew :kiteffmpeg-core:cinteropFfmpeg$TARGET" >&2
     exit 1
 fi
 
@@ -149,7 +149,7 @@ trap 'rm -rf "$WORK"' EXIT
 "$KLIB_TOOL" dump-metadata "$KLIB_DIR" | grep -v 'knifunptr_' > "$WORK/current.txt"
 
 # S1.a.8 deliberately removed every FFmpeg header from ffmpeg.def. The cinterop metadata must now
-# contain only KiteCodec-owned bindings: seeing any one of the former version constants proves a
+# contain only KiteFFmpeg-owned bindings: seeing any one of the former version constants proves a
 # raw FFmpeg header leaked back in, and seeing any other direct-binding prefix proves a raw C entry
 # point crossed the boundary. This runs before the --update branch so no write mode can bless a
 # forbidden dump. It is target-independent and therefore applies to every --target value.

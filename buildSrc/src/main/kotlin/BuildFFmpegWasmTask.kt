@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -66,7 +66,7 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
                 "  git clone --depth 1 --branch ${sourceRef.get()} https://github.com/FFmpeg/FFmpeg vendor/ffmpeg"
         }
         val emcc = requireOnPath("emcc")
-        logger.lifecycle("[KiteCodec wasm] emcc at $emcc, variant $variantName")
+        logger.lifecycle("[KiteFFmpeg wasm] emcc at $emcc, variant $variantName")
 
         // A hash in the path breaks FFmpeg's configure, and this repository lives under a '#Kite'
         // directory, so the build happens in scratch and is copied back. Same reason as the sibling
@@ -96,7 +96,7 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
         } finally {
             workspace.toFile().deleteRecursively()
         }
-        logger.lifecycle("[KiteCodec wasm] installed to $install")
+        logger.lifecycle("[KiteFFmpeg wasm] installed to $install")
     }
 
     internal fun configureArgs(variantName: String, prefix: Path): List<String> {
@@ -170,7 +170,7 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
     }
 
     private fun runIn(workDir: File, command: List<String>, env: Map<String, String>) {
-        logger.lifecycle("[KiteCodec wasm] " + command.joinToString(" "))
+        logger.lifecycle("[KiteFFmpeg wasm] " + command.joinToString(" "))
         val builder = ProcessBuilder(command).directory(workDir).redirectErrorStream(true)
         builder.environment().putAll(env)
         val proc = builder.start()

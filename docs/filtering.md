@@ -1,13 +1,13 @@
 # Filter graphs
 
-A filter graph is a chain of FFmpeg filters that transforms frames. A `FilterGraph` wraps a [libavfilter](https://ffmpeg.org/ffmpeg-filters.html) chain and passes frames through it. You describe the chain as a string (`scale`, `eq`, `vignette`, `format`, `volume`, `atempo`, anything FFmpeg ships), KiteCodec compiles it into a `buffersrc → chain → buffersink` graph, and you feed it `Frame`s. The same chains you would give to the `ffmpeg` CLI work here, with no subprocess.
+A filter graph is a chain of FFmpeg filters that transforms frames. A `FilterGraph` wraps a [libavfilter](https://ffmpeg.org/ffmpeg-filters.html) chain and passes frames through it. You describe the chain as a string (`scale`, `eq`, `vignette`, `format`, `volume`, `atempo`, anything FFmpeg ships), KiteFFmpeg compiles it into a `buffersrc → chain → buffersink` graph, and you feed it `Frame`s. The same chains you would give to the `ffmpeg` CLI work here, with no subprocess.
 
 Most of the time you do not build a graph by hand. [`Transcoder.transcode`](transcoding.md) takes a `videoFilter` / `audioFilter` string and wires the graph for you. Use `FilterGraph` directly when you are composing several inputs, driving frames yourself, or filtering outside the transcode pipeline.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FilterGraph
-import io.github.yuroyami.kitecodec.PixelFormat
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.FilterGraph
+import io.github.yuroyami.kiteffmpeg.PixelFormat
+import io.github.yuroyami.kiteffmpeg.Rational
 
 val graph = FilterGraph.buildVideo(
     description = "scale=1280:720,hue=b=0.1,vignette,format=yuv420p",
@@ -37,9 +37,9 @@ val graph = FilterGraph.buildVideo(
 
 | Parameter | Meaning |
 |---|---|
-| `description` | The filter chain, e.g. `scale=1280:720,hue=b=0.1,format=yuv420p`. Filters must exist in the FFmpeg you linked. `eq` and `boxblur` are GPL-only in FFmpeg itself, so they are absent from KiteCodec's default LGPL profile. `hue` (which has a brightness parameter `b`), `colorlevels` and `curves` are the LGPL equivalents. `FFmpeg.hasFilter("eq")` tells you before you build a graph. |
+| `description` | The filter chain, e.g. `scale=1280:720,hue=b=0.1,format=yuv420p`. Filters must exist in the FFmpeg you linked. `eq` and `boxblur` are GPL-only in FFmpeg itself, so they are absent from KiteFFmpeg's default LGPL profile. `hue` (which has a brightness parameter `b`), `colorlevels` and `curves` are the LGPL equivalents. `FFmpeg.hasFilter("eq")` tells you before you build a graph. |
 | `width`, `height` | Dimensions of the frames you feed in. |
-| `pixelFormat` | Input pixel format, typically the decoder's output (see [`PixelFormat`](https://yuroyami.github.io/KiteCodec/api/)). |
+| `pixelFormat` | Input pixel format, typically the decoder's output (see [`PixelFormat`](https://yuroyami.github.io/KiteFFmpeg/api/)). |
 | `timeBase` | The pts time-base of input frames. |
 | `frameRate` | Input frame rate, used by `setpts` / `fps`-style filters. |
 | `sampleAspectRatio` | Input SAR. Defaults to `Rational(1, 1)`. |
@@ -54,7 +54,7 @@ The `description` is a plain FFmpeg filter string. An empty chain (or `null` ups
 `buildAudio` compiles a one-input audio graph. It carries the input audio format the same way the video builder carries the picture format.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.SampleFormat
+import io.github.yuroyami.kiteffmpeg.SampleFormat
 
 val graph = FilterGraph.buildAudio(
     description = "volume=0.5,atempo=1.25",
@@ -105,8 +105,8 @@ A single-input graph consumes a `Flow<Frame>` and emits the processed frames as 
 
 ```kotlin
 import kotlinx.coroutines.flow.Flow
-import io.github.yuroyami.kitecodec.Frame
-import io.github.yuroyami.kitecodec.MediaSource
+import io.github.yuroyami.kiteffmpeg.Frame
+import io.github.yuroyami.kiteffmpeg.MediaSource
 
 MediaSource.open("input.mp4").use { src ->
     val video = src.primaryVideo!!
@@ -149,7 +149,7 @@ Each input has its own format, so you pass a list of `VideoInput` / `AudioInput`
 This composites a logo into the bottom-right corner of a main video. `[in0]` is the main picture, `[in1]` is the logo, and `overlay=W-w-10:H-h-10` places the smaller frame ten pixels in from the right and bottom edges.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.VideoInput
+import io.github.yuroyami.kiteffmpeg.VideoInput
 
 val mainInput = VideoInput(
     width = 1920, height = 1080,
@@ -175,7 +175,7 @@ val graph = FilterGraph.buildVideoMulti(
 `amix` blends several audio inputs into one. `[in0]` is the main track and `[in1]` is a second source. `duration=longest` runs the output until the longer input ends. Like `buildAudio`, the multi builder accepts `output*` pins, so the mix leaves the graph ready for the encoder.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.AudioInput
+import io.github.yuroyami.kiteffmpeg.AudioInput
 
 val voice = AudioInput(
     sampleRate = 48_000,
@@ -252,7 +252,7 @@ When you feed filtered frames into an encoder or muxer, rescale timestamps again
 Filters are part of the FFmpeg build you link against. Before relying on a less common one, you can check it exists:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpeg
+import io.github.yuroyami.kiteffmpeg.FFmpeg
 
 if (FFmpeg.hasFilter("vignette")) {
     // safe to use vignette in a chain
@@ -266,7 +266,7 @@ A description referencing a filter that is not in the build fails when the graph
 Graph construction and frame pushing surface FFmpeg failures as an `FFmpegException`. An unknown filter raises `FFmpegError.FilterNotFound`; a malformed description or a format the chain cannot negotiate raises a semantic `FFmpegError` subclass (falling back to `FFmpegError.AvError` with the underlying `AVERROR_*` code); an internal invariant failure raises `FFmpegError.Internal`.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpegException
+import io.github.yuroyami.kiteffmpeg.FFmpegException
 
 try {
     FilterGraph.buildVideo(

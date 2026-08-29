@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.GradleException
 import org.gradle.api.Project
@@ -8,7 +8,7 @@ const val IOS_GPL_REFUSAL =
     "iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL."
 
 const val LGPL_ONLY_REFUSAL =
-    "GPL refusal: KiteCodec builds and publishes the LGPL flavour only (owner decision " +
+    "GPL refusal: KiteFFmpeg builds and publishes the LGPL flavour only (owner decision " +
         "2026-08-21). A GPL tree is a consumer-built FFmpegSource.Local tree, never this task's."
 
 private val TargetTriple.isIos: Boolean
@@ -154,7 +154,7 @@ data class FFmpegPaths(
             if (target != hostTriple()) return null
             return when (target) {
                 TargetTriple.MacosArm64, TargetTriple.MacosX64 -> {
-                    val configured = project.providers.gradleProperty("kitecodec.macos.homebrew.prefix").orNull
+                    val configured = project.providers.gradleProperty("kiteffmpeg.macos.homebrew.prefix").orNull
                     val prefixCandidates = listOfNotNull(configured, "/opt/homebrew", "/usr/local")
                     val prefix = prefixCandidates.firstOrNull { File("$it/include/libavformat/avformat.h").exists() }
                         ?: return null
@@ -223,7 +223,7 @@ enum class TargetTriple(val dirName: String, val gradleSuffix: String) {
      * demands x264, svt-av1, opus, libass and six more libraries that have never been cross-built
      * for these triples, and building nine dependencies three ways is not what phase W buys. The
      * reduced profile is the 17.6 `standard` tier and plays the whole 17.5 matrix; a consumer who
-     * wants that stack builds their own tree and selects it with `-Pkitecodec.ffmpeg.license`. (This
+     * wants that stack builds their own tree and selects it with `-Pkiteffmpeg.ffmpeg.license`. (This
      * line used to say "through the plugin". KC-EMBED deleted the plugin module on 2026-08-22.)
      */
     val isPortableDesktop: Boolean get() = this == LinuxX64 || this == LinuxArm64 || this == MingwX64

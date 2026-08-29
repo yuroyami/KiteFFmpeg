@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -43,7 +43,7 @@ abstract class BuildAssChainTask : DefaultTask() {
     abstract val outputDir: DirectoryProperty
 
     init {
-        group = "kitecodec"
+        group = "kiteffmpeg"
         description = "Cross-compile the libass chain (fribidi, freetype, harfbuzz, libass) for one target."
     }
 
@@ -60,7 +60,7 @@ abstract class BuildAssChainTask : DefaultTask() {
         val meson = which("meson") ?: throw GradleException("meson not found. brew install meson ninja")
         val ninja = which("ninja") ?: throw GradleException("ninja not found. brew install ninja")
 
-        val scratch = Files.createTempDirectory("kitecodec-asschain").toFile()
+        val scratch = Files.createTempDirectory("kiteffmpeg-asschain").toFile()
         try {
             val install = scratch.resolve("install")
             val pkgconfig = install.resolve("lib/pkgconfig")
@@ -141,7 +141,7 @@ abstract class BuildAssChainTask : DefaultTask() {
                     pc.readText().replace(Regex("^prefix=.*$", RegexOption.MULTILINE)) { "prefix=\${pcfiledir}/../.." },
                 )
             }
-            logger.lifecycle("[KiteCodec] ass chain (${sourceRefs.get()}) for ${target.dirName} installed into $output")
+            logger.lifecycle("[KiteFFmpeg] ass chain (${sourceRefs.get()}) for ${target.dirName} installed into $output")
         } finally {
             scratch.deleteRecursively()
         }
@@ -320,7 +320,7 @@ abstract class BuildAssChainTask : DefaultTask() {
         // -fuse-ld=lld is as mandatory here as everywhere else: autoconf link-probes a program
         // before it believes the compiler exists, and Apple's ld cannot link ELF or PE.
         TargetTriple.LinuxX64, TargetTriple.LinuxArm64, TargetTriple.MingwX64 -> {
-            val konan = KonanCross.resolve(target) { logger.lifecycle("[KiteCodec ass-chain] $it") }
+            val konan = KonanCross.resolve(target) { logger.lifecycle("[KiteFFmpeg ass-chain] $it") }
             val common = "-target ${konan.triple} --sysroot=${konan.sysroot}" +
                 // __USE_MINGW_ANSI_STDIO fixes a cause rather than silencing a symptom. libass
                 // prints with the standard PRId64, which mingw expands to "I64d" for the old
@@ -409,7 +409,7 @@ abstract class BuildAssChainTask : DefaultTask() {
                 """.trimIndent()
             }
             TargetTriple.LinuxX64, TargetTriple.LinuxArm64, TargetTriple.MingwX64 -> {
-                val konan = KonanCross.resolve(target) { logger.lifecycle("[KiteCodec ass-chain] $it") }
+                val konan = KonanCross.resolve(target) { logger.lifecycle("[KiteFFmpeg ass-chain] $it") }
                 val cpuFamily = if (target == TargetTriple.LinuxArm64) "aarch64" else "x86_64"
                 val system = if (target == TargetTriple.MingwX64) "windows" else "linux"
                 val compileArgs = konan.compileArgs(target)
@@ -495,7 +495,7 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
             ?.absolutePath
 
     private fun runIn(workDir: File, command: List<String>, env: Map<String, String>) {
-        logger.lifecycle("[KiteCodec ass-chain] " + command.joinToString(" "))
+        logger.lifecycle("[KiteFFmpeg ass-chain] " + command.joinToString(" "))
         val builder = ProcessBuilder(command).directory(workDir).redirectErrorStream(true)
         builder.environment().putAll(env)
         val proc = builder.start()
@@ -507,7 +507,7 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
     companion object {
         /**
          * Every target this task can cross-build the chain for, and therefore every target
-         * `:kitecodec-core` may register a `buildAssChainFor<Target>` task for. One list, read by
+         * `:kiteffmpeg-core` may register a `buildAssChainFor<Target>` task for. One list, read by
          * both the registration and the refusals, so the two can never disagree.
          *
          * wasm32 is absent because it is not a [TargetTriple]. Android is PRESENT here and still

@@ -29,7 +29,7 @@
 #                     of from pkg-config. Expects <prefix>/include and <prefix>/lib.
 #   KC_BUILD_REF      the FFmpeg ref this build claims to target, default n8.0. Reaches the
 #   KC_BUILD_LICENSE  identity report of src/kitecodec_abi.c as -D defines, the same three the
-#                     shipped archive gets from CompileKiteCodecCTask.buildDefines. They are
+#                     shipped archive gets from CompileKiteFFmpegCTask.buildDefines. They are
 #                     reported and never compared, so a host build that leaves them at their
 #                     defaults still tests the gate; what they must not be is absent, because
 #                     then the report would say "unknown" and test_identity would fail on the
@@ -96,8 +96,8 @@ case "$VARIANT" in
 esac
 
 # What the artifact was built for, carried into the identity report of src/kitecodec_abi.c. The
-# shipped archive gets the same three from kitecodec-core/build.gradle.kts through
-# CompileKiteCodecCTask.buildDefines; here they describe the host tree the tests link against.
+# shipped archive gets the same three from kiteffmpeg-core/build.gradle.kts through
+# CompileKiteFFmpegCTask.buildDefines; here they describe the host tree the tests link against.
 KC_BUILD_REF="${KC_BUILD_REF:-n8.0}"
 KC_BUILD_LICENSE="${KC_BUILD_LICENSE:-lgpl}"
 if [ -n "${KC_FFMPEG_PREFIX:-}" ]; then
@@ -164,7 +164,7 @@ compile() {
 #    are hard errors. So a green build here says the four are in the same unit as their callers;
 #    it is not an argument, it is the linker's and the compiler's answer.
 #
-#    -fvisibility=hidden is added for the helper units only, matching CompileKiteCodecCTask's
+#    -fvisibility=hidden is added for the helper units only, matching CompileKiteFFmpegCTask's
 #    flag set, so the host archive carries the same exported set as the shipped one and
 #    scripts/symbol-audit.sh means the same thing whichever archive it is pointed at. It does not
 #    affect static linking, so the test binaries still resolve every helper they call.

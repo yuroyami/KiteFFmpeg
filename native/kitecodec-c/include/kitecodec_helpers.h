@@ -1,5 +1,5 @@
 /* Ordinary maintained source since the interlude (I-12). Lifted at B1.3 from the def body of
- * kitecodec-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
+ * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
  * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
  * script itself is retired because an anchor no revision can replace forbids every future edit.
@@ -624,7 +624,7 @@ KC_API int ffkmp_frame_plane_height(kc_frame *f, int p);
 KC_API void* ffkmp_frame_hw_surface(kc_frame *f);
 KC_API int ffkmp_frame_is_hardware(kc_frame *f);
 
-/* Hardware decode, KiteCodec window 3 (S2.a). VideoToolbox is an hwaccel behind the ordinary
+/* Hardware decode, KiteFFmpeg window 3 (S2.a). VideoToolbox is an hwaccel behind the ordinary
  * decoders, so there is no decoder name to select: ffkmp_codecctx_use_videotoolbox attaches a
  * device context between alloc and open (the pre-open window) and installs the format
  * negotiation that prefers hardware output and falls back to the default negotiation when the

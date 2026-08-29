@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.GradleException
 import java.io.File
@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
  */
 class BuildFFmpegRefsTest {
 
-    private val repoRoot: File = File(System.getProperty("kitecodec.repo.root") ?: "..").canonicalFile
+    private val repoRoot: File = File(System.getProperty("kiteffmpeg.repo.root") ?: "..").canonicalFile
 
     private fun site(where: String, ref: String) = BuildFFmpegTask.FFmpegRefSite(where, ref)
 

@@ -1,8 +1,8 @@
-# The post-S1.a.8 Kotlin to FFmpeg coupling baseline of kitecodec-core.
+# The post-S1.a.8 Kotlin to FFmpeg coupling baseline of kiteffmpeg-core.
 #
 # The opaque migration changes what the two ratchets mean. Before S1.a.8, direct FFmpeg imports
 # stood at 246 and ffmpeg_typed_crossings combined 273 ffkmp_ mentions with 14 direct libav calls
-# for 287 total. The reduced cinterop now exposes only KiteCodec-owned declarations, so the durable
+# for 287 total. The reduced cinterop now exposes only KiteFFmpeg-owned declarations, so the durable
 # boundary is stricter and simpler:
 #
 #   cinterop_import_lines counts imports from ffmpeg whose symbol does not begin ffkmp_, kc_ or

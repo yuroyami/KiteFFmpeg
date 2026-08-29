@@ -123,7 +123,7 @@ static int invalid_codecpar_copy_for_mux(void)
 
 static int invalid_fmt_open_input(void)
 {
-    return ffkmp_fmt_open_input(NULL, "/definitely/not/a/kitecodec-input");
+    return ffkmp_fmt_open_input(NULL, "/definitely/not/a/kiteffmpeg-input");
 }
 
 static int invalid_fmt_find_stream_info(void)
@@ -133,14 +133,14 @@ static int invalid_fmt_find_stream_info(void)
 
 static int invalid_fmt_open_input2(void)
 {
-    return ffkmp_fmt_open_input2(NULL, "/definitely/not/a/kitecodec-input", NULL, NULL, 0, NULL);
+    return ffkmp_fmt_open_input2(NULL, "/definitely/not/a/kiteffmpeg-input", NULL, NULL, 0, NULL);
 }
 
 static int invalid_fmt_open_input2_pairs(void)
 {
     kc_fmt_ctx *out = NULL;
     /* n > 0 with NULL arrays must be refused before anything is allocated. */
-    return ffkmp_fmt_open_input2(&out, "/definitely/not/a/kitecodec-input", NULL, NULL, 2, NULL);
+    return ffkmp_fmt_open_input2(&out, "/definitely/not/a/kiteffmpeg-input", NULL, NULL, 2, NULL);
 }
 
 static int invalid_fmt_chapter_count(void)
@@ -188,7 +188,7 @@ static int invalid_frame_hw_download_software_src(void)
 
 static int invalid_fmt_alloc_output2(void)
 {
-    return ffkmp_fmt_alloc_output2(NULL, "kitecodec-args.null", "null");
+    return ffkmp_fmt_alloc_output2(NULL, "kiteffmpeg-args.null", "null");
 }
 
 static int invalid_fmt_write_frame(void)
@@ -332,7 +332,7 @@ static void control_mux_packet_null(void)
     const kc_codec *codec;
     kc_codec_ctx *codec_context;
     kc_stream *stream;
-    int rc = ffkmp_fmt_alloc_output2(&context, "kitecodec-args.null", "null");
+    int rc = ffkmp_fmt_alloc_output2(&context, "kiteffmpeg-args.null", "null");
 
     KC_EQ_INT(rc, 0);
     KC_NOT_NULL(context);
@@ -369,7 +369,7 @@ static void control_mux_packet_null(void)
 static void control_output_format_null(void)
 {
     kc_fmt_ctx *context = NULL;
-    int rc = ffkmp_fmt_alloc_output2(&context, "kitecodec-args.mp4", NULL);
+    int rc = ffkmp_fmt_alloc_output2(&context, "kiteffmpeg-args.mp4", NULL);
 
     KC_EQ_INT(rc, 0);
     KC_NOT_NULL(context);

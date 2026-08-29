@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -14,10 +14,10 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * The zero ceiling on direct FFmpeg coupling in kitecodec-core's Kotlin.
+ * The zero ceiling on direct FFmpeg coupling in kiteffmpeg-core's Kotlin.
  *
  * S1.a.8 removes FFmpeg's headers from the cinterop definition. Kotlin may import and call the
- * KiteCodec-owned `ffkmp_`, `kc_` and `KC_` surface, but it may neither import a raw FFmpeg name,
+ * KiteFFmpeg-owned `ffkmp_`, `kc_` and `KC_` surface, but it may neither import a raw FFmpeg name,
  * call libav directly nor name an FFmpeg struct type. The two ratcheted counts therefore mean:
  *
  *  1. `cinterop_import_lines`: direct FFmpeg imports from the `ffmpeg` cinterop package. Imports
@@ -47,7 +47,7 @@ import java.io.File
  */
 abstract class CheckCinteropCouplingTask : DefaultTask() {
 
-    /** The module source root to measure, `kitecodec-core/src`. Also holds `ffmpeg.def`. */
+    /** The module source root to measure, `kiteffmpeg-core/src`. Also holds `ffmpeg.def`. */
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val sourceDir: DirectoryProperty
@@ -96,7 +96,7 @@ abstract class CheckCinteropCouplingTask : DefaultTask() {
                     for (line in failures) appendLine("  $line")
                     appendLine()
                     appendLine(
-                        "Kotlin may cross only the KiteCodec-owned ffkmp_/kc_/KC_ boundary. " +
+                        "Kotlin may cross only the KiteFFmpeg-owned ffkmp_/kc_/KC_ boundary. " +
                             "Remove the raw import, call or type. If a numeric ceiling must move " +
                             "deliberately, update it in the same commit and explain why in the " +
                             "KPKMP.md Execution log.",
@@ -143,7 +143,7 @@ abstract class CheckCinteropCouplingTask : DefaultTask() {
 
         /**
          * A direct FFmpeg import out of the `ffmpeg` cinterop package. The negative lookahead
-         * excludes all three spellings of the KiteCodec-owned opaque boundary.
+         * excludes all three spellings of the KiteFFmpeg-owned opaque boundary.
          */
         private val IMPORT_DECLARATION = Regex("""^import[ \t]+""")
 

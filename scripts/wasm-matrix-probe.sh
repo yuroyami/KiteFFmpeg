@@ -17,13 +17,13 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FF="$ROOT/native-libs/lgpl/wasm32"
-KC="$ROOT/native-libs/deps/wasm32/kitecodec/libkitecodec.a"
+KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
 MEDIA="${KITE_TESTMEDIA:-$ROOT/../KitePlayer/testmedia}"
 [ -d "$MEDIA" ] || { echo "no testmedia at $MEDIA" >&2; exit 1; }
-[ -f "$KC" ] || { echo "run :kitecodec-core:compileKiteCodecCForWasm first" >&2; exit 1; }
+[ -f "$KC" ] || { echo "run :kiteffmpeg-core:compileKiteFFmpegCForWasm first" >&2; exit 1; }
 
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
-python3 - "$ROOT/native-libs/deps/wasm32/binding/kitecodec-exports.json" "$WORK/exports.json" <<'PY'
+python3 - "$ROOT/native-libs/deps/wasm32/binding/kiteffmpeg-exports.json" "$WORK/exports.json" <<'PY'
 import json, sys
 names = json.load(open(sys.argv[1]))
 for extra in ("_ffkmp_fmt_open_input_io", "_malloc", "_free"):

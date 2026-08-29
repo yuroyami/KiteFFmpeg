@@ -1,4 +1,4 @@
-# Publishes kitecodec-core to Maven Central (Central Portal, via the vanniktech plugin).
+# Publishes kiteffmpeg-core to Maven Central (Central Portal, via the vanniktech plugin).
 # Since KC-EMBED (2026-08-22) there is no Gradle plugin: FFmpeg is embedded INSIDE the native
 # klibs, so the fetch step below unpacks ALL 11 triples' zips (dav1d inside every one) into
 # native-libs/ before publishing, and cinterop embeds them.
@@ -7,7 +7,7 @@
 # v-tag no longer publishes anything by itself. The five repository secrets below were set on
 # 2026-08-22, so this workflow IS runnable; publishing from the maintainer's machine remains
 # equally valid (same credentials in ~/.gradle/gradle.properties):
-#   ./gradlew :kitecodec-core:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+#   ./gradlew :kiteffmpeg-core:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
 # Either path leaves the deployment staged as USER_MANAGED on the Central Portal; the final
 # Publish click stays human.
 #
@@ -25,9 +25,9 @@
 # (or the workflow_dispatch input) and fails on mismatch, so a stale gradle.properties can never
 # publish under the wrong tag.
 #
-# kitecodec-core publishes ALL 11 native targets plus the always-present JVM, JS and WasmJs
+# kiteffmpeg-core publishes ALL 11 native targets plus the always-present JVM, JS and WasmJs
 # variants. JS/WasmJs are invariant unsupported placeholders. The publish guard in
-# kitecodec-core/build.gradle.kts hard-fails if any configured native target is missing its
+# kiteffmpeg-core/build.gradle.kts hard-fails if any configured native target is missing its
 # FFmpeg tree, which is why the fetch step must cover all 11.
 name: Publish release
 
@@ -42,7 +42,7 @@ permissions:
   contents: read
 
 env:
-  # FFmpeg release whose prebuilt assets kitecodec-core compiles against and embeds. Keep in
+  # FFmpeg release whose prebuilt assets kiteffmpeg-core compiles against and embeds. Keep in
   # sync with BuildFFmpegTask.DEFAULT_SOURCE_REF (buildSrc); the root build asserts they agree.
   FFMPEG_VERSION: n8.1.2
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from,
@@ -75,7 +75,7 @@ jobs:
           echo "Publishing version ${gradle_version}"
 
   publish-library:
-    name: kitecodec-core → Maven Central
+    name: kiteffmpeg-core → Maven Central
     needs: check-version
     # Apple klibs (macosArm64) can only be produced on a macOS host.
     runs-on: macos-latest
@@ -100,9 +100,9 @@ jobs:
       - name: Fetch prebuilt FFmpeg (all 11 triples, lgpl, dav1d inside)
         run: |
           set -euo pipefail
-          # The FFmpeg binaries are keyed to the FFMPEG version, not to KiteCodec's: n8.0 zips are
-          # byte-identical across every KiteCodec release, so ONE canonical `ffmpeg-<version>`
-          # release holds them and every KiteCodec version fetches from it. Storing a copy per
+          # The FFmpeg binaries are keyed to the FFMPEG version, not to KiteFFmpeg's: n8.0 zips are
+          # byte-identical across every KiteFFmpeg release, so ONE canonical `ffmpeg-<version>`
+          # release holds them and every KiteFFmpeg version fetches from it. Storing a copy per
           # version release cost 127 MB each for nothing (owner call, 2026-08-22).
           base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
@@ -122,7 +122,7 @@ jobs:
       # can race it and die with "No LLVM package with a usable clang" (register row KC-CI-KONAN,
       # measured on this workflow's first armed run). One warmup compile provisions everything.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kitecodec-core:compileKotlinMacosArm64 --stacktrace || true
+        run: ./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 --stacktrace || true
       # publishAllPublicationsToMavenCentralRepository uploads to the Central Portal but does NOT
       # auto-release (the build script calls publishToMavenCentral() without automatic release), so
       # the deployment is finished manually in the portal UI, which is the right amount of caution
@@ -137,6 +137,6 @@ jobs:
         run: |
           # The Android AAR's JNI libraries link with the NDK (KC-ANDROID).
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          ./gradlew :kitecodec-core:publishAllPublicationsToMavenCentralRepository \
+          ./gradlew :kiteffmpeg-core:publishAllPublicationsToMavenCentralRepository \
             --no-configuration-cache \
             --stacktrace

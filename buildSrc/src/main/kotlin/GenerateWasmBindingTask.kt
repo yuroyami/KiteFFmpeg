@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -54,7 +54,7 @@ abstract class GenerateWasmBindingTask @Inject constructor() : DefaultTask() {
         )
         out.resolve(KOTLIN_FILE).writeText(kotlinBinding(exported))
         logger.lifecycle(
-            "[KiteCodec wasm] ${exported.size} exported, " +
+            "[KiteFFmpeg wasm] ${exported.size} exported, " +
                 "${declarations.size - exported.size} left hand-written",
         )
     }
@@ -63,9 +63,9 @@ abstract class GenerateWasmBindingTask @Inject constructor() : DefaultTask() {
     data class Declaration(val returns: String, val name: String, val parameters: String)
 
     companion object {
-        const val EXPORTS_FILE = "kitecodec-exports.json"
-        const val MANIFEST_FILE = "kitecodec-exports.txt"
-        const val KOTLIN_FILE = "KiteCodecWasm.kt"
+        const val EXPORTS_FILE = "kiteffmpeg-exports.json"
+        const val MANIFEST_FILE = "kiteffmpeg-exports.txt"
+        const val KOTLIN_FILE = "KiteFFmpegWasm.kt"
 
         /**
          * Entry points a generator must not touch, with the reason on each.
@@ -107,7 +107,7 @@ abstract class GenerateWasmBindingTask @Inject constructor() : DefaultTask() {
             appendLine("@file:Suppress(\"FunctionName\", \"unused\")")
             appendLine("@file:OptIn(kotlin.js.ExperimentalWasmJsInterop::class)")
             appendLine()
-            appendLine("package io.github.yuroyami.kitecodec.wasm")
+            appendLine("package io.github.yuroyami.kiteffmpeg.wasm")
             appendLine()
             appendLine("import kotlin.js.JsAny")
             appendLine()

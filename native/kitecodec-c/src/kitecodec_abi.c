@@ -35,7 +35,7 @@
 
 /* What the artifact was built for, supplied by the build.
  *
- * kitecodec-core/build.gradle.kts passes all three through CompileKiteCodecCTask.buildDefines, which
+ * kiteffmpeg-core/build.gradle.kts passes all three through CompileKiteFFmpegCTask.buildDefines, which
  * declares them as task inputs so changing one rebuilds the archive. scripts/build-host.sh passes the
  * same three for the host test binaries. The fallbacks are not decoration: an archive that reports
  * "unknown" here was built by something that did not say, and a bug report saying so is worth more
@@ -171,7 +171,7 @@ static void kc_warn_bypassed(const kc_ffmpeg_report *report)
 
     snprintf(
         line, sizeof line,
-        "warning: [KiteCodec] the FFmpeg identity gate REJECTED this runtime, and %s=%s downgraded\n"
+        "warning: [KiteFFmpeg] the FFmpeg identity gate REJECTED this runtime, and %s=%s downgraded\n"
         "  the rejection to this warning. THIS IS NOT A SUPPORTED CONFIGURATION: the headers this\n"
         "  library was compiled against do not describe the runtime it is linked to, so struct field\n"
         "  offsets may be wrong and a wrong offset corrupts memory instead of failing.\n"
@@ -275,9 +275,9 @@ static void kc_run_gate(void)
 
     snprintf(
         report->provisioning, sizeof report->provisioning,
-        "KiteCodec was compiled against FFmpeg %s headers provisioned from %s, %s flavour; the linked "
+        "KiteFFmpeg was compiled against FFmpeg %s headers provisioned from %s, %s flavour; the linked "
         "runtime reports %s with licence \"%s\". Either link the FFmpeg build the headers came from, "
-        "or rebuild KiteCodec against the runtime you have. For diagnosis only, setting %s=%s "
+        "or rebuild KiteFFmpeg against the runtime you have. For diagnosis only, setting %s=%s "
         "downgrades this rejection to a warning printed once; that is not a supported configuration "
         "and the report records that it was used.",
         report->build_ffmpeg_ref, report->build_provisioning_dir, report->build_license_flavour,

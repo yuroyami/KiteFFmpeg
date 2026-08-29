@@ -1,7 +1,7 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 /**
- * What a final native link needs when KiteCodec is built against a VENDORED STATIC FFmpeg
+ * What a final native link needs when KiteFFmpeg is built against a VENDORED STATIC FFmpeg
  * (`native-libs/<license>/<target>/`).
  *
  * `ffmpeg.def` names only the six libav* libraries. That is enough for a shared/system FFmpeg,
@@ -41,7 +41,7 @@ object StaticLinkFlags {
     /**
      * Extra `-L` search paths for a LOCAL vendored build. Since the portable profiles no target
      * resolves anything from a host package manager, so this is always empty. The signature stays
-     * because `kitecodec-core/build.gradle.kts` wires it per target, and a future profile that
+     * because `kiteffmpeg-core/build.gradle.kts` wires it per target, and a future profile that
      * reintroduces a host dependency changes this ONE function instead of that script.
      */
     fun hostFallbackSearchFlags(

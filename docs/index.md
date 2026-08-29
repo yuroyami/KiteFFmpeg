@@ -1,4 +1,4 @@
-# KiteCodec
+# KiteFFmpeg
 
 **One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; JVM and Android use a narrow JNI bridge, and both are published. The JVM jar carries a macOS arm64 library only, so JVM consumers on other hosts, along with `js` and `wasmJs`, get an invariant unsupported placeholder contract. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
 
@@ -28,20 +28,20 @@ source, host tests, link and packaging, with exact named-decoder selection docum
 [Decoding](decoding.md). See [Platform support](platforms.md) and [Licensing](licensing.md).
 
 - [Getting started](getting-started.md): install FFmpeg, wire the build, run your first transcode.
-- [API reference](https://yuroyami.github.io/KiteCodec/api/): every public type and signature.
+- [API reference](https://yuroyami.github.io/KiteFFmpeg/api/): every public type and signature.
 
-## Why KiteCodec
+## Why KiteFFmpeg
 
 Media work from Kotlin normally means launching the `ffmpeg` CLI and parsing its stderr, or wrapping a prebuilt binary like FFmpegKit. You build arguments into a string, launch a process, and read progress back out of log lines. The codec engine lives outside your program.
 
-KiteCodec is a **single Kotlin API over libav\* directly**. You call `Transcoder.transcode(...)` and it opens the file via libavformat, demuxes **once**, routes packets to per-stream libavcodec decoders, pushes frames through libavfilter graphs, encodes, and interleaves the streams into a valid container. There is no process to spawn and no log output to parse. Progress arrives as a typed callback, errors arrive as typed exceptions, and frames flow as a coroutine `Flow`.
+KiteFFmpeg is a **single Kotlin API over libav\* directly**. You call `Transcoder.transcode(...)` and it opens the file via libavformat, demuxes **once**, routes packets to per-stream libavcodec decoders, pushes frames through libavfilter graphs, encodes, and interleaves the streams into a valid container. There is no process to spawn and no log output to parse. Progress arrives as a typed callback, errors arrive as typed exceptions, and frames flow as a coroutine `Flow`.
 
 Everything routes through one demux pass. When you decode several streams, or composite two inputs, the demuxer reads the file a single time and fans packets out to the decoders that need them.
 
 ## Install
 
 !!! warning "Not consumable from Maven Central today"
-    Neither `kitecodec-core` nor the Gradle plugin has been published, and the FFmpeg Release assets the plugin's default `FFmpegSource.Prebuilt` downloads do not exist. The [README](https://github.com/yuroyami/KiteCodec#install) carries the complete consumer build script and the [release status](https://github.com/yuroyami/KiteCodec#release-status), and is the single place either is tracked. Until that changes, you work inside the KiteCodec checkout.
+    Neither `kiteffmpeg-core` nor the Gradle plugin has been published, and the FFmpeg Release assets the plugin's default `FFmpegSource.Prebuilt` downloads do not exist. The [README](https://github.com/yuroyami/KiteFFmpeg#install) carries the complete consumer build script and the [release status](https://github.com/yuroyami/KiteFFmpeg#release-status), and is the single place either is tracked. Until that changes, you work inside the KiteFFmpeg checkout.
 
 The bindings link against libav\*, so FFmpeg has to be present at build time. For a dynamically linked build, it must be present at run time as well.
 
@@ -49,7 +49,7 @@ The bindings link against libav\*, so FFmpeg has to be present at build time. Fo
 
     ```bash
     brew install ffmpeg
-    ./gradlew :kitecodec-sample:linkDebugExecutableMacosArm64
+    ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
     ```
 
 === "Linux"
@@ -57,7 +57,7 @@ The bindings link against libav\*, so FFmpeg has to be present at build time. Fo
     ```bash
     sudo apt install ffmpeg libavcodec-dev libavformat-dev \
         libavfilter-dev libavutil-dev libswscale-dev libswresample-dev
-    ./gradlew :kitecodec-core:linuxX64Test
+    ./gradlew :kiteffmpeg-core:linuxX64Test
     ```
 
 JVM and Android are published artifacts, not source-only actuals. The Android AAR on Maven Central
@@ -166,11 +166,11 @@ See **[Filtering](filtering.md)**.
 
 ## Status
 
-KiteCodec is pre-1.0 and actively developed. The public pipeline is implemented for Kotlin/Native
+KiteFFmpeg is pre-1.0 and actively developed. The public pipeline is implemented for Kotlin/Native
 and JVM and Android are published actuals for the same common contracts. Native runtime evidence
 remains the qualified baseline; the JVM JNI boundary is proved by 41 tests over real FFmpeg on an
 arm64 Mac, and the Android evidence stops at source, link and packaging checks. It does not establish physical-device playback, UI integration
 or a full product tier. Web variants are T1 placeholders, not a codec-runtime claim. Nothing is
 published, and the FFmpeg release the Gradle plugin fetches from does not exist yet.
 
-One target table covers the whole project and lives in the [README](https://github.com/yuroyami/KiteCodec#targets). For the design, the FFmpeg sourcing modes, and what is next, see **[About KiteCodec](about.md)**.
+One target table covers the whole project and lives in the [README](https://github.com/yuroyami/KiteFFmpeg#targets). For the design, the FFmpeg sourcing modes, and what is next, see **[About KiteFFmpeg](about.md)**.

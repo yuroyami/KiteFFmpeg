@@ -29,7 +29,7 @@
 #      from the helper, handle and ABI headers, including opaque alias targets and aggregate bodies.
 #
 # The default archive is the SHIPPED one, built per konan target by
-# :kitecodec-core:compileKiteCodecCFor<Target> and embedded in the cinterop klib. That is the
+# :kiteffmpeg-core:compileKiteFFmpegCFor<Target> and embedded in the cinterop klib. That is the
 # archive whose exported set a consumer sees. The host archive from scripts/build-host.sh is
 # compiled with the same -fvisibility=hidden and answers the same way; `--host` points there. The
 # local Apple proof produces three FFmpeg trees and corresponding helper archives: macos_arm64,
@@ -82,8 +82,8 @@ if [ -z "$ARCHIVE" ]; then
         ARCHIVE="$ROOT/build/plain/lib/libkitecodec_helpers_host.a"
         HINT="build it first:  ./scripts/build-host.sh plain"
     else
-        ARCHIVE="$REPO/kitecodec-core/build/kitecodec-c/$TARGET/libkitecodec.a"
-        HINT="build it first:  ./gradlew :kitecodec-core:compileKiteCodecCFor<Target>"
+        ARCHIVE="$REPO/kiteffmpeg-core/build/kitecodec-c/$TARGET/libkitecodec.a"
+        HINT="build it first:  ./gradlew :kiteffmpeg-core:compileKiteFFmpegCFor<Target>"
     fi
 fi
 [ -f "$ARCHIVE" ] || {
@@ -339,7 +339,7 @@ BASELINE_FILE="$ROOT/exported-symbols-baseline.txt"
 sed 's/^_//' "$WORK/external.txt" | sort -u > "$WORK/actual_names.txt"
 if [ "$WRITE_BASELINE" = 1 ]; then
     {
-        echo "# The exported symbol baseline of the KiteCodec C archive (interlude item I-09)."
+        echo "# The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09)."
         echo "#"
         echo "# Every external symbol the archive may export, one per line, without the Mach-O"
         echo "# underscore. symbol-audit.sh check 6 compares the archive against this file, so the"
@@ -521,7 +521,7 @@ if [ "$WRITE_SIGNATURE_BASELINE" = 1 ]; then
         fail "refusing to rewrite $SIGNATURE_BASELINE_FILE: expected 214 records, found $ACTUAL_SIGNATURE_COUNT"
     else
         {
-            echo "# The normalized public C declaration baseline of KiteCodec (S1.a.8)."
+            echo "# The normalized public C declaration baseline of KiteFFmpeg (S1.a.8)."
             echo "#"
             echo "# Exact scope: 188 helper KC_API prototypes, eleven opaque handle typedefs, seven"
             echo "# ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report"

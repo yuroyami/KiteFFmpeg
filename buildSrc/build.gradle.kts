@@ -16,5 +16,5 @@ dependencies {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     // The coupling ratchet is measured against the real repository, which is buildSrc's parent.
-    systemProperty("kitecodec.repo.root", layout.projectDirectory.asFile.parentFile.absolutePath)
+    systemProperty("kiteffmpeg.repo.root", layout.projectDirectory.asFile.parentFile.absolutePath)
 }

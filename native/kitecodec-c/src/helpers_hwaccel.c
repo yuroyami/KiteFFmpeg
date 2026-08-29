@@ -1,4 +1,4 @@
-/* The hardware decode funnels of KiteCodec window 3 (KPKMP 17.4.8, S2.a).
+/* The hardware decode funnels of KiteFFmpeg window 3 (KPKMP 17.4.8, S2.a).
  *
  * VideoToolbox is an HWACCEL behind FFmpeg's ordinary `h264`/`hevc` decoders, not a named
  * decoder the way `h264_mediacodec` is. That difference decides this file's shape: there is no

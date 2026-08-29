@@ -1,6 +1,6 @@
 # Builds the vendored static FFmpeg for EVERY supported target and publishes the zips as assets
 # of the FFMPEG-keyed release tag (ffmpeg-<version>), which is the single canonical home for
-# them: the binaries depend on the FFmpeg version, not on KiteCodec's, so KiteCodec version
+# them: the binaries depend on the FFmpeg version, not on KiteFFmpeg's, so KiteFFmpeg version
 # releases carry release notes only and publish.yml fetches from this tag.
 #
 # Since KC-EMBED (2026-08-22) there is NO flavour axis: dav1d is mandatory in every build, and no Gradle plugin exists; these zips are the build
@@ -31,7 +31,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to attach the binaries to. Keep it FFmpeg-keyed (ffmpeg-n8.0): the zips are identical across KiteCodec versions and publish.yml fetches from exactly this tag."
+        description: "Release tag to attach the binaries to. Keep it FFmpeg-keyed (ffmpeg-n8.0): the zips are identical across KiteFFmpeg versions and publish.yml fetches from exactly this tag."
         required: true
         default: "ffmpeg-n8.0"
       ffmpeg_version:
@@ -81,8 +81,8 @@ jobs:
       - name: Build FFmpeg (NDK, dav1d inside)
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          ./gradlew :kitecodec-core:buildFFmpegFor${{ matrix.task }} \
-            -Pkitecodec.ffmpeg.selfContained=true --stacktrace
+          ./gradlew :kiteffmpeg-core:buildFFmpegFor${{ matrix.task }} \
+            -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
       - name: Upload build artifact
@@ -125,12 +125,12 @@ jobs:
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
       # The bake depends on the dav1d task since KC-EMBED, so one Gradle call builds both.
-      # -Pkitecodec.ffmpeg.selfContained=true: a Release asset must link on a machine that has
+      # -Pkiteffmpeg.ffmpeg.selfContained=true: a Release asset must link on a machine that has
       # nothing installed; with the portable profile the only bundleable archive is dav1d itself.
       - name: Build FFmpeg (dav1d inside)
         run: |
-          ./gradlew :kitecodec-core:buildFFmpegFor${{ matrix.task }} \
-            -Pkitecodec.ffmpeg.selfContained=true --stacktrace
+          ./gradlew :kiteffmpeg-core:buildFFmpegFor${{ matrix.task }} \
+            -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
       - name: Upload build artifact
@@ -177,13 +177,13 @@ jobs:
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kitecodec-core:compileKotlin${{ matrix.task }} --stacktrace || true
+        run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.task }} --stacktrace || true
       # The bake depends on the dav1d task since KC-EMBED, so one Gradle call builds both
       # (dav1d cross-compiles with the same konan toolchain the warmup just provisioned).
       - name: Build FFmpeg (dav1d inside)
         run: |
-          ./gradlew :kitecodec-core:buildFFmpegFor${{ matrix.task }} \
-            -Pkitecodec.ffmpeg.selfContained=true --stacktrace
+          ./gradlew :kiteffmpeg-core:buildFFmpegFor${{ matrix.task }} \
+            -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
       - name: Upload build artifact
@@ -240,7 +240,7 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
-          name: KiteCodec ${{ github.event.inputs.release_tag }}
+          name: KiteFFmpeg ${{ github.event.inputs.release_tag }}
           fail_on_unmatched_files: true
           files: |
             dist/*.zip

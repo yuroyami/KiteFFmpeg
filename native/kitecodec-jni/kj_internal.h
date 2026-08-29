@@ -1,7 +1,7 @@
-/* The KiteCodec JNI adapter: private declarations shared by the kj_* units.
+/* The KiteFFmpeg JNI adapter: private declarations shared by the kj_* units.
  *
- * WHAT THIS LIBRARY IS. A narrow, dynamically registered JNI adapter over KiteCodec's opaque C
- * boundary (S1.c.1, register item S1C-01). It includes ONLY <jni.h>, the C runtime and KiteCodec's
+ * WHAT THIS LIBRARY IS. A narrow, dynamically registered JNI adapter over KiteFFmpeg's opaque C
+ * boundary (S1.c.1, register item S1C-01). It includes ONLY <jni.h>, the C runtime and KiteFFmpeg's
  * three opaque headers. It never includes a libav header, never spells an av_* call and never
  * reproduces an FFmpeg struct: scripts/source-discipline.sh enforces all three, and a control that
  * plants a violation must fail it. The category units (kj_abi.c, kj_format.c, kj_packet.c,

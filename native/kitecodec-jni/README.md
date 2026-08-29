@@ -1,6 +1,6 @@
 # kitecodec-jni
 
-The JNI adapter that lets JVM and Android consumers use KiteCodec through its opaque C boundary
+The JNI adapter that lets JVM and Android consumers use KiteFFmpeg through its opaque C boundary
 (KPKMP.md register item S1C-01). It is deliberately narrow: no logic, no FFmpeg types, no policy.
 
 What it is:
@@ -20,8 +20,8 @@ What it is:
 What it may never do, enforced by `scripts/source-discipline.sh` and `scripts/symbol-audit.sh`:
 include a libav header, spell a direct FFmpeg call, or export anything but `JNI_OnLoad`.
 
-Built by `:kitecodec-core:linkKiteCodecJni{MacosArm64,AndroidArm64,AndroidX64}`. The macOS dylib
-is test-only (jvmTest loads it through the `kitecodec.jni.path` system property); the two Android
+Built by `:kiteffmpeg-core:linkKiteFFmpegJni{MacosArm64,AndroidArm64,AndroidX64}`. The macOS dylib
+is test-only (jvmTest loads it through the `kiteffmpeg.jni.path` system property); the two Android
 arms are the AAR's `jniLibs` inputs, linked with 16 KiB page alignment.
 
 Source status: the S1.c.2 bridge surface is implemented. The manifest covers the full common/JVM
@@ -35,7 +35,7 @@ Every close/release path decrements the live-handle ledger at most once.
 array; inbound `Frame.ofVideo`/`Frame.ofAudio` bytes are copied to owned C memory there and consumed
 by `kj_frame.c`. No native pointer or direct byte buffer is public.
 
-The leaf loader calls `System.load` from the test-only `kitecodec.jni.path` override on JVM or
+The leaf loader calls `System.load` from the test-only `kiteffmpeg.jni.path` override on JVM or
 `System.loadLibrary("kitecodec_jni")` otherwise. Only after dynamic registration succeeds does the
 bridge run `kc_init`, copy/map the full 31-field identity, and attach the current VM. Rejection is a
 typed `IncompatibleFFmpegRuntime`; attach is never attempted first. Android requires `KC_JVM_OK`,

@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -32,7 +32,7 @@ abstract class ExtractJdkHeadersTask : DefaultTask() {
     abstract val outputDir: DirectoryProperty
 
     init {
-        group = "kitecodec"
+        group = "kiteffmpeg"
         description = "Extracts a JDK include tree from a container image for cross-compiled JNI."
     }
 
@@ -63,12 +63,12 @@ abstract class ExtractJdkHeadersTask : DefaultTask() {
             throw GradleException(
                 "could not extract JDK headers from ${image.get()}: $output\n" +
                     "This needs a running Docker daemon. Build without " +
-                    "-Pkitecodec.jni.linux=true to skip the Linux JNI library entirely.",
+                    "-Pkiteffmpeg.jni.linux=true to skip the Linux JNI library entirely.",
             )
         }
         if (!out.resolve("jni.h").isFile) {
             throw GradleException("${image.get()} produced no jni.h in ${out.absolutePath}")
         }
-        logger.lifecycle("[KiteCodec] JDK headers extracted from ${image.get()} (${platform.get()})")
+        logger.lifecycle("[KiteFFmpeg] JDK headers extracted from ${image.get()} (${platform.get()})")
     }
 }

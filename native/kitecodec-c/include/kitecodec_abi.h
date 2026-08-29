@@ -1,4 +1,4 @@
-/* The KiteCodec C ABI: the FFmpeg header versus runtime identity gate.
+/* The KiteFFmpeg C ABI: the FFmpeg header versus runtime identity gate.
  *
  * Register item B1-02, and plan section 15.2 sub-phase B1.6, which calls this the highest value
  * clause in B1. What it prevents was demonstrated live rather than argued: older FFmpeg headers
@@ -185,7 +185,7 @@ extern "C" {
 
 /* Run the gate, once per process, and return its verdict: KC_STATUS_OK or a negative kc_status.
  *
- * Every KiteCodec entry point calls this FIRST, before anything allocates. Cheap after the first
+ * Every KiteFFmpeg entry point calls this FIRST, before anything allocates. Cheap after the first
  * call: pthread_once plus a load of a cached int. Safe to call from any thread at any time.
  *
  * When the environment variable KITECODEC_FFMPEG_ABI_BYPASS is exactly "1", a rejection is

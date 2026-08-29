@@ -1,6 +1,6 @@
 #!/bin/sh
 # Source discipline of the JNI adapter (S1.c.1). The adapter may include only <jni.h>, the C
-# runtime and KiteCodec's three opaque headers, and may call only kc_*/ffkmp_* helpers, JNI and
+# runtime and KiteFFmpeg's three opaque headers, and may call only kc_*/ffkmp_* helpers, JNI and
 # the C runtime. Four bans, with falsifiability controls in the S1.c.1 gate and this audit's local
 # plants:
 #   1. every direct include is on the exact JNI/runtime/opaque-boundary allowlist;

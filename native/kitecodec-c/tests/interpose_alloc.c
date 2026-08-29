@@ -1,4 +1,4 @@
-/* Allocation interposer for the KiteCodec C tests.
+/* Allocation interposer for the KiteFFmpeg C tests.
  *
  * Why this file exists. LeakSanitizer is not supported on macOS arm64: an ASan and UBSan
  * binary built by Apple clang 17 answers ASAN_OPTIONS=detect_leaks=1 with "AddressSanitizer:

@@ -1,12 +1,12 @@
 # Concurrency
 
-KiteCodec's API is coroutine-first: the long-running entry points (`Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `extractFrame`, `VideoEncoder.drive`, `AudioEncoder.drive`) are `suspend` functions, and decoded frames arrive as a `Flow<Frame>`. That makes the pipeline easy to compose. The native layer underneath still has strict rules about which code may call which object. This page collects them.
+KiteFFmpeg's API is coroutine-first: the long-running entry points (`Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `extractFrame`, `VideoEncoder.drive`, `AudioEncoder.drive`) are `suspend` functions, and decoded frames arrive as a `Flow<Frame>`. That makes the pipeline easy to compose. The native layer underneath still has strict rules about which code may call which object. This page collects them.
 
-**Coroutines make KiteCodec easy to call. They do not make libav thread-safe.** Confine each native object to one coroutine at a time.
+**Coroutines make KiteFFmpeg easy to call. They do not make libav thread-safe.** Confine each native object to one coroutine at a time.
 
 ## libav contexts are not thread-safe
 
-Some KiteCodec objects wrap native state: `MediaSource` (an `AVFormatContext` plus per-stream decoders), `MediaSink` and its encoders, and `FilterGraph`. None of them may be called from concurrent coroutines. FFmpeg's contexts have no internal locking for the way KiteCodec drives them; two concurrent calls into the same context corrupt state rather than merely slowing down.
+Some KiteFFmpeg objects wrap native state: `MediaSource` (an `AVFormatContext` plus per-stream decoders), `MediaSink` and its encoders, and `FilterGraph`. None of them may be called from concurrent coroutines. FFmpeg's contexts have no internal locking for the way KiteFFmpeg drives them; two concurrent calls into the same context corrupt state rather than merely slowing down.
 
 This is a rule about *concurrent access to one object*, not about threads in general. It is fine to:
 

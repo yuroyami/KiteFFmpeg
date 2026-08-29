@@ -1,13 +1,13 @@
-site_name: KiteCodec
-site_url: https://yuroyami.github.io/KiteCodec/
+site_name: KiteFFmpeg
+site_url: https://yuroyami.github.io/KiteFFmpeg/
 site_description: >-
   Kotlin Multiplatform codec engine: coroutine-first video and audio decode,
   encode, transcode and filter graphs via Kotlin/Native FFmpeg bindings.
 site_author: yuroyami
 copyright: Copyright &copy; 2026 yuroyami, Apache-2.0
 
-repo_name: yuroyami/KiteCodec
-repo_url: https://github.com/yuroyami/KiteCodec
+repo_name: yuroyami/KiteFFmpeg
+repo_url: https://github.com/yuroyami/KiteFFmpeg
 edit_uri: edit/main/docs/
 
 docs_dir: docs
@@ -80,7 +80,7 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/yuroyami/KiteCodec
+      link: https://github.com/yuroyami/KiteFFmpeg
     - icon: material/package-variant-closed
       link: https://central.sonatype.com/namespace/io.github.yuroyami
 
@@ -100,4 +100,4 @@ nav:
       - Licensing: licensing.md
       - Troubleshooting: troubleshooting.md
       - About and status: about.md
-      - API reference ▸: https://yuroyami.github.io/KiteCodec/api/
+      - API reference ▸: https://yuroyami.github.io/KiteFFmpeg/api/

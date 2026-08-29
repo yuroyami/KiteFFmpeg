@@ -1,4 +1,4 @@
-/* Assertion and reporting API for the KiteCodec C test suites.
+/* Assertion and reporting API for the KiteFFmpeg C test suites.
  *
  * Contract, from plan section 15.3: every suite is table driven, prints one line per case, and
  * returns non-zero on the first failure. This header is what makes that contract cheap to

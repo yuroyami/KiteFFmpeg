@@ -24,7 +24,7 @@ index 36b09b4..db0a275 100644
 -        start_code_size = 4;
      else
 -        start_code_size = 3;
-+        /* KiteCodec: always the 4-byte form. Android MediaCodec's documented Annex-B shape,
++        /* KiteFFmpeg: always the 4-byte form. Android MediaCodec's documented Annex-B shape,
 +         * and the Goldfish API 36 decoder rejects the 3-byte boundaries FFmpeg emits for
 +         * non-first NALs (KitePlayer KPKMP window 2c, measured 2026-08-12). */
 +        start_code_size = 4;

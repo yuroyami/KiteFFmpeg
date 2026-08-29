@@ -1,5 +1,5 @@
 /* Ordinary maintained source since the interlude (I-12). Lifted at B1.3 from the def body of
- * kitecodec-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
+ * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
  * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
  * script itself is retired because an anchor no revision can replace forbids every future edit.
@@ -152,7 +152,7 @@ KC_API int  ffkmp_fmt_read_frame(AVFormatContext *c, AVPacket *p) {
 KC_API int64_t       ffkmp_fmt_duration(AVFormatContext *c)   { return c ? c->duration : 0; }
 /* Where the media's timeline BEGINS, in microseconds (AV_TIME_BASE units), i.e. the earliest
    start_time across streams. MPEG-TS commonly reports ~1.4s; mp4 usually 0. Every timestamp the
-   demuxer hands out is absolute (includes this), while KiteCodec's public API, meaning seeks, trim
+   demuxer hands out is absolute (includes this), while KiteFFmpeg's public API, meaning seeks, trim
    bounds and extractFrame, is media-RELATIVE, so this is the offset between the two. Returns 0
    when the container doesn't declare one. */
 KC_API int64_t       ffkmp_fmt_start_time(AVFormatContext *c) {

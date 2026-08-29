@@ -37,7 +37,7 @@
  * av_opt_find2 walks the option table with strcmp(o->name, name) and never tests `name`.
  *
  * That is a real hole in one exported helper of a versioned library, and it is not reachable from
- * KiteCodec's own Kotlin today: MediaSink passes the keys of a Map<String, String>, which cannot
+ * KiteFFmpeg's own Kotlin today: MediaSink passes the keys of a Map<String, String>, which cannot
  * hold a null key. It becomes reachable the moment any other C consumer calls the exported symbol.
  *
  * It is not fixed here and it is not asserted here. Fixing it means editing src/helpers_format.c,

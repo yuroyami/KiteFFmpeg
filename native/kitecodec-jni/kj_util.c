@@ -9,11 +9,11 @@
 #include <string.h>
 #include <stdio.h>
 
-#define KJ_HANDLE_EXCEPTION "io/github/yuroyami/kitecodec/JniHandleException"
-#define KJ_FFMPEG_EXCEPTION "io/github/yuroyami/kitecodec/JniNativeException"
+#define KJ_HANDLE_EXCEPTION "io/github/yuroyami/kiteffmpeg/JniHandleException"
+#define KJ_FFMPEG_EXCEPTION "io/github/yuroyami/kiteffmpeg/JniNativeException"
 
 /* JNI's *UTF entry points use modified UTF-8: supplementary code points are encoded as two
- * surrogate-shaped three-byte sequences and U+0000 is encoded as C0 80. KiteCodec's C boundary,
+ * surrogate-shaped three-byte sequences and U+0000 is encoded as C0 80. KiteFFmpeg's C boundary,
  * FFmpeg and the host filesystem use standard, NUL-terminated UTF-8 instead. Keep that impedance
  * match here, in the one JNI conversion unit, rather than leaking either encoding into a category
  * unit. The raw C-to-Java helper reports validation failures without throwing so exception

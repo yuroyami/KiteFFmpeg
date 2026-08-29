@@ -1,4 +1,4 @@
-# The exported symbol baseline of the KiteCodec C archive (interlude item I-09).
+# The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09).
 #
 # Every external symbol the archive may export, one per line, without the Mach-O
 # underscore. symbol-audit.sh check 6 compares the archive against this file, so the

@@ -7,7 +7,7 @@
 # anywhere refers to them, and "nothing" has to mean both repositories and every file type, not
 # just the ones a Kotlin developer thinks to grep.
 #
-# Why it must run with kitecodec-core/src/nativeInterop/cinterop/archived/ already deleted. That
+# Why it must run with kiteffmpeg-core/src/nativeInterop/cinterop/archived/ already deleted. That
 # directory held six def files that no build file referenced and that redefined the same helper
 # names. A grep run while it still existed reported a definition for almost every deleted name and
 # would have masked a real reference behind duplicate noise. Plan section 15.2 B1.4 step 3 puts the
@@ -63,7 +63,7 @@ RESURRECTED=""
 # Execution log and so is the primary record of the deletion: its B1.4 entry names all 15 so a
 # later reader can check the list without re-deriving it. This script itself is deliberately NOT on
 # the list any more: since I-14 it reads the names instead of containing them, so a mention
-# appearing in it again would be a regression worth failing on. Paths are relative to the KiteCodec
+# appearing in it again would be a regression worth failing on. Paths are relative to the KiteFFmpeg
 # repository root; a path starting with ../ lives in KitePlayer.
 #
 # The entry was added by the B1.4 to B1.6 gate run, which this check FAILED on the gate's own log
@@ -93,7 +93,7 @@ EXCLUDES="--exclude-dir=build --exclude-dir=.claude --exclude-dir=.git --exclude
 --exclude-dir=.gradle --exclude-dir=.kotlin --exclude-dir=testmedia --exclude-dir=native-libs \
 --exclude-dir=node_modules"
 
-ARCHIVED="$REPO/kitecodec-core/src/nativeInterop/cinterop/archived"
+ARCHIVED="$REPO/kiteffmpeg-core/src/nativeInterop/cinterop/archived"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -105,7 +105,7 @@ fail() {
 }
 
 echo "check-deleted-surface.sh: register item B1-08, the deleted helper surface"
-echo "  KiteCodec   $REPO"
+echo "  KiteFFmpeg   $REPO"
 echo "  KitePlayer  ${OTHER:-not found beside this repository}"
 echo "  list        $SURFACE_FILE"
 

@@ -14,7 +14,7 @@
  *
  * THE `kj_` PREFIX IS HISTORICAL and is kept on purpose. Renaming would touch 155 call sites in
  * code that Android and the desktop JVM already ship, for no behavioural gain, and the point of
- * this change is to not destabilise them. Read it as "KiteCodec handle".
+ * this change is to not destabilise them. Read it as "KiteFFmpeg handle".
  *
  * No JNI here, and none is possible: the token is an `int64_t`, which is what `jlong` already is.
  * The three JNI entry points that THROW on a bad token stay in `kj_handles.c` beside their

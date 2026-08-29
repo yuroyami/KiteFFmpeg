@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -41,7 +41,7 @@ abstract class BundleHostJniTask : DefaultTask() {
     abstract val outputDir: DirectoryProperty
 
     init {
-        group = "kitecodec"
+        group = "kiteffmpeg"
         description = "Bundles the desktop JNI library and its non-system dependencies for the jvm jar."
     }
 
@@ -71,7 +71,7 @@ abstract class BundleHostJniTask : DefaultTask() {
         val bundled = linkedSetOf<String>()
         if (!isMachO) {
             destination.resolve(MANIFEST_NAME).writeText(jni.name + "\n")
-            logger.lifecycle("[KiteCodec] ${jni.name} staged for ${platformDirectory.get()}, no dependencies to bundle")
+            logger.lifecycle("[KiteFFmpeg] ${jni.name} staged for ${platformDirectory.get()}, no dependencies to bundle")
             return
         }
         val pending = ArrayDeque(listOf(jni))
@@ -106,7 +106,7 @@ abstract class BundleHostJniTask : DefaultTask() {
         destination.resolve(MANIFEST_NAME)
             .writeText((bundled + jni.name).joinToString("\n", postfix = "\n"))
         logger.lifecycle(
-            "[KiteCodec] ${jni.name} bundled with ${bundled.size} dependencies " +
+            "[KiteFFmpeg] ${jni.name} bundled with ${bundled.size} dependencies " +
                 "(${bundled.joinToString(", ").ifEmpty { "none" }})",
         )
     }
@@ -147,7 +147,7 @@ abstract class BundleHostJniTask : DefaultTask() {
 
     companion object {
         /** Read back by `JniLibrary.jvm.kt`; changing it changes the loader too. */
-        const val RESOURCE_ROOT: String = "kitecodec-native"
+        const val RESOURCE_ROOT: String = "kiteffmpeg-native"
         const val MANIFEST_NAME: String = "manifest.txt"
         private const val OTOOL = "/usr/bin/otool"
         private const val INSTALL_NAME_TOOL = "/usr/bin/install_name_tool"

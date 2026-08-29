@@ -1,12 +1,12 @@
 # Getting Started
 
 Learn how to install FFmpeg, wire the module, probe what your build can do, inspect a media file,
-and run your first transcode with KiteCodec: a coroutine-first Kotlin Multiplatform API over
+and run your first transcode with KiteFFmpeg: a coroutine-first Kotlin Multiplatform API over
 FFmpeg's libav* libraries.
 
 !!! warning "Before you start"
 
-    KiteCodec is on Maven Central: `io.github.yuroyami:kitecodec-core:0.1.3`, one dependency line,
+    KiteFFmpeg is on Maven Central: `io.github.yuroyami:kiteffmpeg-core:0.1.3`, one dependency line,
     with FFmpeg embedded inside the artifacts. The Android AAR is real, declares `minSdkVersion 26`
     and carries `arm64-v8a` and `x86_64` JNI libraries; no Android playback is qualified on a
     physical device. The JVM jar carries a **macOS arm64** library and only that one, so a JVM
@@ -14,11 +14,11 @@ FFmpeg's libav* libraries.
     WasmJs are placeholders in every scope: they make common dependency resolution predictable but
     perform no media work.
     The consumer script, release status and per-target evidence are in the
-    [README](https://github.com/yuroyami/KiteCodec#targets).
+    [README](https://github.com/yuroyami/KiteFFmpeg#targets).
 
 ## Step 1: Get FFmpeg
 
-KiteCodec links against FFmpeg's libav* libraries. You need them present before you build. There are two ways to source them.
+KiteFFmpeg links against FFmpeg's libav* libraries. You need them present before you build. There are two ways to source them.
 
 === "System FFmpeg (default)"
 
@@ -34,7 +34,7 @@ KiteCodec links against FFmpeg's libav* libraries. You need them present before 
         libavutil-dev libswscale-dev libswresample-dev
     ```
 
-    `FFmpegPaths` finds Homebrew on macOS (override with `kitecodec.macos.homebrew.prefix` in `gradle.properties`) or apt-installed libraries on Linux, compiles KiteCodec's C archive against their headers, and links their shared libraries. The cinterop def itself parses only KiteCodec's opaque helper, handle and ABI headers; the module build still passes the FFmpeg include path to cinterop redundantly, where the reduced header set leaves it unused. Your users need their own FFmpeg installed at runtime.
+    `FFmpegPaths` finds Homebrew on macOS (override with `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties`) or apt-installed libraries on Linux, compiles KiteFFmpeg's C archive against their headers, and links their shared libraries. The cinterop def itself parses only KiteFFmpeg's opaque helper, handle and ABI headers; the module build still passes the FFmpeg include path to cinterop redundantly, where the reduced header set leaves it unused. Your users need their own FFmpeg installed at runtime.
 
 === "Vendored static build"
 
@@ -45,12 +45,12 @@ KiteCodec links against FFmpeg's libav* libraries. You need them present before 
     ```bash
     git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 
-    ./gradlew :kitecodec-core:buildFFmpegForMacosArm64
+    ./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64
     # or build every target you have toolchains for:
-    ./gradlew :kitecodec-core:buildFFmpegForAll
+    ./gradlew :kiteffmpeg-core:buildFFmpegForAll
     ```
 
-    Configure, make and install run in a unique hash-free directory under `java.io.tmpdir`. The task installs the normalized configure invocation as the single-line `lib/kitecodec/ffmpeg-configure.txt` provenance record, requires it during verification, copies the verified install to a sibling staging directory and only then replaces `native-libs`. A failed build preserves the last good tree even when the checkout path contains `#`; packaging reads only that installed record.
+    Configure, make and install run in a unique hash-free directory under `java.io.tmpdir`. The task installs the normalized configure invocation as the single-line `lib/kiteffmpeg/ffmpeg-configure.txt` provenance record, requires it during verification, copies the verified install to a sibling staging directory and only then replaces `native-libs`. A failed build preserves the last good tree even when the checkout path contains `#`; packaging reads only that installed record.
 
     Every profile is portable (2026-08-22): no third-party libraries are needed on any target. The prerequisites are `make`, a C toolchain and, for the x86_64 targets' assembly, `nasm`. The dav1d flavour additionally needs `meson` and `ninja`. On macOS: `brew install nasm meson ninja`. See [Troubleshooting](troubleshooting.md#vendored-build-prerequisites) if configure fails.
 
@@ -70,9 +70,9 @@ KiteCodec links against FFmpeg's libav* libraries. You need them present before 
     On an arm64 Mac, build the host, device and simulator trees in one producer invocation:
 
     ```bash
-    ./gradlew :kitecodec-core:buildFFmpegForMacosArm64 \
-      :kitecodec-core:buildFFmpegForIosArm64 \
-      :kitecodec-core:buildFFmpegForIosSimulatorArm64
+    ./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64 \
+      :kiteffmpeg-core:buildFFmpegForIosArm64 \
+      :kiteffmpeg-core:buildFFmpegForIosSimulatorArm64
     ```
 
     Generated trees remain untracked. iOS has no GPL task; `buildFFmpegForIos*Gpl` is deliberately not registered. Repository build/path resolution refuses GPL for every iOS target before tree lookup with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
@@ -84,21 +84,21 @@ inside the published artifacts:
 
 ```kotlin
 sourceSets.commonMain.dependencies {
-    implementation("io.github.yuroyami:kitecodec-core:0.1.3")
+    implementation("io.github.yuroyami:kiteffmpeg-core:0.1.3")
 }
 ```
 
 The rest of this step covers working INSIDE the repository, which is what a contributor needs and
 what the runnable examples below assume. A consumer does not need any of it.
 
-**Inside the KiteCodec repository.** The `:kitecodec-sample` module already depends on `:kitecodec-core` and is the fastest way to run the API against real arguments. Everything below works from a plain clone.
+**Inside the KiteFFmpeg repository.** The `:kiteffmpeg-sample` module already depends on `:kiteffmpeg-core` and is the fastest way to run the API against real arguments. Everything below works from a plain clone.
 
-**From your own project.** Clone KiteCodec alongside it and compose the builds:
+**From your own project.** Clone KiteFFmpeg alongside it and compose the builds:
 
 === "settings.gradle.kts"
 
     ```kotlin
-    includeBuild("../KiteCodec")
+    includeBuild("../KiteFFmpeg")
     ```
 
 === "build.gradle.kts"
@@ -107,31 +107,31 @@ what the runnable examples below assume. A consumer does not need any of it.
     kotlin {
         macosArm64()
         sourceSets.commonMain.dependencies {
-            implementation("io.github.yuroyami:kitecodec-core")
+            implementation("io.github.yuroyami:kiteffmpeg-core")
         }
     }
     ```
 
-    A composite build substitutes the dependency with the included project, so the version is omitted deliberately. Your FFmpeg comes from KiteCodec's own `FFmpegPaths` resolution (Step 1), not from the Gradle plugin.
+    A composite build substitutes the dependency with the included project, so the version is omitted deliberately. Your FFmpeg comes from KiteFFmpeg's own `FFmpegPaths` resolution (Step 1), not from the Gradle plugin.
 
-For a private consumer proof, publish the three Apple variants locally in a separate invocation with `./gradlew publishToMavenLocal -Pkitecodec.applePhoneTargetsOnly=true`. Then configure the consumer plugin with `source = FFmpegSource.Local`, `license = FFmpegLicense.LGPL` and `localRoot` pointing at this checkout's absolute `native-libs` directory. Its fixed layout is `<localRoot>/<license.id>/<target-triple>/{include,lib}`. The plugin validates every wired tree and performs no download. This selector is local-only; any remote `publish` task refuses it during configuration.
+For a private consumer proof, publish the three Apple variants locally in a separate invocation with `./gradlew publishToMavenLocal -Pkiteffmpeg.applePhoneTargetsOnly=true`. Then configure the consumer plugin with `source = FFmpegSource.Local`, `license = FFmpegLicense.LGPL` and `localRoot` pointing at this checkout's absolute `native-libs` directory. Its fixed layout is `<localRoot>/<license.id>/<target-triple>/{include,lib}`. The plugin validates every wired tree and performs no download. This selector is local-only; any remote `publish` task refuses it during configuration.
 
-Once `kitecodec-core` is publicly published, a native
+Once `kiteffmpeg-core` is publicly published, a native
 consumer build script can replace the composite build. It is written out in full in the
-[README](https://github.com/yuroyami/KiteCodec#install); the plugin is mandatory for Kotlin/Native
+[README](https://github.com/yuroyami/KiteFFmpeg#install); the plugin is mandatory for Kotlin/Native
 because the klib's `ffmpeg.def` carries no `-L`, and so is the `license` choice. This is not a
 promise that a JVM jar or Android AAR is already available.
 
-!!! note "`kitecodec-gpl` does not exist"
+!!! note "`kiteffmpeg-gpl` does not exist"
 
-    `kitecodec-core` is LGPL and is safe for commercial distribution. A `kitecodec-gpl` add-on packaging libx264 / libx265 has a README in the repository and nothing else: no build script, and commented out of `settings.gradle.kts`. There are no `Gpl` build tasks either, so a GPL flavour is a tree you build and own, selected with `-Pkitecodec.ffmpeg.license=gpl`.
+    `kiteffmpeg-core` is LGPL and is safe for commercial distribution. A `kiteffmpeg-gpl` add-on packaging libx264 / libx265 has a README in the repository and nothing else: no build script, and commented out of `settings.gradle.kts`. There are no `Gpl` build tasks either, so a GPL flavour is a tree you build and own, selected with `-Pkiteffmpeg.ffmpeg.license=gpl`.
 
 ## Step 3: Probe what your build can do
 
-Every public type lives under `io.github.yuroyami.kitecodec`. Start with the `FFmpeg` object: it reports the linked library versions and tells you which encoders, decoders, and filters are available in this particular build.
+Every public type lives under `io.github.yuroyami.kiteffmpeg`. Start with the `FFmpeg` object: it reports the linked library versions and tells you which encoders, decoders, and filters are available in this particular build.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpeg
+import io.github.yuroyami.kiteffmpeg.FFmpeg
 
 fun printCapabilities() {
     val v = FFmpeg.versions
@@ -152,7 +152,7 @@ Capability probing matters because builds differ. A hardware encoder like `h264_
 `MediaSource.open(path)` opens an input via libavformat and exposes its streams and metadata. It is `AutoCloseable`, so wrap it in `use { }`.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.MediaSource
+import io.github.yuroyami.kiteffmpeg.MediaSource
 
 MediaSource.open("input.mp4").use { src ->
     println("container: ${src.formatName}")
@@ -179,11 +179,11 @@ Each `StreamInfo` carries an `index`, a `type` (`MediaType.Video`, `Audio`, `Sub
 `Transcoder.transcode(...)` runs the full pipeline in one pass: demux -> decode -> filter -> encode -> mux. Demux means split a container file into its separate streams. Mux means write streams back into a container file. It is a `suspend` function, so call it from a coroutine.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Transcoder
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.AudioEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.Transcoder
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
@@ -238,7 +238,7 @@ Transcoder.transcode(
 If you do not need to touch the codecs at all, skip the transcoder and rewrite the container losslessly:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Remuxer
+import io.github.yuroyami.kiteffmpeg.Remuxer
 
 Remuxer.remux("input.mp4", "output.mkv")   // no re-encode, runs in seconds
 ```
@@ -247,13 +247,13 @@ See [Transcoding](transcoding.md) for filters, hardware encoders, and progress i
 
 ## Step 6: Run the sample
 
-The `:kitecodec-sample` module is a small macOS arm64 CLI that exercises the whole API. Build it, then point it at any media file.
+The `:kiteffmpeg-sample` module is a small macOS arm64 CLI that exercises the whole API. Build it, then point it at any media file.
 
 ```bash
 brew install ffmpeg                     # macOS prereq
-./gradlew :kitecodec-sample:linkDebugExecutableMacosArm64
+./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
 
-KEXE=kitecodec-sample/build/bin/macosArm64/debugExecutable/kitecodec-sample.kexe
+KEXE=kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
 
 # Capability probe (same data as FFmpeg.versions / hasEncoder):
 $KEXE info
@@ -295,4 +295,4 @@ Reading the sample source is the fastest way to see each API used against real a
 - **[Concurrency](concurrency.md)**: the threading, confinement, and cancellation rules.
 - **[Recipes](recipes.md)**: copy-paste patterns for common tasks.
 - **[Troubleshooting](troubleshooting.md)**: FFmpeg not found, Windows setup, VideoToolbox on VMs.
-- **[API reference](https://yuroyami.github.io/KiteCodec/api/)**: every public type and signature.
+- **[API reference](https://yuroyami.github.io/KiteFFmpeg/api/)**: every public type and signature.

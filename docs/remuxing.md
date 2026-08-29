@@ -7,7 +7,7 @@ Rewrite a media file into a different container without touching the encoded str
 `Remuxer.remux(input, output)` opens the input via libavformat, reads its packets, and writes them straight into a new container chosen from the output file's extension. The encoded bitstream is copied verbatim: the pixels and samples in the output are the same bytes that were in the input. Only the container framing and the packet timestamps (rescaled onto the new container's time-base) change.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.Remuxer
+import io.github.yuroyami.kiteffmpeg.Remuxer
 
 // mp4 -> mkv, lossless, runs in seconds
 Remuxer.remux("input.mp4", "output.mkv")
@@ -99,7 +99,7 @@ Because remuxing copies packets rather than encoding frames, progress is reporte
 By default every stream is carried over. Pass `streamIndices` to keep only the streams you want, using the indices from [`MediaSource.streams`](decoding.md).
 
 ```kotlin
-import io.github.yuroyami.kitecodec.MediaSource
+import io.github.yuroyami.kiteffmpeg.MediaSource
 
 MediaSource.open("input.mkv").use { src ->
     val video = src.primaryVideo ?: error("no video stream")
@@ -152,7 +152,7 @@ Remuxer.remux(
     output = "output.mkv",
     metadata = mapOf(
         "title"   to "Episode 1",
-        "comment" to "Remuxed with KiteCodec",
+        "comment" to "Remuxed with KiteFFmpeg",
     ),
 )
 ```
@@ -162,8 +162,8 @@ You can combine metadata with trimming and stream selection in a single call.
 ## Worked example: trim, select, and tag in one pass
 
 ```kotlin
-import io.github.yuroyami.kitecodec.MediaSource
-import io.github.yuroyami.kitecodec.Remuxer
+import io.github.yuroyami.kiteffmpeg.MediaSource
+import io.github.yuroyami.kiteffmpeg.Remuxer
 
 MediaSource.open("input.mkv").use { src ->
     val video = src.primaryVideo ?: error("no video stream")
@@ -192,7 +192,7 @@ Failures surface as `FFmpegException`, carrying an `FFmpegError`:
 - `FFmpegError.Internal` signals a library-side invariant failure.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpegException
+import io.github.yuroyami.kiteffmpeg.FFmpegException
 
 try {
     Remuxer.remux("input.mp4", "output.mov")
@@ -209,4 +209,4 @@ A common cause is a codec the target container does not accept. If `remux` rejec
 - [Decoding & frames](decoding.md): `MediaSource`, stream inspection, and stream indices.
 - [Encoding & muxing](encoding-muxing.md): `MediaSink` and per-stream copy with `addCopyStream`.
 - [Recipes](recipes.md): copy-paste patterns for common tasks.
-- [API reference](https://yuroyami.github.io/KiteCodec/api/): full signatures for every type.
+- [API reference](https://yuroyami.github.io/KiteFFmpeg/api/): full signatures for every type.

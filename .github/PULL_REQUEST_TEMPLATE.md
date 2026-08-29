@@ -4,7 +4,7 @@
 
 ## How was it tested
 
-- [ ] `./gradlew :kitecodec-core:macosArm64Test` (or your host target's test task) passes
+- [ ] `./gradlew :kiteffmpeg-core:macosArm64Test` (or your host target's test task) passes
 - [ ] `scripts/e2e.sh` passes (required for pipeline-affecting changes)
 - **Platform tested on**: <!-- e.g. macOS arm64 -->
 - **FFmpeg used**: <!-- system / vendored lgpl / vendored gpl, and version -->

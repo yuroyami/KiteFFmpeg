@@ -1,8 +1,8 @@
-/* Opaque names for the FFmpeg objects carried across KiteCodec's C boundary.
+/* Opaque names for the FFmpeg objects carried across KiteFFmpeg's C boundary.
  *
  * This header deliberately includes no FFmpeg header. Each alias names the same C struct tag
  * that FFmpeg later typedefs, so the aliases can coexist with the source-compatible AV* surface
- * while giving cinterop a KiteCodec-owned vocabulary for the wrappers added beside it.
+ * while giving cinterop a KiteFFmpeg-owned vocabulary for the wrappers added beside it.
  */
 
 #ifndef KITECODEC_HANDLES_H

@@ -13,10 +13,10 @@ A `MediaSink` is a muxer over an open output file. The workflow is always the sa
 3. **Close** the sink. This flushes the encoders, writes the container trailer, and releases native resources.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.MediaSink
-import io.github.yuroyami.kitecodec.VideoEncoderSpec
-import io.github.yuroyami.kitecodec.CodecId
-import io.github.yuroyami.kitecodec.Rational
+import io.github.yuroyami.kiteffmpeg.MediaSink
+import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
+import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.Rational
 
 MediaSink.open("output.mp4").use { sink ->
     val video = sink.addVideoEncoder(
@@ -107,14 +107,14 @@ The encode core is **EAGAIN-correct**: it respects the codec's "I need more inpu
 
 You do not compute output timestamps. The encoder takes each incoming frame's pts (in the frame's own time-base) and rescales it onto the codec time-base. Frames that arrive with no pts at all fall back to a frame counter. Either way the output is **monotonic and zero-based**: the first written frame lands at pts 0 and timestamps only ever increase.
 
-KiteCodec does this the same way `ffmpeg.c` does, and it forces strict monotonicity at the encoder boundary. See the [transcoding guide](transcoding.md) for how trim offsets are rebased to zero on top of this.
+KiteFFmpeg does this the same way `ffmpeg.c` does, and it forces strict monotonicity at the encoder boundary. See the [transcoding guide](transcoding.md) for how trim offsets are rebased to zero on top of this.
 
 ## Adding an audio encoder
 
 `addAudioEncoder(AudioEncoderSpec)` mirrors the video path:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.AudioEncoderSpec
+import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 
 val audio = sink.addAudioEncoder(
     AudioEncoderSpec(
@@ -151,13 +151,13 @@ println(audio.frameSize)      // 1024 for aac, 0 for codecs taking any chunk siz
 
 ### AAC's 1024-sample framing is handled for you
 
-AAC will not accept arbitrary chunk sizes. It wants exactly 1024 samples per frame, every frame, and the encoder rejects anything else. KiteCodec handles this so you do not have to count samples by hand.
+AAC will not accept arbitrary chunk sizes. It wants exactly 1024 samples per frame, every frame, and the encoder rejects anything else. KiteFFmpeg handles this so you do not have to count samples by hand.
 
 The mechanism is `frameSize`: an opened `AudioEncoder` reports the samples-per-frame the codec demands (1024 for AAC, 0 for codecs that take any chunk size). Route your audio through an [audio filter graph](filtering.md) and pin its output to that size:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FilterGraph
-import io.github.yuroyami.kitecodec.MediaSource
+import io.github.yuroyami.kiteffmpeg.FilterGraph
+import io.github.yuroyami.kiteffmpeg.MediaSource
 
 val source = MediaSource.open("input.mp4")
 val audioStream = source.primaryAudio ?: error("no audio track")
@@ -190,7 +190,7 @@ The graph re-chunks the audio stream into exact 1024-sample frames before they r
 When a stream should pass through untouched, do not decode and re-encode it. `addCopyStream` declares a verbatim copy of one input stream into the output. This is FFmpeg's `-c copy`: no decode, no encode, only timestamp rescaling into the output's time-base.
 
 ```kotlin
-import io.github.yuroyami.kitecodec.MediaSource
+import io.github.yuroyami.kiteffmpeg.MediaSource
 
 val source = MediaSource.open("input.mp4")
 val audioStream = source.primaryAudio!!
@@ -256,11 +256,11 @@ VideoEncoderSpec(
 
 ### Check before you commit
 
-Hardware encoder availability is a runtime property of the machine and the FFmpeg build. Probe it with [`FFmpeg.hasEncoder`](https://yuroyami.github.io/KiteCodec/api/) before you choose:
+Hardware encoder availability is a runtime property of the machine and the FFmpeg build. Probe it with [`FFmpeg.hasEncoder`](https://yuroyami.github.io/KiteFFmpeg/api/) before you choose:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpeg
-import io.github.yuroyami.kitecodec.CodecId
+import io.github.yuroyami.kiteffmpeg.FFmpeg
+import io.github.yuroyami.kiteffmpeg.CodecId
 
 val codec = if (FFmpeg.hasEncoder(CodecId.H264VideoToolbox.name)) {
     CodecId.H264VideoToolbox
@@ -309,7 +309,7 @@ Tag the output before the first frame:
 sink.setMetadata(
     mapOf(
         "title" to "Holiday clip",
-        "artist" to "KiteCodec",
+        "artist" to "KiteFFmpeg",
         "comment" to "Encoded with VideoToolbox",
     )
 )
@@ -333,10 +333,10 @@ The encoders (`VideoEncoder`, `AudioEncoder`) are also `AutoCloseable`, but `dri
 
 ## Errors
 
-Every libav failure surfaces as an [`FFmpegException`](https://yuroyami.github.io/KiteCodec/api/) wrapping an `FFmpegError`. `FFmpegError` is a sealed hierarchy of semantic categories (`FileNotFound`, `EncoderNotFound`, `MuxerNotFound`, `InvalidData`, and more) mapped from the raw `AVERROR_*` codes. Unmapped codes arrive as `FFmpegError.AvError`. A library-side invariant violation arrives as `FFmpegError.Internal`. Every subclass exposes the numeric `code`:
+Every libav failure surfaces as an [`FFmpegException`](https://yuroyami.github.io/KiteFFmpeg/api/) wrapping an `FFmpegError`. `FFmpegError` is a sealed hierarchy of semantic categories (`FileNotFound`, `EncoderNotFound`, `MuxerNotFound`, `InvalidData`, and more) mapped from the raw `AVERROR_*` codes. Unmapped codes arrive as `FFmpegError.AvError`. A library-side invariant violation arrives as `FFmpegError.Internal`. Every subclass exposes the numeric `code`:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpegException
+import io.github.yuroyami.kiteffmpeg.FFmpegException
 
 try {
     MediaSink.open("output.mp4").use { sink ->
@@ -356,4 +356,4 @@ A common one to expect: opening a `CodecId` whose encoder is not present in the 
 - [Filtering](filtering.md): scale, resample, and re-chunk frames before they reach an encoder.
 - [Remuxing](remuxing.md): copy every stream into a new container with no encoders at all.
 - [Recipes](recipes.md): copy-paste patterns for common encode and mux tasks.
-- [API reference](https://yuroyami.github.io/KiteCodec/api/): full signatures for `MediaSink`, `VideoEncoderSpec`, and `AudioEncoderSpec`.
+- [API reference](https://yuroyami.github.io/KiteFFmpeg/api/): full signatures for `MediaSink`, `VideoEncoderSpec`, and `AudioEncoderSpec`.

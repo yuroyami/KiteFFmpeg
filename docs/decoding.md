@@ -1,6 +1,6 @@
 # Decoding
 
-Open a media file, inspect its streams, and pull decoded frames out as a coroutine `Flow`. Demuxing means splitting a container file into its separate streams. KiteCodec runs the demux loop, the EAGAIN retry handling, and the best-effort timestamp promotion for you. You work with whole `Frame` objects instead of raw packets.
+Open a media file, inspect its streams, and pull decoded frames out as a coroutine `Flow`. Demuxing means splitting a container file into its separate streams. KiteFFmpeg runs the demux loop, the EAGAIN retry handling, and the best-effort timestamp promotion for you. You work with whole `Frame` objects instead of raw packets.
 
 This page covers reading and decoding. To re-encode and write a new file, see [Encoding & muxing](encoding-muxing.md). To run a one-call pipeline instead of a manual loop, see [Transcoding](transcoding.md).
 
@@ -9,7 +9,7 @@ This page covers reading and decoding. To re-encode and write a new file, see [E
 Open an input file with `MediaSource.open(path)`. It wraps an `AVFormatContext` and reads the container header so the stream list and metadata are available immediately:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.MediaSource
+import io.github.yuroyami.kiteffmpeg.MediaSource
 
 val source = MediaSource.open("input.mp4")
 println("Format: ${source.formatName}")
@@ -218,7 +218,7 @@ val thumb = source.extractFrame(atMicros = 90_000_000)   // one frame at 90s
 Pair it with `encodeImage(codec)` to get JPEG or PNG bytes you can write to disk. `encodeImage` re-encodes the frame as a still image and returns the encoded bytes:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.CodecId
+import io.github.yuroyami.kiteffmpeg.CodecId
 
 MediaSource.open("input.mp4").use { source ->
     source.extractFrame(atMicros = 90_000_000).use { frame ->
@@ -238,8 +238,8 @@ MediaSource.open("input.mp4").use { source ->
 Decode calls surface FFmpeg failures as an `FFmpegException` carrying an `FFmpegError`. The error is either an `AvError` (a concrete `AVERROR_*` from libav, with its `code`) or an `Internal` invariant failure on the library side:
 
 ```kotlin
-import io.github.yuroyami.kitecodec.FFmpegException
-import io.github.yuroyami.kitecodec.FFmpegError
+import io.github.yuroyami.kiteffmpeg.FFmpegException
+import io.github.yuroyami.kiteffmpeg.FFmpegError
 
 try {
     MediaSource.open("missing.mp4").use { source ->
@@ -268,7 +268,7 @@ the repository-local path.
 The low-level decoder API also accepts an exact FFmpeg decoder name. On an Android FFmpeg build,
 `source.openDecoder(stream, decoder = CodecId("h264_mediacodec"))` selects FFmpeg's named
 MediaCodec decoder after the bridge has attached the app VM. It verifies that the named decoder
-matches the stream before opening. KiteCodec does not call Android's codec API directly, and this
+matches the stream before opening. KiteFFmpeg does not call Android's codec API directly, and this
 selection seam is not by itself a device playback result.
 
 ## Next
@@ -276,4 +276,4 @@ selection seam is not by itself a device playback result.
 - [Filtering](filtering.md): run any FFmpeg filter chain over the frames you decode.
 - [Encoding & muxing](encoding-muxing.md): turn frames back into an output file.
 - [Transcoding](transcoding.md): the one-call decode → filter → encode → mux pipeline.
-- Full signatures: the [API reference](https://yuroyami.github.io/KiteCodec/api/).
+- Full signatures: the [API reference](https://yuroyami.github.io/KiteFFmpeg/api/).

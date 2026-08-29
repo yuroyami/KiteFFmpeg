@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -36,7 +36,7 @@ data class FFmpegRecipeExpectation(
  * on disk the whole time; every bake since B1 stamps its exact configure line into
  * [BuildFFmpegTask.CONFIGURE_EVIDENCE_RELATIVE_PATH]. Nobody was reading it.
  *
- * `-Pkitecodec.ffmpeg.autoBake=true` is the automatic answer to the same problem: it makes the
+ * `-Pkiteffmpeg.ffmpeg.autoBake=true` is the automatic answer to the same problem: it makes the
  * compile tasks depend on the bake, so Gradle re-bakes exactly when its inputs moved. This task is
  * for builds that do NOT opt into that, where a red light beats a silent lie.
  *
@@ -61,24 +61,24 @@ abstract class CheckFFmpegRecipesTask : DefaultTask() {
                 stamp.readText().trim(),
                 expectation.fingerprint.toList(),
             ) ?: return@forEach
-            stale += "  ${tree.name}: $reason\n    fix: ./gradlew :kitecodec-core:${expectation.taskName}"
+            stale += "  ${tree.name}: $reason\n    fix: ./gradlew :kiteffmpeg-core:${expectation.taskName}"
         }
         if (checked == 0) {
             logger.lifecycle(
-                "[KiteCodec] checkFFmpegRecipes: no vendored tree carries a recipe stamp, so there is " +
-                    "nothing to compare. Bake one with :kitecodec-core:buildFFmpegFor<Target>.",
+                "[KiteFFmpeg] checkFFmpegRecipes: no vendored tree carries a recipe stamp, so there is " +
+                    "nothing to compare. Bake one with :kiteffmpeg-core:buildFFmpegFor<Target>.",
             )
             return
         }
         if (stale.isNotEmpty()) {
             throw GradleException(
-                "[KiteCodec] ${stale.size} of $checked vendored FFmpeg tree(s) no longer match this " +
+                "[KiteFFmpeg] ${stale.size} of $checked vendored FFmpeg tree(s) no longer match this " +
                     "checkout's recipe:\n" + stale.joinToString("\n") +
-                    "\n  or set -Pkitecodec.ffmpeg.autoBake=true and let the build re-bake what it needs.",
+                    "\n  or set -Pkiteffmpeg.ffmpeg.autoBake=true and let the build re-bake what it needs.",
             )
         }
         logger.lifecycle(
-            "[KiteCodec] checkFFmpegRecipes: $checked vendored tree(s) match the current recipe.",
+            "[KiteFFmpeg] checkFFmpegRecipes: $checked vendored tree(s) match the current recipe.",
         )
     }
 }

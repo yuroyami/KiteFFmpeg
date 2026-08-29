@@ -1,4 +1,4 @@
-package io.github.yuroyami.kitecodec.buildtools
+package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.api.GradleException
 import java.io.File
@@ -90,15 +90,15 @@ internal data class KonanCross(
                         "Kotlin/Native code has them.",
                 )
             }
-            val llvmBin = CompileKiteCodecCTask.resolveLlvmBinDir(
+            val llvmBin = CompileKiteFFmpegCTask.resolveLlvmBinDir(
                 dependencies,
-                CompileKiteCodecCTask.DEFAULT_LLVM_PACKAGE,
+                CompileKiteFFmpegCTask.DEFAULT_LLVM_PACKAGE,
                 log,
             )
-            fun tool(name: String): String = (CompileKiteCodecCTask.resolveTool(llvmBin, name)
+            fun tool(name: String): String = (CompileKiteFFmpegCTask.resolveTool(llvmBin, name)
                 ?: throw GradleException("Cannot cross-build for $target: no $name under $llvmBin"))
                 .absolutePath
-            val spec = CompileKiteCodecCTask.specFor(target.konanTargetName)
+            val spec = CompileKiteFFmpegCTask.specFor(target.konanTargetName)
             val sysrootRelative = spec.konanSysroot
                 ?: throw GradleException("$target has no konan sysroot")
             val sysroot = dependencies.resolve(sysrootRelative)

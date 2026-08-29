@@ -1,0 +1,1518 @@
+public final class io/github/yuroyami/kiteffmpeg/AudioEncoder : java/lang/AutoCloseable {
+	public fun close ()V
+	public final fun drive (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getChannels ()I
+	public final fun getFrameSize ()I
+	public final fun getSampleFormat-cYyR-PY ()Ljava/lang/String;
+	public final fun getSampleRate ()I
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AudioEncoderSpec {
+	public synthetic fun <init> (Ljava/lang/String;IILjava/lang/String;JLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;IILjava/lang/String;JLjava/util/Map;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-lIZ29Oc ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4-cYyR-PY ()Ljava/lang/String;
+	public final fun component5 ()J
+	public final fun component6 ()Ljava/util/Map;
+	public final fun copy-rbhxSyQ (Ljava/lang/String;IILjava/lang/String;JLjava/util/Map;)Lio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;
+	public static synthetic fun copy-rbhxSyQ$default (Lio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;IILjava/lang/String;JLjava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitrateBps ()J
+	public final fun getChannels ()I
+	public final fun getCodec-lIZ29Oc ()Ljava/lang/String;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getSampleFormat-cYyR-PY ()Ljava/lang/String;
+	public final fun getSampleRate ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AudioInput {
+	public synthetic fun <init> (ILjava/lang/String;ILio/github/yuroyami/kiteffmpeg/Rational;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2-cYyR-PY ()Ljava/lang/String;
+	public final fun component3 ()I
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun copy-sl-tfZA (ILjava/lang/String;ILio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/AudioInput;
+	public static synthetic fun copy-sl-tfZA$default (Lio/github/yuroyami/kiteffmpeg/AudioInput;ILjava/lang/String;ILio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/AudioInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChannels ()I
+	public final fun getSampleFormat-cYyR-PY ()Ljava/lang/String;
+	public final fun getSampleRate ()I
+	public final fun getTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AudioStreamInfo {
+	public synthetic fun <init> (IILjava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Ljava/lang/Long;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3-cYyR-PY ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Long;
+	public final fun copy-Ql_7eZw (IILjava/lang/String;Ljava/lang/Long;)Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;
+	public static synthetic fun copy-Ql_7eZw$default (Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;IILjava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChannelLayoutMask ()Ljava/lang/Long;
+	public final fun getChannels ()I
+	public final fun getSampleFormat-cYyR-PY ()Ljava/lang/String;
+	public final fun getSampleRate ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Chapter {
+	public fun <init> (JJJLjava/util/Map;)V
+	public synthetic fun <init> (JJJLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()Ljava/util/Map;
+	public final fun copy (JJJLjava/util/Map;)Lio/github/yuroyami/kiteffmpeg/Chapter;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/Chapter;JJJLjava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Chapter;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEndMicros ()J
+	public final fun getId ()J
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getStartMicros ()J
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ChaptersKt {
+	public static final fun getMediaInfo (Lio/github/yuroyami/kiteffmpeg/MediaSource;)Lio/github/yuroyami/kiteffmpeg/MediaInfo;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ChromaLocation : java/lang/Enum {
+	public static final field Bottom Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public static final field BottomLeft Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public static final field Center Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/ChromaLocation$Companion;
+	public static final field Left Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public static final field Top Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public static final field TopLeft Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public static final field Unspecified Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public final fun getAvValue ()I
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ChromaLocation$Companion {
+	public final fun fromAv (I)Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/CodecId {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/CodecId$Companion;
+	public static final synthetic fun box-impl (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/CodecId;
+	public static fun constructor-impl (Ljava/lang/String;)Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (Ljava/lang/String;Ljava/lang/Object;)Z
+	public static final fun equals-impl0 (Ljava/lang/String;Ljava/lang/String;)Z
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static fun hashCode-impl (Ljava/lang/String;)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (Ljava/lang/String;)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/CodecId$Companion {
+	public final fun getAac-lIZ29Oc ()Ljava/lang/String;
+	public final fun getAv1-lIZ29Oc ()Ljava/lang/String;
+	public final fun getFlac-lIZ29Oc ()Ljava/lang/String;
+	public final fun getH264-lIZ29Oc ()Ljava/lang/String;
+	public final fun getH264MediaCodec-lIZ29Oc ()Ljava/lang/String;
+	public final fun getH264VideoToolbox-lIZ29Oc ()Ljava/lang/String;
+	public final fun getHevc-lIZ29Oc ()Ljava/lang/String;
+	public final fun getHevcMediaCodec-lIZ29Oc ()Ljava/lang/String;
+	public final fun getHevcVideoToolbox-lIZ29Oc ()Ljava/lang/String;
+	public final fun getLibMp3-lIZ29Oc ()Ljava/lang/String;
+	public final fun getLibOpus-lIZ29Oc ()Ljava/lang/String;
+	public final fun getLibx264-lIZ29Oc ()Ljava/lang/String;
+	public final fun getLibx265-lIZ29Oc ()Ljava/lang/String;
+	public final fun getMjpeg-lIZ29Oc ()Ljava/lang/String;
+	public final fun getMp3-lIZ29Oc ()Ljava/lang/String;
+	public final fun getOpus-lIZ29Oc ()Ljava/lang/String;
+	public final fun getPcmS16-lIZ29Oc ()Ljava/lang/String;
+	public final fun getPng-lIZ29Oc ()Ljava/lang/String;
+	public final fun getVorbis-lIZ29Oc ()Ljava/lang/String;
+	public final fun getVp8-lIZ29Oc ()Ljava/lang/String;
+	public final fun getVp9-lIZ29Oc ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorInfo {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/ColorInfo$Companion;
+	public fun <init> ()V
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;Z)V
+	public synthetic fun <init> (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public final fun component2 ()Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public final fun component3 ()Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public final fun component4 ()Z
+	public final fun component5 ()Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public final fun component6 ()Z
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;Z)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChromaLocation ()Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
+	public final fun getFullRange ()Z
+	public final fun getMatrix ()Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public final fun getPrimaries ()Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public final fun getRangeSpecified ()Z
+	public final fun getTransfer ()Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public fun hashCode ()I
+	public final fun isHdr ()Z
+	public final fun isUnspecified ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorInfo$Companion {
+	public final fun getUnspecified ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun guessFor (I)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorMatrix : java/lang/Enum {
+	public static final field Bt2020Cl Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Bt2020Ncl Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Bt470bg Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Bt709 Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/ColorMatrix$Companion;
+	public static final field Fcc Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field ICtCp Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Rgb Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Smpte170m Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Smpte240m Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field Unspecified Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static final field YCgCo Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public final fun getAvValue ()I
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorMatrix$Companion {
+	public final fun fromAv (I)Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorPrimaries : java/lang/Enum {
+	public static final field Bt2020 Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field Bt470bg Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field Bt470m Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field Bt709 Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/ColorPrimaries$Companion;
+	public static final field Film Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field Smpte170m Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field Smpte240m Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field SmpteSt428 Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field SmpteSt431 Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field SmpteSt432 Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static final field Unspecified Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public final fun getAvValue ()I
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorPrimaries$Companion {
+	public final fun fromAv (I)Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorTransfer : java/lang/Enum {
+	public static final field AribStdB67 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Bt1361Ecg Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Bt2020Ten Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Bt2020Twelve Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Bt709 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/ColorTransfer$Companion;
+	public static final field Gamma22 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Gamma28 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Iec6196621 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Iec6196624 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Linear Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Log Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field LogSqrt Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Smpte170m Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Smpte240m Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field SmpteSt2084 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field SmpteSt428 Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static final field Unspecified Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public final fun getAvValue ()I
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ColorTransfer$Companion {
+	public final fun fromAv (I)Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/CopyStream {
+}
+
+public final class io/github/yuroyami/kiteffmpeg/CorruptData : java/lang/Enum {
+	public static final field Fail Lio/github/yuroyami/kiteffmpeg/CorruptData;
+	public static final field Skip Lio/github/yuroyami/kiteffmpeg/CorruptData;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/CorruptData;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/CorruptData;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Disposition {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Disposition$Companion;
+	public fun <init> ()V
+	public fun <init> (ZZZZZ)V
+	public synthetic fun <init> (ZZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun copy (ZZZZZ)Lio/github/yuroyami/kiteffmpeg/Disposition;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/Disposition;ZZZZZILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Disposition;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttachedPicture ()Z
+	public final fun getDefault ()Z
+	public final fun getForced ()Z
+	public final fun getHearingImpaired ()Z
+	public final fun getVisualImpaired ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Disposition$Companion {
+	public final fun getNone ()Lio/github/yuroyami/kiteffmpeg/Disposition;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpeg {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/FFmpeg;
+	public final fun getBuildConfiguration ()Ljava/lang/String;
+	public final fun getIdentity ()Lio/github/yuroyami/kiteffmpeg/FFmpegIdentity;
+	public final fun getVersions ()Lio/github/yuroyami/kiteffmpeg/Versions;
+	public final fun hasDecoder (Ljava/lang/String;)Z
+	public final fun hasEncoder (Ljava/lang/String;)Z
+	public final fun hasFilter (Ljava/lang/String;)Z
+}
+
+public abstract class io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FFmpegError$Companion;
+	public synthetic fun <init> (ILjava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getCode ()I
+	public final fun getMessage ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$AvError : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$Companion {
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$DecoderNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$DemuxerNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$EncoderNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$EndOfFile : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$FileNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$FilterNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$IncompatibleFFmpegRuntime : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/FFmpegIdentity;)V
+	public final fun getIdentity ()Lio/github/yuroyami/kiteffmpeg/FFmpegIdentity;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$Internal : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$Interrupted : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$InvalidArgument : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$InvalidData : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$Io : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$MuxerNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$OptionNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$OutOfMemory : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$PermissionDenied : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$ProtocolNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$StreamNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$Unsupported : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegException : java/lang/RuntimeException {
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/FFmpegError;)V
+	public final fun getCode ()I
+	public final fun getError ()Lio/github/yuroyami/kiteffmpeg/FFmpegError;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegIdentity {
+	public fun <init> (IZILjava/lang/String;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun describe ()Ljava/lang/String;
+	public final fun getBuildFFmpegRef ()Ljava/lang/String;
+	public final fun getBuildLicenseFlavour ()Ljava/lang/String;
+	public final fun getBuildProvisioningDir ()Ljava/lang/String;
+	public final fun getBypassed ()Z
+	public final fun getBypassedStatus ()I
+	public final fun getCAbiVersion ()Ljava/lang/String;
+	public final fun getConfigurationsAgree ()Z
+	public final fun getConfigurationsDisagreed ()Ljava/util/List;
+	public final fun getLibraries ()Ljava/util/List;
+	public final fun getProblems ()Ljava/util/List;
+	public final fun getProvisioning ()Ljava/lang/String;
+	public final fun getRuntimeLicense ()Ljava/lang/String;
+	public final fun getRuntimeVersionInfo ()Ljava/lang/String;
+	public final fun getStatus ()I
+	public final fun isAcceptable ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegLibraryIdentity {
+	public fun <init> (Ljava/lang/String;IIIIIILjava/lang/String;)V
+	public final fun getHeaderMajor ()I
+	public final fun getHeaderMicro ()I
+	public final fun getHeaderMinor ()I
+	public final fun getHeaderVersion ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRuntimeMajor ()I
+	public final fun getRuntimeMicro ()I
+	public final fun getRuntimeMinor ()I
+	public final fun getRuntimeVersion ()Ljava/lang/String;
+	public final fun getVerdict ()Ljava/lang/String;
+	public final fun isOk ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FilterGraph : java/lang/AutoCloseable {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;
+	public fun close ()V
+	public final fun feedInput (ILio/github/yuroyami/kiteffmpeg/Frame;Lkotlin/jvm/functions/Function1;)V
+	public final fun flushInput (ILkotlin/jvm/functions/Function1;)V
+	public final fun getInputCount ()I
+	public final fun getOutputTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun process (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
+	public final fun setOutputFrameSize (I)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FilterGraph$Companion {
+	public final fun buildAudio-SxipMDw (Ljava/lang/String;ILjava/lang/String;ILio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/String;I)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public static synthetic fun buildAudio-SxipMDw$default (Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;Ljava/lang/String;ILjava/lang/String;ILio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/String;IILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public final fun buildAudioMulti-CpRq8b4 (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;I)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public static synthetic fun buildAudioMulti-CpRq8b4$default (Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;Ljava/lang/String;Ljava/util/List;ILjava/lang/String;IILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public final fun buildVideo-HlgWvAs (Ljava/lang/String;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public static synthetic fun buildVideo-HlgWvAs$default (Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;Ljava/lang/String;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public final fun buildVideoMulti (Ljava/lang/String;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Frame : java/lang/AutoCloseable {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Frame$Companion;
+	public fun close ()V
+	public final fun copy ()Lio/github/yuroyami/kiteffmpeg/Frame;
+	public final fun copyPlanesToByteArray ()[B
+	public final fun downloadFromHardware ()Lio/github/yuroyami/kiteffmpeg/Frame;
+	public final fun encodeImage-vVKjmHM (Ljava/lang/String;)[B
+	public static synthetic fun encodeImage-vVKjmHM$default (Lio/github/yuroyami/kiteffmpeg/Frame;Ljava/lang/String;ILjava/lang/Object;)[B
+	public final fun getInfo ()Lio/github/yuroyami/kiteffmpeg/FrameInfo;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Frame$Companion {
+	public final fun ofAudio-MIajpSw ([BIIILjava/lang/String;J)Lio/github/yuroyami/kiteffmpeg/Frame;
+	public static synthetic fun ofAudio-MIajpSw$default (Lio/github/yuroyami/kiteffmpeg/Frame$Companion;[BIIILjava/lang/String;JILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Frame;
+	public final fun ofVideo-T97qXyM ([BIILjava/lang/String;J)Lio/github/yuroyami/kiteffmpeg/Frame;
+	public static synthetic fun ofVideo-T97qXyM$default (Lio/github/yuroyami/kiteffmpeg/Frame$Companion;[BIILjava/lang/String;JILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Frame;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FrameInfo {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FrameInfo$Companion;
+	public static final field NOPTS J
+	public synthetic fun <init> (ILio/github/yuroyami/kiteffmpeg/MediaType;JLio/github/yuroyami/kiteffmpeg/Rational;IILjava/lang/String;IIILjava/lang/String;Ljava/lang/Long;JZLio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Rational;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILio/github/yuroyami/kiteffmpeg/MediaType;JLio/github/yuroyami/kiteffmpeg/Rational;IILjava/lang/String;IIILjava/lang/String;Ljava/lang/Long;JZLio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Rational;ZLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component10 ()I
+	public final fun component11-cYyR-PY ()Ljava/lang/String;
+	public final fun component12 ()Ljava/lang/Long;
+	public final fun component13 ()J
+	public final fun component14 ()Z
+	public final fun component15 ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun component16 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component17 ()Z
+	public final fun component2 ()Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public final fun component3 ()J
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun component7-OLR4av4 ()Ljava/lang/String;
+	public final fun component8 ()I
+	public final fun component9 ()I
+	public final fun copy-rq39UoE (ILio/github/yuroyami/kiteffmpeg/MediaType;JLio/github/yuroyami/kiteffmpeg/Rational;IILjava/lang/String;IIILjava/lang/String;Ljava/lang/Long;JZLio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Rational;Z)Lio/github/yuroyami/kiteffmpeg/FrameInfo;
+	public static synthetic fun copy-rq39UoE$default (Lio/github/yuroyami/kiteffmpeg/FrameInfo;ILio/github/yuroyami/kiteffmpeg/MediaType;JLio/github/yuroyami/kiteffmpeg/Rational;IILjava/lang/String;IIILjava/lang/String;Ljava/lang/Long;JZLio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Rational;ZILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FrameInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChannelCount ()I
+	public final fun getChannelLayoutMask ()Ljava/lang/Long;
+	public final fun getColor ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun getDuration ()J
+	public final fun getHasPts ()Z
+	public final fun getHeight ()I
+	public final fun getPixelFormat-OLR4av4 ()Ljava/lang/String;
+	public final fun getPts ()J
+	public final fun getPtsSeconds ()D
+	public final fun getSampleAspectRatio ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getSampleCount ()I
+	public final fun getSampleFormat-cYyR-PY ()Ljava/lang/String;
+	public final fun getSampleRate ()I
+	public final fun getStreamIndex ()I
+	public final fun getTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getType ()Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public final fun isHardware ()Z
+	public final fun isKeyframe ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FrameInfo$Companion {
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FrameKt {
+	public static final fun getDurationMicros (Lio/github/yuroyami/kiteffmpeg/Frame;)Ljava/lang/Long;
+	public static final fun getPtsMicros (Lio/github/yuroyami/kiteffmpeg/Frame;)Ljava/lang/Long;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/HardwareAccel : java/lang/Enum {
+	public static final field VideoToolbox Lio/github/yuroyami/kiteffmpeg/HardwareAccel;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/HardwareAccel;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/HardwareAccel;
+}
+
+public abstract interface annotation class io/github/yuroyami/kiteffmpeg/KiteFFmpegLowLevelApi : java/lang/annotation/Annotation {
+}
+
+public abstract interface class io/github/yuroyami/kiteffmpeg/MediaByteSource : java/lang/AutoCloseable {
+	public abstract fun getSeekable ()Z
+	public abstract fun getSize ()Ljava/lang/Long;
+	public abstract fun read ([BII)I
+	public abstract fun seek (J)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaInfo {
+	public fun <init> (Ljava/lang/Long;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/Long;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/Long;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/MediaInfo;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/MediaInfo;Ljava/lang/Long;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChapters ()Ljava/util/List;
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getFormatName ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaSink : java/lang/AutoCloseable {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/MediaSink$Companion;
+	public final fun addAudioEncoder (Lio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;)Lio/github/yuroyami/kiteffmpeg/AudioEncoder;
+	public final fun addCopyStream (Lio/github/yuroyami/kiteffmpeg/MediaSource;Lio/github/yuroyami/kiteffmpeg/StreamInfo;)Lio/github/yuroyami/kiteffmpeg/CopyStream;
+	public final fun addVideoEncoder (Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;)Lio/github/yuroyami/kiteffmpeg/VideoEncoder;
+	public fun close ()V
+	public final fun setMetadata (Ljava/util/Map;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaSink$Companion {
+	public final fun open (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaSink;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSink$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSink;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaSource : java/lang/AutoCloseable {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;
+	public fun close ()V
+	public final fun decodeStreams (Ljava/util/List;)Lkotlinx/coroutines/flow/Flow;
+	public final fun decodedFrames (Lio/github/yuroyami/kiteffmpeg/StreamInfo;)Lkotlinx/coroutines/flow/Flow;
+	public final fun extractFrame (JLio/github/yuroyami/kiteffmpeg/StreamInfo;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun extractFrame$default (Lio/github/yuroyami/kiteffmpeg/MediaSource;JLio/github/yuroyami/kiteffmpeg/StreamInfo;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun getChapters ()Ljava/util/List;
+	public final fun getCorruptData ()Lio/github/yuroyami/kiteffmpeg/CorruptData;
+	public final fun getCorruptDataSkipped ()J
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getFormatName ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getPrimaryAudio ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getPrimaryVideo ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getStartTimeMicros ()J
+	public final fun getStreams ()Ljava/util/List;
+	public final fun getUnusedOpenOptions ()Ljava/util/List;
+	public final fun interrupt ()V
+	public final fun isSeekable ()Z
+	public final fun openDecoder-0N1Q0X8 (Lio/github/yuroyami/kiteffmpeg/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;Lio/github/yuroyami/kiteffmpeg/HardwareAccel;Lio/github/yuroyami/kiteffmpeg/CorruptData;)Lio/github/yuroyami/kiteffmpeg/StreamDecoder;
+	public static synthetic fun openDecoder-0N1Q0X8$default (Lio/github/yuroyami/kiteffmpeg/MediaSource;Lio/github/yuroyami/kiteffmpeg/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;Lio/github/yuroyami/kiteffmpeg/HardwareAccel;Lio/github/yuroyami/kiteffmpeg/CorruptData;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/StreamDecoder;
+	public final fun openPacketReader (Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/PacketReader;
+	public final fun seekMicros (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setCorruptData (Lio/github/yuroyami/kiteffmpeg/CorruptData;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaSource$Companion {
+	public final fun open (Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public final fun open (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public final fun open (Ljava/lang/String;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaType : java/lang/Enum {
+	public static final field Attachment Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public static final field Audio Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public static final field Data Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public static final field Subtitle Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public static final field Unknown Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public static final field Video Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun isAv ()Z
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/MediaType;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Packet : java/lang/AutoCloseable {
+	public fun close ()V
+	public final fun copy ()Lio/github/yuroyami/kiteffmpeg/Packet;
+	public final fun copyBytes ()[B
+	public final fun getBytePosition ()J
+	public final fun getDts ()J
+	public final fun getDtsMicros ()Ljava/lang/Long;
+	public final fun getDuration ()J
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getHasPts ()Z
+	public final fun getPts ()J
+	public final fun getPtsMicros ()Ljava/lang/Long;
+	public final fun getSizeBytes ()I
+	public final fun getStreamIndex ()I
+	public final fun getTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun isKeyframe ()Z
+}
+
+public final class io/github/yuroyami/kiteffmpeg/PacketReader : java/lang/AutoCloseable {
+	public fun close ()V
+	public final fun read ()Lio/github/yuroyami/kiteffmpeg/Packet;
+	public final fun reselect (Ljava/util/List;)V
+	public final fun seek (JLio/github/yuroyami/kiteffmpeg/SeekDirection;Ljava/lang/Long;)V
+	public static synthetic fun seek$default (Lio/github/yuroyami/kiteffmpeg/PacketReader;JLio/github/yuroyami/kiteffmpeg/SeekDirection;Ljava/lang/Long;ILjava/lang/Object;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/PixelFormat {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/PixelFormat$Companion;
+	public static final synthetic fun box-impl (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/PixelFormat;
+	public static fun constructor-impl (Ljava/lang/String;)Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (Ljava/lang/String;Ljava/lang/Object;)Z
+	public static final fun equals-impl0 (Ljava/lang/String;Ljava/lang/String;)Z
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static fun hashCode-impl (Ljava/lang/String;)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (Ljava/lang/String;)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/PixelFormat$Companion {
+	public final fun getBgra-OLR4av4 ()Ljava/lang/String;
+	public final fun getGray8-OLR4av4 ()Ljava/lang/String;
+	public final fun getNone-OLR4av4 ()Ljava/lang/String;
+	public final fun getNv12-OLR4av4 ()Ljava/lang/String;
+	public final fun getP010le-OLR4av4 ()Ljava/lang/String;
+	public final fun getRgb24-OLR4av4 ()Ljava/lang/String;
+	public final fun getRgba-OLR4av4 ()Ljava/lang/String;
+	public final fun getYuv420p-OLR4av4 ()Ljava/lang/String;
+	public final fun getYuv420p10le-OLR4av4 ()Ljava/lang/String;
+	public final fun getYuv422p-OLR4av4 ()Ljava/lang/String;
+	public final fun getYuv422p10le-OLR4av4 ()Ljava/lang/String;
+	public final fun getYuv444p-OLR4av4 ()Ljava/lang/String;
+	public final fun getYuv444p10le-OLR4av4 ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Rational : java/lang/Comparable {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Rational$Companion;
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compareTo (Lio/github/yuroyami/kiteffmpeg/Rational;)I
+	public synthetic fun compareTo (Ljava/lang/Object;)I
+	public final fun div (Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/Rational;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAsDouble ()D
+	public final fun getAsFloat ()F
+	public final fun getDen ()I
+	public final fun getInverse ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getNum ()I
+	public fun hashCode ()I
+	public final fun minus (Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun plus (Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun times (J)J
+	public final fun times (Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/Rational;
+	public fun toString ()Ljava/lang/String;
+	public final fun unaryMinus ()Lio/github/yuroyami/kiteffmpeg/Rational;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Rational$Companion {
+	public final fun getFps2398 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getFps24 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getFps25 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getFps2997 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getFps30 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getFps60 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getTb_us ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getZero ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun invoke (II)Lio/github/yuroyami/kiteffmpeg/Rational;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Remuxer {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/Remuxer;
+	public final fun remux (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;JJLjava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun remux$default (Lio/github/yuroyami/kiteffmpeg/Remuxer;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;JJLjava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SampleFormat {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/SampleFormat$Companion;
+	public static final synthetic fun box-impl (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/SampleFormat;
+	public static fun constructor-impl (Ljava/lang/String;)Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (Ljava/lang/String;Ljava/lang/Object;)Z
+	public static final fun equals-impl0 (Ljava/lang/String;Ljava/lang/String;)Z
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static fun hashCode-impl (Ljava/lang/String;)I
+	public static final fun isPlanar-impl (Ljava/lang/String;)Z
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (Ljava/lang/String;)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SampleFormat$Companion {
+	public final fun getDbl-cYyR-PY ()Ljava/lang/String;
+	public final fun getDblP-cYyR-PY ()Ljava/lang/String;
+	public final fun getFlt-cYyR-PY ()Ljava/lang/String;
+	public final fun getFltP-cYyR-PY ()Ljava/lang/String;
+	public final fun getNone-cYyR-PY ()Ljava/lang/String;
+	public final fun getS16-cYyR-PY ()Ljava/lang/String;
+	public final fun getS16p-cYyR-PY ()Ljava/lang/String;
+	public final fun getS32-cYyR-PY ()Ljava/lang/String;
+	public final fun getS32p-cYyR-PY ()Ljava/lang/String;
+	public final fun getS64-cYyR-PY ()Ljava/lang/String;
+	public final fun getS64p-cYyR-PY ()Ljava/lang/String;
+	public final fun getU8-cYyR-PY ()Ljava/lang/String;
+	public final fun getU8p-cYyR-PY ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SeekDirection : java/lang/Enum {
+	public static final field Any Lio/github/yuroyami/kiteffmpeg/SeekDirection;
+	public static final field Backward Lio/github/yuroyami/kiteffmpeg/SeekDirection;
+	public static final field Forward Lio/github/yuroyami/kiteffmpeg/SeekDirection;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/SeekDirection;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/SeekDirection;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/StreamDecoder : java/lang/AutoCloseable {
+	public fun close ()V
+	public final fun flush ()V
+	public final fun getCorruptDataSkipped ()J
+	public final fun getStream ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun isDrained ()Z
+	public final fun receive ()Lio/github/yuroyami/kiteffmpeg/Frame;
+	public final fun send (Lio/github/yuroyami/kiteffmpeg/Packet;)Z
+}
+
+public final class io/github/yuroyami/kiteffmpeg/StreamInfo {
+	public synthetic fun <init> (ILio/github/yuroyami/kiteffmpeg/MediaType;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Ljava/lang/Long;Ljava/lang/Long;Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/Disposition;IJ[BILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILio/github/yuroyami/kiteffmpeg/MediaType;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Ljava/lang/Long;Ljava/lang/Long;Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/Disposition;IJ[BLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component10 ()Lio/github/yuroyami/kiteffmpeg/Disposition;
+	public final fun component11 ()I
+	public final fun component12 ()J
+	public final fun component13 ()[B
+	public final fun component2 ()Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public final fun component3-lIZ29Oc ()Ljava/lang/String;
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public final fun component8 ()Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;
+	public final fun component9 ()Ljava/util/Map;
+	public final fun copy-mbStmPw (ILio/github/yuroyami/kiteffmpeg/MediaType;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Ljava/lang/Long;Ljava/lang/Long;Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/Disposition;IJ[B)Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public static synthetic fun copy-mbStmPw$default (Lio/github/yuroyami/kiteffmpeg/StreamInfo;ILio/github/yuroyami/kiteffmpeg/MediaType;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Ljava/lang/Long;Ljava/lang/Long;Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/Disposition;IJ[BILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAudio ()Lio/github/yuroyami/kiteffmpeg/AudioStreamInfo;
+	public final fun getBitrateBps ()Ljava/lang/Long;
+	public final fun getCodec-lIZ29Oc ()Ljava/lang/String;
+	public final fun getCodecExtradata ()[B
+	public final fun getDisposition ()Lio/github/yuroyami/kiteffmpeg/Disposition;
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getIndex ()I
+	public final fun getLanguage ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getRotationDegrees ()I
+	public final fun getStartTimeMicros ()J
+	public final fun getTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun getType ()Lio/github/yuroyami/kiteffmpeg/MediaType;
+	public final fun getVideo ()Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/TranscodeProgress {
+	public fun <init> (JJLjava/lang/Double;)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/lang/Double;
+	public final fun copy (JJLjava/lang/Double;)Lio/github/yuroyami/kiteffmpeg/TranscodeProgress;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/TranscodeProgress;JJLjava/lang/Double;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/TranscodeProgress;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFramesEncoded ()J
+	public final fun getOutputMicros ()J
+	public final fun getPercent ()Ljava/lang/Double;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Transcoder {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/Transcoder;
+	public final fun transcode (Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun transcode$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Versions {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/lang/String;
+	public final fun component12 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/Versions;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/Versions;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Versions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAvcodec ()Ljava/lang/String;
+	public final fun getAvcodecHeader ()Ljava/lang/String;
+	public final fun getAvfilter ()Ljava/lang/String;
+	public final fun getAvfilterHeader ()Ljava/lang/String;
+	public final fun getAvformat ()Ljava/lang/String;
+	public final fun getAvformatHeader ()Ljava/lang/String;
+	public final fun getAvutil ()Ljava/lang/String;
+	public final fun getAvutilHeader ()Ljava/lang/String;
+	public final fun getSwresample ()Ljava/lang/String;
+	public final fun getSwresampleHeader ()Ljava/lang/String;
+	public final fun getSwscale ()Ljava/lang/String;
+	public final fun getSwscaleHeader ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/VideoEncoder : java/lang/AutoCloseable {
+	public fun close ()V
+	public final fun drive (Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function1;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun drive$default (Lio/github/yuroyami/kiteffmpeg/VideoEncoder;Lkotlinx/coroutines/flow/Flow;Lkotlin/jvm/functions/Function1;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/VideoEncoderSpec {
+	public synthetic fun <init> (Ljava/lang/String;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;JILjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;JILjava/util/Map;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-lIZ29Oc ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4-OLR4av4 ()Ljava/lang/String;
+	public final fun component5 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component6 ()J
+	public final fun component7 ()I
+	public final fun component8 ()Ljava/util/Map;
+	public final fun copy-2VeOr3I (Ljava/lang/String;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;JILjava/util/Map;)Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;
+	public static synthetic fun copy-2VeOr3I$default (Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;JILjava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitrateBps ()J
+	public final fun getCodec-lIZ29Oc ()Ljava/lang/String;
+	public final fun getFrameRate ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getHeight ()I
+	public final fun getKeyframeIntervalFrames ()I
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getPixelFormat-OLR4av4 ()Ljava/lang/String;
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/VideoInput {
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3-OLR4av4 ()Ljava/lang/String;
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component5 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component6 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun copy-MzfNWGM (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/VideoInput;
+	public static synthetic fun copy-MzfNWGM$default (Lio/github/yuroyami/kiteffmpeg/VideoInput;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFrameRate ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getHeight ()I
+	public final fun getPixelFormat-OLR4av4 ()Ljava/lang/String;
+	public final fun getSampleAspectRatio ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3-OLR4av4 ()Ljava/lang/String;
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component5 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component6 ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun component7 ()Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
+	public final fun copy-CZcpzjU (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public static synthetic fun copy-CZcpzjU$default (Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColor ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun getFrameRate ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getHeight ()I
+	public final fun getPixelFormat-OLR4av4 ()Ljava/lang/String;
+	public final fun getSampleAspectRatio ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getVp9 ()Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9BitDepth : java/lang/Enum {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth$Companion;
+	public static final field Eight Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+	public static final field Ten Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+	public static final field Twelve Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+	public final fun getBits ()I
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9BitDepth$Companion {
+	public final fun fromBits (I)Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling : java/lang/Enum {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling$Companion;
+	public static final field Monochrome Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+	public static final field Yuv420 Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+	public static final field Yuv422 Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+	public static final field Yuv444 Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+	public final fun getCode ()I
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling$Companion {
+	public final fun fromCode (I)Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9CodecInfo {
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/Vp9Profile;Lio/github/yuroyami/kiteffmpeg/Vp9Level;Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;)V
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+	public final fun component2 ()Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public final fun component3 ()Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/Vp9Profile;Lio/github/yuroyami/kiteffmpeg/Vp9Level;Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;)Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/Vp9Profile;Lio/github/yuroyami/kiteffmpeg/Vp9Level;Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitDepth ()Lio/github/yuroyami/kiteffmpeg/Vp9BitDepth;
+	public final fun getChromaSubsampling ()Lio/github/yuroyami/kiteffmpeg/Vp9ChromaSubsampling;
+	public final fun getLevel ()Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public final fun getProfile ()Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9Level : java/lang/Enum {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Vp9Level$Companion;
+	public static final field Level1 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level1_1 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level2 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level2_1 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level3 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level3_1 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level4 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level4_1 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level5 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level5_1 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level5_2 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level6 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level6_1 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static final field Level6_2 Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public final fun getCode ()I
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9Level$Companion {
+	public final fun fromCode (I)Lio/github/yuroyami/kiteffmpeg/Vp9Level;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9Profile : java/lang/Enum {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Vp9Profile$Companion;
+	public static final field Profile0 Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+	public static final field Profile1 Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+	public static final field Profile2 Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+	public static final field Profile3 Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getNumber ()I
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Vp9Profile$Companion {
+	public final fun fromNumber (I)Lio/github/yuroyami/kiteffmpeg/Vp9Profile;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Aresample : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (I)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()I
+	public final fun copy (I)Lio/github/yuroyami/kiteffmpeg/dsl/Aresample;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Aresample;IILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Aresample;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getSampleRate ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Atempo : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (D)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()D
+	public final fun copy (D)Lio/github/yuroyami/kiteffmpeg/dsl/Atempo;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Atempo;DILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Atempo;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getTempo ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/AudioEncoderTuning {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun applyTo (Lio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;)Lio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioEncoderTuning;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioEncoderTuning;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioEncoderTuning;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitrateBps ()Ljava/lang/Long;
+	public final fun getProfile ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder {
+	public final fun aformat (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)V
+	public static synthetic fun aformat$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)V
+	public final fun aresample (I)V
+	public final fun atempo (D)V
+	public final fun loudnorm (DDD)V
+	public static synthetic fun loudnorm$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder;DDDILjava/lang/Object;)V
+	public final fun pan (Ljava/lang/String;[Ljava/lang/String;)V
+	public final fun raw (Ljava/lang/String;)V
+	public final fun volume (D)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/AudioFormat : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Integer;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChannelLayout ()Ljava/lang/String;
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getSampleFormat ()Ljava/lang/String;
+	public final fun getSampleRate ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Crop : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (IILjava/lang/Integer;Ljava/lang/Integer;)V
+	public synthetic fun <init> (IILjava/lang/Integer;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/Integer;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun copy (IILjava/lang/Integer;Ljava/lang/Integer;)Lio/github/yuroyami/kiteffmpeg/dsl/Crop;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Crop;IILjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Crop;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getHeight ()I
+	public final fun getWidth ()I
+	public final fun getX ()Ljava/lang/Integer;
+	public final fun getY ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DecoderOptions {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions$Companion;
+	public fun <init> ()V
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Ljava/util/Set;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;Ljava/util/Map;)V
+	public synthetic fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Ljava/util/Set;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun compile ()Ljava/util/List;
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public final fun component2 ()Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public final fun component3 ()Ljava/util/Set;
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Ljava/util/Set;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Ljava/util/Set;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getErrorDetection ()Ljava/util/Set;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getSkipFrame ()Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public final fun getSkipLoopFilter ()Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public final fun getThreadType ()Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DecoderOptions$Companion {
+	public final fun getScrubbing ()Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DecoderSkip : java/lang/Enum {
+	public static final field All Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public static final field Bidirectional Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public static final field NonIntra Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public static final field NonKey Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public static final field NonReference Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public static final field None Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType : java/lang/Enum {
+	public static final field Both Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;
+	public static final field Frame Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;
+	public static final field Slice Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/DecoderThreadType;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Deinterlace : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> ()V
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;)V
+	public synthetic fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;)Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlace;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlace;Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlace;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getWith ()Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Deinterlacer : java/lang/Enum {
+	public static final field Bwdif Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
+	public static final field Yadif Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DrawBox : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (IIIILjava/lang/String;I)V
+	public synthetic fun <init> (IIIILjava/lang/String;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()I
+	public final fun copy (IIIILjava/lang/String;I)Lio/github/yuroyami/kiteffmpeg/dsl/DrawBox;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/DrawBox;IIIILjava/lang/String;IILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/DrawBox;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColor ()Ljava/lang/String;
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getHeight ()I
+	public final fun getThickness ()I
+	public final fun getWidth ()I
+	public final fun getX ()I
+	public final fun getY ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/EncoderPreset : java/lang/Enum {
+	public static final field Fast Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field Faster Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field Medium Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field Slow Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field Slower Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field SuperFast Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field UltraFast Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field VeryFast Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static final field VerySlow Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Eq : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;)V
+	public synthetic fun <init> (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()Ljava/lang/Double;
+	public final fun component2 ()Ljava/lang/Double;
+	public final fun component3 ()Ljava/lang/Double;
+	public final fun component4 ()Ljava/lang/Double;
+	public final fun copy (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;)Lio/github/yuroyami/kiteffmpeg/dsl/Eq;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Eq;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Eq;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBrightness ()Ljava/lang/Double;
+	public final fun getContrast ()Ljava/lang/Double;
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getGamma ()Ljava/lang/Double;
+	public final fun getSaturation ()Ljava/lang/Double;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/ErrorDetection : java/lang/Enum {
+	public static final field Aggressive Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static final field Bitstream Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static final field Buffer Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static final field Careful Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static final field Compliant Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static final field CrcCheck Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static final field Explode Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static final field IgnoreErrors Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/FilterChain {
+	public fun <init> (Ljava/util/List;)V
+	public final fun compile ()Ljava/lang/String;
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSteps ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun requireAvailable ()V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/FilterDslKt {
+	public static final fun audioFilters (Lkotlin/jvm/functions/Function1;)Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;
+	public static final fun videoFilters (Lkotlin/jvm/functions/Function1;)Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/FilterEscapingKt {
+	public static final fun escapeFilterValue (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public abstract interface class io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public abstract fun compile ()Ljava/lang/String;
+	public abstract fun getFilterName ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Format : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1-OLR4av4 ()Ljava/lang/String;
+	public final fun copy-oEp0PZg (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/Format;
+	public static synthetic fun copy-oEp0PZg$default (Lio/github/yuroyami/kiteffmpeg/dsl/Format;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Format;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getFormat-OLR4av4 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Fps : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/Rational;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/dsl/Fps;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Fps;Lio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Fps;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getRate ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Loudnorm : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> ()V
+	public fun <init> (DDD)V
+	public synthetic fun <init> (DDDILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()D
+	public final fun component2 ()D
+	public final fun component3 ()D
+	public final fun copy (DDD)Lio/github/yuroyami/kiteffmpeg/dsl/Loudnorm;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Loudnorm;DDDILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Loudnorm;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getIntegrated ()D
+	public final fun getRange ()D
+	public final fun getTruePeak ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Pad : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (IIIILjava/lang/String;)V
+	public synthetic fun <init> (IIIILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (IIIILjava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/Pad;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Pad;IIIILjava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Pad;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColor ()Ljava/lang/String;
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getHeight ()I
+	public final fun getWidth ()I
+	public final fun getX ()I
+	public final fun getY ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Pan : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public fun <init> (Ljava/lang/String;[Ljava/lang/String;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/dsl/Pan;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Pan;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Pan;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getLayout ()Ljava/lang/String;
+	public final fun getOutputs ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/QuarterTurn : java/lang/Enum {
+	public static final field Clockwise Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+	public static final field ClockwiseWithFlip Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+	public static final field CounterClockwise Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+	public static final field CounterClockwiseWithFlip Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+}
+
+public abstract interface class io/github/yuroyami/kiteffmpeg/dsl/RateControl {
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/RateControl$AverageBitrate : io/github/yuroyami/kiteffmpeg/dsl/RateControl {
+	public fun <init> (J)V
+	public final fun component1 ()J
+	public final fun copy (J)Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$AverageBitrate;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$AverageBitrate;JILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$AverageBitrate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitrateBps ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantBitrate : io/github/yuroyami/kiteffmpeg/dsl/RateControl {
+	public fun <init> (J)V
+	public final fun component1 ()J
+	public final fun copy (J)Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantBitrate;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantBitrate;JILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantBitrate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitrateBps ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantQuality : io/github/yuroyami/kiteffmpeg/dsl/RateControl {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantQuality;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantQuality;IILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/RateControl$ConstantQuality;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCrf ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Raw : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (Ljava/lang/String;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/Raw;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Raw;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Raw;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getFragment ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Scale : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (II)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lio/github/yuroyami/kiteffmpeg/dsl/Scale;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Scale;IIILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Scale;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getHeight ()I
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Transpose : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;)Lio/github/yuroyami/kiteffmpeg/dsl/Transpose;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Transpose;Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Transpose;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getTurn ()Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/VideoEncoderTuning {
+	public fun <init> ()V
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;)V
+	public synthetic fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun applyTo (Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;)Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;
+	public final fun compile ()Ljava/util/Map;
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;)Lio/github/yuroyami/kiteffmpeg/dsl/VideoEncoderTuning;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoEncoderTuning;Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/VideoEncoderTuning;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPreset ()Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
+	public final fun getProfile ()Ljava/lang/String;
+	public final fun getRateControl ()Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;
+	public final fun getTune ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder {
+	public final fun crop (IILjava/lang/Integer;Ljava/lang/Integer;)V
+	public static synthetic fun crop$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;IILjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+	public final fun deinterlace (Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;)V
+	public static synthetic fun deinterlace$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;ILjava/lang/Object;)V
+	public final fun drawBox (IIIILjava/lang/String;I)V
+	public static synthetic fun drawBox$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;IIIILjava/lang/String;IILjava/lang/Object;)V
+	public final fun eq (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;)V
+	public static synthetic fun eq$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;ILjava/lang/Object;)V
+	public final fun format-oEp0PZg (Ljava/lang/String;)V
+	public final fun fps (Lio/github/yuroyami/kiteffmpeg/Rational;)V
+	public final fun pad (IIIILjava/lang/String;)V
+	public static synthetic fun pad$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;IIIILjava/lang/String;ILjava/lang/Object;)V
+	public final fun raw (Ljava/lang/String;)V
+	public final fun scale (II)V
+	public final fun transpose (Lio/github/yuroyami/kiteffmpeg/dsl/QuarterTurn;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/Volume : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> (D)V
+	public fun compile ()Ljava/lang/String;
+	public final fun component1 ()D
+	public final fun copy (D)Lio/github/yuroyami/kiteffmpeg/dsl/Volume;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Volume;DILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Volume;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getFilterName ()Ljava/lang/String;
+	public final fun getGain ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
