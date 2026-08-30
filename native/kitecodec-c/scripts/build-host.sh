@@ -153,8 +153,13 @@ compile() {
     # kitecodec-jni is on the include path for ONE reason: test_append covers kj_append.h, the
     # JNI layer's bounded string builder. That header carries no jni.h, so it compiles
     # here, and the JNI tree has no C test rig of its own to put the suite in.
+    #
+    # kitecodec-handles is there for the same shape of reason: test_handles compiles kc_handles.c
+    # INTO itself, because the generation wrap it covers is only reachable by setting the slot
+    # counter by hand, and that needs the file's statics.
     "$CC" $BASE_FLAGS $VARIANT_FLAGS "${BUILD_DEFINES[@]}" $FF_CFLAGS \
         -I "$ROOT/include" -I "$ROOT/tests" -I "$ROOT/../kitecodec-jni" \
+        -I "$ROOT/../kitecodec-handles" \
         "$@" -c "$source" -o "$object"
 }
 

@@ -30,6 +30,16 @@ static int32_t  kj_capacity = 0;
 static int32_t  kj_next_free_scan = 0;
 static int64_t  kj_live = 0;
 
+/* The generation as the TOKEN can carry it.
+ *
+ * The token has KJ_GEN_BITS for it and the slot's counter is a full uint32_t, so past
+ * 2^KJ_GEN_BITS the two stop agreeing: the token holds the low bits and the comparison in
+ * kj_resolve was against the whole counter, so the slot resolved nothing ever again and every
+ * token minted from it was dead on arrival. Masking at the point the counter MOVES keeps the two
+ * identical for the process lifetime, and it preserves the odd-is-live rule because the
+ * truncation drops a bit whose weight is even. */
+#define KJ_GEN_MASK ((1u << KJ_GEN_BITS) - 1u)
+
 static int64_t kj_encode(uint32_t gen, int kind, int32_t slot)
 {
     return ((int64_t)(gen & ((1u << KJ_GEN_BITS) - 1)) << (KJ_SLOT_BITS + KJ_KIND_BITS))
@@ -40,7 +50,7 @@ static int64_t kj_encode(uint32_t gen, int kind, int32_t slot)
 static void kj_slot_reset(kj_slot *slot)
 {
     slot->ptr = NULL;
-    slot->gen += 1; /* live odd -> free even */
+    slot->gen = (slot->gen + 1u) & KJ_GEN_MASK; /* live odd -> free even, inside the token's bits */
     slot->kind = KJ_KIND_NONE;
     slot->parent = -1;
     slot->parent_gen = 0;
@@ -84,8 +94,9 @@ static int64_t kj_handle_put_locked(int kind, void *ptr, int32_t parent, uint32_
             kj_capacity = grown;
         }
     }
-    kj_slots[slot].gen += 1;             /* even -> odd: live */
-    if ((kj_slots[slot].gen & 1u) == 0u) kj_slots[slot].gen += 1; /* wrap guard: stay odd */
+    kj_slots[slot].gen = (kj_slots[slot].gen + 1u) & KJ_GEN_MASK;  /* even -> odd: live */
+    /* Wrap guard: the mask can land on an even value, and even means free. */
+    if ((kj_slots[slot].gen & 1u) == 0u) kj_slots[slot].gen = (kj_slots[slot].gen + 1u) & KJ_GEN_MASK;
     kj_slots[slot].ptr = ptr;
     kj_slots[slot].kind = (uint8_t)kind;
     kj_slots[slot].parent = parent;

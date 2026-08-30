@@ -192,7 +192,11 @@ static int ffkmp_has_out_label_(const char *desc) {
     for (const char *p = desc; *p; p++) {
         if (*p == '\\' && p[1]) { p++; continue; }
         if (*p == '\'') { quoted = !quoted; continue; }
-        if (!quoted && p[0] == '[' && strncmp(p, "[out]", 5) == 0) return 1;
+        /* Spelled out rather than strncmp: this is five characters, and the helper archive's
+           undefined-symbol audit is a list of what the layer may depend on. */
+        if (!quoted && p[0] == '[' && p[1] == 'o' && p[2] == 'u' && p[3] == 't' && p[4] == ']') {
+            return 1;
+        }
     }
     return 0;
 }

@@ -147,7 +147,11 @@ trap 'rm -rf "$WORK"' EXIT
 #   _strlen                   bounds every copy into the report's fixed char arrays.
 #   ___memcpy_chk             clang's bounds-checked memcpy, emitted for the report copies at -O2 from
 #                             the same source line as _memcpy. Compiler output, not a source call.
-ALLOWED_UNDEFINED="_memcpy _snprintf _strstr ___stack_chk_fail ___stack_chk_guard __tlv_bootstrap
+# _bzero joined 2026-08-30 with the filter builders' source-array clear: a loop that writes NULL
+# over an array is what clang folds into it, so it is libc under a synthesised name rather than a
+# new dependency anyone wrote. _strstr stayed when the [out] label scan replaced it, because the
+# list is a permit list and removing an entry is its own measured act.
+ALLOWED_UNDEFINED="_memcpy _snprintf _strstr _bzero ___stack_chk_fail ___stack_chk_guard __tlv_bootstrap
 _pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk"
 
 # Calls that must never appear. A library does not print, does not log through its host's logger,
