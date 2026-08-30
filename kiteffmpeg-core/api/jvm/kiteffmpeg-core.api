@@ -1481,7 +1481,7 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/VideoEncoderTuning {
 	public fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;)V
 	public synthetic fun <init> (Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/RateControl;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun applyTo (Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;)Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;
-	public final fun compile ()Ljava/util/Map;
+	public final fun compile-vVKjmHM (Ljava/lang/String;)Ljava/util/Map;
 	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;

@@ -8,6 +8,7 @@ import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 /**
  * KD-8: every KD compilation golden in one host suite. These pin EXACT strings,
@@ -148,8 +149,11 @@ class KdGoldensTest {
 
     // --- KD-3, encoder tuning -------------------------------------------------------------
 
-    private fun videoSpec(options: Map<String, String> = emptyMap()) = VideoEncoderSpec(
-        codec = CodecId.H264,
+    private fun videoSpec(
+        options: Map<String, String> = emptyMap(),
+        codec: CodecId = CodecId.Libx264,
+    ) = VideoEncoderSpec(
+        codec = codec,
         width = 1280,
         height = 720,
         frameRate = Rational(30, 1),
@@ -168,7 +172,7 @@ class KdGoldensTest {
     }
 
     @Test
-    fun constantBitrateShapesTheCappedPipe() {
+    fun constantBitrateShapesTheCappedPipeAndAsksX264ToHoldIt() {
         val tuned = VideoEncoderTuning(
             rateControl = RateControl.ConstantBitrate(4_000_000),
         ).applyTo(videoSpec())
@@ -176,6 +180,67 @@ class KdGoldensTest {
         assertEquals("4000000", tuned.options["minrate"])
         assertEquals("2000000", tuned.options["bufsize"])
         assertEquals(4_000_000L, tuned.bitrateBps)
+        // The triple alone is a capped pipe: the ceiling holds and an undershoot is not filled.
+        // nal-hrd is what makes it conformant CBR, and x264 is the one encoder here that has it.
+        assertEquals("cbr", tuned.options["nal-hrd"])
+    }
+
+    @Test
+    fun constantBitrateOnAnEncoderWithoutHrdIsTheCappedPipeAlone() {
+        val tuned = VideoEncoderTuning(
+            rateControl = RateControl.ConstantBitrate(4_000_000),
+        ).applyTo(videoSpec(codec = CodecId.H264VideoToolbox))
+        // maxrate/minrate/bufsize are AVCodecContext fields, so the shape is legal everywhere.
+        assertEquals("4000000", tuned.options["maxrate"])
+        assertNull(tuned.options["nal-hrd"])
+    }
+
+    @Test
+    fun anX264KnobIsRefusedForAnEncoderThatDoesNotHaveIt() {
+        // The encoders this project actually SHIPS are mpeg4, mjpeg, png and the platform
+        // hardware ones. Not one of them has a preset, a tune or a crf, so this tuning used to
+        // compile into options that were dropped at open and changed nothing at all.
+        for (codec in listOf(CodecId.H264VideoToolbox, CodecId.H264MediaCodec, CodecId.Mjpeg)) {
+            val spec = videoSpec(codec = codec)
+            assertFailsWith<IllegalArgumentException> {
+                VideoEncoderTuning(preset = EncoderPreset.Slow).applyTo(spec)
+            }
+            assertFailsWith<IllegalArgumentException> {
+                VideoEncoderTuning(tune = "film").applyTo(spec)
+            }
+            assertFailsWith<IllegalArgumentException> {
+                VideoEncoderTuning(rateControl = RateControl.ConstantQuality(23)).applyTo(spec)
+            }
+        }
+    }
+
+    @Test
+    fun profileIsGenericAndPassesForAnyEncoder() {
+        // The one knob here that is an AVCodecContext field rather than an x264 option.
+        val tuned = VideoEncoderTuning(profile = "main")
+            .applyTo(videoSpec(codec = CodecId.H264VideoToolbox))
+        assertEquals("main", tuned.options["profile"])
+    }
+
+    @Test
+    fun crfIsAcceptedByTheWiderFamilyThatHasIt() {
+        // libvpx-vp9 and libaom-av1 have crf and no preset, so the two sets are not the same set.
+        val vp9 = VideoEncoderTuning(rateControl = RateControl.ConstantQuality(31))
+            .applyTo(videoSpec(codec = CodecId("libvpx-vp9")))
+        assertEquals("31", vp9.options["crf"])
+        assertFailsWith<IllegalArgumentException> {
+            VideoEncoderTuning(preset = EncoderPreset.Slow).applyTo(videoSpec(codec = CodecId("libvpx-vp9")))
+        }
+    }
+
+    @Test
+    fun degenerateTuningValuesRefuse() {
+        assertFailsWith<IllegalArgumentException> { VideoEncoderTuning(profile = " ") }
+        assertFailsWith<IllegalArgumentException> { VideoEncoderTuning(tune = "") }
+        assertFailsWith<IllegalArgumentException> { RateControl.AverageBitrate(0) }
+        assertFailsWith<IllegalArgumentException> { RateControl.ConstantBitrate(-1) }
+        assertFailsWith<IllegalArgumentException> { AudioEncoderTuning(bitrateBps = 0) }
+        assertFailsWith<IllegalArgumentException> { AudioEncoderTuning(profile = "  ") }
     }
 
     @Test

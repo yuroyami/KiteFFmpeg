@@ -785,7 +785,7 @@ final class io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning { // io.github.
         final fun <get-tune>(): kotlin/String? // io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning.tune.<get-tune>|<get-tune>(){}[0]
 
     final fun applyTo(io.github.yuroyami.kiteffmpeg/VideoEncoderSpec): io.github.yuroyami.kiteffmpeg/VideoEncoderSpec // io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning.applyTo|applyTo(io.github.yuroyami.kiteffmpeg.VideoEncoderSpec){}[0]
-    final fun compile(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning.compile|compile(){}[0]
+    final fun compile(io.github.yuroyami.kiteffmpeg/CodecId): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning.compile|compile(io.github.yuroyami.kiteffmpeg.CodecId){}[0]
     final fun component1(): io.github.yuroyami.kiteffmpeg.dsl/EncoderPreset? // io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning.component1|component1(){}[0]
     final fun component2(): kotlin/String? // io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning.component2|component2(){}[0]
     final fun component3(): kotlin/String? // io.github.yuroyami.kiteffmpeg.dsl/VideoEncoderTuning.component3|component3(){}[0]
