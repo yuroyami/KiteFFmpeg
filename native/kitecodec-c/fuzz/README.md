@@ -1,7 +1,7 @@
 # kitecodec-c fuzz targets
 
 Six fuzz targets, one per C entry point that parses a caller's string. Plan sub-phase B1.5 in
-`KitePlayer/KPKMP.md`.
+`KitePlayer/PLANNING.md`.
 
 ## What runs where, and what each result is worth
 

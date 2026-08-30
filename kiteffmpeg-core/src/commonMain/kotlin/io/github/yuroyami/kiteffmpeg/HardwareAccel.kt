@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 /**
- * A hardware acceleration a decoder can be opened with (KiteFFmpeg window 3, KPKMP 17.4.8 S2.a).
+ * A hardware acceleration a decoder can be opened with (KiteFFmpeg window 3).
  *
  * This is deliberately NOT the same seam as naming a decoder. FFmpeg has two hardware shapes:
  * decoders that ARE the hardware path under their own name (`h264_mediacodec`), selected through
@@ -9,7 +9,7 @@ package io.github.yuroyami.kiteffmpeg
  * decoder and are attached to its context before open. VideoToolbox is the second kind, so it is
  * a request here rather than a [CodecId].
  *
- * Capability honesty (D-5): requesting an acceleration the running FFmpeg does not carry fails
+ * Capability honesty: requesting an acceleration the running FFmpeg does not carry fails
  * TYPED at open with FFmpeg's own error (ENOSYS on a build without the framework), never
  * silently. A build that carries it can still refuse a particular stream at decode time; that
  * refusal arrives as software frames, visible per frame through [FrameInfo.isHardware], which is

@@ -1,7 +1,7 @@
 /* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
  * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
- * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
+ * with all eleven digests is recorded in PLANNING.md's I.3 Execution log entry, and the proof
  * script itself is retired because an anchor no revision can replace forbids every future edit.
  * Edit this file like any other C file. Its shape is held by the C suites in every variant, the
  * sanitizers, symbol-audit.sh and the export baseline, not by an extraction proof.
@@ -331,7 +331,7 @@ KC_API int  ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path,
  */
 KC_API void ffkmp_dict_free(kc_dict **dict);
 
-/* M1, the custom AVIO bridge (KitePlayer KPKMP 17.12): demuxing whose BYTES come from the
+/* M1, the custom AVIO bridge: demuxing whose BYTES come from the
  * caller instead of a path. This is the door KiteTorrent, HTTP clients with their own auth,
  * encrypted stores and caches walk through.
  *

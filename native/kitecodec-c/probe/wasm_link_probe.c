@@ -1,4 +1,4 @@
-/* Proves the wasm codec archive LINKS and RUNS, not merely that it compiled (KPKMP.md 17.14 X-03).
+/* Proves the wasm codec archive LINKS and RUNS, not merely that it compiled (PLANNING.md).
  *
  * The five filter names are the point. `helpers_filter.c` looks each of them up by name through
  * `avfilter_get_by_name`, and the web spike's FFmpeg recipe disabled avfilter entirely because its

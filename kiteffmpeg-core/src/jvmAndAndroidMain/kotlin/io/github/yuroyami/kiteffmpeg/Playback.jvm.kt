@@ -269,7 +269,7 @@ public actual class StreamDecoder internal constructor(
                     check0(Internals.codecCtxFromPar(context, parameters), "avcodec_parameters_to_context")
                     Internals.codecCtxSetThreads(context, threadCount, stream.type == MediaType.Video)
                     Internals.codecCtxSetLowDelay(context, lowDelay)
-                    // KD-2 (KPKMP 17.10): typed options through the existing av_opt_set funnel,
+                    // KD-2: typed options through the existing av_opt_set funnel,
                     // between context creation and open, exactly where FFmpeg wants them.
                     options?.compile()?.forEach { (key, value) ->
                         check0(Internals.codecCtxSetOpt(context, key, value), "av_opt_set ('$key')")

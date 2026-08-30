@@ -1,7 +1,7 @@
 /* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
  * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
- * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
+ * with all eleven digests is recorded in PLANNING.md's I.3 Execution log entry, and the proof
  * script itself is retired because an anchor no revision can replace forbids every future edit.
  * Edit this file like any other C file. Its shape is held by the C suites in every variant, the
  * sanitizers, symbol-audit.sh and the export baseline, not by an extraction proof.
@@ -71,7 +71,7 @@ KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
     *ctx = NULL;
     av_free(cell);
 }
-/* KD-4 (KPKMP 17.10): true pre-open options. The pairs are applied between allocation and open,
+/* KD-4: true pre-open options. The pairs are applied between allocation and open,
  * which is the only moment probesize, fflags and format forcing can act. Keys FFmpeg does not
  * consume stay in the dictionary afterwards; that remainder is handed to the caller through
  * *unused (owned; release with ffkmp_dict_free), because a silently ignored option is a
@@ -111,7 +111,7 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
 KC_API void ffkmp_dict_free(AVDictionary **dict) {
     if (dict) av_dict_free(dict);
 }
-/* KD-5 (KPKMP 17.10): the chapter table, unexposed until now. Times are rescaled onto
+/* KD-5: the chapter table, unexposed until now. Times are rescaled onto
  * microseconds here, because every timestamp this ABI hands over speaks AV_TIME_BASE. */
 KC_API int ffkmp_fmt_chapter_count(const AVFormatContext *ctx) {
     return ctx ? (int)ctx->nb_chapters : AVERROR(EINVAL);
@@ -233,7 +233,7 @@ KC_API int ffkmp_fmt_set_metadata(AVFormatContext *c, const char *key, const cha
     return av_dict_set(&c->metadata, key, value, 0);
 }
 
-/* ════════════ Custom AVIO (M1, KitePlayer KPKMP 17.12) ════════════ */
+/* ════════════ Custom AVIO (M1) ════════════ */
 
 /* The bridge the AVIOContext's opaque points at. The magic pins provenance so the paired
    close can refuse to free state it did not create. */

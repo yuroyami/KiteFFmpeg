@@ -14,7 +14,7 @@ import java.nio.file.Files
 /**
  * Cross-compiles dav1d (VideoLAN's SIMD AV1 software decoder) as a static library for one
  * [target] and installs it into `native-libs/deps/<target>/{include,lib}` where
- * [BuildFFmpegTask] picks it up when its dav1d switch is on (KPKMP 17.12 D-7: ACCEPTED,
+ * [BuildFFmpegTask] picks it up when its dav1d switch is on (ACCEPTED,
  * demand-driven, optional; register row KC-AV1SW).
  *
  * Needs meson, ninja and (for x86 asm) nasm on the host, and a dav1d source checkout at

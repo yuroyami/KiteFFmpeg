@@ -45,7 +45,7 @@ int kj_longs_dup(JNIEnv *env, jlongArray values, jlong **out, int32_t *out_len);
 int kj_ints_dup(JNIEnv *env, jintArray values, int **out, int32_t *out_len);
 
 /* The table itself is declared in kc_handles.h and implemented in native/kitecodec-handles, so the
- * web binding runs the same code (KPKMP.md 17.14 X-04). Only the three that need a JNIEnv are
+ * web binding runs the same code (PLANNING.md). Only the three that need a JNIEnv are
  * declared here, because only they can throw.
  *
  * kj_handle_put_checked turns table exhaustion into a typed bridge failure.

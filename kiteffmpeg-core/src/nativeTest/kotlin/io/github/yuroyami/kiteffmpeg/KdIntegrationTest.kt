@@ -18,7 +18,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The KD register's two real-media proofs (KPKMP 17.10, KD-1 and KD-2 gates): a DSL-compiled
+ * The KD register's two real-media proofs (KD-1 and KD-2 gates): a DSL-compiled
  * chain runs through the existing FilterGraph path unchanged, and decoder options demonstrably
  * reach FFmpeg, both the wrong-key EINVAL reproduction and the scrubbing preset's measured
  * effect.

@@ -15,7 +15,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The window 3 real-media proof (KPKMP 17.4.8, S2.a): a decoder opened with
+ * The window 3 real-media proof (S2.a): a decoder opened with
  * [HardwareAccel.VideoToolbox] produces frames that live in hardware memory, and
  * [Frame.downloadFromHardware] brings their pixels back with the presentation properties intact.
  *

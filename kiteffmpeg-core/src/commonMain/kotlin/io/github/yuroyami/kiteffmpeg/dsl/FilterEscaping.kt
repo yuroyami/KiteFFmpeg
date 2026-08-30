@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
 /**
- * The one escaping function every typed filter argument passes through (KPKMP 17.10, KD-1).
+ * The one escaping function every typed filter argument passes through (KD-1).
  *
  * FFmpeg's filter description syntax gives `\`, `'`, `:`, `,`, `;`, `[`, `]` and `=` structural
  * meaning. A value containing any of them (or whitespace, which the parser trims) is escaped the

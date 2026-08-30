@@ -36,7 +36,7 @@ import java.io.File
  * template cannot hide from the ratchet.
  *
  * Lowering a baseline number is a normal commit. Raising one needs an Execution log entry; the
- * move procedure is in KPKMP.md section 9's ratchet move table.
+ * move procedure is in PLANNING.md's ratchet move table.
  *
  * Two properties of this implementation are load bearing rather than incidental:
  *
@@ -99,7 +99,7 @@ abstract class CheckCinteropCouplingTask : DefaultTask() {
                         "Kotlin may cross only the KiteFFmpeg-owned ffkmp_/kc_/KC_ boundary. " +
                             "Remove the raw import, call or type. If a numeric ceiling must move " +
                             "deliberately, update it in the same commit and explain why in the " +
-                            "KPKMP.md Execution log.",
+                            "PLANNING.md Execution log.",
                     )
                 },
             )

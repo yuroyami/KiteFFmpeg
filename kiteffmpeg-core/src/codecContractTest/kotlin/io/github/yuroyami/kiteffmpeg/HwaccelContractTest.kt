@@ -12,7 +12,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The window 3 differential arm (KPKMP 17.4.8, S2.a), run by BOTH the native and the JVM suite,
+ * The window 3 differential arm (S2.a), run by BOTH the native and the JVM suite,
  * which is the point: on macOS the JVM reaches VideoToolbox through the JNI bridge's new rows
  * and must observe exactly what the cinterop path observes. A target without the VideoToolbox
  * encoder (the simulator, Android) degrades to the typed-refusal shape stated below rather than

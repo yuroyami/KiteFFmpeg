@@ -1,4 +1,4 @@
-/* Emits the byte layout of `kc_ffmpeg_report` for the web binding (KPKMP.md 17.14 X-07).
+/* Emits the byte layout of `kc_ffmpeg_report` for the web binding (PLANNING.md).
  *
  * JavaScript cannot read a C struct: it sees the codec's memory as a flat buffer and needs an
  * offset for every field. Those offsets are the COMPILER's to state, not a human's to count, and

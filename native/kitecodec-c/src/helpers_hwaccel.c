@@ -1,4 +1,4 @@
-/* The hardware decode funnels of KiteFFmpeg window 3 (KPKMP 17.4.8, S2.a).
+/* The hardware decode funnels of KiteFFmpeg window 3 (S2.a).
  *
  * VideoToolbox is an HWACCEL behind FFmpeg's ordinary `h264`/`hevc` decoders, not a named
  * decoder the way `h264_mediacodec` is. That difference decides this file's shape: there is no
@@ -7,7 +7,7 @@
  * live here as portable C. FFmpeg's headers declare every hwdevice type unconditionally and
  * `av_hwdevice_ctx_create` answers AVERROR(ENOSYS) on a build that does not carry the type, so
  * capability is FFmpeg's runtime answer rather than this file's preprocessor guess, exactly the
- * capability honesty rule (D-5) the Kotlin surface already follows. */
+ * capability honesty rule the Kotlin surface already follows. */
 
 #include "kitecodec_helpers.h"
 

@@ -88,7 +88,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * hunk fails the build loudly. The applied list and each patch's SHA-256 are written beside
      * the configure evidence in the install tree (`lib/kiteffmpeg/ffmpeg-patches.txt`), so a
      * provenance question about a prebuilt tree has a one-file answer. First patch and the reason
-     * it exists: KPKMP hotfix window 2c, the h264_mp4toannexb 4-byte start codes the Goldfish
+     * it exists: the h264_mp4toannexb 4-byte start codes the Goldfish
      * API 36 MediaCodec decoder requires (measured 2026-08-12).
      */
     @get:org.gradle.api.tasks.InputFiles
@@ -367,7 +367,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         "--disable-programs", "--disable-doc", "--disable-debug",
         "--disable-htmlpages", "--disable-manpages", "--disable-podpages", "--disable-txtpages",
 
-        // The READ side is wide by class (KitePlayer KPKMP.md 17.4.9, owner order 2026-08-13):
+        // The READ side is wide by class (the plan, owner order 2026-08-13):
         // decoders, demuxers, parsers, bitstream filters and hwaccels compile whole, so a
         // consumer plays what FFmpeg can play and an FFmpeg bump widens coverage without
         // touching this file. Bitstream filters ride whole with the demuxers because
@@ -480,7 +480,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     ) + appleHwaccelDecodeArgs()
 
     /**
-     * VideoToolbox hardware DECODE (KiteFFmpeg window 3, KPKMP 17.4.8 S2.a). Unlike MediaCodec
+     * VideoToolbox hardware DECODE (KiteFFmpeg window 3). Unlike MediaCodec
      * there is no named decoder to enable: VideoToolbox decode is an hwaccel behind the ordinary
      * `h264`/`hevc` decoders. Since the 17.4.9 wide profile the hwaccel class compiles whole, so
      * this list is a PIN rather than the sole source: it guarantees the two hwaccels the player's
@@ -587,7 +587,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         target: TargetTriple,
         konanBin: (TargetTriple) -> KonanTools,
     ): List<String> = when (target) {
-        // SOL-B4: the floor is PASSED, never inherited. Without it clang takes the SDK's, which
+        // The floor is PASSED, never inherited. Without it clang takes the SDK's, which
         // measured 26.0 on the committed archives while Kotlin/Native links these objects at 12.0.
         TargetTriple.MacosArm64 -> listOf(
             "--arch=arm64", "--target-os=darwin",
@@ -601,7 +601,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         )
         // Linux and Windows cross-build with the SAME toolchain Kotlin/Native links against:
         // konan's own clang, aimed by -target, over the sysroot konan ships for that triple
-        // (KPKMP.md 17.13, decision W-D3). This is not a preference. FFmpeg built by any other
+        // (PLANNING.md). This is not a preference. FFmpeg built by any other
         // toolchain can reference a glibc symbol the konan sysroot does not carry, and the failure
         // arrives at LINK time in a consumer's build, which is the worst place to find it.
         //
@@ -764,7 +764,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             // software AV1 decoder (av1dec.c is a hwaccel shell): on Android the MediaCodec
             // wrappers are the only AV1 route this profile can offer, and most devices carry
             // an AV1 MediaCodec from Android 10 on. Software AV1 needs vendored dav1d, which
-            // is recorded in KPKMP 17.11 rather than pretended here.
+            // is recorded in the plan rather than pretended here.
             "--enable-decoder=h264_mediacodec,hevc_mediacodec,av1_mediacodec,vp9_mediacodec,vp8_mediacodec",
             "--enable-zlib",
         ) +
@@ -831,7 +831,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         /**
          * The macOS deployment floor for every vendored tree, and the ONE place it is written.
          *
-         * SOL-B4. Three floors used to disagree in one product, measured 2026-08-25: the archives
+         * Three floors used to disagree in one product, measured 2026-08-25: the archives
          * carried `minos 26.0` because the macOS branches passed no `-mmacosx-version-min` at all
          * and inherited the SDK's, the C helper layer compiled at 11.0, and Kotlin/Native links at
          * 12.0. The archive was the dangerous one: an object built for a NEWER floor than the

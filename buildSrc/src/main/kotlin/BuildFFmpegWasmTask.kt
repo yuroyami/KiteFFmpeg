@@ -13,7 +13,7 @@ import java.nio.file.Path
 import javax.inject.Inject
 
 /**
- * Cross-compiles FFmpeg to wasm32 with emscripten, for the web player (KPKMP.md 17.14 X-02).
+ * Cross-compiles FFmpeg to wasm32 with emscripten, for the web player (PLANNING.md).
  *
  * A separate task from [BuildFFmpegTask] rather than a [TargetTriple] entry, and the reason is not
  * style: konan has no wasm target, so every konan-derived path in that task (sysroots, cross

@@ -34,7 +34,7 @@
 #
 # `--update` is how a sub-phase that deliberately changes the cinterop surface re-baselines after
 # its own differential has been read and accepted. It is a normal commit, exactly like lowering a
-# coupling-ratchet number, and the Execution log entry says which declarations moved.
+# coupling-ratchet number, and the commit message says which declarations moved.
 #
 # Exit status: 0 when the klib matches the baseline, 2 on a usage error, 1 when the klib or the
 # tooling is missing, 1 when the opaque-boundary invariant fails, and 1 when anything differs,
@@ -387,6 +387,6 @@ if [ -s "$WORK/diff.txt" ]; then
     echo
     echo "klib-metadata-diff.sh: the cinterop metadata does not match $BASELINE." >&2
     echo "  Read the report above. If the change is deliberate, re-baseline with --update in the" >&2
-    echo "  same commit and name the moved declarations in the KPKMP.md Execution log." >&2
+    echo "  same commit and name the moved declarations in the commit message." >&2
     exit 1
 fi

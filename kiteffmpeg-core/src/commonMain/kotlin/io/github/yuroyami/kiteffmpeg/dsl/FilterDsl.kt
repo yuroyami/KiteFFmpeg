@@ -7,7 +7,7 @@ import io.github.yuroyami.kiteffmpeg.PixelFormat
 import io.github.yuroyami.kiteffmpeg.Rational
 
 /**
- * The typed filter DSL (KPKMP 17.10, KD-1): a compilation layer onto the description STRINGS the
+ * The typed filter DSL (KD-1): a compilation layer onto the description STRINGS the
  * existing `FilterGraph.buildVideo`/`buildAudio` already take. Nothing here crosses into C; the
  * laws that bind it:
  *
@@ -240,7 +240,7 @@ public data class FilterChain(val steps: List<FilterStep>) {
                 throw FFmpegException(
                     FFmpegError.Internal(
                         "filter '$name' is not in this FFmpeg build; " +
-                            "it needs a tier that carries it (KPKMP 17.6)",
+                            "it needs a tier that carries it",
                     ),
                 )
             }

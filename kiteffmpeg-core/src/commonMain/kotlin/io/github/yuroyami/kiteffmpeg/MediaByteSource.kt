@@ -1,8 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 /**
- * Media bytes from caller code instead of a path: the custom I/O door (M1, KitePlayer KPKMP
- * 17.12). A player streams through its own HTTP client with its own TLS and auth, reads from
+ * Media bytes from caller code instead of a path: the custom I/O door. A player streams through its own HTTP client with its own TLS and auth, reads from
  * an encrypted store, a torrent, a cache, or a byte array it already holds, and FFmpeg demuxes
  * those bytes exactly as it would a file's.
  *

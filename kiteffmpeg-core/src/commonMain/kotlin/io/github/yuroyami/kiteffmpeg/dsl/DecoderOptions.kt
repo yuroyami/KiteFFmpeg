@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
 /**
- * Typed decoder options (KPKMP 17.10, KD-2), applied through the EXISTING `av_opt_set` funnel
+ * Typed decoder options (KD-2), applied through the EXISTING `av_opt_set` funnel
  * between codec-context creation and open. Control plane only (law 1): these configure an open,
  * never a per-frame call. [compile] is the pure, golden-tested mapping to option pairs; a wrong
  * key in [options] reproduces the funnel's measured EINVAL path rather than being filtered here.

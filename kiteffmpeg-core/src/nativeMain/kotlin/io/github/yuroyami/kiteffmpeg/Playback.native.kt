@@ -524,7 +524,7 @@ public actual class StreamDecoder internal constructor(
                 // delay for audio keeps the decoder from holding frames a player is waiting for.
                 ffkmp_codecctx_set_threads(codecCtx, threadCount, if (stream.type == MediaType.Video) 1 else 0)
                 ffkmp_codecctx_set_low_delay(codecCtx, if (lowDelay) 1 else 0)
-                // KD-2 (KPKMP 17.10): typed options through the existing av_opt_set funnel,
+                // KD-2: typed options through the existing av_opt_set funnel,
                 // between context creation and open, exactly where FFmpeg wants them.
                 options?.compile()?.forEach { (key, value) ->
                     check0(ffkmp_codecctx_set_opt(codecCtx, key, value), "av_opt_set ('$key')")

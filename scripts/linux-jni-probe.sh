@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Proves the JVM artifact's LINUX JNI library actually works, by running it (KPKMP.md W-16).
+# Proves the JVM artifact's LINUX JNI library actually works, by running it (PLANNING.md W-16).
 #
 # Not "the file is in the jar": a 137 KB library with unresolved FFmpeg symbols passed that check
 # once, because ELF -shared allows undefined symbols by default. This loads the library through the

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the 17.5 format matrix through the WEB decode path (KPKMP.md 17.14, toward X-14).
+# Runs the 17.5 format matrix through the WEB decode path (PLANNING.md, toward X-14).
 #
 # Not the project's own suite: that is Kotlin and needs the engine, which the web does not have
 # yet. This is the honest interim, and it says so. It answers one question the owner actually asks,

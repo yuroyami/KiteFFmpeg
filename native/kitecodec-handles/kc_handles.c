@@ -1,6 +1,6 @@
 /* The generation-tagged handle table. See kc_handles.h for why this lives outside the JNI tree.
  *
- * Moved verbatim from native/kitecodec-jni/kj_handles.c on 2026-08-17 (KPKMP.md 17.14 X-04), with
+ * Moved verbatim from native/kitecodec-jni/kj_handles.c on 2026-08-17 (PLANNING.md), with
  * `jlong` spelled `int64_t`, which is the same type, and the three throwing wrappers left behind
  * with their JNIEnv. The table grows in fixed-size chunks and never shrinks or moves entries, so a
  * slot index stays valid for the process lifetime. One mutex guards mint/close; resolve reads under

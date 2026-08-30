@@ -330,7 +330,7 @@ echo
 # KC_API function beside its neighbours makes the new export "expected", which was measured at
 # the interlude with a probe export that sailed through every check while nm confirmed the new
 # symbol. This check is the baseline check 3 was mistaken for. The move procedure is in the
-# file's own header and in KPKMP.md section 9's ratchet move table: regenerate deliberately with
+# file's own header and in PLANNING.md's ratchet move table: regenerate deliberately with
 #   ./scripts/symbol-audit.sh --write-baseline
 # in the same commit as the export change, and name every added or removed symbol in the
 # Execution log entry.
@@ -346,7 +346,7 @@ if [ "$WRITE_BASELINE" = 1 ]; then
         echo "# exported surface cannot grow or shrink silently even when the headers agree with"
         echo "# the archive (check 3 proves that agreement; it is consistency, not a ceiling)."
         echo "#"
-        echo "# THE MOVE (also in KPKMP.md section 9's ratchet move table): change the exports"
+        echo "# THE MOVE (also in PLANNING.md's ratchet move table): change the exports"
         echo "# deliberately, run ./scripts/symbol-audit.sh --write-baseline in the same commit,"
         echo "# and name every added or removed symbol in the Execution log entry."
         cat "$WORK/actual_names.txt"
@@ -394,7 +394,7 @@ fi
 # complete record. Whitespace is normalized, records are C-locale sorted WITHOUT deduplication, and
 # the exact installed scope is 214 records.
 #
-# THE MOVE (also in KPKMP.md section 9's ratchet move table): change a public declaration
+# THE MOVE (also in PLANNING.md's ratchet move table): change a public declaration
 # deliberately, run
 #   ./scripts/symbol-audit.sh --write-signature-baseline
 # in the same commit, and name every changed record in the Execution log entry. This is deliberately
@@ -528,7 +528,7 @@ if [ "$WRITE_SIGNATURE_BASELINE" = 1 ]; then
             echo "# typedef. Comments and preprocessor lines are absent; whitespace is normalized;"
             echo "# records are sorted without deduplication. There must be exactly 214 records."
             echo "#"
-            echo "# THE MOVE (also in KPKMP.md section 9's ratchet move table): change the public"
+            echo "# THE MOVE (also in PLANNING.md's ratchet move table): change the public"
             echo "# declaration deliberately, run ./scripts/symbol-audit.sh"
             echo "# --write-signature-baseline in the same commit, and name every changed record in"
             echo "# the Execution log entry. --write-baseline is separate and changes export names."

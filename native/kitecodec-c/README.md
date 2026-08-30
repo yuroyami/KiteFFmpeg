@@ -6,7 +6,7 @@ Until sub-phase B1.2 this code existed only as 949 lines of text inside
 `kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def`. Text in a def file has no translation
 unit, so it had no object file, no test, no sanitizer run and no coverage. Its only compile check
 was cinterop's, and its only test was whatever Kotlin happened to call, which left 19 of the
-176 helpers never called at all. That is register item B1-01 in `KitePlayer/KPKMP.md`.
+176 helpers never called at all. That is register item B1-01 in `KitePlayer/PLANNING.md`.
 
 This directory is the fix, and since B1.3 it is what cinterop compiles and embeds. B1.4 finished
 the shape: nine translation units, one per subsystem; `KC_API` on the 157 helpers Kotlin imports;
@@ -62,7 +62,7 @@ an extractor produced them from the def body and `verify-lift.sh` byte-compared 
 hand edit failed the gate. Both instruments are retired (interlude item I-12): the def has had no
 body since B1.3, so the proof's anchor was a fixed point no revision could replace, and it was
 blocking real fixes to exported code. The lift's faithfulness was proved one final time at
-`2b4287f`, all eleven comparisons matching with the payload digest recorded in KPKMP.md's I.3
+`2b4287f`, all eleven comparisons matching with the payload digest recorded in PLANNING.md's I.3
 Execution log entry, and that record is permanent. Edit these ten files like any other C source;
 their shape is held by the C suites, the sanitizers, `symbol-audit.sh` and the export baseline.
 
@@ -256,7 +256,7 @@ the other a pinned vendored copy is a B4/B5 decision; until then, this rule is t
 
 `verify-lift.sh` no longer exists. It proved, three ways, that the committed units were byte for
 byte the def body at the lift revision; that proof ran one final time at `2b4287f`, every
-comparison matched, and the output with both digests is recorded in KPKMP.md's I.3 Execution log
+comparison matched, and the output with both digests is recorded in PLANNING.md's I.3 Execution log
 entry. It was retired because its anchor could never move and it had begun to block real fixes to
 exported code (interlude item I-12).
 

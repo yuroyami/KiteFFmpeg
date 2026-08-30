@@ -2,7 +2,7 @@
  *
  * WHY THIS IS ITS OWN DIRECTORY. The table was written for JNI and lived in
  * `native/kitecodec-jni/kj_handles.c`. The web binding needs exactly the same guarantee for the
- * same reason, and the owner chose one implementation over two copies (KPKMP.md 17.14 X-04): this
+ * same reason, and the owner chose one implementation over two copies (PLANNING.md): this
  * table is what turns a stale, zero, double-closed or wrong-kind token into a typed error instead
  * of memory corruption, and two copies of that are how a fixed bug survives in the one nobody
  * edited.

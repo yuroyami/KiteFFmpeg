@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * KD-8 (KPKMP 17.10): every KD compilation golden in one host suite. These pin EXACT strings,
+ * KD-8: every KD compilation golden in one host suite. These pin EXACT strings,
  * including escaping and ordering, because law 5 makes compilation a pure function and law 4
  * makes its output the thing a bug report carries.
  */
@@ -79,7 +79,7 @@ class KdGoldensTest {
 
     @Test
     fun aSampleFormatCannotAppendAnExtraFilter() {
-        // SEC-5. `sample_fmts=$it` was interpolated raw, one line above a neighbour that escaped,
+        // `sample_fmts=$it` was interpolated raw, one line above a neighbour that escaped,
         // so a value carrying a comma closed the aformat step and opened a filter of its own.
         assertEquals(
             "aformat=sample_fmts='fltp,volume=0'",

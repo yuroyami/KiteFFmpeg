@@ -1,7 +1,7 @@
 # kitecodec-jni
 
 The JNI adapter that lets JVM and Android consumers use KiteFFmpeg through its opaque C boundary
-(KPKMP.md register item S1C-01). It is deliberately narrow: no logic, no FFmpeg types, no policy.
+(PLANNING.md register item S1C-01). It is deliberately narrow: no logic, no FFmpeg types, no policy.
 
 What it is:
 

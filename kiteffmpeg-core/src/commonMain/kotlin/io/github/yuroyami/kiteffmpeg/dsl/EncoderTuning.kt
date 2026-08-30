@@ -4,7 +4,7 @@ import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 
 /**
- * The typed encoder layer (KPKMP 17.10, KD-3): sugar compiling INTO the existing `options` maps
+ * The typed encoder layer (KD-3): sugar compiling INTO the existing `options` maps
  * of the encoder specs. Zero C, zero new funnel; [applyTo] returns a new spec whose options
  * carry the typed knobs as the exact `av_opt_set` strings the wrappers already send.
  *

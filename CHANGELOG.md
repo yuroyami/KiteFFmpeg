@@ -187,7 +187,7 @@ Nothing yet.
   without exposing an FFmpeg pointer. The bounded C copy helper rejects invalid sizes and advances
   the compatible C ABI from 2.4 to 2.5, the export set from 185 to 186 names, and the signature
   baseline from 200 to 201 records.
-- **VideoToolbox hardware decode behind the opaque boundary (window 3, KPKMP 17.4.8 S2.a).**
+- **VideoToolbox hardware decode behind the opaque boundary (window 3).**
   Every Apple FFmpeg build (macOS, iOS device, iOS simulator) now enables the `h264_videotoolbox`
   and `hevc_videotoolbox` HWACCELs, and two C funnels carry them: `ffkmp_codecctx_use_videotoolbox`
   attaches the device context between allocation and open and installs a format negotiation that

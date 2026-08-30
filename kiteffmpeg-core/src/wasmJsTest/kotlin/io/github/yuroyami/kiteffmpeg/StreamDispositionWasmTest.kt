@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * KP SALANKE N04: the web backend built every StreamInfo without a disposition, so every stream
+ * The web backend built every StreamInfo without a disposition, so every stream
  * answered Disposition.None and the player's default, forced, accessibility and cover-art
  * policies were all dead on the web. The binding entry points existed the whole time.
  */

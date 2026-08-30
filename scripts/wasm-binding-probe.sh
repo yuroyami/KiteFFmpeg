@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Calls the generated web binding from JavaScript, for real (KPKMP.md 17.14 X-05).
+# Calls the generated web binding from JavaScript, for real (PLANNING.md).
 #
 # The generator emitting 196 names proves nothing on its own: a name can be exported and still be
 # uncallable, and a signature shape can cross the boundary wrong while returning something that

@@ -16,7 +16,7 @@ import org.gradle.api.tasks.TaskAction
  * carry their own licence, and vendoring one into this repository is a decision the owner has not
  * been asked for and does not need to be.
  *
- * KPKMP.md 17.13, register item W-16.
+ * PLANNING.md.
  */
 abstract class ExtractJdkHeadersTask : DefaultTask() {
 

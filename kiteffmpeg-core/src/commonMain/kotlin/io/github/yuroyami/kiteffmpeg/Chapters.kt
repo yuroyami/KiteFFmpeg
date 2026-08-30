@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 /**
- * One container chapter (KPKMP 17.10, KD-5), bounds in microseconds on the same ABSOLUTE
+ * One container chapter (KD-5), bounds in microseconds on the same ABSOLUTE
  * timeline every other timestamp KiteFFmpeg reports uses (subtract
  * [MediaSource.startTimeMicros] to move onto the relative timeline seeks accept).
  */

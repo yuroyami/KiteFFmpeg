@@ -25,7 +25,7 @@ import java.io.File
  * first because a bundled library can pull in another one. `manifest.txt` lists what came along, so
  * the loader knows what to unpack before it calls `System.load`.
  *
- * KPKMP.md 17.13, register item W-02.
+ * PLANNING.md.
  */
 abstract class BundleHostJniTask : DefaultTask() {
 

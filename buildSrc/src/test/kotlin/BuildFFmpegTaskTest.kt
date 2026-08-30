@@ -206,7 +206,7 @@ class BuildFFmpegTaskTest {
             sdkPath = { "/SDK/${it}" },
         )
 
-        // VideoToolbox DECODE (KPKMP 17.4.8 S2.a) is on for every Apple target, simulator
+        // VideoToolbox DECODE is on for every Apple target, simulator
         // included. The hwaccel line is a PIN: it keeps the two hwaccels D-2 needs even if the
         // wide class policy ever changes.
         //
@@ -363,7 +363,7 @@ class BuildFFmpegTaskTest {
     @Test
     fun linuxAndMingwCarryNoneOfTheDesktopThirdPartyStack() {
         val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
-        // Decision W-D4 (KPKMP.md 17.13): these three triples get the REDUCED desktop profile,
+        // Decision W-D4 (PLANNING.md): these three triples get the REDUCED desktop profile,
         // because none of these libraries has ever been cross-built for them. If one grows back,
         // configure fails and the cross build dies, so pin its absence.
         val forbidden = listOf(
@@ -406,7 +406,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun everyRecipeCarriesTheThreeDav1dArgumentsBeforeThePrefix() {
-        // KC-EMBED (2026-08-22): the dav1d switch is dead, dav1d is recipe. The three arguments
+        // The dav1d switch is dead, dav1d is recipe. The three arguments
         // sit immediately before --prefix on every profile.
         val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
         val root = Files.createTempDirectory("kiteffmpeg-av1sw-args-test")
@@ -644,7 +644,7 @@ class BuildFFmpegTaskTest {
     /**
      * The exact `sharedCoreArgs()` line. Changing it must stay a reviewed act, not a silent one.
      *
-     * Shaped by the wide read-side class policy (KPKMP.md 17.4.9): only the WRITE side and the
+     * Shaped by the wide read-side class policy (PLANNING.md): only the WRITE side and the
      * protocol list are curated, so there is no `--disable-everything` and no named demuxer,
      * decoder, parser or bsf list any more.
      */
@@ -757,7 +757,7 @@ class BuildFFmpegTaskTest {
         ) + "--prefix=$installPrefix"
     }
     /**
-     * SOL-B4. The macOS trees carried NO deployment floor at all, so they took the SDK's.
+     * The macOS trees carried NO deployment floor at all, so they took the SDK's.
      *
      * MEASURED 2026-08-25 on the committed archive: `otool -l native-libs/lgpl/macos-arm64/lib/
      * libavutil.a` reported `minos 26.0`, while Kotlin/Native links these objects at 12.0
@@ -817,7 +817,7 @@ class BuildFFmpegTaskTest {
     }
 
     /**
-     * KC-FLOOR-DRIFT. The deployment floor is a CAPABILITY, so the staleness check must see it.
+     * The deployment floor is a CAPABILITY, so the staleness check must see it.
      *
      * SOL-B4 pinned the macOS floor on 2026-08-25 and the pin was invisible to this check the day
      * it landed. The floor rides inside `--cc`, and `--cc` is machine-specific by key, so it is

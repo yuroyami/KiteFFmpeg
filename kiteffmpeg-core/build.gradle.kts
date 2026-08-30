@@ -922,7 +922,7 @@ mavenPublishing {
 /*
  * ── The JNI adapter link tasks (S1.c.1 step 6) ──────────────────────────────────────────────
  *
- * Scaffolded 2026-08-12 by the planner from a hand-proved link on this machine; see KPKMP.md
+ * Scaffolded 2026-08-12 by the planner from a hand-proved link on this machine; see PLANNING.md
  * 17.4.3's scaffold layer. Three arms:
  *
  *   linkKiteFFmpegJniMacosArm64   test-only dylib jvmTest loads via the kiteffmpeg.jni.path

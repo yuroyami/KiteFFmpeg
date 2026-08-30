@@ -134,7 +134,7 @@ public actual class Frame internal constructor(
     public actual fun encodeImage(codec: CodecId): ByteArray =
         throw FFmpegException(FFmpegError.Unsupported(
             0, "Encoding an image is not implemented on the web backend. The web build carries the " +
-                "playback half of KiteFFmpeg (KPKMP.md 17.14 X-07); encoders were left out because " +
+                "playback half of KiteFFmpeg (PLANNING.md); encoders were left out because " +
                 "the browser has its own in WebCodecs.",
         ))
 
@@ -166,7 +166,7 @@ public actual class Frame internal constructor(
 
         private const val NO_AUTHORING =
             "Authoring a frame from bytes is not implemented on the web backend, which carries " +
-                "the playback half of KiteFFmpeg (KPKMP.md 17.14 X-07)."
+                "the playback half of KiteFFmpeg (PLANNING.md)."
     }
 }
 
