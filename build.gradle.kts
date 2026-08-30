@@ -1,5 +1,6 @@
 import io.github.yuroyami.kiteffmpeg.buildtools.BuildFFmpegTask
 import io.github.yuroyami.kiteffmpeg.buildtools.CheckCinteropCouplingTask
+import io.github.yuroyami.kiteffmpeg.buildtools.CheckReleaseTargetMirrorTask
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform).apply(false)
@@ -90,6 +91,17 @@ tasks.register<CheckCinteropCouplingTask>("checkCinteropCoupling") {
             include("include/**/*.h", "src/**/*.c")
         },
     )
+}
+
+/*
+ * The same drift, one level up: the release job repeats every triple by hand, and a triple missing
+ * there is a prebuilt nobody builds. Nothing goes red for it, because the build and the tests do
+ * not care which jobs a workflow declares.
+ */
+tasks.register<CheckReleaseTargetMirrorTask>("checkReleaseTargetMirror") {
+    group = "verification"
+    description = "Fails when the release workflow and the TargetTriple enum name different targets."
+    workflowFile.set(layout.projectDirectory.file(".github/workflows/release-binaries.yml"))
 }
 
 /*

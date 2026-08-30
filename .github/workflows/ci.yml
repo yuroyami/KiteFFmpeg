@@ -143,11 +143,18 @@ jobs:
       # wasmJsMain. Two copies with nothing comparing them drift, and the drift only shows up at
       # runtime in a browser. It regenerates in memory from signature-baseline.txt and compares; it
       # needs no build output, which is why it sits with the other cheap gates.
+      #
+      # checkReleaseTargetMirror joined on 2026-08-30. release-binaries.yml repeats every triple by
+      # hand in three matrices, and a release ships one prebuilt per triple per licence flavour. A
+      # target added to the TargetTriple enum and forgotten there is a binary nobody builds, and
+      # nothing else notices: the build compiles, the tests pass, and no gate reads a workflow. It
+      # needs no build output either, so it sits with the other cheap gates.
       - name: Public API baseline + FFmpeg coupling ratchet + deleted surface + wasm binding mirror
         run: |
           ./gradlew :kiteffmpeg-core:apiCheck -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
           ./gradlew checkCinteropCoupling --stacktrace
           ./gradlew :kiteffmpeg-core:checkWasmBindingMirror --stacktrace
+          ./gradlew checkReleaseTargetMirror --stacktrace
           ./native/kitecodec-c/scripts/check-deleted-surface.sh
       # The third ratchet, and the only guard on the cinterop klib: apiCheck covers kiteffmpeg-core's
       # own klib, and the cinterop klib is a separate artifact holding every FFmpeg binding and every
