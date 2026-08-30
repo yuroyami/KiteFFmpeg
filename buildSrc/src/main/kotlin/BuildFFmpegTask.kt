@@ -186,10 +186,10 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
                 }
                 Files.writeString(evidenceDir.resolve("ffmpeg-patches.txt"), lines, UTF_8)
             }
-            verifyInstall(scratchInstall)
+            verifyInstall(scratchInstall, target)
             bundleThirdPartyArchives(target, license, scratchInstall.toFile())
-            verifyInstall(scratchInstall)
-            replaceOutputTree(scratchInstall, outputDir.toPath())
+            verifyInstall(scratchInstall, target)
+            replaceOutputTree(scratchInstall, outputDir.toPath(), target)
             succeeded = true
             logger.lifecycle(
                 "[KiteFFmpeg] FFmpeg ${sourceRef.get()} (${license.dirName}) installed into $outputDir",
@@ -1114,12 +1114,19 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             Files.writeString(evidence, "$firstLine\n", UTF_8)
         }
 
-        internal fun verifyInstall(install: Path) {
+        internal fun verifyInstall(install: Path, target: TargetTriple) {
             val missing = REQUIRED_LIBS.filterNot { Files.isRegularFile(install.resolve("lib/$it.a")) }
             check(missing.isEmpty()) {
                 "FFmpeg reported a successful install but $install is missing " +
                     "${missing.joinToString { "lib/$it.a" }}. Check the configure/make output; " +
                     "the scratch install prefix may not have been honoured."
+            }
+            // Present is not the same as usable. See ArchiveProbe for the failures a name check
+            // reports as success, all of which surface much later as an unresolved symbol.
+            val wrong = REQUIRED_LIBS.mapNotNull { ArchiveProbe.verifyReason(install.resolve("lib/$it.a"), target) }
+            check(wrong.isEmpty()) {
+                "FFmpeg installed into $install but the archives are not usable for " +
+                    "${target.dirName}: ${wrong.joinToString("; ")}"
             }
             check(Files.isRegularFile(install.resolve("include/libavformat/avformat.h"))) {
                 "FFmpeg installed libraries into $install but no headers; cinterop needs both."
@@ -1142,7 +1149,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         }
 
         /** Verifies a sibling staging copy before swapping it into the declared output location. */
-        internal fun replaceOutputTree(scratchInstall: Path, output: Path) {
+        internal fun replaceOutputTree(scratchInstall: Path, output: Path, target: TargetTriple) {
             val absoluteOutput = output.toAbsolutePath().normalize()
             val parent = requireNotNull(absoluteOutput.parent) {
                 "FFmpeg output has no parent directory: $output"
@@ -1154,7 +1161,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             var movedOldOutput = false
             try {
                 copyTree(scratchInstall, staging, excludeBuildState = false)
-                verifyInstall(staging)
+                verifyInstall(staging, target)
                 if (Files.exists(absoluteOutput)) {
                     moveDirectory(absoluteOutput, backup)
                     movedOldOutput = true

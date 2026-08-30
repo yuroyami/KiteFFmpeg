@@ -556,7 +556,7 @@ class BuildFFmpegTaskTest {
             )
 
             val failure = assertFailsWith<IllegalStateException> {
-                BuildFFmpegTask.replaceOutputTree(invalidScratch, goodOutput)
+                BuildFFmpegTask.replaceOutputTree(invalidScratch, goodOutput, TargetTriple.IosArm64)
             }
 
             assertTrue("configure provenance" in failure.message.orEmpty())
@@ -590,7 +590,7 @@ class BuildFFmpegTaskTest {
                 "./configure --disable-autodetect --enable-zlib\n",
                 Files.readString(evidence),
             )
-            BuildFFmpegTask.verifyInstall(install)
+            BuildFFmpegTask.verifyInstall(install, TargetTriple.MacosArm64)
 
             Files.writeString(configLog, "#not-a-marker\n")
             BuildFFmpegTask.writeConfigureEvidence(configLog, install)
@@ -618,9 +618,233 @@ class BuildFFmpegTaskTest {
         }
     }
 
+    /**
+     * The first bytes of an object file for [machine]: enough of a header for the probe, and
+     * nothing else. The probe reads 24 bytes and stops, so a real object would add nothing.
+     */
+    private fun objectHead(machine: ObjectMachine): ByteArray {
+        val head = ByteArray(32)
+        fun putU16(offset: Int, value: Int) {
+            head[offset] = (value and 0xFF).toByte()
+            head[offset + 1] = ((value shr 8) and 0xFF).toByte()
+        }
+        when (machine) {
+            ObjectMachine.ElfX64, ObjectMachine.ElfArm64, ObjectMachine.ElfArm32 -> {
+                byteArrayOf(0x7F, 'E'.code.toByte(), 'L'.code.toByte(), 'F'.code.toByte())
+                    .copyInto(head)
+                head[4] = if (machine == ObjectMachine.ElfArm32) 1 else 2 // 32- vs 64-bit class
+                head[5] = 1 // little-endian, which every target here is
+                putU16(
+                    18,
+                    when (machine) {
+                        ObjectMachine.ElfX64 -> 62
+                        ObjectMachine.ElfArm64 -> 183
+                        else -> 40
+                    },
+                )
+            }
+            ObjectMachine.MachOArm64, ObjectMachine.MachOX64 -> {
+                // 0xFEEDFACF written little-endian, then the cputype.
+                byteArrayOf(0xCF.toByte(), 0xFA.toByte(), 0xED.toByte(), 0xFE.toByte()).copyInto(head)
+                putU16(4, if (machine == ObjectMachine.MachOArm64) 0x000C else 0x0007)
+                putU16(6, 0x0100)
+            }
+            ObjectMachine.CoffX64 -> putU16(0, 0x8664)
+        }
+        return head
+    }
+
+    /** A one-member `ar` archive holding [payload], in the GNU layout every toolchain reads. */
+    private fun arArchiveOf(payload: ByteArray, memberName: String = "kite.o/"): ByteArray {
+        val header = StringBuilder()
+            .append(memberName.padEnd(16))
+            .append("0".padEnd(12))
+            .append("0".padEnd(6))
+            .append("0".padEnd(6))
+            .append("100644".padEnd(8))
+            .append(payload.size.toString().padEnd(10))
+            .append("`\n")
+            .toString()
+        check(header.length == 60) { "ar member header must be 60 bytes, built ${header.length}" }
+        val body = "!<arch>\n".toByteArray(Charsets.US_ASCII) +
+            header.toByteArray(Charsets.US_ASCII) + payload
+        return if (payload.size % 2 == 1) body + 0 else body
+    }
+
+    /**
+     * A tree of six files named `lib*.a` used to be a complete, verified FFmpeg install.
+     *
+     * Every way a cross-build goes wrong leaves the names in place: an install prefix the make
+     * ignored, an output directory left over from another target, a truncated copy. The failure
+     * then arrives inside a link, naming a symbol instead of the tree, which is a much longer
+     * walk back to the cause.
+     */
+    @Test
+    fun `an install whose archives are for another machine is refused, naming both`() {
+        val root = Files.createTempDirectory("kiteffmpeg-archive-machine-test")
+        try {
+            // A host macOS build that landed in the linux-x64 tree: the exact shape of an install
+            // prefix that was not honoured.
+            val install = createCompleteInstall(
+                root.resolve("install").createDirectories(),
+                configureEvidence = "./configure --prefix=/scratch\n",
+                machine = ObjectMachine.MachOArm64,
+            )
+
+            val failure = assertFailsWith<IllegalStateException> {
+                BuildFFmpegTask.verifyInstall(install, TargetTriple.LinuxX64)
+            }
+            val message = failure.message.orEmpty()
+            assertTrue("Mach-O arm64" in message, "expected the machine found: $message")
+            assertTrue("ELF x86_64" in message, "expected the machine wanted: $message")
+            assertTrue("linux-x64" in message, "expected the tree named: $message")
+
+            // And the same tree passes for the target it actually holds, so the check is reading
+            // the archives rather than refusing everything.
+            BuildFFmpegTask.verifyInstall(install, TargetTriple.MacosArm64)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `an archive that is empty or not an archive is refused`() {
+        val root = Files.createTempDirectory("kiteffmpeg-archive-shape-test")
+        try {
+            val install = createCompleteInstall(
+                root.resolve("install").createDirectories(),
+                configureEvidence = "./configure\n",
+                machine = ObjectMachine.MachOArm64,
+            )
+            val one = install.resolve("lib/${BuildFFmpegTask.REQUIRED_LIBS.first()}.a")
+
+            fun refusalFor(bytes: ByteArray): String {
+                Files.write(one, bytes)
+                return assertFailsWith<IllegalStateException> {
+                    BuildFFmpegTask.verifyInstall(install, TargetTriple.MacosArm64)
+                }.message.orEmpty()
+            }
+
+            // The old fixture, grown past eight bytes so it reaches the magic check rather than
+            // the length one: a file whose contents are prose.
+            val prose = refusalFor("fixture, and not an archive".toByteArray(Charsets.US_ASCII))
+            assertTrue("`ar` archive header" in prose, "expected the magic named: $prose")
+
+            // A zero-byte file, which is what a killed or out-of-space copy leaves behind.
+            val empty = refusalFor(ByteArray(0))
+            assertTrue("too short" in empty, "expected the length named: $empty")
+
+            // A real archive that the archiver ran over an empty object list.
+            val headerOnly = refusalFor("!<arch>\n".toByteArray(Charsets.US_ASCII))
+            assertTrue("no object members" in headerOnly, "expected the emptiness named: $headerOnly")
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    /**
+     * macOS `ar` writes BSD long names, where the name lives in the member DATA and is counted in
+     * the member size. Walking that layout as if the data started right after the header reads the
+     * name as an object header and finds no machine at all, so every Apple tree would be refused.
+     */
+    @Test
+    fun `a BSD long-name member is walked to the object inside it`() {
+        val root = Files.createTempDirectory("kiteffmpeg-archive-bsd-test")
+        try {
+            val install = createCompleteInstall(
+                root.resolve("install").createDirectories(),
+                configureEvidence = "./configure\n",
+                machine = ObjectMachine.MachOArm64,
+            )
+            val longName = "a_very_long_object_name.o".padEnd(28, ' ')
+            val bsd = arArchiveOf(
+                longName.toByteArray(Charsets.US_ASCII) + objectHead(ObjectMachine.MachOArm64),
+                memberName = "#1/${longName.length}",
+            )
+            BuildFFmpegTask.REQUIRED_LIBS.forEach { Files.write(install.resolve("lib/$it.a"), bsd) }
+
+            BuildFFmpegTask.verifyInstall(install, TargetTriple.MacosArm64)
+
+            val failure = assertFailsWith<IllegalStateException> {
+                BuildFFmpegTask.verifyInstall(install, TargetTriple.MingwX64)
+            }
+            assertTrue("Mach-O arm64" in failure.message.orEmpty(), "the object was still read")
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    /**
+     * The symbol table is a member too, and it is the FIRST one in every archive a real archiver
+     * writes. Its payload is a length followed by offsets, so it can hold any byte pattern at all,
+     * including one that reads as an object header. COFF is the easy collision: it has no magic of
+     * its own, and its first field IS the machine type, so a symbol table whose leading two bytes
+     * happen to be 0x8664 would be reported as a Windows object.
+     *
+     * The fixture makes that coincidence certain rather than waiting for it.
+     */
+    @Test
+    fun `a bookkeeping member is skipped even when its bytes read as an object`() {
+        val root = Files.createTempDirectory("kiteffmpeg-archive-symtab-test")
+        try {
+            val install = createCompleteInstall(
+                root.resolve("install").createDirectories(),
+                configureEvidence = "./configure\n",
+                machine = ObjectMachine.ElfX64,
+            )
+            fun memberOnly(payload: ByteArray, name: String) =
+                arArchiveOf(payload, name).drop("!<arch>\n".length).toByteArray()
+
+            val magic = "!<arch>\n".toByteArray(Charsets.US_ASCII)
+            // A GNU symbol table carrying a COFF header, then the real ELF object behind it.
+            val gnu = magic + memberOnly(objectHead(ObjectMachine.CoffX64), "/") +
+                memberOnly(objectHead(ObjectMachine.ElfX64), "kite.o/")
+            BuildFFmpegTask.REQUIRED_LIBS.forEach { Files.write(install.resolve("lib/$it.a"), gnu) }
+            BuildFFmpegTask.verifyInstall(install, TargetTriple.LinuxX64)
+
+            // The BSD spelling of the same member, which macOS `ar` writes.
+            val bsd = magic + memberOnly(objectHead(ObjectMachine.CoffX64), "__.SYMDEF") +
+                memberOnly(objectHead(ObjectMachine.ElfX64), "kite.o/")
+            BuildFFmpegTask.REQUIRED_LIBS.forEach { Files.write(install.resolve("lib/$it.a"), bsd) }
+            BuildFFmpegTask.verifyInstall(install, TargetTriple.LinuxX64)
+
+            // And the object behind it is genuinely being read, not merely tolerated.
+            val failure = assertFailsWith<IllegalStateException> {
+                BuildFFmpegTask.verifyInstall(install, TargetTriple.LinuxArm64)
+            }
+            assertTrue("ELF x86_64" in failure.message.orEmpty(), "the second member was read")
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `every target maps to the object format its toolchain produces`() {
+        val expected = mapOf(
+            TargetTriple.MacosArm64 to ObjectMachine.MachOArm64,
+            TargetTriple.MacosX64 to ObjectMachine.MachOX64,
+            TargetTriple.IosArm64 to ObjectMachine.MachOArm64,
+            TargetTriple.IosSimulatorArm64 to ObjectMachine.MachOArm64,
+            TargetTriple.IosX64 to ObjectMachine.MachOX64,
+            TargetTriple.LinuxX64 to ObjectMachine.ElfX64,
+            TargetTriple.LinuxArm64 to ObjectMachine.ElfArm64,
+            TargetTriple.MingwX64 to ObjectMachine.CoffX64,
+            TargetTriple.AndroidArm64 to ObjectMachine.ElfArm64,
+            TargetTriple.AndroidArm32 to ObjectMachine.ElfArm32,
+            TargetTriple.AndroidX64 to ObjectMachine.ElfX64,
+        )
+        // A new target with no mapping is a compile error inside expectedMachine, and a new target
+        // missing here is this assertion. Both halves have to be answered deliberately.
+        assertEquals(TargetTriple.entries.toSet(), expected.keys)
+        expected.forEach { (target, machine) ->
+            assertEquals(machine, ArchiveProbe.expectedMachine(target), "for $target")
+        }
+    }
+
     private fun createCompleteInstall(
         install: java.nio.file.Path,
         configureEvidence: String?,
+        machine: ObjectMachine = ObjectMachine.MachOArm64,
     ): java.nio.file.Path {
         install.resolve("include/libavformat/avformat.h").apply {
             parent.createDirectories()
@@ -629,7 +853,9 @@ class BuildFFmpegTaskTest {
         BuildFFmpegTask.REQUIRED_LIBS.forEach { library ->
             install.resolve("lib/$library.a").apply {
                 parent.createDirectories()
-                Files.writeString(this, "fixture")
+                // The fixture used to be the word "fixture". A tree of six files spelling that
+                // passed the whole install check, which is the defect these archives close.
+                Files.write(this, arArchiveOf(objectHead(machine)))
             }
         }
         configureEvidence?.let { text ->
