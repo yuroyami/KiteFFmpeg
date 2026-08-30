@@ -170,6 +170,157 @@ internal external fun fakePacketReaderOpenCount(module: JsAny): Int
 @JsFun("(m) => m.__packetReaderSelectionMask()")
 internal external fun fakePacketReaderSelectionMask(module: JsAny): Int
 
+/**
+ * Adds a scripted DECODER on top of the scripted demuxer, so a whole `decodeStreams` or
+ * `extractFrame` pass runs with no FFmpeg wasm build present.
+ *
+ * The decoder models the two codec behaviours the code under test is written against, because a
+ * fake that always accepts input and always answers a frame would let broken code pass:
+ *
+ *  - It refuses new input while its output is unread (`EAGAIN`), which is what drives the
+ *    send/drain/retry loop rather than a straight-through path.
+ *  - It reports damaged data per packet (`AVERROR_INVALIDDATA`), which is what makes
+ *    `corruptDataSkipped` move.
+ *
+ * The packet run is a string set by [setFakeDecodeScript]: `g` is a good packet the decoder turns
+ * into one frame, `x` is one it calls damaged. Both go to stream 0 unless the letter is upper
+ * case, which sends it to stream 1.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacketReaderCodecModule())
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        const EOF = -541478725;
+        // Any distinct negative value: production asks the module for it rather than assuming one.
+        const EAGAIN = -11;
+        // FFERRTAG('I','N','D','A'), spelled the way Errors.kt spells it. This one is NOT asked for
+        // through the module, it is computed in Kotlin, so the two must agree by construction.
+        const INVALIDDATA = -(73 | (78 << 8) | (68 << 16) | (65 << 24));
+        const CODEC = 0xC00;
+
+        let script = "";
+        let cursor = 0;
+        const packetKind = new Map();
+        const packetStream = new Map();
+
+        let decoderOpenFails = false;
+        let opens = 0;
+        let frees = 0;
+        let nextContext = 0xD00;
+        const live = new Set();
+        const pending = new Set();
+        const draining = new Set();
+        let frameAllocs = 0;
+        let frameClones = 0;
+        let frameFrees = 0;
+        let seeks = 0;
+
+        m._ffkmp_fmt_read_frame = (ctx, packet) => {
+            if (cursor >= script.length) return EOF;
+            const letter = script[cursor++];
+            packetKind.set(packet, letter.toLowerCase());
+            packetStream.set(packet, letter === letter.toUpperCase() ? 1 : 0);
+            return 0;
+        };
+        m._ffkmp_packet_stream_index = (packet) => packetStream.has(packet) ? packetStream.get(packet) : -1;
+        m._ffkmp_packet_unref = (packet) => { packetKind.delete(packet); packetStream.delete(packet); };
+        m._ffkmp_packet_free = (packet) => { packetKind.delete(packet); packetStream.delete(packet); };
+        m._ffkmp_packet_pts = () => 0n;
+
+        m._ffkmp_averror_eagain = () => EAGAIN;
+        m._ffkmp_avseek_flag_backward = () => 1;
+        m._ffkmp_avseek_flag_any = () => 4;
+        // A seek rewinds the scripted run, which is what lets extractFrame walk from a landing point.
+        m._ffkmp_fmt_seek_file = () => { seeks++; cursor = 0; return 0; };
+
+        m._ffkmp_find_decoder_by_id = () => decoderOpenFails ? 0 : CODEC;
+        m._ffkmp_find_decoder_by_name = () => decoderOpenFails ? 0 : CODEC;
+        m._ffkmp_codec_id = () => 1;
+        m._ffkmp_codecctx_alloc = () => {
+            const c = nextContext;
+            nextContext += 0x10;
+            opens++;
+            live.add(c);
+            return c;
+        };
+        m._ffkmp_codecctx_from_par = () => 0;
+        m._ffkmp_codecctx_open = () => 0;
+        m._ffkmp_codecctx_set_low_delay = () => {};
+        m._ffkmp_codecctx_set_threads = () => {};
+        m._ffkmp_codecctx_set_opt = () => 0;
+        m._ffkmp_codecctx_flush = (c) => { pending.delete(c); draining.delete(c); };
+        m._ffkmp_codecctx_free = (c) => {
+            if (live.delete(c)) frees++;
+            pending.delete(c);
+            draining.delete(c);
+        };
+
+        m._ffkmp_codecctx_send_packet = (c, p) => {
+            if (p === 0) { draining.add(c); return 0; }
+            if (packetKind.get(p) === "x") return INVALIDDATA;
+            if (pending.has(c)) return EAGAIN;
+            pending.add(c);
+            return 0;
+        };
+        m._ffkmp_codecctx_receive_frame = (c, f) => {
+            if (pending.delete(c)) return 0;
+            if (draining.has(c)) return EOF;
+            return EAGAIN;
+        };
+
+        m._ffkmp_frame_alloc = () => { frameAllocs++; return m._malloc(8); };
+        m._ffkmp_frame_clone = () => { frameClones++; return m._malloc(8); };
+        m._ffkmp_frame_free = () => { frameFrees++; };
+
+        m.__setDecodeScript = (s) => {
+            script = s;
+            cursor = 0;
+            packetKind.clear();
+            packetStream.clear();
+        };
+        m.__setDecoderOpenFails = (v) => { decoderOpenFails = v; };
+        m.__decoderOpens = () => opens;
+        m.__decoderFrees = () => frees;
+        m.__liveDecoders = () => live.size;
+        m.__frameBalance = () => frameAllocs + frameClones - frameFrees;
+        m.__seeks = () => seeks;
+        return m;
+    }""",
+)
+private external fun installFakeDecodeSurface(module: JsAny): JsAny
+
+/** Sets the scripted packet run; see [fakeDecodeCodecModule] for the letters. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, s) => m.__setDecodeScript(s)")
+internal external fun setFakeDecodeScript(module: JsAny, script: String)
+
+/** Makes the next `openDecoder` fail the way a missing decoder does. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, v) => m.__setDecoderOpenFails(v)")
+internal external fun setFakeDecoderOpenFails(module: JsAny, fails: Boolean)
+
+/** How many codec contexts have been allocated. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__decoderOpens()")
+internal external fun fakeDecoderOpens(module: JsAny): Int
+
+/** How many have been freed. A leak is [fakeDecoderOpens] moving while this one does not. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__decoderFrees()")
+internal external fun fakeDecoderFrees(module: JsAny): Int
+
+/** Codec contexts allocated and never freed, which is the leak stated directly. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__liveDecoders()")
+internal external fun fakeLiveDecoders(module: JsAny): Int
+
+/** Frames allocated and cloned minus frames freed: zero once every frame has been closed. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__frameBalance()")
+internal external fun fakeFrameBalance(module: JsAny): Int
+
 /** A module missing most of what the backend reads, for the diagnostic `attach` refuses on. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("""() => ({ ccall: () => 0, UTF8ToString: () => null, addFunction: () => 0, removeFunction: () => {} })""")

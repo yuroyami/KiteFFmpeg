@@ -529,6 +529,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            // The decode paths are flows, so collecting one in a test needs a coroutine runner that
+            // works on the web too, where there is no thread to block.
+            implementation(libs.kotlinx.coroutines.test)
         }
         val commonMain = getByName("commonMain")
         // Encode, mux and filter are refused on BOTH web targets (17.14 X-07): S6 is "it plays on

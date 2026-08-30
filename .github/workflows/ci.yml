@@ -279,12 +279,14 @@ jobs:
       # its first argument. That seam is why this was testable all along without building FFmpeg
       # for the web first.
       #
-      # NODE, not browser. The browser task drives the same code through webpack, which is a
-      # separate and currently unproven path (KitePlayer hit `RangeError: Invalid array length`
-      # inside it). Claiming browser coverage from a node run would be the exact kind of untrue
-      # green this suite exists to stop.
-      - name: Web backend tests (wasmJs, node)
-        run: ./gradlew :kiteffmpeg-core:wasmJsNodeTest -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+      # BOTH halves, node and headless browser. This was node only while the browser path was
+      # unproven, because KitePlayer's browser task was dying inside webpack with
+      # "RangeError: Invalid array length" and claiming browser coverage from a node run would be
+      # the exact kind of untrue green this suite exists to stop. That failure stopped happening on
+      # 2026-08-30 and did not come back across four attempts, so the honest move is to run the
+      # browser half and let it say so if it returns, rather than keep skipping it on a stale reason.
+      - name: Web backend tests (wasmJs, node and browser)
+        run: ./gradlew :kiteffmpeg-core:wasmJsTest -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
