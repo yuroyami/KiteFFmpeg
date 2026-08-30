@@ -77,6 +77,7 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
+        requireNoTypedVideoOptionCollision(spec.options)
         val context = newEncoderContext(spec.codec.name) { _, codecContext ->
             Internals.codecCtxSetVideo(
                 codecContext,
@@ -100,6 +101,7 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
+        requireNoTypedAudioOptionCollision(spec.options)
         var negotiated = spec.sampleFormat
         val context = newEncoderContext(spec.codec.name) { codec, codecContext ->
             if (negotiated == SampleFormat.None) {

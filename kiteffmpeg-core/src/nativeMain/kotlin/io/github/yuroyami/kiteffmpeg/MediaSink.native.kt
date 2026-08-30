@@ -151,6 +151,7 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
+        requireNoTypedVideoOptionCollision(spec.options)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         val codecCtx = newEncoderContext(spec.codec.name) { codec, cc ->
@@ -215,6 +216,7 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
+        requireNoTypedAudioOptionCollision(spec.options)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         var negotiatedFormat = spec.sampleFormat
