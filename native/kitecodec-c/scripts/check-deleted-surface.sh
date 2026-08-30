@@ -76,12 +76,17 @@ RESURRECTED=""
 # moved to one that was not listed. Worth naming rather than quietly repointing, because it is the
 # failure mode a cross-repository allowlist has: the split's own verifier proved no LINE was lost
 # and could not know that a tool in the other repository named the file by path.
+#
+# It happened AGAIN, and this time nothing went red. The docs reset of 2026-08-29 deleted every
+# planning file in KitePlayer except MASTER_PLAN.md and GOTCHAS.md, so the entry pointed at a ghost
+# for a day while the script printed a NOTE and passed. A note is not a guard, which is why a
+# missing allowlist path is now check 5 and fails. The entry is gone rather than repointed: under
+# the two-files rule the record of a deletion is the commit that made it, not a document.
 ALLOWED_PROSE="
 native/kitecodec-c/deleted-surface.txt
 native/kitecodec-c/tests/test_ownership.c
 native/kitecodec-c/tests/test_rescale.c
 native/kitecodec-c/README.md
-../KitePlayer/PLANNING.md
 "
 
 # Every excluded directory is gitignored in one repository or the other: build output, the Gradle
@@ -141,6 +146,14 @@ else
     DUPES="$(echo $DELETED $RESURRECTED | tr ' ' '\n' | sort | uniq -d)"
     if [ -n "$DUPES" ]; then
         fail "duplicate name(s): $DUPES"
+    fi
+    # A list where nothing is held dead is not a passing state, it is the guard switched off.
+    # Checks 1 to 3 loop over $DELETED, so an empty set makes all three print "ok" over zero work
+    # and the script announces that every name marked deleted is gone. Measured on 2026-08-30 by
+    # marking all fifteen resurrected: three greens and an exit code of zero.
+    if [ -z "$(echo $DELETED | tr -d ' ')" ]; then
+        fail "no name is marked deleted, so checks 1 to 3 below would pass over nothing."
+        echo "        Resurrecting the last name is a real decision; it is not this check going quiet."
     fi
     if [ "$status" -eq "$integrity_before" ]; then
         echo "  ok: 15 names, $(echo $DELETED | wc -w | tr -d ' ') deleted, $(echo $RESURRECTED | wc -w | tr -d ' ') resurrected"
@@ -227,6 +240,25 @@ fi
 if [ -s "$WORK/silent.txt" ]; then
     echo "  note: allowlisted but mentioning nothing, so the entry is stale:"
     sed 's|^|          |' "$WORK/silent.txt"
+fi
+echo
+
+# An allowlist entry excuses prose in a file. A path that does not exist excuses nothing, and it is
+# how the allowlist rots without anyone seeing: check 3 reports it as merely "stale" and passes.
+# That is not hypothetical here. The entry for KitePlayer's PLANNING.md outlived the file twice,
+# once at the 2026-08-18 split and again at the 2026-08-29 docs reset.
+echo "5. every allowlisted path exists, so no entry is excusing a file that is gone"
+: > "$WORK/ghosts.txt"
+while read -r file; do
+    [ -n "$file" ] || continue
+    [ -e "$file" ] || echo "$file" >> "$WORK/ghosts.txt"
+done < "$WORK/allowed.txt"
+if [ -s "$WORK/ghosts.txt" ]; then
+    fail "$(wc -l < "$WORK/ghosts.txt" | tr -d ' ') allowlisted path(s) do not exist:"
+    sed 's|^|          |' "$WORK/ghosts.txt"
+    echo "        Remove the entry, or repoint it at wherever the prose went."
+else
+    echo "  ok: all $(wc -l < "$WORK/allowed.txt" | tr -d ' ') allowlisted paths exist"
 fi
 echo
 
