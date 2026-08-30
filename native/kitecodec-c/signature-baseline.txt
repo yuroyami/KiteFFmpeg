@@ -1,14 +1,16 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
+# abi-version 2.6
+#
 # Exact scope: 188 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
 # records are sorted without deduplication. There must be exactly 214 records.
 #
-# THE MOVE (also in KPKMP.md section 9's ratchet move table): change the public
+# THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
 # --write-signature-baseline in the same commit, and name every changed record in
-# the Execution log entry. --write-baseline is separate and changes export names.
+# that commit message. --write-baseline is separate and changes export names.
 KC_API const char *kc_ffmpeg_configuration(void);
 KC_API const char *kc_ffmpeg_library_name(int index);
 KC_API const char *kc_verdict_name(int verdict);
@@ -73,6 +75,7 @@ KC_API int ffkmp_fmt_alloc_output2(kc_fmt_ctx **out, const char *path, const cha
 KC_API int ffkmp_fmt_chapter_count(const kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_chapter_get(const kc_fmt_ctx *ctx, int index, int64_t *out_id, int64_t *out_start_us, int64_t *out_end_us);
 KC_API int ffkmp_fmt_find_stream_info(kc_fmt_ctx *c);
+KC_API int ffkmp_fmt_free_output(kc_fmt_ctx **ctx);
 KC_API int ffkmp_fmt_io_open(kc_fmt_ctx *ctx, const char *path);
 KC_API int ffkmp_fmt_is_seekable(kc_fmt_ctx *c);
 KC_API int ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
@@ -181,7 +184,6 @@ KC_API void ffkmp_fmt_avoid_negative_ts(kc_fmt_ctx *ctx);
 KC_API void ffkmp_fmt_close_input(kc_fmt_ctx **ctx);
 KC_API void ffkmp_fmt_close_input_io(kc_fmt_ctx **ctx);
 KC_API void ffkmp_fmt_interrupt(kc_fmt_ctx *ctx);
-KC_API int ffkmp_fmt_free_output(kc_fmt_ctx **ctx);
 KC_API void ffkmp_frame_free(kc_frame *f);
 KC_API void ffkmp_frame_sample_aspect_ratio(kc_frame *f, int *n, int *d);
 KC_API void ffkmp_frame_set_ch_layout_default(kc_frame *f, int ch);

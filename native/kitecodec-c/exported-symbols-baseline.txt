@@ -1,13 +1,15 @@
 # The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09).
 #
+# abi-version 2.6
+#
 # Every external symbol the archive may export, one per line, without the Mach-O
 # underscore. symbol-audit.sh check 6 compares the archive against this file, so the
 # exported surface cannot grow or shrink silently even when the headers agree with
 # the archive (check 3 proves that agreement; it is consistency, not a ceiling).
 #
-# THE MOVE (also in KPKMP.md section 9's ratchet move table): change the exports
+# THE MOVE, and this file is the only place it is written down: change the exports
 # deliberately, run ./scripts/symbol-audit.sh --write-baseline in the same commit,
-# and name every added or removed symbol in the Execution log entry.
+# and name every added or removed symbol in that commit message.
 ffkmp_averror_eagain
 ffkmp_averror_eof
 ffkmp_avseek_flag_any
@@ -85,11 +87,11 @@ ffkmp_fmt_chapter_get
 ffkmp_fmt_chapter_metadata
 ffkmp_fmt_close_input
 ffkmp_fmt_close_input_io
-ffkmp_fmt_interrupt
 ffkmp_fmt_duration
 ffkmp_fmt_find_stream_info
 ffkmp_fmt_free_output
 ffkmp_fmt_iformat_name
+ffkmp_fmt_interrupt
 ffkmp_fmt_io_opaque
 ffkmp_fmt_io_open
 ffkmp_fmt_is_seekable

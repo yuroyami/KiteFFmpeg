@@ -12,15 +12,14 @@
 #      stdout inside a library; an `av_log` would mean it writes to FFmpeg's log inside a library;
 #      an `objc_msgSend` or a `dispatch_` would mean C that looked portable has quietly become
 #      Apple-only.
-#   2. What does it export? The 157 legacy helpers the Kotlin side imports, the twelve compatible
-#      helpers added at S1.a.7, the packet clone added at S1.c.1, the selected-codec-id accessor
-#      added at S1.c.2, the pre-open-options open and the three chapter accessors added at the
-#      S4.b window (KD-4/KD-5) with their owned-dictionary release, plus the seven kc_ functions
-#      of the identity gate, the two hardware-decode funnels added at the S2.a window
-#      (ffkmp_codecctx_use_videotoolbox, ffkmp_frame_hw_download), and nothing else:
-#      195 names.
+#   2. What does it export? Exactly the names in exported-symbols-baseline.txt, which check 6
+#      compares one for one. That file is the authority and it carries the current count; this
+#      header used to restate the number and the running total of which window added what, and
+#      both had drifted (it claimed 195 while the baseline held 199, and the windows it added up
+#      came to 185). A count in two places is a count that will disagree with itself.
 #      That set is a compatibility promise, which is the whole reason B1.4 deleted the 15 helpers
-#      no Kotlin file imported.
+#      no Kotlin file imported. Check 8 ties it to KITECODEC_C_ABI_MAJOR/MINOR, so the promise
+#      cannot grow while kc_abi_version() reports the same number.
 #   3. What does it keep to itself? The four trailing-underscore helpers, which are `static` and
 #      must never appear as external symbols.
 #   4. Does anything print? Nothing but the identity gate's diagnostic bypass warning, which plan
@@ -106,6 +105,47 @@ done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+
+# ---------------------------------------------------------------------------------------------
+# The ABI version, and the reason the baselines carry it.
+#
+# KITECODEC_C_ABI_MAJOR/MINOR say what this C surface is, and kc_abi_version() reports it at
+# runtime so a consumer can refuse a library it does not understand. Nothing made those numbers
+# TRUE. The two baselines below already stop the surface changing silently, but the move procedure
+# for both is "rewrite the baseline in the same commit", and a rewrite never asked about the
+# version. So the surface could grow through the front door, one deliberate --write-baseline at a
+# time, while kc_abi_version() went on reporting the same number forever.
+#
+# Each baseline now records the version it was written at. Check 8 holds the stamps equal to the
+# header, and a rewrite that CHANGES records refuses unless the version rose. Rewriting with the
+# same records is always allowed, which is what makes a version-only bump a one-command follow-up
+# rather than an argument with the tool.
+abi_field() {
+    sed -n "s/^#define $1[[:space:]]\{1,\}\([0-9]\{1,\}\).*/\1/p" "$ABI_HEADER" | head -1
+}
+ABI_MAJOR="$(abi_field KITECODEC_C_ABI_MAJOR)"
+ABI_MINOR="$(abi_field KITECODEC_C_ABI_MINOR)"
+if [ -z "$ABI_MAJOR" ] || [ -z "$ABI_MINOR" ]; then
+    echo "symbol-audit.sh: cannot read KITECODEC_C_ABI_MAJOR/MINOR from $ABI_HEADER" >&2
+    exit 1
+fi
+ABI_VERSION="$ABI_MAJOR.$ABI_MINOR"
+ABI_STAMP_PREFIX="# abi-version"
+
+# The version a baseline was written at, or empty when the file predates the stamp.
+stamped_version() {
+    [ -f "$1" ] || return 0
+    sed -n "s|^$ABI_STAMP_PREFIX[[:space:]]\{1,\}\([0-9]\{1,\}\.[0-9]\{1,\}\).*|\1|p" "$1" | head -1
+}
+
+# True when the current header version is strictly newer than $1 (empty counts as older).
+abi_is_newer_than() {
+    local was="$1"
+    [ -n "$was" ] || return 0
+    local was_major="${was%%.*}" was_minor="${was##*.}"
+    [ "$ABI_MAJOR" -gt "$was_major" ] && return 0
+    [ "$ABI_MAJOR" -eq "$was_major" ] && [ "$ABI_MINOR" -gt "$was_minor" ]
+}
 
 # The allowlist of undefined symbols that are not libav or libsw.
 #
@@ -334,25 +374,43 @@ echo
 # KC_API function beside its neighbours makes the new export "expected", which was measured at
 # the interlude with a probe export that sailed through every check while nm confirmed the new
 # symbol. This check is the baseline check 3 was mistaken for. The move procedure is in the
-# file's own header and in PLANNING.md's ratchet move table: regenerate deliberately with
+# file's own header; there is no second copy of it. Regenerate deliberately with
 #   ./scripts/symbol-audit.sh --write-baseline
 # in the same commit as the export change, and name every added or removed symbol in the
-# Execution log entry.
+# commit message, which under the two-files rule is the record of the change.
 # ---------------------------------------------------------------------------------------------
 BASELINE_FILE="$ROOT/exported-symbols-baseline.txt"
-sed 's/^_//' "$WORK/external.txt" | sort -u > "$WORK/actual_names.txt"
+sed 's/^_//' "$WORK/external.txt" | LC_ALL=C sort -u > "$WORK/actual_names.txt"
 if [ "$WRITE_BASELINE" = 1 ]; then
+    EXPORT_WAS="$(stamped_version "$BASELINE_FILE")"
+    EXPORT_CHANGED=1
+    if [ -f "$BASELINE_FILE" ]; then
+        grep -v '^#' "$BASELINE_FILE" | grep -v '^$' | LC_ALL=C sort -u > "$WORK/prev_names.txt"
+        cmp -s "$WORK/prev_names.txt" "$WORK/actual_names.txt" && EXPORT_CHANGED=0
+    fi
+    if [ "$EXPORT_CHANGED" = 1 ] && ! abi_is_newer_than "$EXPORT_WAS"; then
+        fail "refusing to rewrite $BASELINE_FILE: the exported set changed but the ABI version"
+        echo "        did not rise. The baseline was written at ${EXPORT_WAS:-no version} and"
+        echo "        kitecodec_abi.h still says $ABI_VERSION. Raise KITECODEC_C_ABI_MINOR (or"
+        echo "        MAJOR, if a declaration changed shape) in the same commit, then rerun."
+        echo "        Growing the surface one deliberate rewrite at a time, with kc_abi_version()"
+        echo "        answering the same number forever, is what this refusal exists to stop."
+        echo
+        exit "$status"
+    fi
     {
         echo "# The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09)."
+        echo "#"
+        echo "$ABI_STAMP_PREFIX $ABI_VERSION"
         echo "#"
         echo "# Every external symbol the archive may export, one per line, without the Mach-O"
         echo "# underscore. symbol-audit.sh check 6 compares the archive against this file, so the"
         echo "# exported surface cannot grow or shrink silently even when the headers agree with"
         echo "# the archive (check 3 proves that agreement; it is consistency, not a ceiling)."
         echo "#"
-        echo "# THE MOVE (also in PLANNING.md's ratchet move table): change the exports"
+        echo "# THE MOVE, and this file is the only place it is written down: change the exports"
         echo "# deliberately, run ./scripts/symbol-audit.sh --write-baseline in the same commit,"
-        echo "# and name every added or removed symbol in the Execution log entry."
+        echo "# and name every added or removed symbol in that commit message."
         cat "$WORK/actual_names.txt"
     } > "$BASELINE_FILE"
     echo "6. baseline REWRITTEN at $BASELINE_FILE ($(wc -l < "$WORK/actual_names.txt" | tr -d ' ') names)"
@@ -363,7 +421,7 @@ else
     if [ ! -f "$BASELINE_FILE" ]; then
         fail "$BASELINE_FILE does not exist; create it with: $0 --write-baseline"
     else
-        grep -v '^#' "$BASELINE_FILE" | grep -v '^$' | sort -u > "$WORK/baseline_names.txt"
+        grep -v '^#' "$BASELINE_FILE" | grep -v '^$' | LC_ALL=C sort -u > "$WORK/baseline_names.txt"
         comm -23 "$WORK/baseline_names.txt" "$WORK/actual_names.txt" > "$WORK/baseline_missing.txt"
         comm -13 "$WORK/baseline_names.txt" "$WORK/actual_names.txt" > "$WORK/baseline_extra.txt"
         echo "  baseline lists  $(wc -l < "$WORK/baseline_names.txt" | tr -d ' ') names"
@@ -398,10 +456,10 @@ fi
 # complete record. Whitespace is normalized, records are C-locale sorted WITHOUT deduplication, and
 # the exact installed scope is 214 records.
 #
-# THE MOVE (also in PLANNING.md's ratchet move table): change a public declaration
+# THE MOVE, written down here and nowhere else: change a public declaration
 # deliberately, run
 #   ./scripts/symbol-audit.sh --write-signature-baseline
-# in the same commit, and name every changed record in the Execution log entry. This is deliberately
+# in the same commit, and name every changed record in that commit message. This is deliberately
 # distinct from --write-baseline, which owns only export names.
 # ---------------------------------------------------------------------------------------------
 generate_signature_records() {
@@ -521,21 +579,35 @@ ACTUAL_SIGNATURE_COUNT="$(wc -l < "$WORK/actual_signatures.txt" | tr -d ' ')"
 
 if [ "$WRITE_SIGNATURE_BASELINE" = 1 ]; then
     echo "7. normalized public declaration baseline"
+    SIGNATURE_WAS="$(stamped_version "$SIGNATURE_BASELINE_FILE")"
+    SIGNATURE_CHANGED=1
+    if [ -f "$SIGNATURE_BASELINE_FILE" ]; then
+        awk '!/^[[:space:]]*#/ && NF { print }' "$SIGNATURE_BASELINE_FILE" \
+            | LC_ALL=C sort > "$WORK/prev_signatures.txt"
+        cmp -s "$WORK/prev_signatures.txt" "$WORK/actual_signatures.txt" && SIGNATURE_CHANGED=0
+    fi
     if [ "$ACTUAL_SIGNATURE_COUNT" -ne 214 ]; then
         fail "refusing to rewrite $SIGNATURE_BASELINE_FILE: expected 214 records, found $ACTUAL_SIGNATURE_COUNT"
+    elif [ "$SIGNATURE_CHANGED" = 1 ] && ! abi_is_newer_than "$SIGNATURE_WAS"; then
+        fail "refusing to rewrite $SIGNATURE_BASELINE_FILE: a public declaration changed but the"
+        echo "        ABI version did not rise. The baseline was written at ${SIGNATURE_WAS:-no"
+        echo "        version} and kitecodec_abi.h still says $ABI_VERSION. A declaration that"
+        echo "        changed SHAPE is a major bump; one that was added compatibly is a minor one."
     else
         {
             echo "# The normalized public C declaration baseline of KiteFFmpeg (S1.a.8)."
+            echo "#"
+            echo "$ABI_STAMP_PREFIX $ABI_VERSION"
             echo "#"
             echo "# Exact scope: 188 helper KC_API prototypes, eleven opaque handle typedefs, seven"
             echo "# ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report"
             echo "# typedef. Comments and preprocessor lines are absent; whitespace is normalized;"
             echo "# records are sorted without deduplication. There must be exactly 214 records."
             echo "#"
-            echo "# THE MOVE (also in PLANNING.md's ratchet move table): change the public"
+            echo "# THE MOVE, and this file is the only place it is written down: change the public"
             echo "# declaration deliberately, run ./scripts/symbol-audit.sh"
             echo "# --write-signature-baseline in the same commit, and name every changed record in"
-            echo "# the Execution log entry. --write-baseline is separate and changes export names."
+            echo "# that commit message. --write-baseline is separate and changes export names."
             cat "$WORK/actual_signatures.txt"
         } > "$SIGNATURE_BASELINE_FILE"
         echo "  baseline REWRITTEN at $SIGNATURE_BASELINE_FILE (214 records)"
@@ -577,6 +649,24 @@ else
     fi
     echo
 fi
+
+echo "8. both baselines were written at the ABI version the headers now claim"
+echo "  kitecodec_abi.h says $ABI_VERSION"
+for baseline in "$BASELINE_FILE" "$SIGNATURE_BASELINE_FILE"; do
+    [ -f "$baseline" ] || continue
+    stamp="$(stamped_version "$baseline")"
+    if [ -z "$stamp" ]; then
+        fail "$(basename "$baseline") carries no '$ABI_STAMP_PREFIX' line, so nothing ties the"
+        echo "        surface it records to a version. Rewrite it with the matching --write flag."
+    elif [ "$stamp" != "$ABI_VERSION" ]; then
+        fail "$(basename "$baseline") was written at $stamp, the headers say $ABI_VERSION."
+        echo "        If the version rose on purpose, rewrite the baseline in the same commit so"
+        echo "        the stamp follows. If it did not, something moved the version alone."
+    else
+        echo "  ok: $(basename "$baseline") stamped $stamp"
+    fi
+done
+echo
 
 if [ "$status" -eq 0 ]; then
     echo "symbol-audit.sh: PASS"
