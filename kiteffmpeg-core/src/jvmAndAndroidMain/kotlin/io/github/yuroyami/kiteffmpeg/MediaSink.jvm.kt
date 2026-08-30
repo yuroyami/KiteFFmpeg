@@ -147,7 +147,7 @@ public actual class MediaSink internal constructor(
             val outputStream = Internals.fmtNewStream(format)
             var outputParameters = 0L
             try {
-                // KC-EVIDENCE-MUX: see the native twin. Inert unless a test armed it.
+                // See the native twin. Inert unless a test armed it.
                 MuxFaults.failIfArmed("addCopyStream/jvm")
                 outputParameters = Internals.streamCodecPar(outputStream)
                 check0(

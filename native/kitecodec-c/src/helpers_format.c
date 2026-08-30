@@ -16,7 +16,7 @@
 
 /* ════════════ AVFormatContext (input + output) ════════════ */
 
-/* KC-CANCEL: the one interrupt seam for every input open. The opaque is always a plain int
+/* The one interrupt seam for every input open. The opaque is always a plain int
    cell; for the custom-AVIO open it lives inside the bridge and dies with it, for path opens
    it is its own allocation freed by the paired close. FFmpeg polls it at the top of every
    blocking loop and returns AVERROR_EXIT once it reads nonzero. One-way by design: an
@@ -244,7 +244,7 @@ typedef struct kc_io_bridge {
     kc_io_read_fn read_fn;
     kc_io_seek_fn seek_fn;
     int64_t       size;
-    /* KC-CANCEL: the interrupt cell for this open, pointed at by the context's
+    /* The interrupt cell for this open, pointed at by the context's
        interrupt_callback and freed with the bridge. */
     volatile int  interrupted;
 } kc_io_bridge;
@@ -253,7 +253,7 @@ typedef struct kc_io_bridge {
    (KC_IO_EOF / KC_IO_ERR) maps here so the Kotlin side never needs an FFmpeg constant. */
 static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
-    /* KC-CANCEL: FFmpeg's own poll sites never see a custom AVIO, so an interrupted long scan
+    /* FFmpeg's own poll sites never see a custom AVIO, so an interrupted long scan
        is broken here, between caller reads, which is exactly where a network stall spins. */
     if (b->interrupted) return AVERROR_EXIT;
     int r = b->read_fn(b->opaque, buf, len);

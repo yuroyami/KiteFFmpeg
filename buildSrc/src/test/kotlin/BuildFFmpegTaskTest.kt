@@ -120,7 +120,7 @@ class BuildFFmpegTaskTest {
                 "--enable-cross-compile",
                 "-arch",
                 "arm64",
-                // Recipe since KC-EMBED: dav1d flags survive into the fingerprint.
+                // Recipe since FFmpeg was embedded: dav1d flags survive into the fingerprint.
                 "--enable-libdav1d",
             ),
         )
@@ -436,7 +436,7 @@ class BuildFFmpegTaskTest {
     @Test
     fun theDav1dArchiveAndLinkFlagRideEveryProfile() {
         // Every triple bundles exactly libdav1d.a and leads its link set with -ldav1d: dav1d is
-        // the ONLY software AV1 route FFmpeg has, and since KC-EMBED it is never optional.
+        // the ONLY software AV1 route FFmpeg has, and since FFmpeg was embedded it is never optional.
         TargetTriple.entries.forEach { target ->
             assertEquals(
                 listOf("libdav1d.a"),
@@ -722,7 +722,7 @@ class BuildFFmpegTaskTest {
         "--disable-stripping",
         "--host-cc=/usr/bin/clang",
     ) + trailing + listOf(
-        // dav1d is MANDATORY since KC-EMBED (2026-08-22); every recipe carries these three.
+        // dav1d is MANDATORY since 2026-08-22; every recipe carries these three.
         "--enable-libdav1d", "--enable-decoder=libdav1d", "--pkg-config=pkg-config",
     ) + "--prefix=$installPrefix"
 
@@ -752,7 +752,7 @@ class BuildFFmpegTaskTest {
             "--enable-decoder=h264_mediacodec,hevc_mediacodec,av1_mediacodec,vp9_mediacodec,vp8_mediacodec",
             "--enable-zlib",
         ) + suffix + listOf(
-            // dav1d is MANDATORY since KC-EMBED (2026-08-22); every recipe carries these three.
+            // dav1d is MANDATORY since 2026-08-22; every recipe carries these three.
             "--enable-libdav1d", "--enable-decoder=libdav1d", "--pkg-config=pkg-config",
         ) + "--prefix=$installPrefix"
     }

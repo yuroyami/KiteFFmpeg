@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generates (or checks) the byte layout of `kc_ffmpeg_report` for the web binding (17.14 X-07).
+# Generates (or checks) the byte layout of `kc_ffmpeg_report` for the web binding.
 #
 # JavaScript sees the codec's memory as a flat buffer, so every struct field needs an offset. Those
 # belong to the compiler, not to a human with a calculator: a wrong offset reads the NEIGHBOURING

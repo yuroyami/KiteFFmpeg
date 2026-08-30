@@ -10,7 +10,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Register item B1-04: the expected FFmpeg release was written down in three files bound only by a
+ * The expected FFmpeg release was written down in three files bound only by a
  * comment asking the reader to keep them in sync, and nothing checked any of them against the vendored
  * checkout.
  *
@@ -52,7 +52,7 @@ class BuildFFmpegRefsTest {
             )
         }
         val message = failure.message.orEmpty()
-        assertContains(message, "register item B1-04")
+        assertContains(message, "they do not agree")
         // Every site, not only the odd one out: the reader's question is which one is wrong.
         assertContains(message, "buildSrc: n8.0")
         assertContains(message, "plugin: n7.1")
@@ -110,7 +110,7 @@ class BuildFFmpegRefsTest {
 
     /**
      * The sites this repository actually has, read the way the root build script reads them.
-     * (The plugin's DEFAULT_FFMPEG_VERSION site died with the plugin, KC-EMBED 2026-08-22.)
+     * (The plugin's DEFAULT_FFMPEG_VERSION site died with the plugin on 2026-08-22.)
      *
      * This is the one case in the file that is not a fixture, and it earns that: it is the assertion
      * that the readers point at files that exist and find the pin in each of them. A reader that

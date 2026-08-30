@@ -211,7 +211,7 @@ typedef struct {
  * sanitizer runtimes replace the allocator before dyld gets to our interpose section. So the
  * allocation-pairing evidence comes from the plain run, and the sanitizer runs contribute
  * their own findings instead. LeakSanitizer is not an option here at all: it is unsupported on
- * macOS arm64 (register item B1-14), which is why this interposer exists.
+ * macOS arm64, which is why this interposer exists.
  *
  * A suite that needs the counters must call this and, when it returns 0, record the gap with
  * kc_partial() rather than quietly asserting nothing. */

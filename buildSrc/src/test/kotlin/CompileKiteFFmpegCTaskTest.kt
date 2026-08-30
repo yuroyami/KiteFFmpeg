@@ -65,11 +65,11 @@ class CompileKiteFFmpegCTaskTest {
         val fixture = fixture()
         val task = newTask("macos_arm64", fixture)
         // The one mistake that produces a wrong-architecture archive without any compiler being
-        // wrong: two targets writing into one directory (register item B1-11).
+        // wrong: two targets writing into one directory.
         task.outputDir.set(fixture.outputRoot.resolve("shared"))
 
         val message = assertFails { task.compile() }.message ?: ""
-        assertContains(message, "B1-11")
+        assertContains(message, "named after its konan target")
         assertContains(message, "macos_arm64")
         assertContains(message, "shared")
     }
@@ -390,7 +390,7 @@ class CompileKiteFFmpegCTaskTest {
      * The Windows runner's `file` describes a mingw object as "x86-64 COFF object file"; the guard
      * had been written against an older wording, "Intel amd64 COFF object file". Both describe the
      * SAME architecture, so the object was correct and the build failed anyway, on a string. The
-     * guard exists to catch a wrong ARCHITECTURE (register item B1-11), so it accepts every spelling
+     * guard exists to catch a wrong ARCHITECTURE, so it accepts every spelling
      * of the right one and no spelling of a wrong one.
      */
     @Test

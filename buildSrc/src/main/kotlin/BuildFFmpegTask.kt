@@ -265,7 +265,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             // macOS desktop: the portable Apple profile plus VideoToolbox encode.
             else -> desktopAppleArgs() + desktopTargetArgs(target, konanBin)
         }
-        // dav1d is MANDATORY (KC-EMBED, 2026-08-22): the parameter is required so no caller can
+        // dav1d is MANDATORY (2026-08-22): the parameter is required so no caller can
         // forget it. configure discovers dav1d ONLY through pkg-config, so the host pkg-config is
         // forced even on cross builds; configureEnv points it at the deps tree and nothing else.
         // The decoder pin makes the intent survive class policy changes like the hwaccel pins do.
@@ -275,7 +275,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
 
     /**
      * The cross-built dav1d install for [target]. MANDATORY since the axis died (owner decision
-     * 2026-08-22, KC-EMBED): every KiteFFmpeg FFmpeg carries the dav1d AV1 software decoder,
+     * 2026-08-22): every KiteFFmpeg FFmpeg carries the dav1d AV1 software decoder,
      * because FFmpeg has no native software AV1 decoder and a build without one plays zero AV1.
      */
     private fun dav1dRoot(target: TargetTriple): File {
@@ -809,7 +809,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     /**
      * One place where the expected FFmpeg release is written down, and where that is.
      *
-     * Register item B1-04: the `n8.0` expectation lives in three files bound only by a comment in the
+     * The `n8.0` expectation lives in three files bound only by a comment in the
      * third one asking the reader to keep them in sync. Nothing enforced it, and nothing checked any of
      * them against the vendored checkout. [assertFFmpegRefsAgree] is the enforcement, and this is what
      * it compares. Declared at class level and not inside the companion, because a class nested in a
@@ -879,7 +879,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
                 buildString {
                     appendLine(
                         "The expected FFmpeg release is recorded in ${all.size} place(s) and they do " +
-                            "not agree (register item B1-04). Found ${distinct.size} distinct values:",
+                            "not agree. Found ${distinct.size} distinct values:",
                     )
                     for (site in all) {
                         appendLine("  ${site.where}: ${site.ref} (normalised ${normaliseFFmpegRef(site.ref)})")

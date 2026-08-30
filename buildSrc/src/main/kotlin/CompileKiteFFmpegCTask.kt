@@ -29,7 +29,7 @@ import javax.inject.Inject
  * **Why this task exists at all.** Until B1.3 the FFmpeg helper layer was 949 lines of
  * `static inline` C inside `ffmpeg.def`. Text in a def file has no translation unit, so it had no
  * object file, no sanitizer run, no coverage and no test other than whatever Kotlin happened to
- * call (register item B1-01). Compiling it here gives it all of those and gives the helpers real
+ * call. Compiling it here gives it all of those and gives the helpers real
  * external linkage, which is what the metadata differential of
  * `native/kitecodec-c/scripts/klib-metadata-diff.sh` measures as one added
  * `@kotlinx/cinterop/internal/CCall.Direct` annotation per helper.
@@ -162,7 +162,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
         if (out.name != target) {
             throw GradleException(
                 "The C archive output directory must be named after its konan target and shared " +
-                    "with no other target (register item B1-11): target '$target' was handed " +
+                    "with no other target: target '$target' was handed " +
                     "'${out.absolutePath}', whose name is '${out.name}'.",
             )
         }
@@ -415,7 +415,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
          * behaviour on any of these targets.
          */
         fun specFor(konanTargetName: String): CTargetSpec = when (konanTargetName) {
-            // SOL-B4: one floor for the whole product, defined in BuildFFmpegTask. These read it
+            // One floor for the whole product, defined in BuildFFmpegTask. These read it
             // rather than restating it, because a hand-synced number is what this row was about.
             "macos_arm64" -> CTargetSpec(
                 "arm64-apple-macos${BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET}",
@@ -511,7 +511,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
             // TWO spellings of one architecture, and the list is the point. `file` renamed this
             // between releases: the Windows runner says "x86-64 COFF object file" where an older
             // one said "Intel amd64 COFF object file". The object was right and the build failed on
-            // a string. This guard is about the ARCHITECTURE (register item B1-11), so it accepts
+            // a string. This guard is about the ARCHITECTURE, so it accepts
             // every spelling of the right one and no spelling of a wrong one.
             "mingw_x64" -> listOf("Intel amd64 COFF object file", "x86-64 COFF object file")
             else -> throw GradleException(

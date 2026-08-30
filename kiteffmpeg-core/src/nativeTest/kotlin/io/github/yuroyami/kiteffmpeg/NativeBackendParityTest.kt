@@ -17,7 +17,7 @@ import kotlin.test.assertIs
 
 /**
  * Rows the execution log calls DONE that were only ever done on the JVM, plus one done in most of
- * Native but not all of it (register item KC-NOTDONE).
+ * Native but not all of it.
  *
  * The JVM twins of the first case already pass. That is the point: a typed error a caller can catch
  * on one backend and cannot on another is not a typed error, it is a platform lottery.

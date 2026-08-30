@@ -344,7 +344,7 @@ public actual class Frame internal constructor(
             pixelFormat: PixelFormat,
             ptsMicros: Long,
         ): Frame {
-            // The FFmpeg identity gate, register item B1-02. Before the first allocation.
+            // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
             require(width > 0 && height > 0) { "Invalid dimensions ${width}x$height" }
             // Before the pin: addressOf(0) on an empty array throws its own index error, which is
@@ -384,7 +384,7 @@ public actual class Frame internal constructor(
             sampleFormat: SampleFormat,
             ptsMicros: Long,
         ): Frame {
-            // The FFmpeg identity gate, register item B1-02. Before the first allocation.
+            // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
             require(sampleCount > 0) { "sampleCount must be positive" }
             require(sampleRate > 0) { "sampleRate must be positive" }

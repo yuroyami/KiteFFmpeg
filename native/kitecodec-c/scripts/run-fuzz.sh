@@ -142,7 +142,7 @@ echo "  artifacts  $ARTIFACTS"
 echo
 
 # LeakSanitizer IS available on Linux, unlike here, and the plan asks for it in this job. It is the
-# one instrument the macOS side cannot have (register item B1-14), so it is the reason the Linux job
+# one instrument the macOS side cannot have, so it is the reason the Linux job
 # is corroboration and not a duplicate.
 export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:print_stacktrace=1:strict_string_checks=1"
 export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1"

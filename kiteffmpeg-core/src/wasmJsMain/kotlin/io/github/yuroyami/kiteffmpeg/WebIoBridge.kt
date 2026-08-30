@@ -3,7 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import kotlin.js.JsAny
 
 /**
- * Hands a [MediaByteSource]'s bytes to FFmpeg through the callbacks it expects (17.14 X-06).
+ * Hands a [MediaByteSource]'s bytes to FFmpeg through the callbacks it expects.
  *
  * FFmpeg's IO is synchronous: it calls read and seek and expects an answer before it returns. On
  * the browser's main thread nothing may block, so this bridge does the one thing that is both

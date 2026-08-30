@@ -71,7 +71,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 /**
- * An open container, over the codec module (17.14 X-07).
+ * An open container, over the codec module.
  *
  * Opened from a [MediaByteSource] only. There is no filesystem in a browser, so the `open(path)`
  * overloads refuse rather than pretending: whatever the caller has is already bytes.

@@ -729,7 +729,7 @@ static void case_fmt_close_input_tolerates_nothing_to_close(int measure)
 }
 
 /* Container inference from the path extension. This case used to drive ffkmp_fmt_alloc_output,
- * which B1.4 deleted as dead exported surface (register item B1-08). The inference path itself is
+ * which B1.4 deleted as dead exported surface. The inference path itself is
  * not dead: ffkmp_fmt_alloc_output2 takes it whenever its format argument is NULL or empty, which
  * is exactly what the deleted helper did with no argument at all. So the case keeps its coverage
  * and moves to the surviving helper rather than being dropped with it. */

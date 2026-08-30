@@ -30,7 +30,7 @@ Two points decide whether KiteFFmpeg is usable for you:
 
 ## FFmpeg is a prerequisite
 
-KiteFFmpeg EMBEDS FFmpeg's libav\* libraries plus dav1d inside each native target's klib (KC-EMBED, 2026-08-22), so a consumer provisions nothing. Inside this repository the vendored trees under `native-libs/` are what gets embedded; a host without them falls back to a system FFmpeg for its own desktop target only. See the README's [release status](https://github.com/yuroyami/KiteFFmpeg#release-status).
+KiteFFmpeg EMBEDS FFmpeg's libav\* libraries plus dav1d inside each native target's klib (2026-08-22), so a consumer provisions nothing. Inside this repository the vendored trees under `native-libs/` are what gets embedded; a host without them falls back to a system FFmpeg for its own desktop target only. See the README's [release status](https://github.com/yuroyami/KiteFFmpeg#release-status).
 
 ### Mode 1: dynamic against system FFmpeg
 

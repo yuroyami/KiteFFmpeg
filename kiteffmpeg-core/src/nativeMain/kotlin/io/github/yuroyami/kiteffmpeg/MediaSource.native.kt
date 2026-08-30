@@ -603,7 +603,7 @@ public actual class MediaSource internal constructor(
     public actual companion object {
         @Throws(FFmpegException::class)
         public actual fun open(path: String): MediaSource {
-            // The FFmpeg identity gate, register item B1-02. First statement, before anything
+            // The FFmpeg identity gate. First statement, before anything
             // allocates: an incompatible runtime is rejected here rather than corrupting memory
             // through a struct field offset that moved.
             requireCompatibleFFmpeg()
@@ -784,7 +784,7 @@ private val byteSourceRead = staticCFunction { opaque: COpaquePointer?, buf: CPo
                 // Element copy, not memcpy: posix memcpy's size_t is 32-bit on androidNativeArm32
                 // and 64-bit everywhere else, and the shared-native metadata compile refuses a
                 // commonized declaration whose widths differ (hit on the first full 11-target
-                // publish, KC-EMBED). A counted loop has no width to disagree about, and at media
+                // publish). A counted loop has no width to disagree about, and at media
                 // bitrates its cost is noise next to the decode this feeds.
                 val dst = buf!!
                 val src = state.scratch

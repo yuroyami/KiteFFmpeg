@@ -28,7 +28,7 @@ import kotlin.test.assertIsNot
 import kotlin.test.assertTrue
 
 /**
- * The Kotlin half of the FFmpeg identity gate, register item B1-02.
+ * The Kotlin half of the FFmpeg identity gate.
  *
  * The division of labour between this file and `native/kitecodec-c/tests/test_identity.c` is
  * deliberate and worth stating, because it decides what each one is evidence for.

@@ -1,5 +1,5 @@
 /* HAND WRITTEN. Unlike its nine neighbours under src/, this unit is not generated from ffmpeg.def:
- * there was never any identity gate in the def to extract (register item B1-02). scripts/verify-lift.sh
+ * there was never any identity gate in the def to extract. scripts/verify-lift.sh
  * compares only the nine generated helper units against the def body, so this file is outside that
  * comparison by construction and editing it is normal work rather than a gate failure.
  *

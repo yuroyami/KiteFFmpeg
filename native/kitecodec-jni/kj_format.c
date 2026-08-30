@@ -161,7 +161,7 @@ JNIEXPORT void JNICALL kj_fmt_close_input(JNIEnv *env, jclass cls, jlong token)
     if (ctx != NULL) ffkmp_fmt_close_input(&ctx);
 }
 
-/* KC-CANCEL: the one entry point callable from another thread while a read or seek is blocked
+/* The one entry point callable from another thread while a read or seek is blocked
    on the same context. The handle table resolves or throws as usual; the C seam is a single
    volatile write. */
 JNIEXPORT void JNICALL kj_fmt_interrupt(JNIEnv *env, jclass cls, jlong token)

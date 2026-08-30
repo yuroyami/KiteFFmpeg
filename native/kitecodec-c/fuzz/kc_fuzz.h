@@ -1,7 +1,7 @@
 /* Shared plumbing for the six fuzz targets of plan sub-phase B1.5.
  *
  * Each target is one `LLVMFuzzerTestOneInput` in one source file, and that one body serves two
- * drivers (register item B1-13):
+ * drivers:
  *
  *   libFuzzer     -fsanitize=fuzzer,address,undefined, on ubuntu-24.04 in CI. The real fuzzer.
  *                 Nothing links it on this machine: the runtime archive libclang_rt.fuzzer_osx.a

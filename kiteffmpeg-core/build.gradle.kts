@@ -91,7 +91,7 @@ kotlin {
      * STABLE: the targets with prebuilt FFmpeg Release assets and CI coverage:
      * macosArm64, linuxX64, androidNativeArm64/Arm32/X64. JVM, JS and Wasm are always registered;
      * they are portable API variants and do not alter which FFmpeg-backed native targets ship.
-     * Since KC-EMBED (2026-08-22) ALL 11 native triples are part of the published set: every
+     * Since 2026-08-22 ALL 11 native triples are part of the published set: every
      * one has a CI-proven FFmpeg tree, and FFmpeg rides inside each klib.
      *
      *   -Pkiteffmpeg.stableTargetsOnly=true  OPTIONAL narrowing to the original stable set
@@ -280,7 +280,7 @@ kotlin {
             put(androidNativeArm32(), TargetTriple.AndroidArm32)
             put(androidNativeX64(), TargetTriple.AndroidX64)
             if (!stableTargetsOnly) {
-                // The rest of the 11-triple set (published since KC-EMBED).
+                // The rest of the 11-triple set.
                 put(macosX64(), TargetTriple.MacosX64)
                 put(iosArm64(), TargetTriple.IosArm64)
                 put(iosSimulatorArm64(), TargetTriple.IosSimulatorArm64)
@@ -369,7 +369,7 @@ kotlin {
          * skipped for the cinterop.
          *
          * The output directory is keyed by the konan target name and shared with nothing, which is
-         * register item B1-11: a wrong-architecture archive is embedded without complaint and fails
+         * A wrong-architecture archive is embedded without complaint and fails
          * only at the consumer's final link.
          */
         val compileC = tasks.register<CompileKiteFFmpegCTask>("compileKiteFFmpegCFor${triple.gradleSuffix}") {
@@ -498,7 +498,7 @@ kotlin {
         }
         target.binaries.all {
             linkerOpts("-L${paths.libDir}")
-            // A STATIC libavcodec.a resolves nothing itself: dav1d (mandatory since KC-EMBED)
+            // A STATIC libavcodec.a resolves nothing itself: dav1d (mandatory since FFmpeg was embedded)
             // and the platform libraries/frameworks must be named. Since the embedded def these
             // flags also ride the klib for consumers; naming them here keeps this project's own
             // test binaries correct even under the system def.
@@ -682,7 +682,7 @@ fun registerBuildFFmpeg(triple: TargetTriple, flavour: FFmpegLicense) = register
         requireSelfContained.set(
             providers.gradleProperty("kiteffmpeg.ffmpeg.selfContained").map { it.toBoolean() }.orElse(false),
         )
-        // dav1d is MANDATORY since KC-EMBED (2026-08-22): one bake task produces a complete
+        // dav1d is MANDATORY since 2026-08-22: one bake task produces a complete
         // tree, so the dav1d cross-build always runs (UP-TO-DATE when already built).
         dependsOn("buildDav1dFor${triple.gradleSuffix}")
         sourceDir.set(rootDir.resolve("vendor/ffmpeg"))

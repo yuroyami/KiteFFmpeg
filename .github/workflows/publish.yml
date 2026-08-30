@@ -1,5 +1,5 @@
 # Publishes kiteffmpeg-core to Maven Central (Central Portal, via the vanniktech plugin).
-# Since KC-EMBED (2026-08-22) there is no Gradle plugin: FFmpeg is embedded INSIDE the native
+# Since 2026-08-22 there is no Gradle plugin: FFmpeg is embedded INSIDE the native
 # klibs, so the fetch step below unpacks ALL 11 triples' zips (dav1d inside every one) into
 # native-libs/ before publishing, and cinterop embeds them.
 #

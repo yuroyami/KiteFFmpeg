@@ -64,7 +64,7 @@ kotlin {
                 entryPoint = "io.github.yuroyami.kiteffmpeg.sample.main"
                 if (paths != null) {
                     linkerOpts("-L${paths.libDir}")
-                    // A static vendored FFmpeg needs dav1d (mandatory since KC-EMBED) and the
+                    // A static vendored FFmpeg needs dav1d (mandatory since FFmpeg was embedded) and the
                     // platform flags named at the final link, see StaticLinkFlags.
                     linkerOpts(StaticLinkFlags.forTarget(triple, selectedLicense, paths.isStaticVendored))
                     if (!paths.isStaticVendored && target.name.startsWith("macos")) {

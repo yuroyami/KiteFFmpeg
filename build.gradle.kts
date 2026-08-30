@@ -93,7 +93,7 @@ tasks.register<CheckCinteropCouplingTask>("checkCinteropCoupling") {
 }
 
 /*
- * Register item B1-04: the expected FFmpeg release is written down in more than one place bound only by a
+ * The expected FFmpeg release is written down in more than one place bound only by a
  * comment asking the reader to keep them in sync, and nothing checked any of them against the vendored
  * checkout. This is that check, and it is a build-time ASSERTION rather than a task on purpose: a task
  * has to be asked for, and the failure this prevents is one nobody would think to ask about. It runs
@@ -109,11 +109,11 @@ run {
     val workflow = layout.projectDirectory.file(".github/workflows/publish.yml")
     val workflowText = providers.fileContents(workflow).asText.orNull
         ?: throw GradleException(
-            "Cannot check the FFmpeg release pins (register item B1-04): no ${workflow.asFile.path}.",
+            "Cannot check the FFmpeg release pins: no ${workflow.asFile.path}.",
         )
     val workflowRef = BuildFFmpegTask.readWorkflowFFmpegVersion(workflowText)
         ?: throw GradleException(
-            "Cannot check the FFmpeg release pins (register item B1-04): " +
+            "Cannot check the FFmpeg release pins: " +
                 ".github/workflows/publish.yml has no `FFMPEG_VERSION:` line in its env block. It is " +
                 "one of the places that must name the release; a workflow that stopped pinning " +
                 "one is exactly the drift this check exists to catch.",
@@ -127,7 +127,7 @@ run {
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
 
-    // The plugin pin site died with the plugin (KC-EMBED, 2026-08-22): with FFmpeg embedded in
+    // The plugin pin site died with the plugin (2026-08-22): with FFmpeg embedded in
     // the klibs there is no consumer-side version to keep honest, only the two producer pins.
     BuildFFmpegTask.assertFFmpegRefsAgree(
         listOf(

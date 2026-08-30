@@ -128,7 +128,7 @@ HELPER_LIB="$ROOT/build/$VARIANT/lib/libkitecodec_helpers_host.a"
 
 # Sanitizer options, identical to run-c-tests.sh so a finding here reads the same as a finding
 # there. detect_leaks=0 is explicit because LeakSanitizer is unsupported on macOS arm64 and asking
-# for it returns a message instead of evidence (register item B1-14).
+# for it returns a message instead of evidence.
 export ASAN_OPTIONS="detect_leaks=0:abort_on_error=1:print_stacktrace=1:strict_string_checks=1"
 export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1"
 export TSAN_OPTIONS="halt_on_error=1:second_deadlock_stack=1"

@@ -9,7 +9,7 @@ package io.github.yuroyami.kiteffmpeg.buildtools
  * nothing: every symbol it draws from outside itself must be named at the consumer's link.
  *
  * Since the portable profiles (owner decision 2026-08-22) every target's needs are platform
- * services plus exactly ONE third-party archive, the cross-built dav1d (mandatory, KC-EMBED):
+ * services plus exactly ONE third-party archive, the cross-built dav1d (mandatory):
  *  - Apple (macOS and iOS): SDK zlib plus the media frameworks the VideoToolbox/AudioToolbox
  *    codecs reference.
  *  - Linux: zlib, maths, dynamic loader, pthreads (all from the konan sysroot / OS).
@@ -18,7 +18,7 @@ package io.github.yuroyami.kiteffmpeg.buildtools
  *  - Android: nothing (MediaCodec is a platform service; zlib is a platform library named by
  *    the def file's linker opts).
  *
- * Consumers never see this class: since KC-EMBED the published klibs EMBED the archives and the
+ * Consumers never see this class: since FFmpeg was embedded the published klibs EMBED the archives and the
  * def file carries the platform flags, so the per-target lists here and in `ffmpeg.def` are two
  * renderings of one truth. KEEP THEM IN AGREEMENT.
  */

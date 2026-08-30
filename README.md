@@ -92,7 +92,7 @@ decode, no encode, timestamp rescale only.
 
 ## Install
 
-One dependency line. That is the whole integration since KC-EMBED (2026-08-22):
+One dependency line. That is the whole integration since 2026-08-22:
 the native klibs EMBED the compiled FFmpeg (dav1d included) and carry their own
 platform linker flags, so there is no Gradle plugin, no FFmpeg install, and no
 linker configuration.
@@ -126,7 +126,7 @@ Stated exactly, because rounding this up is how people lose an afternoon.
 | `kiteffmpeg-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.3** |
 | FFmpeg zips, ALL 11 triples (dav1d inside every one) | **published** on the `ffmpeg-n8.0` release, one canonical copy for every KiteFFmpeg version. Build evidence and the LGPL source offer; consumers need none of them |
 
-**KC-EMBED, 2026-08-22.** The Gradle plugin is deleted and dav1d is mandatory.
+**FFmpeg embedded, 2026-08-22.** The Gradle plugin is deleted and dav1d is mandatory.
 Each native target's cinterop klib embeds the six libav\* archives plus
 libdav1d (~10 MB per target artifact) and carries its platform linker flags, so
 the consumer integration is one dependency line. The version-mismatch class of
@@ -318,7 +318,7 @@ they do not decode, encode, filter, remux or transcode media.
 | `macosX64` | **yes**, 0.1.3 | cross-baked with dav1d on an arm64 Mac and CI; klib publishes | the vendored portable LGPL tree, embedded in the klib |
 | `linuxArm64` | **yes**, 0.1.3 | 109 native tests pass in an arm64 Linux container over the vendored cross-build, covering demux, decode, encode, filter and transcode | the vendored portable LGPL cross-build (konan toolchain), embedded in the klib |
 
-Every triple has an FFmpeg zip on the v-tag release, and since KC-EMBED every
+Every triple has an FFmpeg zip on the v-tag release, and since FFmpeg was embedded every
 published klib embeds its FFmpeg, so the "FFmpeg comes from" column above
 describes how THIS REPOSITORY builds; a consumer never provisions anything.
 Publication covers all 11 native targets and requires a real FFmpeg tree for
@@ -347,7 +347,7 @@ MediaCodec is reached only by asking FFmpeg for a named decoder such as
 |---|---|
 | A JVM distribution beyond macOS arm64 | The published jar carries `libkitecodec_jni.dylib` for macOS arm64 and nothing else, so a JVM consumer on Linux or Windows gets the typed unavailable placeholder rather than a codec. The Android AAR is published and real, but no Android playback has been qualified on a physical device. |
 | A functional Web codec backend | `js` and `wasmJs` are dependency-compatible placeholders only. Capability probes return false and media operations throw typed `FFmpegError.Unsupported`. |
-| Any GPL FFmpeg flavour | There is none, anywhere: no GPL build tasks, no GPL assets, and since KC-EMBED no way to swap in your own tree either; the embedded LGPL build is the build. Distributing GPL binaries would make your whole app GPL-3.0, which is not a choice a library should make for you. |
+| Any GPL FFmpeg flavour | There is none, anywhere: no GPL build tasks, no GPL assets, and since FFmpeg was embedded no way to swap in your own tree either; the embedded LGPL build is the build. Distributing GPL binaries would make your whole app GPL-3.0, which is not a choice a library should make for you. |
 | A bitstream filter API | Nothing binds `av_bsf_*`, so you cannot give a stream copy one explicitly. The vendored profile does compile the common ones in (`h264_mp4toannexb`, `hevc_mp4toannexb`, `aac_adtstoasc`, `extract_extradata`, `vp9_superframe`), so libavformat can insert them automatically during a copy. |
 | Hardware decode, and zero-copy hwframes | Hardware *encode* does work. `h264_videotoolbox` is verified on macOS arm64. Pass `allow_sw` on VMs and CI runners, where the encoder exists but the hardware block does not. |
 | Direct MediaCodec or Android UI integration | The Android loader attaches its `JavaVM`, then callers may select an FFmpeg-owned named decoder. There is no direct `MediaCodec` API, Compose component, Android View, Android playback or physical-device qualification here. |

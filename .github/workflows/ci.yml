@@ -117,7 +117,7 @@ jobs:
       # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
       # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result (register row KC-CI-KONAN).
+      # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
       # The two ratchets. apiCheck compares kiteffmpeg-core's klib against the committed dump in
@@ -221,7 +221,7 @@ jobs:
       # explicit argument, so test_ownership, test_buffers, test_rescale, test_strerror_thread,
       # test_convert, test_args and test_append ran only on a developer's laptop. Every "C suites
       # green" line in the log was then a true statement about one machine and a false impression
-      # about this gate (register item KC-CI-C). Passing no suite name runs the whole list, which is
+      # about this gate. Passing no suite name runs the whole list, which is
       # what run-c-tests.sh documents as gate behaviour.
       #
       # test_identity is still the reason this job is separate, and what it does is worth keeping
@@ -260,7 +260,7 @@ jobs:
       # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
       # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result (register row KC-CI-KONAN).
+      # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
       - name: Kotlin surface and build-side checks
@@ -436,11 +436,11 @@ jobs:
       # `ffmpeg` itself is for scripts/e2e.sh's CLI generation + ffprobe assertions only. KiteFFmpeg
       # links the vendored tree, not this one.
       # meson and ninja are for dav1d, which BuildDav1dTask drives and which became a mandatory
-      # dependency of the FFmpeg build with KC-EMBED. Its own preflight says "brew install meson
+      # dependency of the FFmpeg build when FFmpeg was embedded. Its own preflight says "brew install meson
       # ninja nasm"; nasm was already here for FFmpeg's x86 asm, the other two were not.
       - name: Install build deps + the ffmpeg CLI (for e2e assertions)
         run: brew install nasm meson ninja svt-av1 aom libvpx opus lame webp freetype harfbuzz fribidi libass ffmpeg jq
-      # BOTH output trees, because since KC-EMBED the FFmpeg build depends on a dav1d build and
+      # BOTH output trees, because since FFmpeg was embedded the FFmpeg build depends on a dav1d build and
       # dav1d installs to native-libs/deps/<triple>/dav1d, NOT under native-libs/lgpl/. Caching only
       # the lgpl path meant a cache hit restored FFmpeg, left dav1d missing, and the dav1d task then
       # ran and demanded a source tree the workflow never cloned. The key also hashes BuildDav1dTask
@@ -467,7 +467,7 @@ jobs:
       # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
       # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result (register row KC-CI-KONAN).
+      # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 --stacktrace || true
       - name: Unit + native tests against the vendored build
@@ -514,7 +514,7 @@ jobs:
       # The NDK cross-compile of FFmpeg takes ~6 min per ABI, so cache the resulting static libs
       # and only rebuild when the build-task definition (codec set, flags) changes.
       # Both trees and both sources, for the reason spelled out on the macOS vendored job above:
-      # dav1d became mandatory with KC-EMBED, it installs to native-libs/deps/<triple>/dav1d, and
+      # dav1d became mandatory when FFmpeg was embedded, it installs to native-libs/deps/<triple>/dav1d, and
       # nothing here ever cloned it. That is why every Android ABI died in under a minute on
       # buildDav1dFor<Target> with "dav1d source not found".
       - uses: actions/cache@v4
@@ -541,7 +541,7 @@ jobs:
       # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
       # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result (register row KC-CI-KONAN).
+      # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.kotlinTarget }} --stacktrace || true
       - name: Compile kiteffmpeg-core klib (${{ matrix.kotlinTarget }})
@@ -564,7 +564,7 @@ jobs:
   # plugin resolution from mavenLocal, klib + bundled cinterop compile, final native link, and
   # runtime symbol resolution.
   #
-  # Post-KC-EMBED this is a ONE-DEPENDENCY-LINE smoke: no plugin, no FFmpeg source selection, no
+  # With FFmpeg embedded this is a ONE-DEPENDENCY-LINE smoke: no plugin, no FFmpeg source selection, no
   # kiteffmpeg { } block, because none of those exist any more. FFmpeg rides inside the klib. The
   # sentence that stood here described FFmpegSource.System and a Prebuilt variant to add later;
   # both were the deleted plugin's vocabulary.
@@ -666,7 +666,7 @@ jobs:
           //
           // Until 2026-08-24 this generated consumer applied id("io.github.yuroyami.kiteffmpeg"),
           // imported FFmpegLicense and FFmpegSource, and configured a kiteffmpeg { ffmpeg { } }
-          // block. KC-EMBED deleted every one of those: FFmpeg now lives inside the klibs and the
+          // block. Embedding FFmpeg deleted every one of those: FFmpeg now lives inside the klibs and the
           // Gradle plugin was removed entirely (commit aae752e, "plugin plumbing deleted"). So this
           // job had been asking mavenLocal for a plugin that no longer exists and failing with
           // "Plugin [id: 'io.github.yuroyami.kiteffmpeg'] was not found", which nobody noticed
@@ -743,7 +743,7 @@ jobs:
         run: ./gradlew :kiteffmpeg-core:compileKotlinMingwX64 --stacktrace || true
       # BtbN is GONE from this job, and both reasons it had to go were proven on CI.
       #
-      # 1. Its builds are SHARED: DLLs plus import libraries, no libavformat.a. Since KC-EMBED the
+      # 1. Its builds are SHARED: DLLs plus import libraries, no libavformat.a. Since FFmpeg was embedded the
       #    build embeds STATIC archives into the klib, so this job failed with "Could not find
       #    'libavformat.a' binary in neither of [native-libs\lgpl\mingw-x64\lib, ...]".
       # 2. BtbN prunes old autobuild releases, so any pin 404s after a few weeks and the job goes

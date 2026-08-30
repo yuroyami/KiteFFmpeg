@@ -224,7 +224,7 @@ enum class TargetTriple(val dirName: String, val gradleSuffix: String) {
      * for these triples, and building nine dependencies three ways is not what phase W buys. The
      * reduced profile is the 17.6 `standard` tier and plays the whole 17.5 matrix; a consumer who
      * wants that stack builds their own tree and selects it with `-Pkiteffmpeg.ffmpeg.license`. (This
-     * line used to say "through the plugin". KC-EMBED deleted the plugin module on 2026-08-22.)
+     * line used to say "through the plugin". Embedding FFmpeg deleted the plugin module on 2026-08-22.)
      */
     val isPortableDesktop: Boolean get() = this == LinuxX64 || this == LinuxArm64 || this == MingwX64
 

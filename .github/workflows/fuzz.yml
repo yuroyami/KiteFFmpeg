@@ -19,7 +19,7 @@
 # instrumentation with no driver, which fuzzes nothing. So the six targets get two drivers over one
 # body: libFuzzer here, and the committed-corpus replay under ASan and UBSan everywhere else.
 #
-# LeakSanitizer is the second thing this runner has and macOS does not (register item B1-14):
+# LeakSanitizer is the second thing this runner has and macOS does not:
 # detect_leaks=1 on an ASan binary built by Apple clang answers "detect_leaks is not supported on
 # this platform". run-fuzz.sh turns it on here.
 #

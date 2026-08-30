@@ -12,7 +12,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_pix_fmt_from_name
 import kotlin.js.JsAny
 
 /**
- * Converts video frames to RGBA without the pixels ever entering Kotlin memory (17.14 X-11).
+ * Converts video frames to RGBA without the pixels ever entering Kotlin memory.
  *
  * ### Why this exists at all, when `copyPlanesToByteArray` is right there
  *

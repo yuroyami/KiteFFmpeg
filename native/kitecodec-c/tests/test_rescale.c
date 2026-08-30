@@ -27,7 +27,7 @@
  * here is 13 and not the 12 a narrower search reports.
  *
  * The count was 15 until B1.4 deleted ffkmp_averror_einval and ffkmp_nopts_value as dead exported
- * surface, along with 13 other helpers no Kotlin file imported (register item B1-08). The two
+ * surface, along with 13 other helpers no Kotlin file imported. The two
  * cases that asserted their values went with them; every other use of them in this file was
  * incidental, a convenient source of an error code or of a timestamp sentinel, and those uses now
  * spell the libav macro the deleted helper wrapped.

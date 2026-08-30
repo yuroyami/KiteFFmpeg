@@ -20,7 +20,7 @@
 #      (ffkmp_codecctx_use_videotoolbox, ffkmp_frame_hw_download), and nothing else:
 #      195 names.
 #      That set is a compatibility promise, which is the whole reason B1.4 deleted the 15 helpers
-#      no Kotlin file imported (register item B1-08).
+#      no Kotlin file imported.
 #   3. What does it keep to itself? The four trailing-underscore helpers, which are `static` and
 #      must never appear as external symbols.
 #   4. Does anything print? Nothing but the identity gate's diagnostic bypass warning, which plan

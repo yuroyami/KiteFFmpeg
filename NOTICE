@@ -13,7 +13,7 @@ KiteFFmpeg is a binding. It contains no FFmpeg source, and this repository ships
 FFmpeg binaries in its git tree. FFmpeg is NOT covered by this NOTICE or by
 KiteFFmpeg's Apache-2.0 licence.
 
-Since KC-EMBED (2026-08-22), KiteFFmpeg's PUBLISHED ARTIFACTS (the per-target
+Since 2026-08-22, KiteFFmpeg's PUBLISHED ARTIFACTS (the per-target
 klibs, the JVM jar's bundled native library, and the Android AAR's JNI
 libraries) EMBED compiled FFmpeg with the dav1d AV1 decoder. Those FFmpeg
 portions remain LGPL-2.1-or-later (dav1d: BSD-2-Clause); the artifact POMs

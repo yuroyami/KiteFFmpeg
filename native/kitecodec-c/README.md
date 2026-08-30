@@ -11,7 +11,7 @@ was cinterop's, and its only test was whatever Kotlin happened to call, which le
 This directory is the fix, and since B1.3 it is what cinterop compiles and embeds. B1.4 finished
 the shape: nine translation units, one per subsystem; `KC_API` on the 157 helpers Kotlin imports;
 and the 15 that nothing imported deleted outright, because in a versioned library a dead exported
-symbol is a compatibility promise nobody meant to make (register item B1-08).
+symbol is a compatibility promise nobody meant to make.
 
 ABI 1.1 added the compatible half of the opaque C surface: eleven forward-declared handle aliases,
 seven wrapper functions and five media-type accessors. ABI 2.0 completes the source break: the 140

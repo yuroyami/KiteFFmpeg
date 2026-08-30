@@ -40,7 +40,7 @@ The LGPL flavor does **not** make your app open source. It does obligate you, wh
 
 ### What the KiteFFmpeg release zips include
 
-The prebuilt FFmpeg archives on KiteFFmpeg's GitHub Releases are named `ffmpeg-<version>-<license>-<triple>.zip`; since KC-EMBED (2026-08-22) they are the publication pipeline's input (their contents get embedded into the published klibs) and the LGPL source-offer anchor. Each one is packaged for compliance. Next to `include/` and `lib/`, every zip carries:
+The prebuilt FFmpeg archives on KiteFFmpeg's GitHub Releases are named `ffmpeg-<version>-<license>-<triple>.zip`; since 2026-08-22 they are the publication pipeline's input (their contents get embedded into the published klibs) and the LGPL source-offer anchor. Each one is packaged for compliance. Next to `include/` and `lib/`, every zip carries:
 
 - `COPYING.LGPLv2.1`, always. The `gpl` zips add `COPYING.GPLv2` and `COPYING.GPLv3`.
 - `LICENSE.md` from the FFmpeg source tree, which is the per-component license map.

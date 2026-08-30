@@ -282,7 +282,7 @@ public actual class StreamDecoder internal constructor(
  * These hold the `AVFormatContext` as a raw address, and `MediaSource.close()` frees it. Without
  * this, a reader used after its source was closed would read freed memory and answer plausible
  * nonsense, which is exactly the failure the generation-tagged handle table exists to prevent on
- * the JNI side (17.14 X-04). The web backend does not route through that table, so it owes the
+ * the JNI side. The web backend does not route through that table, so it owes the
  * same guarantee in Kotlin: one flag the parent clears and every child checks first.
  */
 internal class SourceLifetime {

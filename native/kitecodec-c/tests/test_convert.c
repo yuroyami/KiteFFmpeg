@@ -1,6 +1,6 @@
 /* ffkmp_frame_convert_pixfmt, the only swscale use in the whole helper layer.
  *
- * Register item B1-23: the helper builds and destroys an SwsContext on every call. B2 owns caching
+ * The helper builds and destroys an SwsContext on every call. B2 owns caching
  * that context; B1 changes nothing about it and writes the baseline B2's caching has to match. So
  * every case here asserts the behaviour as it is today, not as it should become, and the numbers
  * are measured rather than chosen.

@@ -264,7 +264,7 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
         val sources = jniSources.files.filter { it.name.endsWith(".c") }.sortedBy { it.name }
         if (sources.isEmpty()) throw GradleException("no adapter .c sources found for $name")
         // Every directory that holds a source, not just the first one's. The handle table moved to
-        // native/kitecodec-handles (17.14 X-04) so the web binding shares it, and `sorted by name`
+        // native/kitecodec-handles so the web binding shares it, and `sorted by name`
         // puts kc_handles.c ahead of kj_*.c, so deriving one include dir from the first source
         // would have hidden kj_internal.h from the files that include it.
         val sourceDirs = sources.map { it.parentFile }.distinct()

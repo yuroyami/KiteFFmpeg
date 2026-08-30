@@ -1,6 +1,6 @@
 /* ffkmp_strerror and the only piece of static storage in the whole helper layer.
  *
- * Register item B1-09: `static __thread char buf[256]` at ffmpeg.def line 37 is the single static
+ * `static __thread char buf[256]` at ffmpeg.def line 37 is the single static
  * object in the 949 line body. The header now states the contract (see the comment above the
  * declaration of ffkmp_strerror in include/kitecodec_helpers.h); this suite is the other half of
  * B1-09 and proves it.

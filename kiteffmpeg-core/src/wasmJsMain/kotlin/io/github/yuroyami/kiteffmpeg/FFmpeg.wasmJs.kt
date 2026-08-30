@@ -6,7 +6,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_find_encoder_by_name
 import io.github.yuroyami.kiteffmpeg.wasm.kc_ffmpeg_configuration
 
 /**
- * The real web backend, over the generated binding (17.14 X-07).
+ * The real web backend, over the generated binding.
  *
  * Every member requires [KiteFFmpegWeb.load] to have completed. That is not a quirk of this object:
  * the codec is a separate wasm module and there is nothing to ask before it is instantiated.

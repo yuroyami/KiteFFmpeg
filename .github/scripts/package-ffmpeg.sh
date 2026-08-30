@@ -3,7 +3,7 @@
 #
 #   package-ffmpeg.sh <ffmpeg-version> <license> <target-triple> [ffmpeg-source-dir]
 #
-# dav1d is MANDATORY (KC-EMBED, 2026-08-22): there is no flavour axis; every zip carries
+# dav1d is MANDATORY (2026-08-22): there is no flavour axis; every zip carries
 # lib/libdav1d.a and the packaging refuses a tree without it.
 #
 # Zips the {include,lib} tree at native-libs/<license>/<triple> (NOT the parent dir, so the archive
@@ -116,7 +116,7 @@ EOF
 # --- self-containment check -----------------------------------------------------------------
 # Every profile is PORTABLE and dav1d is MANDATORY: the one third-party archive, the cross-built
 # libdav1d.a, is copied into the tree's lib/ by BuildFFmpegTask itself. A zip without it would
-# ship an FFmpeg that plays zero AV1 in software, which is exactly the silent hole KC-EMBED
+# ship an FFmpeg that plays zero AV1 in software, which is exactly the silent hole embedding it
 # closed, so its absence is fatal here.
 if [ ! -f "${src}/lib/libdav1d.a" ]; then
   echo "::error::${src}/lib/libdav1d.a is missing; dav1d is mandatory (run buildDav1dFor<Target>, then rebake)" >&2

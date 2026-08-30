@@ -6,7 +6,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.kc_ffmpeg_report_get
 import io.github.yuroyami.kiteffmpeg.wasm.kc_verdict_name
 
 /**
- * Reads `kc_ffmpeg_report` out of the codec module's memory (17.14 X-07).
+ * Reads `kc_ffmpeg_report` out of the codec module's memory.
  *
  * The whole struct in one call, then field by field at generated offsets, exactly as the JNI
  * adapter does it in C. Nothing here counts bytes by hand: `ReportLayout` is `offsetof()` output

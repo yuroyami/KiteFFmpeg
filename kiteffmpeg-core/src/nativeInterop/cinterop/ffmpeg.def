@@ -7,7 +7,7 @@ language = C
 # the identity gate of register item B1-02 and the six kc_ functions register item B1-22 moves behind it.
 headers = kitecodec_helpers.h kitecodec_handles.h kitecodec_abi.h
 headerFilter = kitecodec_helpers.h kitecodec_handles.h kitecodec_abi.h
-# THE VENDORED/PUBLISHED DEF (KC-EMBED, 2026-08-22). Every archive below is embedded INTO this
+# THE VENDORED/PUBLISHED DEF (2026-08-22). Every archive below is embedded INTO this
 # cinterop klib and rides it through publication, exactly as libkitecodec.a always has (verified:
 # the published klib carries default/targets/<t>/included/*.a). A consumer therefore needs ONLY
 # the dependency line; no plugin, no -L, no FFmpeg install.

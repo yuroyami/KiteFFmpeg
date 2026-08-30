@@ -10,7 +10,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Rows the execution log calls DONE that were only ever done on Native (register item KC-NOTDONE).
+ * Rows the execution log calls DONE that were only ever done on Native.
  *
  * Each case below has a passing twin in `nativeTest`. That is the whole point: a guard living on
  * one backend is not a guard, it is a coin flip decided by which target the caller compiled for.

@@ -6,7 +6,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 /**
- * KC-CANCEL's observable contract, on every backend that runs this suite: after
+ * The observable contract, on every backend that runs this suite: after
  * [MediaSource.interrupt], blocking calls fail fast with a typed [FFmpegError.Interrupted],
  * and close remains legal. FFmpeg polls the interrupt seam at the top of every blocking loop,
  * which is what makes the fail-fast half testable without arranging a real wedge.

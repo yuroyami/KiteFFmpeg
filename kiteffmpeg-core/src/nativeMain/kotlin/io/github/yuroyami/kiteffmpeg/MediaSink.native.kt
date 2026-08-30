@@ -197,7 +197,7 @@ public actual class MediaSink internal constructor(
         // sink still looked usable and the next call wrote against it. newStreamFor has poisoned
         // since P1-10; this path mutates identically and was left out.
         try {
-            // KC-EVIDENCE-MUX: the only way to reach the poison below from a test. Inert unless a
+            // The only way to reach the poison below from a test. Inert unless a
             // test armed it, and self-disarming, so production always takes the false branch.
             MuxFaults.failIfArmed("addCopyStream/native")
             val outPar = ffkmp_stream_codecpar(outStream)
@@ -423,7 +423,7 @@ public actual class MediaSink internal constructor(
     public actual companion object {
         @Throws(FFmpegException::class)
         public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink {
-            // The FFmpeg identity gate, register item B1-02. Before the first allocation.
+            // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
             val arena = kotlinx.cinterop.Arena()
             val ctxVar = arena.allocPointerTo<kc_fmt_ctx>()

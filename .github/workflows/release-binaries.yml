@@ -3,7 +3,7 @@
 # them: the binaries depend on the FFmpeg version, not on KiteFFmpeg's, so KiteFFmpeg version
 # releases carry release notes only and publish.yml fetches from this tag.
 #
-# Since KC-EMBED (2026-08-22) there is NO flavour axis: dav1d is mandatory in every build, and no Gradle plugin exists; these zips are the build
+# Since 2026-08-22 there is NO flavour axis: dav1d is mandatory in every build, and no Gradle plugin exists; these zips are the build
 # evidence, the LGPL source-offer anchor, and the input the publication pipeline unpacks into
 # native-libs/ before embedding FFmpeg INTO the published klibs. Assets are named
 # `ffmpeg-<ffversion>-<license>-<triple>.zip` (+ `.sha256`).
@@ -77,7 +77,7 @@ jobs:
         run: git clone --depth 1 --branch ${{ github.event.inputs.ffmpeg_version }} https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
-      # The bake depends on the dav1d task since KC-EMBED, so one Gradle call builds both.
+      # The bake depends on the dav1d task since FFmpeg was embedded, so one Gradle call builds both.
       - name: Build FFmpeg (NDK, dav1d inside)
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
@@ -124,7 +124,7 @@ jobs:
         run: git clone --depth 1 --branch ${{ github.event.inputs.ffmpeg_version }} https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
-      # The bake depends on the dav1d task since KC-EMBED, so one Gradle call builds both.
+      # The bake depends on the dav1d task since FFmpeg was embedded, so one Gradle call builds both.
       # -Pkiteffmpeg.ffmpeg.selfContained=true: a Release asset must link on a machine that has
       # nothing installed; with the portable profile the only bundleable archive is dav1d itself.
       - name: Build FFmpeg (dav1d inside)
@@ -178,7 +178,7 @@ jobs:
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.task }} --stacktrace || true
-      # The bake depends on the dav1d task since KC-EMBED, so one Gradle call builds both
+      # The bake depends on the dav1d task since FFmpeg was embedded, so one Gradle call builds both
       # (dav1d cross-compiles with the same konan toolchain the warmup just provisioned).
       - name: Build FFmpeg (dav1d inside)
         run: |

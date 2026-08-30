@@ -24,7 +24,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_samples_copy_to_buffer
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_samples_get_buffer_size
 
 /**
- * A decoded frame, as a handle into the codec module (17.14 X-07).
+ * A decoded frame, as a handle into the codec module.
  *
  * The pointer is an opaque `Int` on this side and is never dereferenced here; every read is a call.
  * The frame is owned: [close] frees it, and closing twice is a no-op because the pointer is cleared.
