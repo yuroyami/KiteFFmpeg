@@ -40,7 +40,7 @@ plugins {
 // no Android DSL block is present.
 val phoneTargetsOnly = providers.gradleProperty("kiteffmpeg.phoneTargetsOnly")
     .map { it.toBoolean() }.getOrElse(false)
-// KC-ANDROID (2026-08-22, owner order): the Android AAR is a FIRST-CLASS published artifact, so
+// The Android AAR is a FIRST-CLASS published artifact, so
 // the Android plugin applies by default. It needs an Android SDK at configuration time; every
 // GitHub runner and dev machine here has one, and -Pkiteffmpeg.noAndroid=true is the escape
 // hatch for a host that does not (that host then publishes nothing).
@@ -76,7 +76,7 @@ kotlin {
     explicitApi()
 
     compilerOptions {
-        // -Xcontext-parameters was here and is gone (register row SOL-K1). Context parameters are
+        // -Xcontext-parameters was here and is gone. Context parameters are
         // no longer behind a flag on this Kotlin, and this module declares none anyway: a grep for
         // a context declaration across every source set returns nothing. A flag that enables an
         // unused feature on a compiler that no longer needs the flag is two kinds of dead.
@@ -168,7 +168,7 @@ kotlin {
                 "be used with publishToMavenLocal; remote publication is forbidden.",
         )
     }
-    // KC-EMBED (2026-08-22): the FULL 11-target set IS the release set. FFmpeg rides inside
+    // The FULL 11-target set IS the release set. FFmpeg rides inside
     // every native klib, all 11 triples have CI-proven trees, and the every-target-tree hard
     // fail below (requireAllTargets implied true while publishing) is what keeps a publication
     // from silently dropping one. The old stableTargetsOnly gate survives only as an optional
@@ -237,7 +237,7 @@ kotlin {
     // Every Kotlin/Native target gets the same single consolidated cinterop. Each resolves its
     // own FFmpeg install via FFmpegPaths.resolve(...): vendored static if available, else system.
     // -Pkiteffmpeg.withDesktopTargets=true ADDS the three cross desktop triples to the phone scope
-    // rather than replacing it (phase W, register item W-07). A desktop publication that dropped
+    // rather than replacing it (phase W). A desktop publication that dropped
     // the Apple and Android variants would break every mobile consumer resolving the same version,
     // which is why this is an addition and not its own scope.
     val withDesktopTargets = providers.gradleProperty("kiteffmpeg.withDesktopTargets")
@@ -391,7 +391,7 @@ kotlin {
             sourceDir.set(rootDir.resolve("native/kitecodec-c/src"))
             includeDir.set(rootDir.resolve("native/kitecodec-c/include"))
             ffmpegIncludeDirs.set(listOf(paths.includeDir))
-            // The version headers the archive freezes, tracked by CONTENT (interlude item I-07):
+            // The version headers the archive freezes, tracked by CONTENT:
             // a path string survives a brew upgrade that rewrites every file under it.
             ffmpegVersionHeaders.from(
                 listOf("libavutil", "libavcodec", "libavformat", "libavfilter", "libswscale", "libswresample")
@@ -434,7 +434,7 @@ kotlin {
             // AVPacket etc. as a SINGLE Kotlin type across every binding (each cinterop module
             // otherwise generates its own duplicate copy of identical C types).
             create("ffmpeg") {
-                // KC-EMBED (2026-08-22): the VENDORED def embeds the six libav* archives plus
+                // The VENDORED def embeds the six libav* archives plus
                 // libdav1d into the cinterop klib (the same `staticLibraries` slot libkitecodec.a
                 // has always ridden), and carries the platform linker flags, so a consumer needs
                 // nothing but the dependency line. The SYSTEM def is the dev fallback for a host
@@ -534,7 +534,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
         val commonMain = getByName("commonMain")
-        // Encode, mux and filter are refused on BOTH web targets (17.14 X-07): S6 is "it plays on
+        // Encode, mux and filter are refused on BOTH web targets: S6 is "it plays on
         // the web", and every one of those classes is hand-written work with a strong platform
         // alternative. One copy of each refusal, shared, rather than two that drift.
         val webRefusedMain = maybeCreate("webRefusedMain").apply {
@@ -546,7 +546,7 @@ kotlin {
             dependsOn(webRefusedMain)
         }
         // `js` keeps the placeholder. `wasmJs` does NOT: it carries a real backend over the
-        // generated binding (17.14 X-07), so it must not inherit the throwing actuals. Attaching
+        // generated binding, so it must not inherit the throwing actuals. Attaching
         // unsupportedMain to webMain would give both of them to it.
         getByName("jsMain").dependsOn(unsupportedMain)
 
@@ -557,7 +557,7 @@ kotlin {
         getByName("jsTest").dependsOn(unsupportedTest)
 
         // The JVM is a REAL backend, not a placeholder: it runs the same JNI adapter the Android
-        // target runs, over the same opaque C ABI (phase W, register item W-01). unsupportedMain
+        // target runs, over the same opaque C ABI (phase W). unsupportedMain
         // is web's alone now.
         val jvmAndAndroidMain = maybeCreate("jvmAndAndroidMain").apply {
             dependsOn(commonMain)
@@ -711,7 +711,7 @@ fun registerBake(bake: TaskProvider<BuildFFmpegTask>): TaskProvider<BuildFFmpegT
     return bake
 }
 
-// Register :buildFFmpegForWasm[Simd|Mt] (17.14 X-02). Not a TargetTriple: konan has no wasm
+// Register :buildFFmpegForWasm[Simd|Mt]. Not a TargetTriple: konan has no wasm
 // target, so none of the cross-toolchain plumbing above applies. Output goes to a sibling of the
 // native trees so packaging finds it the same way.
 fun registerBuildFFmpegWasm(variantName: String, taskSuffix: String) =
@@ -730,16 +730,16 @@ fun registerBuildFFmpegWasm(variantName: String, taskSuffix: String) =
 
 registerBuildFFmpegWasm("base", "")
 
-// Compile the portable C helper layer for wasm (17.14 X-03). Depends on the wasm FFmpeg tree for
+// Compile the portable C helper layer for wasm. Depends on the wasm FFmpeg tree for
 // its headers, which is why it names the base variant's include directory explicitly.
 val wasmFFmpegRoot = rootDir.resolve("native-libs/lgpl/wasm32")
-// The web binding, generated from the gated signature baseline (17.14 X-05).
+// The web binding, generated from the gated signature baseline.
 tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.GenerateWasmBindingTask>("generateWasmBinding") {
     signatureBaseline.set(rootDir.resolve("native/kitecodec-c/signature-baseline.txt"))
     outputDir.set(rootDir.resolve("native-libs/deps/wasm32/binding"))
 }
 
-// KC-WASM-MIRROR. The generator writes into gitignored native-libs/, so the file that actually
+// The generator writes into gitignored native-libs/, so the file that actually
 // COMPILES is a committed copy under wasmJsMain. This holds the two equal; without it the drift
 // only shows up at runtime in a browser.
 val checkWasmBindingMirror =
@@ -778,7 +778,7 @@ tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.CompileKiteFFmpegCWasmTa
 registerBuildFFmpegWasm("simd", "Simd")
 registerBuildFFmpegWasm("mt", "Mt")
 
-// Register the :buildDav1dFor<Target> tasks (D-7, KC-AV1SW): cross-compile dav1d into
+// Register the :buildDav1dFor<Target> tasks: cross-compile dav1d into
 // native-libs/deps/<target>, which is where a dav1d-enabled buildFFmpegFor<Target> looks.
 fun registerBuildDav1d(triple: TargetTriple) =
     tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.BuildDav1dTask>("buildDav1dFor${triple.gradleSuffix}") {
@@ -882,7 +882,7 @@ mavenPublishing {
                 url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
                 distribution = "repo"
             }
-            // KC-EMBED (2026-08-22): the native klibs and the JVM/Android native libraries EMBED
+            // The native klibs and the JVM/Android native libraries EMBED
             // compiled FFmpeg, so the artifact redistributes LGPL bytes and must say so. The
             // complete corresponding source is attached to the matching v-tag GitHub release.
             license {
@@ -937,7 +937,7 @@ mavenPublishing {
  */
 run {
     val jniDir = rootDir.resolve("native/kitecodec-jni")
-    // The handle table, shared with the web binding rather than copied (17.14 X-04).
+    // The handle table, shared with the web binding rather than copied.
     val handlesDir = rootDir.resolve("native/kitecodec-handles")
     val opaqueInclude = rootDir.resolve("native/kitecodec-c/include")
     val javaHome = javaToolchains
@@ -1217,7 +1217,7 @@ run {
 }
 
 /*
- * ── The host JNI library rides the jvm artifact (phase W, register item W-02) ────────────────
+ * ── The host JNI library rides the jvm artifact (phase W) ────────────────
  *
  * `linkKiteFFmpegJniMacosArm64` was scaffolded as test-only, loaded through the
  * `kiteffmpeg.jni.path` property. A desktop consumer has no such property, so W-01's real JVM
@@ -1316,7 +1316,7 @@ run {
                     // omitting them once produced a 137 KB library that linked happily and could
                     // only have failed at load. The flag turns that into a link error.
                     //
-                    // dav1d follows the same tree-presence truth as every other link (D-7), and
+                    // dav1d follows the same tree-presence truth as every other link, and
                     // comes AFTER the libav* group because ld resolves static archives left to
                     // right and it is libavcodec that draws on it. It was missing here alone: the
                     // dav1d surge enabled --enable-libdav1d for the linux trees without adding the
