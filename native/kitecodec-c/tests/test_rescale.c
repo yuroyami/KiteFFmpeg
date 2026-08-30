@@ -585,8 +585,11 @@ static void case_plane_heights(void)
                     expect_chroma);
             ffkmp_frame_set_height(f, height);
             KC_EQ_INT(ffkmp_frame_plane_height(f, 0), height);
-            KC_EQ_INT(ffkmp_frame_plane_height(f, 1), expect_chroma);
-            KC_EQ_INT(ffkmp_frame_plane_height(f, 2), expect_chroma);
+            /* Only the planes this format HAS. A format with fewer answers 0 for the rest, which
+             * is the bound this used to be missing: nv12 has no plane 2 and rgba has no plane 1,
+             * and both used to answer with a height anyway. */
+            KC_EQ_INT(ffkmp_frame_plane_height(f, 1), fmts[i].planes > 1 ? expect_chroma : 0);
+            KC_EQ_INT(ffkmp_frame_plane_height(f, 2), fmts[i].planes > 2 ? expect_chroma : 0);
             if (truncating != expect_chroma) {
                 kc_detail("a plain shift would say %d, AV_CEIL_RSHIFT says %d", truncating,
                           expect_chroma);
@@ -611,22 +614,23 @@ static void case_plane_heights(void)
     KC_EQ_INT(3 >> 2, 0);
     kc_note("a zero-row plane is the failure this helper exists to prevent");
 
-    kc_case("plane_height answers for planes the format does not have");
+    kc_case("plane_height refuses planes the format does not have");
     ffkmp_frame_set_format(f, AV_PIX_FMT_RGBA);
     ffkmp_frame_set_height(f, 1081);
-    KC_EQ_INT(ffkmp_frame_plane_height(f, 1), 1081);
+    KC_EQ_INT(ffkmp_frame_plane_height(f, 1), 0);
     ffkmp_frame_set_format(f, AV_PIX_FMT_NV12);
-    KC_EQ_INT(ffkmp_frame_plane_height(f, 2), 541);
-    kc_note("rgba has one plane and nv12 has two, so both answers are for planes that do not");
-    kc_note("exist. The bound is ffkmp_frame_plane_count, and a caller that skips it gets a");
-    kc_note("number rather than a refusal.");
+    KC_EQ_INT(ffkmp_frame_plane_height(f, 2), 0);
+    kc_note("rgba has one plane and nv12 has two. Both used to answer with a height for planes");
+    kc_note("that do not exist, which is a number a caller can size a copy from; the pointer");
+    kc_note("accessor beside this one answers NULL for the same index, so the pair disagreed.");
 
-    kc_case("plane_height refuses a negative plane index but not a large one");
+    kc_case("plane_height refuses a negative plane index and a large one");
     ffkmp_frame_set_format(f, AV_PIX_FMT_YUV420P);
     KC_EQ_INT(ffkmp_frame_plane_height(f, -1), 0);
-    KC_EQ_INT(ffkmp_frame_plane_height(f, 8), 1081);
-    kc_note("index 8 is past AV_NUM_DATA_POINTERS and still answers with the frame height. No");
-    kc_note("memory is touched, so this is a misleading answer and not a hazard.");
+    KC_EQ_INT(ffkmp_frame_plane_height(f, 3), 0);
+    KC_EQ_INT(ffkmp_frame_plane_height(f, 8), 0);
+    kc_note("yuv420p has three planes, so index 3 is the first that does not exist and index 8");
+    kc_note("is past AV_NUM_DATA_POINTERS as well. Both refuse now.");
 
     kc_case("plane_height reports 0 for an unknown pixel format");
     ffkmp_frame_set_format(f, AV_PIX_FMT_NONE);

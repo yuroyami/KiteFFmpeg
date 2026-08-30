@@ -39,6 +39,13 @@ static int ffkmp_graph_finish_(
     }
     outputs->name = av_strdup("in");  outputs->filter_ctx = src_ctx;  outputs->pad_idx = 0; outputs->next = NULL;
     inputs->name  = av_strdup("out"); inputs->filter_ctx  = sink_ctx; inputs->pad_idx  = 0; inputs->next  = NULL;
+    /* A NULL name is not a small loss: avfilter_graph_parse_ptr matches the description's labels
+       against these strings, so an unnamed endpoint is silently left unconnected and the graph
+       configures into something the caller never asked for. */
+    if (!outputs->name || !inputs->name) {
+        avfilter_inout_free(&outputs); avfilter_inout_free(&inputs);
+        return AVERROR(ENOMEM);
+    }
 
     int rc = avfilter_graph_parse_ptr(graph, description, &inputs, &outputs, NULL);
     avfilter_inout_free(&outputs); avfilter_inout_free(&inputs);
@@ -173,6 +180,33 @@ KC_API int ffkmp_graph_build_audio(
     return 0;
 }
 
+/* True when `[out]` appears as a graph LABEL, not merely somewhere in the string.
+
+   A plain strstr answers yes for `drawtext=text='[out]'` and for an escaped `\[out\]`, and the
+   caller then believes the chain is already terminated and appends nothing. What it gets is a
+   description whose sink is never connected. Filtergraph syntax quotes with `'` and escapes with
+   `\`, so one pass honouring both tells a label from a value. */
+static int ffkmp_has_out_label_(const char *desc) {
+    int quoted = 0;
+    if (!desc) return 0;
+    for (const char *p = desc; *p; p++) {
+        if (*p == '\\' && p[1]) { p++; continue; }
+        if (*p == '\'') { quoted = !quoted; continue; }
+        if (!quoted && p[0] == '[' && strncmp(p, "[out]", 5) == 0) return 1;
+    }
+    return 0;
+}
+
+/* Clears a caller's source array after a failure.
+
+   The array is filled progressively, one entry per created source, and every failure below frees
+   the whole graph with its filter contexts. Without this the caller is left holding pointers into
+   freed memory that LOOK valid, which is worse than the nulls it started with. */
+static void ffkmp_clear_srcs_(AVFilterContext **srcs, int n) {
+    if (!srcs) return;
+    for (int i = 0; i < n; i++) srcs[i] = NULL;
+}
+
 /* ── Multi-input variants ──
    The description references inputs as [in0]…[inN-1] and the output as [out], e.g.
    "[in0][in1]overlay=10:10[out]" or "[in0][in1]amix=inputs=2[out]". Caller passes parallel
@@ -189,6 +223,7 @@ static int ffkmp_graph_finish_multi_(
         snprintf(name, sizeof(name), "in%d", i);
         if (!io) { avfilter_inout_free(&outputs); return AVERROR(ENOMEM); }
         io->name = av_strdup(name);
+        if (!io->name) { avfilter_inout_free(&io); avfilter_inout_free(&outputs); return AVERROR(ENOMEM); }
         io->filter_ctx = src_ctxs[i];
         io->pad_idx = 0; io->next = NULL;
         if (!outputs) outputs = io; else outputs_tail->next = io;
@@ -197,6 +232,7 @@ static int ffkmp_graph_finish_multi_(
     AVFilterInOut *inputs = avfilter_inout_alloc();
     if (!inputs) { avfilter_inout_free(&outputs); return AVERROR(ENOMEM); }
     inputs->name = av_strdup("out");
+    if (!inputs->name) { avfilter_inout_free(&outputs); avfilter_inout_free(&inputs); return AVERROR(ENOMEM); }
     inputs->filter_ctx = sink_ctx;
     inputs->pad_idx = 0; inputs->next = NULL;
 
@@ -224,7 +260,7 @@ KC_API int ffkmp_graph_build_video_multi(
     if (!graph) return AVERROR(ENOMEM);
     const AVFilter *src = avfilter_get_by_name("buffer");
     const AVFilter *sink = avfilter_get_by_name("buffersink");
-    if (!src || !sink) { avfilter_graph_free(&graph); return AVERROR_FILTER_NOT_FOUND; }
+    if (!src || !sink) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR_FILTER_NOT_FOUND; }
 
     for (int i = 0; i < n; i++) {
         /* The same refusal the single-input builder makes, for the same reason:
@@ -232,7 +268,7 @@ KC_API int ffkmp_graph_build_video_multi(
            caller's frames are not in, and every plane is then read at the wrong stride and depth.
            An unknown format is an argument error. */
         const char *pf = av_get_pix_fmt_name((enum AVPixelFormat)pix_fmts[i]);
-        if (!pf) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+        if (!pf) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
         char args[512], name[16];
         snprintf(args, sizeof(args),
             "video_size=%dx%d:pix_fmt=%s:time_base=%d/%d:pixel_aspect=%d/%d:frame_rate=%d/%d",
@@ -242,14 +278,14 @@ KC_API int ffkmp_graph_build_video_multi(
         snprintf(name, sizeof(name), "in%d", i);
         out_srcs[i] = NULL;
         int rc = avfilter_graph_create_filter(&out_srcs[i], src, name, args, NULL, graph);
-        if (rc < 0) { avfilter_graph_free(&graph); return rc; }
+        if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
     }
     AVFilterContext *sink_ctx = NULL;
     int rc = avfilter_graph_create_filter(&sink_ctx, sink, "out", NULL, NULL, graph);
-    if (rc < 0) { avfilter_graph_free(&graph); return rc; }
+    if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
 
     rc = ffkmp_graph_finish_multi_(graph, out_srcs, n, sink_ctx, description);
-    if (rc < 0) { avfilter_graph_free(&graph); return rc; }
+    if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
     *out_graph = graph; *out_sink = sink_ctx;
     return 0;
 }
@@ -271,17 +307,17 @@ KC_API int ffkmp_graph_build_audio_multi(
     if (!graph) return AVERROR(ENOMEM);
     const AVFilter *src = avfilter_get_by_name("abuffer");
     const AVFilter *sink = avfilter_get_by_name("abuffersink");
-    if (!src || !sink) { avfilter_graph_free(&graph); return AVERROR_FILTER_NOT_FOUND; }
+    if (!src || !sink) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR_FILTER_NOT_FOUND; }
 
     for (int i = 0; i < n; i++) {
         const char *fmt = av_get_sample_fmt_name((enum AVSampleFormat)sample_fmts[i]);
-        if (!fmt) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+        if (!fmt) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
         AVChannelLayout lay;
         av_channel_layout_default(&lay, channels[i] > 0 ? channels[i] : 2);
         char lay_str[128];
         int rc = av_channel_layout_describe(&lay, lay_str, sizeof(lay_str));
         av_channel_layout_uninit(&lay);
-        if (rc < 0) { avfilter_graph_free(&graph); return rc; }
+        if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
         char args[512], name[16];
         snprintf(args, sizeof(args),
             "time_base=%d/%d:sample_rate=%d:sample_fmt=%s:channel_layout=%s",
@@ -289,11 +325,11 @@ KC_API int ffkmp_graph_build_audio_multi(
         snprintf(name, sizeof(name), "in%d", i);
         out_srcs[i] = NULL;
         rc = avfilter_graph_create_filter(&out_srcs[i], src, name, args, NULL, graph);
-        if (rc < 0) { avfilter_graph_free(&graph); return rc; }
+        if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
     }
     AVFilterContext *sink_ctx = NULL;
     int rc = avfilter_graph_create_filter(&sink_ctx, sink, "out", NULL, NULL, graph);
-    if (rc < 0) { avfilter_graph_free(&graph); return rc; }
+    if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
 
     /* Same aformat pinning trick as the single-input audio builder, and the same rule about
        checking the running length after every append. See that builder for why. */
@@ -301,41 +337,41 @@ KC_API int ffkmp_graph_build_audio_multi(
     char full_desc[2048];
     int len = snprintf(full_desc, sizeof(full_desc), "%s",
                        generated_default ? "[in0]anull" : description);
-    if (len < 0 || len >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+    if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
     if (out_sample_fmt >= 0 || out_sample_rate > 0 || out_channels > 0) {
         /* The pinned chain must hang off [out]'s producer. Renaming a caller's terminal label
            would be intrusive, so an explicit [out] means the caller controls formats; Transcoder
            always appends its own aformat before [out]. The generated default deliberately has no
            [out] yet, allowing requested pins to be appended before the label is closed below. */
-        if (!strstr(full_desc, "[out]")) {
+        if (!ffkmp_has_out_label_(full_desc)) {
             int first = 1;
             len += snprintf(full_desc + len, sizeof(full_desc) - len, ",aformat=");
-            if (len < 0 || len >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+            if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
             if (out_sample_fmt >= 0) {
                 const char *of = av_get_sample_fmt_name((enum AVSampleFormat)out_sample_fmt);
-                if (!of) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+                if (!of) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
                 len += snprintf(full_desc + len, sizeof(full_desc) - len, "sample_fmts=%s", of);
-                if (len < 0 || len >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+                if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
                 first = 0;
             }
             if (out_sample_rate > 0) {
                 len += snprintf(full_desc + len, sizeof(full_desc) - len, "%ssample_rates=%d", first ? "" : ":", out_sample_rate);
-                if (len < 0 || len >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+                if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
                 first = 0;
             }
             if (out_channels > 0) {
                 len += snprintf(full_desc + len, sizeof(full_desc) - len, "%schannel_layouts=%dc", first ? "" : ":", out_channels);
-                if (len < 0 || len >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+                if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
             }
         }
     }
     if (generated_default) {
         len += snprintf(full_desc + len, sizeof(full_desc) - len, "[out]");
-        if (len < 0 || len >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+        if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
     }
 
     rc = ffkmp_graph_finish_multi_(graph, out_srcs, n, sink_ctx, full_desc);
-    if (rc < 0) { avfilter_graph_free(&graph); return rc; }
+    if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
     *out_graph = graph; *out_sink = sink_ctx;
     return 0;
 }

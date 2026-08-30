@@ -34,8 +34,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 BIN="$ROOT/build/$VARIANT/bin"
 
-# The eight suites of plan section 15.3. Keep this list and build-host.sh in agreement.
-ALL_SUITES="test_ownership test_buffers test_rescale test_strerror_thread test_convert test_identity test_args test_append"
+# Every suite in tests/, DERIVED from the directory exactly as build-host.sh derives it. Two
+# hardcoded lists kept in agreement by a comment is how a suite gets built and never run.
+ALL_SUITES="$(cd "$ROOT/tests" && ls test_*.c 2>/dev/null | sed 's/\.c$//' | sort | tr '\n' ' ')"
+[ -n "${ALL_SUITES// /}" ] || { echo "run-c-tests.sh: no tests/test_*.c found under $ROOT" >&2; exit 1; }
 SUITES="${*:-$ALL_SUITES}"
 
 [ -d "$BIN" ] || {

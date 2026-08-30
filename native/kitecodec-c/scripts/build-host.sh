@@ -121,8 +121,14 @@ mkdir -p "$OBJ" "$LIB" "$BIN"
 HELPER_LIB="$LIB/libkitecodec_helpers_host.a"
 INTERPOSE_LIB="$LIB/libkc_interpose_alloc.dylib"
 
-# The seven suites of plan section 15.3. Keep this list and run-c-tests.sh in agreement.
-TESTS="test_ownership test_buffers test_rescale test_strerror_thread test_convert test_identity test_args test_append"
+# Every suite in tests/, DERIVED from the directory rather than listed here.
+#
+# It used to be a hardcoded list in this script and another in run-c-tests.sh, kept in agreement
+# by a comment. A suite added to one and not the other is compiled and never run, or run and never
+# built, and either way the gate says nothing. Reading the directory is the only form that cannot
+# drift: adding tests/test_foo.c is the whole act of adding a suite.
+TESTS="$(cd "$ROOT/tests" && ls test_*.c 2>/dev/null | sed 's/\.c$//' | sort | tr '\n' ' ')"
+[ -n "${TESTS// /}" ] || { echo "build-host.sh: no tests/test_*.c found under $ROOT" >&2; exit 1; }
 
 # The doctored copies of the identity gate, one directory per case under tests/fake_headers/. Each is
 # src/kitecodec_abi.c compiled again with that directory FIRST on the include path, so its shim

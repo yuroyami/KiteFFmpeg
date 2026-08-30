@@ -200,11 +200,17 @@ KC_API int ffkmp_frame_fill_video(AVFrame *f, const uint8_t *src, int src_size) 
 }
 
 /* Reverse of ffkmp_samples_copy_to_buffer: fill an allocated audio frame's planes from a
-   flat buffer (planar: plane-after-plane; packed: interleaved). ≤ 8 channels (AVFrame.data). */
+   flat buffer (planar: plane-after-plane; packed: interleaved).
+
+   No channel cap. This used to refuse above AV_NUM_DATA_POINTERS while its READING twin took any
+   count, so a 10-channel planar frame could be copied out of the library and not back in. Both
+   walk `extended_data`, which is the field that exists precisely because `data` stops at eight,
+   and the per-plane NULL check below is the real guard: a frame whose planes were never
+   allocated refuses whatever its channel count says. */
 KC_API int ffkmp_frame_fill_audio(AVFrame *f, const uint8_t *src, int src_size) {
     if (!f || !src || f->nb_samples <= 0) return AVERROR(EINVAL);
     int ch = f->ch_layout.nb_channels;
-    if (ch <= 0 || ch > AV_NUM_DATA_POINTERS) return AVERROR(EINVAL);
+    if (ch <= 0) return AVERROR(EINVAL);
     int needed = av_samples_get_buffer_size(NULL, ch, f->nb_samples, f->format, 1);
     if (needed < 0) return needed;
     if (src_size < needed) return AVERROR(EINVAL);

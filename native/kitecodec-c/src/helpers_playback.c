@@ -193,6 +193,11 @@ KC_API int ffkmp_frame_plane_height(AVFrame *f, int p) {
     if (!f || p < 0 || f->width == 0) return 0;
     const AVPixFmtDescriptor *d = av_pix_fmt_desc_get((enum AVPixelFormat)f->format);
     if (!d) return 0;
+    /* Bounded by the format's OWN plane count, not by AV_NUM_DATA_POINTERS and not at all.
+       Unbounded, this answered with the frame height for plane 8 of an rgba frame: a number
+       where a refusal belongs, and one a caller can size a copy from. The pointer accessor
+       beside it answers NULL for the same index, so the pair used to disagree. */
+    if (p >= av_pix_fmt_count_planes((enum AVPixelFormat)f->format)) return 0;
     if (p == 1 || p == 2) return AV_CEIL_RSHIFT(f->height, d->log2_chroma_h);
     return f->height;
 }
