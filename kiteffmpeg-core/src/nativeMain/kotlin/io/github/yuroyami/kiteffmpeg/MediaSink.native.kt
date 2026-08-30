@@ -313,9 +313,20 @@ public actual class MediaSink internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun setMetadata(metadata: Map<String, String>) {
+    public actual fun setMetadata(metadata: Map<String, String>): Unit = synchronized(muxLock) {
         check(!headerWritten) { "Metadata must be set before the muxer writes its header." }
         check(!closed) { "MediaSink is closed" }
+        // A POISONED sink refuses here too, matching the JVM backend, whose setMetadata has always
+        // gone through its usability check. The two disagreed until 2026-08-30: this one asked only
+        // whether the sink was closed, so a sink holding a half-configured stream accepted metadata
+        // and went on looking usable, which is the exact impression the poison exists to remove.
+        // Writing a title into a container whose stream table will never describe its contents buys
+        // nothing, and the conservative reading is the one worth having on both backends.
+        //
+        // Under muxLock for the same reason every other muxer touch is: av_dict_set mutates the
+        // format context, and this was the one entry point that read the poison flag and the header
+        // state without holding the lock that guards them.
+        checkUsable()
         metadata.forEach { (k, v) ->
             check0(ffkmp_fmt_set_metadata(ctx, k, v), "av_dict_set (metadata '$k')")
         }

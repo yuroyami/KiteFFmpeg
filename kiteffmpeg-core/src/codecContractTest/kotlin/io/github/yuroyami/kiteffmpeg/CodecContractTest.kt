@@ -525,11 +525,13 @@ internal class CodecContractTest {
                 // defect. A later declaration must refuse rather than write against a muxer holding
                 // a stream that was never configured.
                 assertFailsWith<Throwable> { sink.addCopyStream(source, video) }
-                // `setMetadata` is deliberately NOT asserted here, and the reason is a finding.
-                // The first run of this seam showed the backends DISAGREE: the JVM's setMetadata
-                // goes through checkOpen and refuses a poisoned sink, while the native one checks
-                // only headerWritten and closed and accepts it. Asserting either behaviour would
-                // pin a divergence as if it were the contract. Recorded as `KC-POISON-SCOPE`.
+                // And so must metadata. This went unasserted for a while because the backends
+                // DISAGREED: the JVM refused a poisoned sink here and the native one, checking only
+                // whether it was closed, accepted. Asserting either would have pinned a divergence
+                // as the contract. Settled on 2026-08-30 the conservative way, native aligned to
+                // JVM: everything a poisoned sink is asked to do refuses, because the one thing the
+                // poison is for is that the sink must stop looking usable.
+                assertFailsWith<IllegalStateException> { sink.setMetadata(mapOf("title" to "poisoned")) }
             }
         }
         transcript.put("sink.copy.poisoned_on_mid_mutation_failure", true)
