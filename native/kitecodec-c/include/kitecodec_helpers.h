@@ -1,4 +1,4 @@
-/* Ordinary maintained source since the interlude (I-12). Lifted at B1.3 from the def body of
+/* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
  * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
  * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
@@ -103,8 +103,8 @@ KC_API kc_frame* ffkmp_frame_clone(const kc_frame *f);
  * geometry and formats match, so it outlives the call and nothing about it reaches the caller
  * either way. Both pixel formats are validated before swscale sees them: a value outside the
  * enum, a hardware format, or one swscale cannot read or write returns NULL rather than
- * asserting inside libswscale (audit P0-09). The colour tags on the result describe the OUTPUT,
- * not the source: an RGB destination is full range with an RGB matrix (audit P1-23).
+ * asserting inside libswscale. The colour tags on the result describe the OUTPUT,
+ * not the source: an RGB destination is full range with an RGB matrix.
  */
 KC_API kc_frame* ffkmp_frame_convert_pixfmt(const kc_frame *src, int dst_fmt);
 KC_API int ffkmp_image_get_buffer_size(int fmt, int w, int h, int align);
@@ -442,7 +442,7 @@ KC_API int  ffkmp_fmt_set_opt(kc_fmt_ctx *c, const char *k, const char *v);
  *
  * Returns the CLOSE result: 0 on success, a negative AVERROR when the final flush or the close
  * of the output file failed. That is where a full disk announces itself, and discarding it
- * reported a truncated file as a written one (audit P1-13). The context is freed on every path,
+ * reported a truncated file as a written one. The context is freed on every path,
  * so a caller that ignores the result leaks nothing; it only loses the error.
  */
 KC_API int ffkmp_fmt_free_output(kc_fmt_ctx **ctx);

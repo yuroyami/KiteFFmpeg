@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * An encoder is a one-way object, and says so (audit P1-09).
+ * An encoder is a one-way object, and says so.
  *
  * Driving one to the end flushes its codec. Offering it a second flow used to LOOK like it worked:
  * every frame was consumed and closed, the encoded count went up, and nothing whatsoever reached

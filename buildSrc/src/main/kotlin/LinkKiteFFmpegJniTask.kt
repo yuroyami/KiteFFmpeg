@@ -153,11 +153,11 @@ abstract class PrepareKiteFFmpegJniHarnessTask @Inject constructor(
  * The output must export exactly `JNI_OnLoad`: `scripts/symbol-audit.sh` asserts it per arm, and
  * the S1.c.1 gate runs an ELF PT_LOAD 0x4000 check beside it for the Android arms.
  */
-/** The konan clang and the flags a Linux cross link needs, resolved from the konan tree (W-16). */
+/** The konan clang and the flags a Linux cross link needs, resolved from the konan tree. */
 class KonanLinuxTools(val clang: String, val flags: List<String>)
 
 /**
- * Cross-link settings for a Linux JNI library (W-16), from the SAME konan toolchain
+ * Cross-link settings for a Linux JNI library, from the SAME konan toolchain
  * Kotlin/Native links with, so the result agrees with everything else this project ships.
  *
  * The glibc floor comes from the konan sysroot, which is 2.25 here. Building inside a

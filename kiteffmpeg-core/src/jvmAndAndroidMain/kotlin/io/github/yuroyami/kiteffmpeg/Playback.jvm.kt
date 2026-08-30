@@ -153,7 +153,7 @@ public actual class StreamDecoder internal constructor(
         private set
 
     /**
-     * The one place damaged data is decided about (audit P1-05).
+     * The one place damaged data is decided about.
      *
      * Under [CorruptData.Fail] it throws; otherwise it counts the loss and lets the caller carry
      * on. What it must never do again is return quietly having recorded nothing, which is what

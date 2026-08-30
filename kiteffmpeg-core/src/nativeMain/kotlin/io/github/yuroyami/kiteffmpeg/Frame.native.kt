@@ -86,7 +86,7 @@ public actual class Frame internal constructor(
     /**
      * Excludes [close] while an operation is inside native code, exactly as the JVM backend's
      * per-object locks do. A closed check alone was check-then-use: a concurrent close between the
-     * check and the FFI call freed the AVFrame under the running operation (audit P0-07). The lock
+     * check and the FFI call freed the AVFrame under the running operation. The lock
      * is reentrant, so a helper under [withNative] may read [checkedNative] again freely.
      */
     private val lock = kotlinx.atomicfu.locks.SynchronizedObject()

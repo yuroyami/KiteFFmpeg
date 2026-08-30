@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Damaged data is skipped OR refused, and either way it is counted (audit P1-05).
+ * Damaged data is skipped OR refused, and either way it is counted.
  *
  * The defect was not the skipping. Skipping is right for a player: one broken frame in a film
  * should not end playback, and every seek into a stream carrying its parameter sets in band lands

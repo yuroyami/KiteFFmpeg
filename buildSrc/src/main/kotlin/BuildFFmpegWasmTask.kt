@@ -192,7 +192,7 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
          * MustPlay row and the web build could not decode it. The tier serves the matrix or the
          * matrix stops being the one definition of playing all formats, so vp9 is in.
          *
-         * opus and vorbis are the same lesson one layer down (PAR-4). `ffprobe` says `vp9.webm`
+         * opus and vorbis are the same lesson one layer down. `ffprobe` says `vp9.webm`
          * and `av1.mkv` both carry an opus track, so the tier decoded the picture of two MustPlay
          * rows and silently dropped their sound. vorbis rides along because it is webm's other
          * audio codec and a file using it would fail the same inaudible way.

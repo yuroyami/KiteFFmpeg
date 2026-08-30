@@ -80,7 +80,7 @@ public actual class Packet internal constructor(
 
     /**
      * Excludes [close] while a read is inside native code, the same per-object rule the JVM actual
-     * has always had. The closed check alone was check-then-use (audit P0-07).
+     * has always had. The closed check alone was check-then-use.
      */
     private val lock = kotlinx.atomicfu.locks.SynchronizedObject()
 
@@ -354,7 +354,7 @@ public actual class StreamDecoder internal constructor(
     /**
      * Excludes [close] while a decode call is inside native code, mirroring the JVM actual: the
      * closed check alone was check-then-use, and a concurrent close freed the codec context under
-     * a running send or receive (audit P0-07). Lock order is decoder then packet.
+     * a running send or receive. Lock order is decoder then packet.
      */
     private val lock = kotlinx.atomicfu.locks.SynchronizedObject()
 
@@ -374,7 +374,7 @@ public actual class StreamDecoder internal constructor(
         private set
 
     /**
-     * The one place damaged data is decided about (audit P1-05).
+     * The one place damaged data is decided about.
      *
      * The tolerance below is still the default and still right: every seek into a stream carrying
      * its parameter sets in band lands before the next one, so the first packets after it decode
@@ -474,7 +474,7 @@ public actual class StreamDecoder internal constructor(
 
     actual override fun close(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
         // Under the operation lock, so a close arriving during a send or receive waits for the
-        // call to leave native code before freeing the context it is using (audit P0-07).
+        // call to leave native code before freeing the context it is using.
         if (closed) return
         closed = true
         ffkmp_frame_free(landing)
@@ -613,7 +613,7 @@ public fun <R> Frame.withPlanes(
 @OptIn(ExperimentalForeignApi::class)
 public val Frame.hardwareSurface: COpaquePointer?
     // Under the lease for the same reason withPlanes is: checkedNative released the lock before the
-    // call, so a close landing in that window freed the AVFrame this reads through (audit P0-07).
+    // call, so a close landing in that window freed the AVFrame this reads through.
     // The window is entirely inside this getter, so no test can open it; the guard is the lease
     // itself, which withPlanes' race test pins.
     get() = withNative { ffkmp_frame_hw_surface(it) }

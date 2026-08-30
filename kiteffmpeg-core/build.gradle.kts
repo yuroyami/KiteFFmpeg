@@ -618,7 +618,7 @@ kotlin {
             }
             val jniJvmTest = maybeCreate("jniJvmTest").apply {
                 // The JVM contract actuals live in the PUBLISHED jvm test tree now that the jvm
-                // variant is real (W-01); the harness mirrors them rather than keeping a twin.
+                // variant is real; the harness mirrors them rather than keeping a twin.
                 kotlin.srcDir("src/jvmTest/kotlin")
                 dependsOn(jniHarnessContractTest)
             }
@@ -951,7 +951,7 @@ run {
     val macosFfmpegLib = rootDir.resolve("native-libs/lgpl/macos-arm64/lib")
     // dav1d is vendored per target and toggled by the consumer DSL, so the flag follows the tree
     // rather than a constant: the Android arms already do exactly this a few lines below.
-    // The portable macOS profile (KC-EMBED): the six libav* archives, the mandatory dav1d, SDK
+    // The portable macOS profile: the six libav* archives, the mandatory dav1d, SDK
     // zlib and the media frameworks. Nothing from Homebrew: the fat third-party stack died with
     // the fat profile, and the JNI bundle is self-contained again because there are no shared
     // dylib dependencies left to carry.
@@ -1237,7 +1237,7 @@ run {
     val osArch = System.getProperty("os.arch").orEmpty().lowercase()
     val hostIsArm64Mac = "mac" in osName && osArch in setOf("aarch64", "arm64")
     if (hostIsArm64Mac && hostFfmpegLib.isDirectory) {
-        // The Linux JNI libraries (W-16). Opt in with -Pkiteffmpeg.jni.linux=true, because they need
+        // The Linux JNI libraries. Opt in with -Pkiteffmpeg.jni.linux=true, because they need
         // a running Docker daemon for the JDK headers and a cross-built FFmpeg tree, and an
         // ordinary build must need neither. Each writes into the same resource root under its own
         // platform directory, so processResources merges them without knowing how many there are.

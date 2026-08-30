@@ -9,7 +9,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Holds the COMPILED wasm binding equal to the one the generator would write (register KC-WASM-MIRROR).
+ * Holds the COMPILED wasm binding equal to the one the generator would write.
  *
  * [GenerateWasmBindingTask] writes `KiteFFmpegWasm.kt` into `native-libs/`, which is gitignored, so
  * the file that actually COMPILES is a committed copy under `wasmJsMain`. Two copies with nothing

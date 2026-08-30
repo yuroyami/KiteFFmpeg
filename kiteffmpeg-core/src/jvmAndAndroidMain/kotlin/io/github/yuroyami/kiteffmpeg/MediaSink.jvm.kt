@@ -19,7 +19,7 @@ public actual class MediaSink internal constructor(
      * The close flushes its encoders OUTSIDE the lock, because the flush takes each encoder's own
      * lock and holding both invites an inversion. That leaves a window where the sink looks open:
      * a second close could start its own trailer, and an add could append an encoder the snapshot
-     * had already passed, leaking it (audit P0-10). This flag is what the window checks.
+     * had already passed, leaking it. This flag is what the window checks.
      */
     private var closing = false
 
@@ -27,7 +27,7 @@ public actual class MediaSink internal constructor(
     private var declaredStreams = 0
 
     /**
-     * The failure that made this sink unusable, if one has (audit P1-10).
+     * The failure that made this sink unusable, if one has.
      *
      * `avformat_new_stream` MUTATES the format context, and it runs before the setup that can
      * still fail. A refused encoder therefore used to leave a real, half-configured stream inside
@@ -161,7 +161,7 @@ public actual class MediaSink internal constructor(
                 // no way to take one back. Releasing the borrowed reference does not undo that, so
                 // without the poison the sink kept looking usable while its muxer held a stream that
                 // was never configured. newStreamFor has poisoned since P1-10; this path, which
-                // mutates exactly the same way, was left out (audit P1-10).
+                // mutates exactly the same way, was left out.
                 poison(error)
             } finally {
                 if (outputParameters != 0L) {
@@ -264,12 +264,12 @@ public actual class MediaSink internal constructor(
         val cores = synchronized(muxLock) {
             // One closer only. The first close owns the flush and the trailer; a second, from any
             // thread, returns and lets it finish rather than writing a second trailer or freeing
-            // the muxer under the first one's flush (audit P0-10).
+            // the muxer under the first one's flush.
             if (formatToken == 0L || closing) return
             closing = true
             encoderCores.toList().also { encoderCores.clear() }
         }
-        // The FIRST flush error is retained and thrown after cleanup (audit P1-6): tail frames
+        // The FIRST flush error is retained and thrown after cleanup: tail frames
         // lost while close reports success is a silent truncation, and one encoder failing is
         // not a reason to skip draining the others or the trailer for what did land.
         var firstFailure: Throwable? = null
@@ -294,7 +294,7 @@ public actual class MediaSink internal constructor(
             var result = 0
             try {
                 // Declared streams and no packet means the header never wrote itself on demand;
-                // the sink still owes a real container or an explicit failure (audit P1-5).
+                // the sink still owes a real container or an explicit failure.
                 if (headerState == HeaderState.NotWritten && declaredStreams > 0) {
                     runCatching { ensureHeaderWritten() }.exceptionOrNull()?.let { failure ->
                         if (firstFailure == null) firstFailure = failure
@@ -306,7 +306,7 @@ public actual class MediaSink internal constructor(
                 formatToken = 0L
                 // The output file's own close, which is the last thing that can fail and the place
                 // a full disk reports itself. Kept and raised below rather than discarded, so a
-                // truncated file is not reported as a written one (audit P1-13).
+                // truncated file is not reported as a written one.
                 closeRc = Internals.fmtFreeOutput(format)
             }
             result
@@ -356,7 +356,7 @@ internal class EncoderCore(
         private set
 
     /**
-     * Where this encoder is in its one-way life (audit P1-09).
+     * Where this encoder is in its one-way life.
      *
      * An encoder that has been driven to its end has flushed its codec and written its last
      * packet. Offering it a second flow used to look like it worked: every frame was consumed and
@@ -410,7 +410,7 @@ internal class EncoderCore(
             // The media type this encoder was built for. A video frame handed to an audio encoder
             // reached FFmpeg and was interpreted as samples, which is a wrong answer rather than a
             // refusal. Native guards this in its own encode; the JVM half was missed and the row
-            // was closed on the strength of the other one (audit P0-08).
+            // was closed on the strength of the other one.
             val wanted = if (audio) MediaType.Audio else MediaType.Video
             require(frame.info.type == wanted) {
                 "this encoder encodes $wanted and was given a ${frame.info.type} frame"

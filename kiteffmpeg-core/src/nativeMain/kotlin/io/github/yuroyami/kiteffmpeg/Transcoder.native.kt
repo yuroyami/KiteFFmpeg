@@ -107,7 +107,7 @@ public actual object Transcoder {
                             val primaryCore = venc?.core ?: aenc?.core
 
                             /**
-                             * How far a COPY-only output has got, in microseconds (audit P1-16).
+                             * How far a COPY-only output has got, in microseconds.
                              *
                              * Progress was read from the encoders alone, so a transcode with
                              * nothing to encode, `-c copy` on every stream, reported zero percent

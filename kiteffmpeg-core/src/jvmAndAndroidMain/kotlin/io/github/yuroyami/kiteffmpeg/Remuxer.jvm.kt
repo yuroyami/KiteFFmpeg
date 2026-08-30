@@ -31,7 +31,7 @@ public actual object Remuxer {
             // Validated BEFORE the sink exists. The demuxer refuses a duplicated index too, but it
             // only sees the mapping after a stream has been created in the output for every entry,
             // so a caller who asked for the same stream twice got a half built container and then
-            // the refusal (audit P1-14). The complete mapping is checked here, where nothing has
+            // the refusal. The complete mapping is checked here, where nothing has
             // been mutated yet.
             if (selected.distinctBy { it.index }.size != selected.size) {
                 throw FFmpegException(

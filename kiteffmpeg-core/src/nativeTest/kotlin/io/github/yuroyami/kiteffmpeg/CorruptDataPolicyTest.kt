@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The native half of the damaged-data policy (audit P1-05).
+ * The native half of the damaged-data policy.
  *
  * Same subject as the JVM test next to it, and it has to exist separately because the decode loop
  * is a different implementation on each backend: the whole finding was that all three behaved

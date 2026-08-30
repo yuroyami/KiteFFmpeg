@@ -166,7 +166,7 @@ public class FFmpegException(public val error: FFmpegError) : RuntimeException(e
 }
 
 /**
- * Why a decoder could not be opened, in words the caller can act on (KC-CAPS).
+ * Why a decoder could not be opened, in words the caller can act on.
  *
  * Opened by the owner from a real incident: a device threw FFmpeg's bare `-78` on an AV1 file and
  * nothing on hand could say whether that build carried dav1d. An hour of binary archaeology later

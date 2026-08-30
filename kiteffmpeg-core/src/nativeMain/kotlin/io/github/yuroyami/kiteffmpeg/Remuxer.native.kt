@@ -33,7 +33,7 @@ public actual object Remuxer {
             // Validated BEFORE the sink exists, exactly as the JVM actual does. The demuxer refuses
             // a duplicated index too, but only after a stream has been created in the output for
             // every entry, so a caller who asked for the same stream twice got a half built
-            // container and then the refusal (audit P1-14).
+            // container and then the refusal.
             if (selected.distinctBy { it.index }.size != selected.size) {
                 throw FFmpegException(
                     FFmpegError.InvalidArgument(

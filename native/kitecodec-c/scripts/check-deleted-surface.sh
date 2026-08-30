@@ -47,7 +47,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 REPO="$(cd "$ROOT/../.." && pwd)"
 OTHER="$(cd "$REPO/../KitePlayer" 2>/dev/null && pwd || true)"
 
-# The names live in ONE committed data file since the interlude (I-14): deleted-surface.txt,
+# The names live in ONE committed data file since the interlude: deleted-surface.txt,
 # beside this script's parent directory. Before that they were hardcoded in three places (here,
 # verify-lift.sh and the extractor's DELETED table) with no move procedure, so resurrecting a
 # name for a real need had no legal path. Now a resurrection is one status change in that file

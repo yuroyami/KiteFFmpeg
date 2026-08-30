@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * What a transcode is allowed to be, and whether it says how far it has got (audit P1-15, P1-16).
+ * What a transcode is allowed to be, and whether it says how far it has got.
  *
  * Two defects that look unrelated and are the same shape: the transcoder measured itself only by
  * what it ENCODED. A run with nothing to encode was therefore either refused outright, or ran to

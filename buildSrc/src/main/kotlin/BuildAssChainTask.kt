@@ -315,7 +315,7 @@ abstract class BuildAssChainTask : DefaultTask() {
                 "CXX" to "clang++ $flags",
             )
         }
-        // Linux and Windows use the SAME konan toolchain FFmpeg and dav1d use for them (W-D3), so
+        // Linux and Windows use the SAME konan toolchain FFmpeg and dav1d use for them, so
         // libass links against the libc its neighbours in the final binary were built against.
         // -fuse-ld=lld is as mandatory here as everywhere else: autoconf link-probes a program
         // before it believes the compiler exists, and Apple's ld cannot link ELF or PE.

@@ -42,7 +42,7 @@ public actual object Transcoder {
             } else emptyList()
             // Video, else audio, else the first copied subtitle. Subtitles were left out, so
             // asking for subtitleCopy on its own failed here even though extracting the subtitles
-            // from a film is exactly that request (audit P1-15).
+            // from a film is exactly that request.
             val lead = videoStream ?: audioStream ?: subtitles.firstOrNull()
                 ?: throw FFmpegException(
                     FFmpegError.Internal("Input has none of the requested streams"),
@@ -110,7 +110,7 @@ public actual object Transcoder {
                             val primaryCore = videoEncoder?.core ?: audioEncoder?.core
 
                             /**
-                             * How far a COPY-only output has got (audit P1-16).
+                             * How far a COPY-only output has got.
                              *
                              * Progress was read from the encoders alone, so a `-c copy` transcode
                              * reported zero percent from beginning to end while doing real work at

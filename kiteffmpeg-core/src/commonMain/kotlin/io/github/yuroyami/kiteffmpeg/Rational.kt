@@ -60,7 +60,7 @@ public class Rational private constructor(public val num: Int, public val den: I
         if (num == 0) return 0L
         // gcd against the DENOMINATOR's residue rather than the scalar's magnitude. Taking
         // `-scalar` first wrapped Long.MIN_VALUE straight back to itself, so the reduction ran on a
-        // negative magnitude and answered nonsense (audit P1-29). A remainder by a positive
+        // negative magnitude and answered nonsense. A remainder by a positive
         // denominator is safe for every input, including the floor.
         val d = den.toLong()
         var a = scalar % d

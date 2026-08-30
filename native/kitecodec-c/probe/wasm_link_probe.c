@@ -24,7 +24,7 @@ int main(void) {
         fprintf(stderr, "FAIL: the web FFmpeg is missing a filter helpers_filter.c needs\n");
         return 1;
     }
-    /* The handle table, shared with the JNI adapter rather than copied (X-04).
+    /* The handle table, shared with the JNI adapter rather than copied.
        Three properties, in increasing order of what they cost to get wrong. */
     int dummy = 0;
     const int64_t token = kj_handle_put(KJ_KIND_FRAME, &dummy);

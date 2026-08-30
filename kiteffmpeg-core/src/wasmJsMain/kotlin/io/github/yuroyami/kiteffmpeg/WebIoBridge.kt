@@ -33,7 +33,7 @@ internal class WebIoBridge private constructor(
         private const val MAX_BYTES = 512L * 1024 * 1024
 
         /**
-         * Stages [io] and takes ownership of it (KC-WEB-IO).
+         * Stages [io] and takes ownership of it.
          *
          * The bridge closes the source on EVERY path, exactly once, because staging consumes it
          * whole: on return there is nothing left for a caller to read, and on a throw there is no
@@ -125,7 +125,7 @@ internal class WebIoBridge private constructor(
 }
 
 /**
- * Copies [length] bytes of [bytes] into codec memory at [pointer], in ONE crossing (KC-WEB-IO).
+ * Copies [length] bytes of [bytes] into codec memory at [pointer], in ONE crossing.
  *
  * This used to cross into JavaScript once per BYTE, so staging a 200 MB file made 200 million
  * calls. Kotlin/Wasm and the codec are separate modules with separate memories, so the bytes have

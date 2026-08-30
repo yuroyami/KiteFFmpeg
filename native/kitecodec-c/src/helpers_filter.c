@@ -1,4 +1,4 @@
-/* Ordinary maintained source since the interlude (I-12). Lifted at B1.3 from the def body of
+/* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
  * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
  * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
@@ -227,7 +227,7 @@ KC_API int ffkmp_graph_build_video_multi(
     if (!src || !sink) { avfilter_graph_free(&graph); return AVERROR_FILTER_NOT_FOUND; }
 
     for (int i = 0; i < n; i++) {
-        /* The same refusal the single-input builder makes, for the same reason (audit P1-22):
+        /* The same refusal the single-input builder makes, for the same reason:
            substituting yuv420p for a format FFmpeg does not know builds a graph for a layout the
            caller's frames are not in, and every plane is then read at the wrong stride and depth.
            An unknown format is an argument error. */

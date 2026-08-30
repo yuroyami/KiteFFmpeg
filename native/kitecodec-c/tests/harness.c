@@ -49,7 +49,7 @@ void kc_suite_begin(const char *suite)
     /* Probe the interposer once here, so its own allocation never lands inside a case window
      * and no suite has to remember to warm it up. */
     (void)kc_alloc_active();
-    /* Ported from kiteplayer-rt's harness at the interlude (I-08), where this mechanism existed
+    /* Ported from kiteplayer-rt's harness at the interlude, where this mechanism existed
      * first; the two harnesses are a pair and a fix to either lands in both. Without it, every
      * KC_ALLOC_* assertion degrades to a recorded partial when the interposer is not effective,
      * and the review measured that one word in interpose_alloc.c's section name makes exactly

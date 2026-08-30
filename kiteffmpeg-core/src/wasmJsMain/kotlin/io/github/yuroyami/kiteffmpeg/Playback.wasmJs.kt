@@ -134,7 +134,7 @@ public actual class PacketReader internal constructor(
         }
         // Content-relative in, container-absolute out. The public timeline starts at zero and the
         // container's may not, so a file whose first timestamp is not zero was seeking to the wrong
-        // place by exactly its start time: MPEG-TS captures above all (audit P0-04).
+        // place by exactly its start time: MPEG-TS captures above all.
         val target = micros + startTimeMicros
         val min = notEarlierThan?.let { it + startTimeMicros } ?: Long.MIN_VALUE
         // Backward promises never to land after the target, so the target IS the ceiling. Forward
@@ -180,7 +180,7 @@ public actual class StreamDecoder internal constructor(
         private set
 
     /**
-     * The one place damaged data is decided about (audit P1-05).
+     * The one place damaged data is decided about.
      *
      * This backend used to map damage to `Internal` in some paths and swallow it in others, which
      * was a third behaviour on top of the two the other backends had. All three now agree.
@@ -205,7 +205,7 @@ public actual class StreamDecoder internal constructor(
         val m = requireModule()
         // A null packet is the drain signal. A CLOSED packet is a caller mistake, and reading its
         // raw pointer turned the second into the first: closing a packet and sending it began the
-        // drain instead of failing, so a stream could end early and silently (audit P0-02).
+        // drain instead of failing, so a stream could end early and silently.
         val pointer = if (packet == null) {
             0
         } else {
@@ -220,7 +220,7 @@ public actual class StreamDecoder internal constructor(
             rc == 0 -> true
             // Not consumed. The caller must drain and offer this SAME input again, which is why
             // nothing here may record progress: marking the decoder drained on an EAGAIN drain
-            // signal ended the stream while the decoder still held frames (audit P0-02).
+            // signal ended the stream while the decoder still held frames.
             rc == ffkmp_averror_eagain(m) -> false
             // Already flushed. Nothing more to send, so the input is not owed another attempt.
             rc == ffkmp_averror_eof(m) -> true
@@ -271,7 +271,7 @@ public actual class StreamDecoder internal constructor(
         if (frame != 0) ffkmp_frame_free(m, frame)
         // Unconditional: this context was allocated here with avcodec_alloc_context3, and closing
         // the container frees the format context and its streams, never a caller's codec context.
-        // Skipping it when the source went first leaked one context per decoder (audit P0-05).
+        // Skipping it when the source went first leaked one context per decoder.
         ffkmp_codecctx_free(m, context)
     }
 }

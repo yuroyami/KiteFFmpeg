@@ -133,7 +133,7 @@ jobs:
       # the target header alone for days without guarding anything (row KC-APICHECK-RED, fixed
       # 2026-08-23). If you re-dump, re-dump with this flag. Widening it to every target needs an
       # FFmpeg tree per target in CI.
-      # check-deleted-surface.sh joined this step at the interlude (I-15): it needs no build
+      # check-deleted-surface.sh joined this step at the interlude: it needs no build
       # output, only the tree, and it holds the fifteen deleted ffkmp_ names dead in both
       # repositories. Here it can only scan this one; KitePlayer got its own CI on 2026-08-24 and
       # this script is not in it yet.
@@ -321,7 +321,7 @@ jobs:
       # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
       # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
       # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
-      # references, which is what the `|| true` is for. Warm first, fetch second (KC-CI-KONAN).
+      # references, which is what the `|| true` is for. Warm first, fetch second.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlinLinuxX64 --stacktrace || true
       # NOT apt. A distro FFmpeg cannot be linked by Kotlin/Native on a modern Ubuntu, and this
@@ -597,7 +597,7 @@ jobs:
       # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
       # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
       # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
-      # references, which is what the `|| true` is for. Warm first, fetch second (KC-CI-KONAN).
+      # references, which is what the `|| true` is for. Warm first, fetch second.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.taskSuffix }} -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
       # THE PREBUILT STATIC TREE, and this is the whole validity of the job.
@@ -627,7 +627,7 @@ jobs:
       # The publish guard accepts hostTargetsOnly for publishToMavenLocal only, so this works with
       # just the runner's system FFmpeg (no android/vendored trees needed).
       #
-      # noAndroid too, and it is load bearing. The Android AAR is a first-class artifact (KC-ANDROID)
+      # noAndroid too, and it is load bearing. The Android AAR is a first-class artifact
       # so the Android plugin applies by default, which drags in the JNI adapter's C compile for
       # androidArm64. That task needs konan's Android NDK dependency package, and on a host-only run
       # no Android Kotlin/Native target is registered, so nothing ever provisions it: the job died
@@ -747,7 +747,7 @@ jobs:
       #    build embeds STATIC archives into the klib, so this job failed with "Could not find
       #    'libavformat.a' binary in neither of [native-libs\lgpl\mingw-x64\lib, ...]".
       # 2. BtbN prunes old autobuild releases, so any pin 404s after a few weeks and the job goes
-      #    red on a schedule nobody set. That is exactly what happened on 2026-08-23 (KC-BTBN-ROT).
+      #    red on a schedule nobody set. That is exactly what happened on 2026-08-23.
       #
       # This project publishes its own static mingw-x64 tree, so the job now reads that: same asset
       # publish.yml uses, checksum-verified, and it is what a Windows consumer actually links.

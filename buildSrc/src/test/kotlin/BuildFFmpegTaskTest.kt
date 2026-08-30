@@ -82,7 +82,7 @@ class BuildFFmpegTaskTest {
     }
 
     /**
-     * dav1d stopped being a toggle on 2026-08-22 (KC-EMBED): it is RECIPE, so a tree WITHOUT it
+     * dav1d stopped being a toggle on 2026-08-22: it is RECIPE, so a tree WITHOUT it
      * is genuinely stale and must say so. The old exclusion existed only because a -P toggle is
      * not drift; with no toggle left, the exclusion would hide a real AV1-less tree.
      */

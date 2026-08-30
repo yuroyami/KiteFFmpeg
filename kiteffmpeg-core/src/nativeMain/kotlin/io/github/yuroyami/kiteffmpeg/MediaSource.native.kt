@@ -239,7 +239,7 @@ public actual class MediaSource internal constructor(
     public actual var corruptDataSkipped: Long = 0L
         private set
 
-    /** The one place the batch flows decide about damaged data (audit P1-05). */
+    /** The one place the batch flows decide about damaged data. */
     private fun noteCorruptData(rc: Int) {
         if (corruptData == CorruptData.Fail) throw FFmpegException(avError(rc))
         corruptDataSkipped++
@@ -448,7 +448,7 @@ public actual class MediaSource internal constructor(
         check(!isClosed) { "MediaSource is closed" }
         // The copy path reached this with any index at all, so a StreamInfo belonging to ANOTHER
         // source with a valid index here copied this file's codec parameters under that file's
-        // time base and metadata (audit P1-11). Every other entry point already canonicalizes; the
+        // time base and metadata. Every other entry point already canonicalizes; the
         // one the muxer uses did not.
         requireOwnStream(stream)
         return ffkmp_fmt_stream(ctx, stream.index.toUInt())?.let { ffkmp_stream_codecpar(it) }
@@ -736,7 +736,7 @@ private fun assembleMediaSource(
 
     // Everything from here to the constructor can throw, and until it was wrapped a probe that had
     // ALREADY succeeded left the format context and the caller's byte source stranded when reading
-    // the streams, the metadata or the chapters failed (audit P1-02).
+    // the streams, the metadata or the chapters failed.
     val streams: List<StreamInfo>
     val durationFromHeader: Long?
     val formatName: String

@@ -18,7 +18,7 @@
  *   format and pts are its own; sample aspect ratio, duration, primaries and transfer travel from
  *   the source through av_frame_copy_props. Colour range and colour space do NOT travel when the
  *   conversion changed them: an RGB destination is written full range with an RGB matrix, so the
- *   result carries those rather than the source's YUV tags (audit P1-23). A caller reading
+ *   result carries those rather than the source's YUV tags. A caller reading
  *   dst->color_range gets what the pixels are, which is the only reading worth trusting.
  *
  *   Allocation cost per call, which is the actual subject of B1-23. Measured under the interposer
@@ -39,7 +39,7 @@
  * One hazard, found while writing this file and FIXED since: a destination format outside the enum,
  * AV_PIX_FMT_NONE included, used to reach libswscale and abort the process at an assertion in
  * swscale_internal.h rather than returning NULL. The helper now validates both formats before
- * swscale sees them (audit P0-09). The case named "a destination format outside the enum never
+ * swscale sees them. The case named "a destination format outside the enum never
  * yields a frame" still makes that call in a child process, because that is the only way to tell a
  * refusal from a crash: the child must exit, and any signal is now a failure of this suite rather
  * than a documented outcome of it.
@@ -254,7 +254,7 @@ static void case_metadata_carried_and_dropped(void)
     kc_note("the source declared MPEG range and BT470BG, and copying those onto an RGBA result");
     kc_note("would be a lie about the pixels: the conversion above produces RGB full range through");
     kc_note("sws_setColorspaceDetails, and RGB has no YUV matrix. A consumer trusting the copied");
-    kc_note("tags would convert a second time and crush the range (audit P1-23). Primaries and");
+    kc_note("tags would convert a second time and crush the range. Primaries and");
     kc_note("transfer are NOT overwritten: they describe the light, not the encoding.");
     KC_EQ_INT((int)dst->color_primaries, (int)src->color_primaries);
     KC_EQ_INT((int)dst->color_trc, (int)src->color_trc);
@@ -595,7 +595,7 @@ static void case_invalid_destination_format(void)
 
     if (WIFSIGNALED(status)) {
         /* No signal is acceptable here. This case exists to prove the format gate stands in front
-         * of libswscale's assertion, and a signal is that gate being gone (audit P0-09). */
+         * of libswscale's assertion, and a signal is that gate being gone. */
         KC_FAIL("the child died with signal %d: the destination format reached libswscale and it "
                 "asserted, so ffkmp_frame_convert_pixfmt is no longer validating its formats",
                 WTERMSIG(status));

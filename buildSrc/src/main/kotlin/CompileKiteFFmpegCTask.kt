@@ -255,7 +255,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
 
     /**
      * `file -b <path>`, which is how the architecture of an object or an archive is read.
-     * Protected and open since the interlude (I-10), for exactly one caller: the call-site test.
+     * Protected and open since the interlude, for exactly one caller: the call-site test.
      * The review measured that deleting the verifyObjectArchitecture call from [compile] left the
      * whole suite green, because every case exercised the predicate directly and none proved the
      * task action invokes it. A test subclass overrides this to describe a wrong architecture,

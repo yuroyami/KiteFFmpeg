@@ -40,7 +40,7 @@ public data class StreamInfo(
      * A data class compares a `ByteArray` by REFERENCE, so two descriptions of the same stream from
      * two probes of the same file compared unequal purely because each held its own copy of the
      * same bytes. Anything keyed on a stream, cached by one, or checking that a stream belongs to
-     * a source inherited that instability (audit P1-32).
+     * a source inherited that instability.
      *
      * The array itself is still the caller's to leave alone: it is exposed directly rather than
      * copied on every read, and mutating it after construction changes what this compares. Making

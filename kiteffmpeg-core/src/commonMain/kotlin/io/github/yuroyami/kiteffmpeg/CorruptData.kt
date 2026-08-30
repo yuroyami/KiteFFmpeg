@@ -3,7 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 /**
  * What decoding does when FFmpeg reports damaged data.
  *
- * Every backend used to do [Skip] and say nothing at all (audit P1-05): a packet FFmpeg answered
+ * Every backend used to do [Skip] and say nothing at all: a packet FFmpeg answered
  * `AVERROR_INVALIDDATA` for was treated exactly like a packet that had been consumed, so a damaged
  * file decoded to fewer frames than it should have with no error, no warning and no count. A
  * caller checking a recording for damage, or transcoding an archive and needing to know whether

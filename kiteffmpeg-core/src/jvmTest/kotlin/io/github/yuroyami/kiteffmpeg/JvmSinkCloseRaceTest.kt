@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Two closes at once, and work arriving while a close runs (audit P0-10).
+ * Two closes at once, and work arriving while a close runs.
  *
  * The JVM sink flushes its encoders OUTSIDE the mux lock, which used to leave a window where the
  * sink looked open: a second close could start its own trailer under the first one's flush, and an

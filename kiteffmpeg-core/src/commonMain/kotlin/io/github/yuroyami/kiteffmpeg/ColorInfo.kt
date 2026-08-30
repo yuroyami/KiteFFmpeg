@@ -46,7 +46,7 @@ public data class ColorInfo(
          *
          * Standard definition is BT.601 and high definition is BT.709, and every player applies
          * that rule because using one default for both visibly wrongs half the world's video. Two
-         * refinements over a single 576-line split (audit P1-25):
+         * refinements over a single 576-line split:
          *
          * - the two standard definition families do not share primaries. 525-line content (NTSC,
          *   480 lines and below) is SMPTE 170M; 625-line content (PAL and SECAM, up to 576 lines)

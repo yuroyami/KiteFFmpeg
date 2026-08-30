@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Close racing a running operation, for the objects Group 1 promises about (audit P0-07).
+ * Close racing a running operation, for the objects Group 1 promises about.
  *
  * What a PASS proves is bounded and stated: with the operation leases in place these loops must
  * complete with every refusal typed as IllegalStateException and the process alive. WITHOUT the

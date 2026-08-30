@@ -45,7 +45,7 @@ public actual class FilterGraph internal constructor(
     private val closed = atomic(false)
 
     /**
-     * The graph's operation ledger (audit P0-07, P1-19). [opLock] serializes the non-suspending
+     * The graph's operation ledger. [opLock] serializes the non-suspending
      * operations against each other and against [close]; [operationDepth] counts operations in
      * flight so a close that arrives DURING one, from another thread or reentrantly from an
      * [feedInput] callback, marks the graph closed and lets the outermost operation free it on the
@@ -276,7 +276,7 @@ public actual class FilterGraph internal constructor(
             // An operation is still inside native code, on this thread (a callback closing its own
             // graph) or another (which will block on opLock only for the non-suspending ops; a
             // running process() holds no lock). Mark closed so nothing new starts, and let the
-            // outermost operation free the graph on its way out (audit P0-07, P1-19).
+            // outermost operation free the graph on its way out.
             if (operationDepth > 0) return
             freeNow()
         }

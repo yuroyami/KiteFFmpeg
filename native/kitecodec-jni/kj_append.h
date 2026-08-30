@@ -1,4 +1,4 @@
-/* Bounded string building for the JNI category units (SEC-4).
+/* Bounded string building for the JNI category units.
  *
  * THE TRAP THIS EXISTS TO CLOSE. `off += snprintf(buf + off, sizeof buf - (size_t)off, ...)` is
  * wrong, and wrong in a way that gets worse the moment it starts failing. snprintf returns the

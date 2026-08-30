@@ -75,7 +75,7 @@ public actual class Frame internal constructor(
         }
         // An empty answer for a frame that genuinely carries nothing, which is what the common
         // contract promises and what the other backends do. Throwing here made an unreferenced
-        // frame a failure on this backend alone (audit P1-33). A NEGATIVE size is still an error:
+        // frame a failure on this backend alone. A NEGATIVE size is still an error:
         // that is FFmpeg refusing to describe the frame, not a frame with no bytes.
         if (size == 0) return ByteArray(0)
         if (size < 0) throw FFmpegException(FFmpegError.Internal("this frame reports no copyable bytes ($size)"))
@@ -106,7 +106,7 @@ public actual class Frame internal constructor(
      *
      * It used to answer with a copy, which contradicts the shared contract that a non-hardware
      * source is refused rather than copied. A caller reaching this has bookkeeping that is wrong
-     * somewhere else, and telling them so is the point (audit P1-33).
+     * somewhere else, and telling them so is the point.
      */
     public actual fun downloadFromHardware(): Frame = throw FFmpegException(
         FFmpegError.InvalidArgument(

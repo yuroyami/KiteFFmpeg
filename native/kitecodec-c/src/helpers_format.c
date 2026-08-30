@@ -1,4 +1,4 @@
-/* Ordinary maintained source since the interlude (I-12). Lifted at B1.3 from the def body of
+/* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
  * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
  * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
@@ -137,7 +137,7 @@ KC_API int  ffkmp_fmt_find_stream_info(AVFormatContext *c) {
 KC_API int  ffkmp_fmt_seek_micros(AVFormatContext *ctx, int stream_index, int64_t micros) {
     if (kc_ctx_interrupted(ctx)) return AVERROR_EXIT;
     if (!ctx) return AVERROR(EINVAL);
-    /* Interlude guard (I-12): an index at or past nb_streams used to index ctx->streams[]
+    /* Interlude guard: an index at or past nb_streams used to index ctx->streams[]
      * unchecked, reproduced as signal 11 through this exported entry point. -1 keeps its
      * documented meaning, any stream; every other out of range index is refused. */
     if (stream_index < -1 || (stream_index >= 0 && (unsigned)stream_index >= ctx->nb_streams)) return AVERROR(EINVAL);
@@ -183,7 +183,7 @@ KC_API int  ffkmp_fmt_alloc_output2(AVFormatContext **out, const char *path, con
 }
 /* Muxer private options (movflags, …): AV_OPT_SEARCH_CHILDREN reaches oformat priv_data. */
 KC_API int  ffkmp_fmt_set_opt(AVFormatContext *c, const char *k, const char *v) {
-    /* Interlude guard (I-12): a NULL key used to reach av_opt_set's name comparison and crash,
+    /* Interlude guard: a NULL key used to reach av_opt_set's name comparison and crash,
      * reproduced as signal 11 through this exported entry point. Refused like a NULL context. */
     if (!c || !k) return AVERROR(EINVAL);
     return av_opt_set(c, k, v, AV_OPT_SEARCH_CHILDREN);
@@ -193,7 +193,7 @@ KC_API int ffkmp_fmt_free_output(AVFormatContext **ctx) {
     if (ctx && *ctx) {
         /* The close result is the LAST thing that can fail about an output file, and it is where a
            full disk, a broken pipe or a failed final flush announces itself. Discarding it reported
-           a truncated file as a written one (audit P1-13). The context is still freed on every
+           a truncated file as a written one. The context is still freed on every
            path: the caller gets the error, not a leak. */
         if (!((*ctx)->oformat && ((*ctx)->oformat->flags & AVFMT_NOFILE)) && (*ctx)->pb) {
             rc = avio_closep(&(*ctx)->pb);

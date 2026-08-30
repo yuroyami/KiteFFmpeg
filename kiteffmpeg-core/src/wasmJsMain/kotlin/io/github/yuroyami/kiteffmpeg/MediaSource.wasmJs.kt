@@ -106,7 +106,7 @@ public actual class MediaSource internal constructor(
     public actual val primaryAudio: StreamInfo? get() = streams.firstOrNull { it.type == MediaType.Audio }
 
     /**
-     * True while a packet reader holds the demux cursor (audit P0-05).
+     * True while a packet reader holds the demux cursor.
      *
      * A container has ONE read position. Two readers, or a reader and a batch decode flow, moving
      * it at the same time interleave each other's packets and each other's seeks, and the caller
@@ -175,7 +175,7 @@ public actual class MediaSource internal constructor(
 
     /**
      * Summed from the decoders the batch flows built, because this backend's flows drive real
-     * [StreamDecoder] instances rather than a private decode loop (audit P1-05).
+     * [StreamDecoder] instances rather than a private decode loop.
      */
     public actual var corruptDataSkipped: Long = 0L
         private set
@@ -184,19 +184,19 @@ public actual class MediaSource internal constructor(
 
     public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = flow {
         // Staged, because `associate` built them all and dropped the ones it had already built if
-        // a later open threw, leaking one codec context each (audit P0-05).
+        // a later open threw, leaking one codec context each.
         val decoders = LinkedHashMap<Int, StreamDecoder>()
         // The counter accumulates for this source's LIFETIME, as it does on JVM and Native. It used
         // to be zeroed here and written only in the finally below, so a caller reading it mid-flow
         // always saw zero and a second pass erased the first one's total, which is not what the
-        // commonMain KDoc promises (audit P1-05).
+        // commonMain KDoc promises.
         val skippedBefore = corruptDataSkipped
         var reader: PacketReader? = null
         try {
             // One try owning both, because openPacketReader takes the cursor lease and can throw.
             // It used to sit BETWEEN the catch that unwound the decoders and the try that owns
             // their cleanup, so a throw there leaked every codec context just built, which is the
-            // exact defect P0-05 was opened to fix (audit KC-P0-05-LEAK).
+            // exact defect P0-05 was opened to fix.
             streams.forEach { decoders[it.index] = openDecoder(it, corruptData = corruptData) }
             val live = openPacketReader(streams).also { reader = it }
             while (true) {
@@ -206,7 +206,7 @@ public actual class MediaSource internal constructor(
                     decoders.values.forEach { decoder ->
                         // The drain signal is an input like any other and can be refused. Sending it
                         // once and assuming it landed ended the stream while the decoder was still
-                        // full, which on a buffered codec is its whole tail (audit P0-01).
+                        // full, which on a buffered codec is its whole tail.
                         while (!decoder.send(null)) {
                             while (true) emit(decoder.receive() ?: break)
                         }
@@ -234,7 +234,7 @@ public actual class MediaSource internal constructor(
             }
         } finally {
             // Read the decoders' counts BEFORE closing them: closed decoders answer nothing, and
-            // this total is the only record that the decode was short (audit P1-05).
+            // this total is the only record that the decode was short.
             corruptDataSkipped = skippedBefore + decoders.values.sumOf { it.corruptDataSkipped }
             reader?.close()
             decoders.values.forEach { runCatching { it.close() } }
@@ -258,7 +258,7 @@ public actual class MediaSource internal constructor(
         openPacketReader(listOf(target)).use { it.seek(landing, SeekDirection.Backward, null) }
         // Both opened INSIDE the try. They used to sit outside it, so a throwing openDecoder left
         // the reader open and readerActive true for ever: that MediaSource could never open another
-        // reader again, and the leak was permanent for the object's life (audit KC-P0-05-LEAK).
+        // reader again, and the leak was permanent for the object's life.
         var reader: PacketReader? = null
         var decoder: StreamDecoder? = null
         try {
@@ -349,7 +349,7 @@ public actual class MediaSource internal constructor(
         corruptData: CorruptData,
     ): StreamDecoder {
         val m = requireModule()
-        // Applied or refused, never ignored (audit P0-03). Every parameter below used to be
+        // Applied or refused, never ignored. Every parameter below used to be
         // accepted and dropped, so a caller who asked for a particular decoder, a particular
         // option, or hardware decoding ran something else and was never told.
         if (hardware != null) {

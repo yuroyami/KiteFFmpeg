@@ -39,7 +39,7 @@ private val TargetTriple.isIos: Boolean
  * one of those had to come from Homebrew, Homebrew ships graphite2 shared-only, and a Release
  * asset that only links on a machine with Homebrew is not an asset. Decoding is untouched; the
  * read side is wide by class in [sharedCoreArgs]. Software AV1 is dav1d, MANDATORY in every bake
- * since 2026-08-22 (KC-EMBED): the on/off axis is dead.
+ * since 2026-08-22: the on/off axis is dead.
  *
  * The **Android** profile: nothing GPL, nothing external;
  * hardware video encode/decode via MediaCodec (`h264_mediacodec`, `hevc_mediacodec`) plus FFmpeg's
@@ -946,7 +946,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             "--toolchain", "--cross-prefix", "--host-cc",
         )
 
-        // No toggle-controlled flags remain: the dav1d switch died on 2026-08-22 (KC-EMBED),
+        // No toggle-controlled flags remain: the dav1d switch died on 2026-08-22,
         // so --enable-libdav1d and --enable-decoder=libdav1d are RECIPE, and a tree without
         // them is genuinely stale. --pkg-config=pkg-config is filtered by key above.
 

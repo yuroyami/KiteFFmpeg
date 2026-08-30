@@ -33,7 +33,7 @@ object StaticLinkFlags {
      * Archive FILENAMES to bundle into the vendored tree's `lib/`, so it is self-contained.
      * OS/SDK-provided libraries (zlib, iconv) are deliberately excluded: they must come from the
      * platform, not from a copy. Since the portable profiles this is dav1d only, and dav1d is
-     * MANDATORY since 2026-08-22 (KC-EMBED).
+     * MANDATORY since 2026-08-22.
      */
     fun thirdPartyArchives(target: TargetTriple, license: FFmpegLicense): List<String> =
         listOf("libdav1d.a")

@@ -39,7 +39,7 @@
 # Exit status: 0 when the klib matches the baseline, 2 on a usage error, 1 when the klib or the
 # tooling is missing, 1 when the opaque-boundary invariant fails, and 1 when anything differs,
 # WITH OR WITHOUT `--check`. The two forms agree
-# since the interlude (I-09): the bare form used to exit 0 on a real mismatch, and the plan's own
+# since the interlude: the bare form used to exit 0 on a real mismatch, and the plan's own
 # gate blocks invoked it bare in three places, so a red differential could scroll past a green
 # exit. The bare form still prints the full differential as its output (that is what it is for,
 # in the sub-phase that deliberately changes the surface); it just no longer calls a mismatch
@@ -381,7 +381,7 @@ fi
 # one intentional FFmpeg-header baking. Keeping the old link probe would require the raw metadata
 # leak this phase exists to forbid, so there is deliberately no host-only replacement here.
 
-# A mismatch is a failure in BOTH forms since the interlude (I-09): the bare form exiting 0 on a
+# A mismatch is a failure in BOTH forms since the interlude: the bare form exiting 0 on a
 # real difference was measured to let the gate read green while the report above said red.
 if [ -s "$WORK/diff.txt" ]; then
     echo

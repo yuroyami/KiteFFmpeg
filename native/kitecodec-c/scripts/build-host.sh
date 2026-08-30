@@ -145,7 +145,7 @@ compile() {
     echo "  cc  $(basename "$source")"
     # shellcheck disable=SC2086
     # kitecodec-jni is on the include path for ONE reason: test_append covers kj_append.h, the
-    # JNI layer's bounded string builder (SEC-4). That header carries no jni.h, so it compiles
+    # JNI layer's bounded string builder. That header carries no jni.h, so it compiles
     # here, and the JNI tree has no C test rig of its own to put the suite in.
     "$CC" $BASE_FLAGS $VARIANT_FLAGS "${BUILD_DEFINES[@]}" $FF_CFLAGS \
         -I "$ROOT/include" -I "$ROOT/tests" -I "$ROOT/../kitecodec-jni" \

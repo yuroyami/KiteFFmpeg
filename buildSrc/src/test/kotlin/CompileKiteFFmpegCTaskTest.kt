@@ -75,7 +75,7 @@ class CompileKiteFFmpegCTaskTest {
     }
 
     /**
-     * The producer-side guard is a guard only if the task action CALLS it. The interlude (I-10)
+     * The producer-side guard is a guard only if the task action CALLS it. The interlude
      * measured that replacing the verifyObjectArchitecture call site with a comment left this
      * whole suite green at 4 tests, because every case drove the predicate directly. This case
      * runs the real compile() with a describeFile that lies about the produced object, and the
@@ -113,7 +113,7 @@ class CompileKiteFFmpegCTaskTest {
 
     @Test
     fun aStaleObjectFromAPreviousRunIsCleared() {
-        // Interlude (I-10): the clearing line in compile() had no test, so deleting it kept the
+        // Interlude: the clearing line in compile() had no test, so deleting it kept the
         // suite green. A renamed or removed source must not leave its old object behind, where
         // the CI archive listing and any obj/-globbing tool would read it as current.
         val fixture = fixture()
@@ -142,7 +142,7 @@ class CompileKiteFFmpegCTaskTest {
 
     @Test
     fun theLlvmPackageResolverFallsBackNumericallyAndSaysSo() {
-        // Copied across from CompileKiteRtTaskTest at the interlude (I-10) so the two near-twin
+        // Copied across from CompileKiteRtTaskTest at the interlude so the two near-twin
         // tasks are covered identically. Numbers, not text: llvm-9 must not sort above llvm-21,
         // and essentials-97 must beat essentials-79 within the same LLVM version.
         val root = createTempDirectory()

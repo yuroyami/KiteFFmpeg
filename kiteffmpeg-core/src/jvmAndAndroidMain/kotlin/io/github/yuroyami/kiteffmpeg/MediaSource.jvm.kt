@@ -102,7 +102,7 @@ public actual class MediaSource internal constructor(
         private set
 
     /**
-     * The one place the batch flows decide about damaged data (audit P1-05).
+     * The one place the batch flows decide about damaged data.
      *
      * Under [CorruptData.Fail] it throws; otherwise it counts the loss so a caller can tell a
      * clean decode from an incomplete one, which used to be impossible.
@@ -267,7 +267,7 @@ public actual class MediaSource internal constructor(
         // Before the index is trusted, not after. This is the entry point addCopyStream uses, so
         // without the check a StreamInfo from a DIFFERENT source resolved to whatever lives at the
         // same index here, and the remux wrote these codec parameters under the other file's time
-        // base. Native canonicalizes in codecparOf; this half was missed (audit P1-11).
+        // base. Native canonicalizes in codecparOf; this half was missed.
         requireOwnStream(stream)
         return synchronized(stateLock) {
             val streamToken = Internals.fmtStream(checkOpen(), stream.index)
@@ -500,7 +500,7 @@ private fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>)
     val unusedSlot = arrayOfNulls<String>(1)
     // Ownership of the byte source transfers here, at the adapter, so the open ITSELF has to sit
     // inside a scope that closes it. A throw from fmtOpenInputIo escaped before the try below
-    // began and left the caller's source open for ever (audit P1-01).
+    // began and left the caller's source open for ever.
     val context = try {
         Internals.fmtOpenInputIo(
             adapter,

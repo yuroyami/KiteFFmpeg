@@ -3,7 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import kotlinx.atomicfu.atomic
 
 /**
- * The one seam that lets a test make a muxer step fail (KC-EVIDENCE-MUX).
+ * The one seam that lets a test make a muxer step fail.
  *
  * ## Why this exists
  *

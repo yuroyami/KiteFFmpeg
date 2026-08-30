@@ -53,7 +53,7 @@ JNIEXPORT jstring JNICALL kj_abi_identity_report(JNIEnv *env, jclass cls)
     int off = 0, i;
     (void)cls;
     kc_ffmpeg_report_get(&r);
-    /* Every append is checked (SEC-4). Seven of these fields are strings of unbounded length, and
+    /* Every append is checked. Seven of these fields are strings of unbounded length, and
        the old `off += snprintf(...)` chain would have walked `buf + off` out of the array on the
        first one that did not fit. A report that does not fit is refused, never truncated: the
        Kotlin side splits it into a fixed 31 fields, so a short one parses into wrong values

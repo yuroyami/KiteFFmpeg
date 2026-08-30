@@ -247,7 +247,7 @@ This tree's C test harness and Mach-O allocation interposer have a sibling in Ki
 `kiteplayer-rt/native/tests/`. The mechanism is the same on both sides (`KC_REQUIRE_ALLOC_ACCOUNTING`
 here, `KPRT_REQUIRE_ALLOC_ACCOUNTING` there, each with an `interpose` run mode), and the rule is
 that a fix to either harness lands in both in the same change. The interlude paid the first cost of
-the fork (item I-08): kiteplayer-rt gained the require mechanism at B1.7 and this tree did not, so
+the fork: kiteplayer-rt gained the require mechanism at B1.7 and this tree did not, so
 renaming one word in `interpose_alloc.c`'s section attribute here made the whole ownership gate
 report "39 cases passed, 39 with a property this variant cannot observe" and exit green. With the
 mechanism ported, the same one-word blinding fails the six then-existing suites in the `interpose`

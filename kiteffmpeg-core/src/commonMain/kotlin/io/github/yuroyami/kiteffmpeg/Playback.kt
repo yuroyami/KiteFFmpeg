@@ -181,7 +181,7 @@ public expect class StreamDecoder : AutoCloseable {
      *
      * Zero for healthy input. Non-zero means the decoded result is INCOMPLETE: under
      * [CorruptData.Skip], which is the default, damaged data is dropped and decoding continues,
-     * and this counter is the only way to find out that it happened (audit P1-05). Under
+     * and this counter is the only way to find out that it happened. Under
      * [CorruptData.Fail] the first damage throws instead, so this stays zero.
      */
     public var corruptDataSkipped: Long
@@ -192,7 +192,7 @@ public expect class StreamDecoder : AutoCloseable {
      *
      * A packet belonging to a different stream is REFUSED rather than decoded. Feeding one used to
      * reach FFmpeg, which answered INVALIDDATA, which every backend swallowed as consumed, so the
-     * input vanished and nothing said why (audit P1-03). The check is by stream index, which
+     * input vanished and nothing said why. The check is by stream index, which
      * catches the ordinary mistake of routing a packet to the wrong decoder; it cannot catch a
      * packet from a DIFFERENT source that happens to share the index, which needs source-scoped
      * packet handles and is a later change.
@@ -226,7 +226,7 @@ public expect class StreamDecoder : AutoCloseable {
  *
  * Null is the drain signal and always belongs. Everything else is checked by stream index: a packet
  * routed to the wrong decoder used to reach FFmpeg, come back as INVALIDDATA, and be swallowed as
- * consumed, so the input disappeared silently (audit P1-03).
+ * consumed, so the input disappeared silently.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 internal fun requireOwnStream(packet: Packet?, stream: StreamInfo) {

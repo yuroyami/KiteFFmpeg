@@ -70,7 +70,7 @@ jobs:
       # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
       # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
       # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
-      # references, which is what the `|| true` is for. Warm first, fetch second (KC-CI-KONAN).
+      # references, which is what the `|| true` is for. Warm first, fetch second.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg-core:compileKotlinLinuxX64 --stacktrace || true
 

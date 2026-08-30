@@ -1,4 +1,4 @@
-/* Ordinary maintained source since the interlude (I-12). Lifted at B1.3 from the def body of
+/* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
  * kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
  * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
  * with all eleven digests is recorded in KPKMP.md's I.3 Execution log entry, and the proof
@@ -75,7 +75,7 @@ static int kc_sws_cs_for(enum AVColorSpace spc, int height) {
 /* Is this format one swscale can actually take on the named side?
 
    libswscale ASSERTS on a format outside the enum rather than returning an error, so an arbitrary
-   integer arriving through the exported C ABI took the whole process down (audit P0-09). Three
+   integer arriving through the exported C ABI took the whole process down. Three
    gates, in this order: av_pix_fmt_desc_get answers NULL for anything outside the enum, the
    HWACCEL flag marks a format whose planes are opaque handles rather than pixels, and the
    sws_isSupported pair is swscale's own verdict on everything that survives. The order matters:
@@ -142,7 +142,7 @@ KC_API AVFrame* ffkmp_frame_convert_pixfmt(const AVFrame *src, int dst_fmt) {
        touch width/height/format/data, so the conversion's own fields stand. */
     if (av_frame_copy_props(dst, src) < 0) { av_frame_free(&dst); return NULL; }
     /* Then the two tags copy_props gets WRONG for a converted frame, because they describe the
-       source's encoding rather than this output's (audit P1-23). The pixels above were produced
+       source's encoding rather than this output's. The pixels above were produced
        full range for an RGB destination, and their matrix is RGB, not the source's YUV one; a
        consumer trusting the copied tags would convert a second time and crush the range.
        Primaries and transfer describe the light itself, not the encoding, so they stay. */

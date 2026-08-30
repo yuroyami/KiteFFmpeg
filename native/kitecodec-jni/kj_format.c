@@ -172,7 +172,7 @@ JNIEXPORT void JNICALL kj_fmt_interrupt(JNIEnv *env, jclass cls, jlong token)
 }
 
 /* Returns the CLOSE result so the caller can fail a write that only failed at the very end, such
-   as a full disk discovered while the final buffer was flushed (audit P1-13). Zero when there was
+   as a full disk discovered while the final buffer was flushed. Zero when there was
    nothing to close, which is also what success looks like. */
 JNIEXPORT jint JNICALL kj_fmt_free_output(JNIEnv *env, jclass cls, jlong token)
 {

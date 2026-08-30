@@ -336,7 +336,7 @@ internal object Internals {
     internal fun fmtSeekFile(token: Long, stream: Int, min: Long, target: Long, max: Long, flags: Int) = checked { nativeFmtSeekFile(token, stream, min, target, max, flags) }
     internal fun fmtMetadata(token: Long) = checked { nativeFmtMetadata(token) }
     internal fun fmtAllocOutput(path: String?, format: String?) = token("output allocation") { nativeFmtAllocOutput(path, format) }
-    /** Returns the close result: negative when the final flush or file close failed (P1-13). */
+    /** Returns the close result: negative when the final flush or file close failed. */
     internal fun fmtFreeOutput(token: Long): Int = checked { nativeFmtFreeOutput(token) }
     internal fun fmtNewStream(format: Long, codec: Long = 0) = token("output stream allocation") { nativeFmtNewStream(format, codec) }
     internal fun fmtIoOpen(token: Long, path: String) = checked { nativeFmtIoOpen(token, path) }

@@ -50,7 +50,7 @@ public object KiteFFmpegWeb {
         // The established module answers FIRST, before validation. Re-attaching the same module is
         // the common case under a bundler that runs a setup block twice, and validating it again
         // was pointless work; validating a DIFFERENT one and then dropping it silently was worse,
-        // because the caller's module never became the one in use and nothing said so (P1-35).
+        // because the caller's module never became the one in use and nothing said so.
         val established = module
         if (established != null) {
             if (established === codecModule) return
@@ -78,7 +78,7 @@ public object KiteFFmpegWeb {
         // and the second one arriving would otherwise throw at [attach] for being a different
         // module than the first one that landed. The instance that got there first wins and the
         // other is simply not adopted, which is what "calling twice is a no-op" has to mean when
-        // the two calls overlap (audit P1-35).
+        // the two calls overlap.
         if (module != null) return
         attach(loaded)
     }

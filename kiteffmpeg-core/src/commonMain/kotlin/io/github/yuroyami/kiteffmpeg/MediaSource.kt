@@ -54,7 +54,7 @@ public expect class MediaSource : AutoCloseable {
 
     /**
      * What the batch decode flows do when FFmpeg reports damaged data. [CorruptData.Skip] by
-     * default, which is what every backend always did, silently (audit P1-05).
+     * default, which is what every backend always did, silently.
      *
      * Set it before collecting. Changing it mid-flow applies from the next packet, which is well
      * defined but rarely what anyone means.
@@ -152,7 +152,7 @@ public expect class MediaSource : AutoCloseable {
 
     /**
      * Requests that every current and future blocking call on this source return with a typed
-     * [FFmpegError.Interrupted] failure (KC-CANCEL).
+     * [FFmpegError.Interrupted] failure.
      *
      * FFmpeg polls an interrupt seam at the top of its blocking loops, so a read or seek already
      * in flight returns promptly and later calls fail fast. One-way by design: an interrupted

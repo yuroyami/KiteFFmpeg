@@ -68,7 +68,7 @@
  * sentence away, and the actionable half is the entire point of it. The bound is arithmetic over the
  * five embedded fields at their declared capacities (ref 31, dir 511, flavour 31, runtime version 63,
  * runtime licence 63) plus the fixed text: 1024 was 12 bytes short of that worst case, measured at the
- * interlude (I-17) by compiling with the build defines at capacity, where the sentence came out 1011
+ * interlude by compiling with the build defines at capacity, where the sentence came out 1011
  * bytes with two runtime fields still 101 bytes below their own caps. 1152 clears the worst case with
  * margin. tests/test_identity.c asserts the arithmetic bound, not just this machine's instance, so the
  * capacity cannot go back to being tight without a test failing on every machine. */

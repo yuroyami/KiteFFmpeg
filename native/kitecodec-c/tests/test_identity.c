@@ -171,7 +171,7 @@ int main(void)
         strlen(report.provisioning), sizeof report.provisioning);
     kc_detail("provisioning sentence %zu of %zu bytes",
               strlen(report.provisioning), sizeof report.provisioning);
-    /* Extended at the interlude (I-17): the line above only proves THIS machine's sentence fits,
+    /* Extended at the interlude: the line above only proves THIS machine's sentence fits,
      * and at KC_TEXT_SENTENCE 1024 the worst case did not: with the build defines compiled at
      * their declared capacities the sentence measured 1011 bytes while the two runtime-supplied
      * fields were still 101 bytes below their own caps, so a long av_version_info() plus a long
