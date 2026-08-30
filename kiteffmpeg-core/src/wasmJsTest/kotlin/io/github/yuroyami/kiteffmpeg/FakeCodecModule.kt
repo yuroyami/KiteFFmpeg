@@ -136,6 +136,18 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         m._ffkmp_disposition_visual_impaired = () => 256;
         m._ffkmp_disposition_attached_pic = () => 1024;
 
+        // The container MODEL: this base fake declares a container that carries none of it, which
+        // is a legitimate answer and keeps these entries honest. A fake that simply omitted them
+        // would make every reader of the model throw instead, which is the fake working as designed
+        // but not what these older tests are about.
+        m._ffkmp_fmt_metadata = () => 0;
+        m._ffkmp_stream_metadata = () => 0;
+        m._ffkmp_fmt_chapter_count = () => 0;
+        m._ffkmp_stream_start_time = () => -9223372036854775808n;
+        m._ffkmp_codecpar_extradata = () => 0;
+        m._ffkmp_media_type_data = () => 2;
+        m._ffkmp_media_type_attachment = () => 4;
+
         m._ffkmp_stream_discard_none = (stream) => { selected[stream - STREAM] = true; };
         m._ffkmp_stream_discard_all = (stream) => { selected[stream - STREAM] = false; };
         m._ffkmp_packet_alloc = () => m._malloc(16);
@@ -367,3 +379,119 @@ internal fun useCodecModule(module: JsAny) {
 internal fun forgetCodecModule() {
     KiteFFmpegWeb.module = null
 }
+
+/**
+ * Adds everything the container MODEL reads: metadata dictionaries, chapters, per-stream tags,
+ * start time, extradata, colour, channel layout and the non-AV media types.
+ *
+ * The web backend used to hardcode most of this empty and collapse every non-AV type to `Data`,
+ * which is the failure mode this fake exists to catch: plausible emptiness reads exactly like a
+ * container that genuinely carries nothing.
+ *
+ * Stream 0 is VIDEO so the colour and extradata paths apply; stream 1 is an ATTACHMENT, which is
+ * one of the two types that used to be erased.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketReaderCodecModule())
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        const STREAM = 0x600;
+        const CODECPAR = 0x700;
+        const cstr = (s) => {
+            const b = new TextEncoder().encode(s);
+            const p = m._malloc(b.length + 1);
+            m.HEAPU8.set(b, p);
+            m.HEAPU8[p + b.length] = 0;
+            return p;
+        };
+
+        // Dictionaries, as arrays of [keyPtr, valuePtr]. Entry handles encode dict and index so a
+        // walk cannot wander from one dictionary into another.
+        const dicts = {
+            1: [["title", "Fake Container"], ["encoder", "kite"]],
+            2: [["language", "eng"], ["title", "Main Video"]],
+            3: [["language", "ger"]],
+            4: [["title", "Opening"]],
+            5: [["title", "Ending"]],
+        };
+        const built = {};
+        for (const id of Object.keys(dicts)) {
+            built[id] = dicts[id].map((kv) => [cstr(kv[0]), cstr(kv[1])]);
+        }
+        m._ffkmp_dict_get = (dict, prev) => {
+            const list = built[dict];
+            if (!list) return 0;
+            const next = prev === 0 ? 0 : (prev % 1000);
+            if (next >= list.length) return 0;
+            return dict * 1000 + next + 1;
+        };
+        m._ffkmp_dict_entry_key = (entry) => built[Math.floor(entry / 1000)][(entry % 1000) - 1][0];
+        m._ffkmp_dict_entry_value = (entry) => built[Math.floor(entry / 1000)][(entry % 1000) - 1][1];
+
+        m._ffkmp_fmt_metadata = () => 1;
+        m._ffkmp_stream_metadata = (stream) => stream === STREAM ? 2 : 3;
+
+        // Chapters: id, start and end are int64 OUT slots the caller allocates.
+        const chapters = [[7, 0n, 1500000n, 4], [8, 1500000n, 3000000n, 5]];
+        m._ffkmp_fmt_chapter_count = () => chapters.length;
+        m._ffkmp_fmt_chapter_get = (ctx, index, idOut, startOut, endOut) => {
+            if (index < 0 || index >= chapters.length) return -1;
+            const c = chapters[index];
+            const view = new DataView(m.HEAPU8.buffer);
+            view.setBigInt64(idOut, BigInt(c[0]), true);
+            view.setBigInt64(startOut, c[1], true);
+            view.setBigInt64(endOut, c[2], true);
+            return 0;
+        };
+        m._ffkmp_fmt_chapter_metadata = (ctx, index) => chapters[index][3];
+
+        // Stream 0 is video, stream 1 an attachment: the two answers that used to collapse.
+        m._ffkmp_media_type_data = () => 2;
+        m._ffkmp_media_type_attachment = () => 4;
+        m._ffkmp_codecpar_codec_type = (par) => par === CODECPAR ? 0 : 4;
+        m._ffkmp_codecpar_width = () => 320;
+        m._ffkmp_codecpar_height = () => 180;
+        m._ffkmp_codecpar_sample_aspect_ratio = (par, num, den) => {
+            m.HEAP32[num >> 2] = 1;
+            m.HEAP32[den >> 2] = 1;
+        };
+        m._ffkmp_stream_avg_frame_rate = (s, num, den) => {
+            m.HEAP32[num >> 2] = 25;
+            m.HEAP32[den >> 2] = 1;
+        };
+        // BT.709 declared, full range, top-left chroma: every field a real value rather than a
+        // guess, so a backend that dropped the read answers Unspecified and fails visibly.
+        m._ffkmp_codecpar_color_space = () => 1;
+        m._ffkmp_codecpar_color_primaries = () => 1;
+        m._ffkmp_codecpar_color_transfer = () => 1;
+        m._ffkmp_codecpar_color_range = () => 2;
+        m._ffkmp_codecpar_chroma_location = () => 2;
+        m._ffkmp_codecpar_ch_layout_mask = () => 3n;
+
+        // The subtitle-only base fake never needed a pixel format; the video branch reads one and
+        // then asks for its name.
+        const pixName = cstr("yuv420p");
+        m._ffkmp_codecpar_format = () => 12;
+        m._ffkmp_pix_fmt_name = (id) => id === 12 ? pixName : 0;
+        m._ffkmp_codecpar_sample_rate = () => 0;
+        m._ffkmp_codecpar_channels = () => 0;
+
+        const EXTRA = [1, 2, 3, 4, 5];
+        m._ffkmp_codecpar_extradata = (par, buf, size) => {
+            if (buf === 0) return EXTRA.length;
+            if (size < EXTRA.length) return -1;
+            m.HEAPU8.set(new Uint8Array(EXTRA), buf);
+            return EXTRA.length;
+        };
+
+        // 250 ticks at the fake's 1/1000 time base, so a backend that forgets to rescale reports
+        // 250 instead of 250000 and the difference is the bug.
+        m._ffkmp_stream_start_time = () => 250n;
+        m._ffkmp_rescale_q = (v, sn, sd, dn, dd) =>
+            (v * BigInt(sn) * BigInt(dd)) / (BigInt(sd) * BigInt(dn));
+        return m;
+    }""",
+)
+private external fun installFakeModelSurface(module: JsAny): JsAny

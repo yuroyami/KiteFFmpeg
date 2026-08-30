@@ -50,6 +50,23 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_duration_micros
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_index
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_rotation_degrees
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_time_base
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_ch_layout_mask
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_chroma_location
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_color_primaries
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_color_range
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_color_space
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_color_transfer
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_extradata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_dict_entry_value
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_count
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_get
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_metadata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_metadata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_attachment
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_data
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_rescale_q
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_metadata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_start_time
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -82,10 +99,37 @@ public actual class MediaSource internal constructor(
     public actual val formatName: String
         get() = utf8OrNull(requireModule(), ffkmp_fmt_iformat_name(requireModule(), alive())).orEmpty()
 
-    /** Container metadata needs the dictionary walk, which this increment does not carry. */
-    public actual val metadata: Map<String, String> get() = emptyMap()
+    public actual val metadata: Map<String, String>
+        get() = requireModule().let { m -> readMetadata(m, ffkmp_fmt_metadata(m, alive())) }
 
-    public actual val chapters: List<Chapter> get() = emptyList()
+    public actual val chapters: List<Chapter>
+        get() {
+            val m = requireModule()
+            val context = alive()
+            val count = ffkmp_fmt_chapter_count(m, context)
+            if (count <= 0) return emptyList()
+            // Three int64 out-slots in ONE allocation: the C side fills id, start and end together,
+            // and three separate mallocs through a JS boundary would cost three crossings to say
+            // the same thing.
+            val slots = wasmAlloc(m, 24)
+            try {
+                return buildList {
+                    for (index in 0 until count) {
+                        if (ffkmp_fmt_chapter_get(m, context, index, slots, slots + 8, slots + 16) < 0) continue
+                        add(
+                            Chapter(
+                                id = readInt64(m, slots),
+                                startMicros = readInt64(m, slots + 8),
+                                endMicros = readInt64(m, slots + 16),
+                                metadata = readMetadata(m, ffkmp_fmt_chapter_metadata(m, context, index)),
+                            ),
+                        )
+                    }
+                }
+            } finally {
+                wasmFree(m, slots)
+            }
+        }
 
     /**
      * The keys FFmpeg did not consume, which is a real answer now.
@@ -532,7 +576,12 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
             video -> MediaType.Video
             audio -> MediaType.Audio
             subtitle -> MediaType.Subtitle
-            else -> MediaType.Data
+            ffkmp_media_type_data(m) -> MediaType.Data
+            ffkmp_media_type_attachment(m) -> MediaType.Attachment
+            // Everything else is genuinely unknown. Calling it Data erased the difference between
+            // a timed-metadata stream, a font the container carries, and a type this build does
+            // not know, which are three different answers to "can you play this".
+            else -> MediaType.Unknown
         }
         val timeBase = readTimeBase(m, native)
         StreamInfo(
@@ -551,6 +600,7 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                     sampleAspectRatio = readRational(m, fallbackNum = 1, fallbackDen = 1) { n, d ->
                         ffkmp_codecpar_sample_aspect_ratio(m, par, n, d)
                     },
+                    color = readParameterColor(m, par),
                 )
             } else {
                 null
@@ -560,6 +610,7 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                     sampleRate = ffkmp_codecpar_sample_rate(m, par),
                     channels = ffkmp_codecpar_channels(m, par),
                     sampleFormat = sampleFormatOf(m, ffkmp_codecpar_format(m, par)),
+                    channelLayoutMask = ffkmp_codecpar_ch_layout_mask(m, par).takeIf { it != 0L },
                 )
             } else {
                 null
@@ -574,6 +625,12 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                     attachedPicture = flags and dispositionAttachedPic != 0,
                 )
             },
+            metadata = readMetadata(m, ffkmp_stream_metadata(m, native)),
+            startTimeMicros = ffkmp_stream_start_time(m, native)
+                .takeIf { it != Long.MIN_VALUE }
+                ?.let { ffkmp_rescale_q(m, it, timeBase.num, timeBase.den, 1, 1_000_000) }
+                ?: 0L,
+            codecExtradata = readCodecExtradata(m, par),
         )
     }
 }
@@ -648,6 +705,74 @@ private inline fun <T> withCString(m: kotlin.js.JsAny, text: String, block: (Int
  * only place that answer exists: the key array the caller passed in is input only. Empty when the
  * slot holds NULL, which is what an open with no options or a failed open leaves behind.
  */
+/**
+ * The declared colour, with FFmpeg's Unspecified values filled in by the same guess the other
+ * backends make, so the three agree about a stream that declares nothing.
+ *
+ * The guessing itself is a known wart: a guessed value is indistinguishable from a declared one on
+ * every backend except for RANGE, which carries `rangeSpecified`. Extending that provenance to the
+ * other three fields is its own item; matching the other backends is this one's job, and a wasm
+ * answer that was better but different would leave them disagreeing, which is the actual defect.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+private fun readParameterColor(m: kotlin.js.JsAny, par: Int): ColorInfo {
+    val range = ffkmp_codecpar_color_range(m, par)
+    val declared = ColorInfo(
+        matrix = ColorMatrix.fromAv(ffkmp_codecpar_color_space(m, par)),
+        primaries = ColorPrimaries.fromAv(ffkmp_codecpar_color_primaries(m, par)),
+        transfer = ColorTransfer.fromAv(ffkmp_codecpar_color_transfer(m, par)),
+        fullRange = range == 2,
+        chromaLocation = ChromaLocation.fromAv(ffkmp_codecpar_chroma_location(m, par)),
+        rangeSpecified = range == 1 || range == 2,
+    )
+    val guessed = ColorInfo.guessFor(ffkmp_codecpar_height(m, par))
+    return declared.copy(
+        matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,
+        primaries = declared.primaries.takeUnless { it == ColorPrimaries.Unspecified } ?: guessed.primaries,
+        transfer = declared.transfer.takeUnless { it == ColorTransfer.Unspecified } ?: guessed.transfer,
+    )
+}
+
+/**
+ * The codec's own configuration bytes (SPS/PPS and friends), asked for by size and then copied.
+ *
+ * Two calls, because the C side reports the size when handed a null destination. A caller that
+ * decodes a raw stream elsewhere, WebCodecs above all, cannot configure its decoder without these.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+private fun readCodecExtradata(m: kotlin.js.JsAny, par: Int): ByteArray? {
+    val size = ffkmp_codecpar_extradata(m, par, 0, 0)
+    if (size <= 0) return null
+    val buffer = wasmAlloc(m, size)
+    try {
+        val copied = ffkmp_codecpar_extradata(m, par, buffer, size)
+        if (copied != size) return null
+        return readBytes(m, buffer, size)
+    } finally {
+        wasmFree(m, buffer)
+    }
+}
+
+/**
+ * Walks an FFmpeg metadata dictionary into a map, in the order the container wrote it.
+ *
+ * Borrowed, not owned: these dictionaries belong to the format context or the stream, so this
+ * reads and never frees. Contrast [drainUnusedKeys] below, which owns the dictionary it walks.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+private fun readMetadata(m: kotlin.js.JsAny, dict: Int): Map<String, String> {
+    if (dict == 0) return emptyMap()
+    val out = LinkedHashMap<String, String>()
+    var entry = 0
+    while (true) {
+        entry = ffkmp_dict_get(m, dict, entry)
+        if (entry == 0) break
+        val key = utf8OrNull(m, ffkmp_dict_entry_key(m, entry)) ?: continue
+        out[key] = utf8OrNull(m, ffkmp_dict_entry_value(m, entry)).orEmpty()
+    }
+    return out
+}
+
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 private fun drainUnusedKeys(m: kotlin.js.JsAny, slot: Int): List<String> {
     val dict = readInt32(m, slot)

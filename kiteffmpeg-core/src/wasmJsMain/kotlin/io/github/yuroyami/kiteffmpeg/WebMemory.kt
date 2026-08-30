@@ -73,3 +73,15 @@ internal fun sampleFormatOf(module: JsAny, id: Int): SampleFormat =
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, p, v) => { m.HEAP32[p >> 2] = v; }")
 internal external fun writeInt32(module: JsAny, pointer: Int, value: Int)
+
+/**
+ * One 64-bit signed value at [pointer], for the out-slots the C side fills with timestamps.
+ *
+ * A `DataView` rather than a `BigInt64Array` view: the typed array constructor demands 8-byte
+ * alignment and throws when it does not get it, while a DataView reads any offset. The values here
+ * come from FFmpeg structs that are aligned in practice, and paying nothing to stop caring is the
+ * better trade.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, p) => new DataView(m.HEAPU8.buffer).getBigInt64(p, true)")
+internal external fun readInt64(module: JsAny, pointer: Int): Long
