@@ -472,6 +472,11 @@ public final class io/github/yuroyami/kiteffmpeg/Frame$Companion {
 	public static synthetic fun ofVideo-T97qXyM$default (Lio/github/yuroyami/kiteffmpeg/Frame$Companion;[BIILjava/lang/String;JILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Frame;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/FrameFlowKt {
+	public static final fun bufferFrames (Lkotlinx/coroutines/flow/Flow;ILkotlin/coroutines/CoroutineContext;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun bufferFrames$default (Lkotlinx/coroutines/flow/Flow;ILkotlin/coroutines/CoroutineContext;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/FrameInfo {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FrameInfo$Companion;
 	public static final field NOPTS J

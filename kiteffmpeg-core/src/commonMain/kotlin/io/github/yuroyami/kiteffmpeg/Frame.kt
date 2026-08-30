@@ -10,12 +10,11 @@ package io.github.yuroyami.kiteffmpeg
  * native buffers. Frames handed to a callback ([FilterGraph.feedInput]'s `onOutput`) are valid
  * only for that call. Call [copy] to take an owned snapshot of one.
  *
- * **Buffering caveat.** `toList()` is safe: every frame reaches you. Operators that hold frames
- * in an intermediate channel, `buffer()` above all, are only safe when the flow is collected to
- * completion. Cancelling mid-stream (for example `buffer().take(1)`) strands the frames still
- * queued inside the operator, and the standard library gives this flow no hook to close them,
- * so they leak. When you need early termination, collect without `buffer()`, or apply `take`
- * BEFORE any buffering operator so only frames you will actually receive are ever cloned.
+ * **Buffering rule.** `toList()` is safe: every frame reaches you. Do not put frames through a
+ * channel the standard library made: `buffer()`, `flowOn`, `conflate` and `produceIn` all queue
+ * elements they cannot close, so cancelling part way through (`buffer().take(1)` is the ordinary
+ * case) drops whatever is still queued and leaks it. Use [bufferFrames] instead, which owns its
+ * channel and closes what you never receive; it takes a `context` for the `flowOn` case too.
  *
  * The native representation is intentionally not exposed. Pipeline operators ([FilterGraph],
  * encoders) accept Frames directly and resolve their platform handle internally.
