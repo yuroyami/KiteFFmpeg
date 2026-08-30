@@ -168,12 +168,7 @@ public actual class Frame internal constructor(
         // A container that declares nothing is common. Handing the renderer "unspecified" would make
         // it guess, and it would guess without knowing the height. Guess here, where the height is
         // known, and by the rule every player uses.
-        val guessed = ColorInfo.guessFor(ffkmp_frame_height(nativeFrame))
-        return declared.copy(
-            matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,
-            primaries = declared.primaries.takeUnless { it == ColorPrimaries.Unspecified } ?: guessed.primaries,
-            transfer = declared.transfer.takeUnless { it == ColorTransfer.Unspecified } ?: guessed.transfer,
-        )
+        return resolveDeclaredColor(declared, ffkmp_frame_height(nativeFrame))
     }
 
     private fun readFrameSar(): Rational = memScoped {

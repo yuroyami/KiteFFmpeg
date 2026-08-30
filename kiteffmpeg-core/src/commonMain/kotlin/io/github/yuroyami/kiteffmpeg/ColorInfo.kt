@@ -25,6 +25,20 @@ public data class ColorInfo(
     val chromaLocation: ChromaLocation = ChromaLocation.Unspecified,
     /** Distinguishes an explicitly declared studio range from an absent range declaration. */
     val rangeSpecified: Boolean = false,
+    /**
+     * True when the container or codec DECLARED this matrix, false when [guessFor] supplied it.
+     *
+     * A guessed value is a good default and a bad fact. Tone mapping, a colour-managed compositor
+     * and a remux that copies tags all want to know which they are holding: copying a guess into an
+     * output declares something the source never said. Range has carried this distinction from the
+     * start; these three did not, so every consumer saw BT.709 and could not tell whether the file
+     * said so or whether it was 1080 lines tall.
+     */
+    val matrixSpecified: Boolean = false,
+    /** True when the primaries were declared rather than guessed. See [matrixSpecified]. */
+    val primariesSpecified: Boolean = false,
+    /** True when the transfer function was declared rather than guessed. See [matrixSpecified]. */
+    val transferSpecified: Boolean = false,
 ) {
     /** True when the transfer function means high dynamic range. */
     public val isHdr: Boolean
@@ -185,4 +199,23 @@ public data class Disposition(
     public companion object {
         public val None: Disposition = Disposition()
     }
+}
+
+/**
+ * Applies [ColorInfo.guessFor] to whatever [declared] left Unspecified, recording which fields were
+ * the container's word and which were this library's.
+ *
+ * Every backend used to do this inline with its own `copy()`, which is how the web ended up not
+ * doing it at all and the two frame readers ended up differing from the two parameter readers.
+ */
+internal fun resolveDeclaredColor(declared: ColorInfo, height: Int): ColorInfo {
+    val guessed = ColorInfo.guessFor(height)
+    return declared.copy(
+        matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,
+        primaries = declared.primaries.takeUnless { it == ColorPrimaries.Unspecified } ?: guessed.primaries,
+        transfer = declared.transfer.takeUnless { it == ColorTransfer.Unspecified } ?: guessed.transfer,
+        matrixSpecified = declared.matrix != ColorMatrix.Unspecified,
+        primariesSpecified = declared.primaries != ColorPrimaries.Unspecified,
+        transferSpecified = declared.transfer != ColorTransfer.Unspecified,
+    )
 }

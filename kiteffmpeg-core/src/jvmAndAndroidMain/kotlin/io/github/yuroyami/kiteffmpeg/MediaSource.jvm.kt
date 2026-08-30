@@ -619,12 +619,7 @@ private fun readCodecParameterColor(parameters: Long): ColorInfo {
         chromaLocation = ChromaLocation.fromAv(Internals.codecParChromaLocation(parameters)),
         rangeSpecified = range == 1 || range == 2,
     )
-    val guessed = ColorInfo.guessFor(Internals.codecParHeight(parameters))
-    return declared.copy(
-        matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,
-        primaries = declared.primaries.takeUnless { it == ColorPrimaries.Unspecified } ?: guessed.primaries,
-        transfer = declared.transfer.takeUnless { it == ColorTransfer.Unspecified } ?: guessed.transfer,
-    )
+    return resolveDeclaredColor(declared, Internals.codecParHeight(parameters))
 }
 
 private fun readVp9CodecInfo(parameters: Long): Vp9CodecInfo = Vp9CodecInfo(

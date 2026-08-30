@@ -148,23 +148,29 @@ public final class io/github/yuroyami/kiteffmpeg/CodecId$Companion {
 public final class io/github/yuroyami/kiteffmpeg/ColorInfo {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/ColorInfo$Companion;
 	public fun <init> ()V
-	public fun <init> (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;Z)V
-	public synthetic fun <init> (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZZZZ)V
+	public synthetic fun <init> (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
 	public final fun component2 ()Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
 	public final fun component3 ()Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
 	public final fun component4 ()Z
 	public final fun component5 ()Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
 	public final fun component6 ()Z
-	public final fun copy (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;Z)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
-	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun component7 ()Z
+	public final fun component8 ()Z
+	public final fun component9 ()Z
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZZZZ)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/ColorMatrix;Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;Lio/github/yuroyami/kiteffmpeg/ColorTransfer;ZLio/github/yuroyami/kiteffmpeg/ChromaLocation;ZZZZILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getChromaLocation ()Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
 	public final fun getFullRange ()Z
 	public final fun getMatrix ()Lio/github/yuroyami/kiteffmpeg/ColorMatrix;
+	public final fun getMatrixSpecified ()Z
 	public final fun getPrimaries ()Lio/github/yuroyami/kiteffmpeg/ColorPrimaries;
+	public final fun getPrimariesSpecified ()Z
 	public final fun getRangeSpecified ()Z
 	public final fun getTransfer ()Lio/github/yuroyami/kiteffmpeg/ColorTransfer;
+	public final fun getTransferSpecified ()Z
 	public fun hashCode ()I
 	public final fun isHdr ()Z
 	public final fun isUnspecified ()Z

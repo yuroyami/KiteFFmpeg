@@ -67,12 +67,7 @@ public actual class Frame internal constructor(
             chromaLocation = ChromaLocation.fromAv(Internals.frameChromaLocation(open)),
             rangeSpecified = range == 1 || range == 2,
         )
-        val guessed = ColorInfo.guessFor(Internals.frameHeight(open))
-        return declared.copy(
-            matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,
-            primaries = declared.primaries.takeUnless { it == ColorPrimaries.Unspecified } ?: guessed.primaries,
-            transfer = declared.transfer.takeUnless { it == ColorTransfer.Unspecified } ?: guessed.transfer,
-        )
+        return resolveDeclaredColor(declared, Internals.frameHeight(open))
     }
 
     @Throws(FFmpegException::class)

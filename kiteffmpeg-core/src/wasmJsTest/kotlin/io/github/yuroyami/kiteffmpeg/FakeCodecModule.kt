@@ -463,10 +463,15 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         };
         // BT.709 declared, full range, top-left chroma: every field a real value rather than a
         // guess, so a backend that dropped the read answers Unspecified and fails visibly.
-        m._ffkmp_codecpar_color_space = () => 1;
-        m._ffkmp_codecpar_color_primaries = () => 1;
-        m._ffkmp_codecpar_color_transfer = () => 1;
-        m._ffkmp_codecpar_color_range = () => 2;
+        // Flipped by __setColorDeclared, so the same fake can be a stream that says BT.709 and a
+        // stream that says nothing at all. Both answers matter: the second is what makes a guess a
+        // guess, and there is no way to tell them apart without running both.
+        let colorDeclared = true;
+        m.__setColorDeclared = (v) => { colorDeclared = v; };
+        m._ffkmp_codecpar_color_space = () => colorDeclared ? 1 : 2;
+        m._ffkmp_codecpar_color_primaries = () => colorDeclared ? 1 : 2;
+        m._ffkmp_codecpar_color_transfer = () => colorDeclared ? 1 : 2;
+        m._ffkmp_codecpar_color_range = () => colorDeclared ? 2 : 0;
         m._ffkmp_codecpar_chroma_location = () => 2;
         m._ffkmp_codecpar_ch_layout_mask = () => 3n;
 
@@ -495,3 +500,8 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
     }""",
 )
 private external fun installFakeModelSurface(module: JsAny): JsAny
+
+/** Makes the model fake's video stream declare its colour, or declare nothing at all. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, v) => m.__setColorDeclared(v)")
+internal external fun setFakeColorDeclared(module: JsAny, declared: Boolean)

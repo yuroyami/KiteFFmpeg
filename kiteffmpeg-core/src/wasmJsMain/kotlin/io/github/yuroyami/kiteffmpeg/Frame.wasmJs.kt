@@ -3,6 +3,10 @@ package io.github.yuroyami.kiteffmpeg
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_channels
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_clone
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_color_range
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_colorspace
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_color_primaries
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_color_trc
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_chroma_location
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_copy_to_buffer
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_duration
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_format
@@ -56,9 +60,20 @@ public actual class Frame internal constructor(
                 // Only the two fields this backend can currently answer. The rest keep their
                 // documented defaults rather than being invented, and the colour policy above
                 // this layer treats Unspecified as "guess", which is the honest input.
-                color = ColorInfo(
-                    fullRange = ffkmp_frame_color_range(m, p) == AVCOL_RANGE_JPEG,
-                    rangeSpecified = ffkmp_frame_color_range(m, p) != 0,
+                // Read like the other backends read it, then resolved by the same rule. This used
+                // to answer range only, so a web frame reported Unspecified for matrix, primaries
+                // and transfer no matter what the stream declared, and the three backends
+                // disagreed about the same file.
+                color = resolveDeclaredColor(
+                    ColorInfo(
+                        matrix = ColorMatrix.fromAv(ffkmp_frame_colorspace(m, p)),
+                        primaries = ColorPrimaries.fromAv(ffkmp_frame_color_primaries(m, p)),
+                        transfer = ColorTransfer.fromAv(ffkmp_frame_color_trc(m, p)),
+                        fullRange = ffkmp_frame_color_range(m, p) == AVCOL_RANGE_JPEG,
+                        chromaLocation = ChromaLocation.fromAv(ffkmp_frame_chroma_location(m, p)),
+                        rangeSpecified = ffkmp_frame_color_range(m, p) != 0,
+                    ),
+                    ffkmp_frame_height(m, p),
                 ),
                 isHardware = ffkmp_frame_is_hardware(m, p) != 0,
             )

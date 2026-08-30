@@ -5,6 +5,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -104,6 +105,38 @@ class WebContainerModelTest {
             // between a font the container carries and a type this build cannot name.
             assertEquals(MediaType.Attachment, source.streams[1].type)
             assertEquals(MediaType.Video, source.streams[0].type)
+        }
+    }
+
+    @Test
+    fun aDeclaredColourReportsItselfAsDeclared() {
+        useCodecModule(fakeModelCodecModule())
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            val color = assertNotNull(source.streams[0].video?.color)
+            assertTrue(color.matrixSpecified, "a declared matrix must say it was declared")
+            assertTrue(color.primariesSpecified)
+            assertTrue(color.transferSpecified)
+            assertTrue(color.rangeSpecified)
+        }
+    }
+
+    @Test
+    fun aGuessedColourReportsItselfAsGuessed() {
+        val module = fakeModelCodecModule()
+        useCodecModule(module)
+        // The stream now declares nothing. A VALUE still comes out, because every player applies a
+        // default rather than refusing to draw; what changes is that the caller can tell it is this
+        // library's opinion and not the file's. The value is BT.601 rather than BT.709 because the
+        // fake's stream is 180 lines tall, and the guess is by height. That is also why the
+        // declared case above reads Bt709: it is the file talking, not the height.
+        setFakeColorDeclared(module, false)
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            val color = assertNotNull(source.streams[0].video?.color)
+            assertEquals(ColorMatrix.Smpte170m, color.matrix, "the guess must still be applied")
+            assertFalse(color.matrixSpecified, "a guessed matrix must not claim to be declared")
+            assertFalse(color.primariesSpecified)
+            assertFalse(color.transferSpecified)
+            assertFalse(color.rangeSpecified)
         }
     }
 

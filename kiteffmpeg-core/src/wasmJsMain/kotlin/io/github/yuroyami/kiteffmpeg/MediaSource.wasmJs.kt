@@ -725,12 +725,7 @@ private fun readParameterColor(m: kotlin.js.JsAny, par: Int): ColorInfo {
         chromaLocation = ChromaLocation.fromAv(ffkmp_codecpar_chroma_location(m, par)),
         rangeSpecified = range == 1 || range == 2,
     )
-    val guessed = ColorInfo.guessFor(ffkmp_codecpar_height(m, par))
-    return declared.copy(
-        matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,
-        primaries = declared.primaries.takeUnless { it == ColorPrimaries.Unspecified } ?: guessed.primaries,
-        transfer = declared.transfer.takeUnless { it == ColorTransfer.Unspecified } ?: guessed.transfer,
-    )
+    return resolveDeclaredColor(declared, ffkmp_codecpar_height(m, par))
 }
 
 /**
