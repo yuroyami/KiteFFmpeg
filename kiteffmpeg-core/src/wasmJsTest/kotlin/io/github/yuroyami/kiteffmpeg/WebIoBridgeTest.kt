@@ -9,7 +9,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * KC-WEB-IO (spec 17.22.B). The staged web reader against its own written contract.
+ * The staged web reader against its own written contract.
  *
  * `MediaByteSource`'s KDoc promises two things this backend did not keep: close runs exactly once,
  * and seek is never called on a source that says it is not seekable. JVM honours both, Native

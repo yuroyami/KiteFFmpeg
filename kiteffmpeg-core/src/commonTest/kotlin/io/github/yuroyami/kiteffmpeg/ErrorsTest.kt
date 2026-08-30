@@ -55,7 +55,7 @@ class ErrorsTest {
         assertEquals(0, FFmpegError.Internal("invariant").code)
     }
     /**
-     * KC-CAPS. A missing decoder must name the CODEC, not a raw integer.
+     * A missing decoder must name the CODEC, not a raw integer.
      *
      * The row was opened by the owner from a real incident: an iOS device threw FFmpeg's bare -78
      * on an AV1 file and nothing could say whether that build carried dav1d. It took an hour of

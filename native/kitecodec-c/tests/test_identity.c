@@ -1,6 +1,6 @@
 /* The FFmpeg header versus runtime identity gate, one case per verdict.
  *
- * Register item B1-02, plan section 15.2 sub-phase B1.6 and section 15.3's suite table. A gate that
+ * The FFmpeg identity gate. A gate that
  * has never fired is level 8 evidence in the terms of plan section 2, which is to say it is a sentence
  * in a document. This suite is what makes it level 2: a deterministic differential on the exact
  * contract, with a doctored expectation on one side and the real runtime on the other.
@@ -293,7 +293,7 @@ int main(void)
     kc_detail("disagreed: %s", report.configuration_disagreed);
 
     /* ----------------------------------------------------------------------------------------
-     * Register item B1-21. Both licence fields populated, in every report, so the contradiction
+     * Both licence fields populated, in every report, so the contradiction
      * between the declared build flavour and the linked runtime's licence is always visible.
      * ---------------------------------------------------------------------------------------- */
     kc_case("the report carries both the runtime licence and the build flavour");

@@ -205,7 +205,7 @@ static void kc_run_gate(void)
     kc_copy(report->build_license_flavour, sizeof report->build_license_flavour, KC_BUILD_FFMPEG_LICENSE);
     kc_copy(report->build_provisioning_dir, sizeof report->build_provisioning_dir, KC_BUILD_FFMPEG_DIR);
     kc_copy(report->runtime_version_info, sizeof report->runtime_version_info, av_version_info());
-    /* Register item B1-21. The build declares one licence flavour above and the runtime answers with
+    /* The build declares one licence flavour above and the runtime answers with
      * another; both strings are in the report so the contradiction is visible in every rejection and
      * every diagnostic dump rather than waiting to be discovered. */
     kc_copy(report->runtime_license, sizeof report->runtime_license, avutil_license());

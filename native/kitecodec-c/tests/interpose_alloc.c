@@ -2,7 +2,7 @@
  *
  * Why this file exists. LeakSanitizer is not supported on macOS arm64: an ASan and UBSan
  * binary built by Apple clang 17 answers ASAN_OPTIONS=detect_leaks=1 with "AddressSanitizer:
- * detect_leaks is not supported on this platform". That is register item B1-14. The 29
+ * detect_leaks is not supported on this platform". The 29
  * ownership helpers still need leak evidence on the proving machine, so this file is the local
  * instrument, and LSan in the Linux CI job is the corroboration.
  *

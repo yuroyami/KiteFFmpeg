@@ -14,7 +14,7 @@ import kotlin.js.JsAny
  * That is not a workaround for the common case, it is the shape of the data: a browser gets media
  * from a `File`, a `fetch` response or an `ArrayBuffer`, and all three are already whole. What it
  * does NOT support is a source larger than memory or one served by range requests, which needs the
- * Worker of X-08 where a blocking read is legal. Refused explicitly below rather than half-served.
+ * Worker where a blocking read is legal. Refused explicitly below rather than half-served.
  */
 internal class WebIoBridge private constructor(
     private val module: JsAny,

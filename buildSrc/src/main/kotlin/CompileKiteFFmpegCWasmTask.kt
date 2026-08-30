@@ -39,7 +39,7 @@ abstract class CompileKiteFFmpegCWasmTask @Inject constructor() : DefaultTask() 
 
     /**
      * `native/kitecodec-handles`, the generation-tagged handle table shared with the JNI adapter
-     * (17.14 X-04). Its own directory rather than a copy, so a fix here reaches both bindings.
+     * Its own directory rather than a copy, so a fix here reaches both bindings.
      */
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)

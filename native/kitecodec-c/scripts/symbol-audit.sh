@@ -126,7 +126,7 @@ trap 'rm -rf "$WORK"' EXIT
 #                               protector off, which would be a worse trade than allowing it.
 #   __tlv_bootstrap             the Mach-O thread-local bootstrap for `static __thread char
 #                               buf[256]` in ffkmp_strerror. It is the object-code fingerprint of
-#                               register item B1-09, so its presence here is expected and its
+#                               thread affine, so its presence here is expected and its
 #                               ABSENCE would mean the thread-affine buffer stopped being thread
 #                               local. Mach-O only; an ELF build resolves TLS differently.
 #
@@ -313,7 +313,7 @@ echo "5. only src/kitecodec_abi.c writes to a stream"
 PRINTING_UNITS="$(grep -l -E '\b(stderr|stdout|fputs|fputc|fwrite|puts|vfprintf|fprintf)\b' "$SRC"/*.c \
     | xargs -n1 basename | sort || true)"
 if [ "$PRINTING_UNITS" = "kitecodec_abi.c" ]; then
-    echo "  ok: kitecodec_abi.c and nothing else, which is the bypass warning of register item B1-02"
+    echo "  ok: kitecodec_abi.c and nothing else, which is the identity gate's bypass warning"
 elif [ -z "$PRINTING_UNITS" ]; then
     fail "no unit mentions a stream at all; the diagnostic bypass warning that plan section 15.6"
     echo "        question 3 requires has gone missing, so a bypassed gate would now be silent."

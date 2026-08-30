@@ -33,7 +33,7 @@
 
 /* Errors & macros */
 
-/* Thread affinity, register item B1-09. The returned pointer is into
+/* Thread affinity. The returned pointer is into
  * `static __thread char buf[256]` at def line 37, which is the only static storage in
  * the whole helper layer. Two consequences, and both are contract rather than accident:
  * the storage is per thread, so a pointer must never be shared between threads; and the
@@ -370,7 +370,7 @@ KC_API int  ffkmp_fmt_open_input_io(kc_fmt_ctx **out,
  */
 KC_API void ffkmp_fmt_close_input_io(kc_fmt_ctx **ctx);
 
-/* KC-CANCEL. Requests that every current and future blocking call on this input context
+/* Requests that every current and future blocking call on this input context
  * return AVERROR_EXIT: FFmpeg polls the interrupt seam at the top of its blocking loops, so
  * a read or seek already in flight returns promptly and later calls fail fast. One-way by
  * design; there is no clear. The context stays owned and its paired close remains both legal

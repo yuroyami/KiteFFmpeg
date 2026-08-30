@@ -1,7 +1,7 @@
 /* Fixed buffer and copy bound suite for the extracted FFmpeg helper layer. Closes register
- * item B1-10.
+ * the fixed buffers.
  *
- * What B1-10 asks for, and what is actually here.
+ * What the plan asks for, and what is actually here.
  *
  * The item names "nine fixed stack buffers" and lists twelve def line numbers: 37, 506, 558,
  * 663, 708, 553, 704, 623, 669, 712, 578, 723. Measured in the def body, those are

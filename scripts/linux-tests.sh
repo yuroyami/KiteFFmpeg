@@ -4,7 +4,7 @@
 # Gradle creates linuxX64Test / linuxArm64Test and then permanently disables them on a macOS host,
 # so a gate that names those tasks is green by definition. Kotlin/Native CROSS-LINKS the binaries
 # here; this script EXECUTES them, in a Linux container, against the cross-built FFmpeg under
-# native-libs/lgpl/linux-*. PLANNING.md, register items W-06 and W-11.
+# native-libs/lgpl/linux-*. See PLANNING.md.
 #
 #   ./scripts/linux-tests.sh                # linuxArm64, native speed on Apple silicon
 #   ./scripts/linux-tests.sh linuxX64       # linuxX64, emulated, slow

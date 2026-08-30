@@ -819,7 +819,7 @@ class BuildFFmpegTaskTest {
     /**
      * The deployment floor is a CAPABILITY, so the staleness check must see it.
      *
-     * SOL-B4 pinned the macOS floor on 2026-08-25 and the pin was invisible to this check the day
+     * The macOS floor was pinned on 2026-08-25 and the pin was invisible to this check the day
      * it landed. The floor rides inside `--cc`, and `--cc` is machine-specific by key, so it is
      * stripped. The installed side fares no better: splitting the `config.log` line on spaces
      * shreds `--cc='clang -arch arm64 -mmacosx-version-min=12.0'` into fragments, and
@@ -904,7 +904,7 @@ class BuildFFmpegTaskTest {
      * `CheckFFmpegRecipesTask` stores `expectedRecipeFingerprint()` in its `@Input` and then hands
      * that ALREADY-fingerprinted set to `staleReason`, which fingerprints it a second time. Every
      * token survived that because every token was a real `--flag`. The first synthetic token added
-     * to this set (the deployment floor, KC-FLOOR-DRIFT) did not, so the expected side silently
+     * to this set (the deployment floor) did not, so the expected side silently
      * lost it while the installed side kept it, and the check reported every iOS tree stale for a
      * floor that had never moved. CAUGHT BY RUNNING THE REAL TASK, not by any unit test here.
      */

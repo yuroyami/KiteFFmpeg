@@ -1,6 +1,6 @@
 /* The KiteFFmpeg C ABI: the FFmpeg header versus runtime identity gate.
  *
- * Register item B1-02, and plan section 15.2 sub-phase B1.6, which calls this the highest value
+ * The FFmpeg identity gate, which the plan calls the highest value
  * clause in B1. What it prevents was demonstrated live rather than argued: older FFmpeg headers
  * against a newer runtime link cleanly, every symbol resolves, and 38 measured struct field offsets
  * are wrong. 48 of the helpers in kitecodec_helpers.h read or write through one of them, so the
@@ -153,7 +153,7 @@ typedef struct kc_ffmpeg_report {
     char build_license_flavour[KC_TEXT_REF];
     char build_provisioning_dir[KC_TEXT_PATH];
 
-    /* What the runtime answers. `runtime_license` is register item B1-21: the build declares
+    /* What the runtime answers. `runtime_license` is the contradiction check: the build declares
      * FFmpegLicense.LGPL while the linked Homebrew runtime returns "GPL version 3 or later", so both
      * strings ride in every rejection and every diagnostic dump and the contradiction is visible
      * instead of latent. Resolving it is B7's, not this gate's. */
@@ -215,7 +215,7 @@ KC_API const char *kc_ffmpeg_library_name(int index);
  * It exists so the Kotlin side prints the verdict without keeping a second copy of this table. */
 KC_API const char *kc_verdict_name(int verdict);
 
-/* The runtime's configure line, from avcodec_configuration(). Register item B1-22 moves this and the
+/* The runtime's configure line, from avcodec_configuration(). This and the
  * six *_version() queries behind the identity report, because that is where they belong: a caller
  * asking what FFmpeg it has is asking an identity question. Runs kc_init() first. The returned
  * pointer is into libavcodec's own static storage and lives for the life of the process. */

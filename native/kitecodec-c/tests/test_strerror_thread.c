@@ -3,7 +3,7 @@
  * `static __thread char buf[256]` at ffmpeg.def line 37 is the single static
  * object in the 949 line body. The header now states the contract (see the comment above the
  * declaration of ffkmp_strerror in include/kitecodec_helpers.h); this suite is the other half of
- * B1-09 and proves it.
+ * the thread affinity contract and proves it.
  *
  * The contract has two halves, and a test that proved only the first would leave a reader thinking
  * the returned pointer is stable:
@@ -279,7 +279,7 @@ static void case_single_thread_invalidation(void)
 
 static void case_message_bounds(void)
 {
-    /* buf[256] is one of the nine fixed buffers register item B1-10 owns, and driving buffers to
+    /* buf[256] is one of the nine fixed buffers, and driving buffers to
      * their limit is tests/test_buffers.c's job, not this suite's. What belongs here is the part
      * of the storage contract a caller depends on: whatever code is passed, the result is a NUL
      * terminated C string inside the 256 bytes, so reading it can never run off the end. */
@@ -315,7 +315,7 @@ static void case_message_bounds(void)
     KC_CHECKF(longest < KC_MSG_MAX, "longest message was %zu bytes", longest);
     kc_detail("longest=%zu of 255 usable bytes", longest);
     kc_note("so the 256 byte bound is not exercised by any real error code here; the limit and");
-    kc_note("limit plus one rows for this buffer belong to tests/test_buffers.c, item B1-10");
+    kc_note("limit plus one rows for this buffer belong to tests/test_buffers.c");
 }
 
 /* ---- Several threads, interleaved on purpose ---- */

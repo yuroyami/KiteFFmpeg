@@ -5,9 +5,9 @@
 # This is the LOCAL gate for plan sub-phase B1.5, and it is not a fuzz run. Say it plainly, because
 # the difference decides what the result is worth. Coverage-guided fuzzing cannot happen on this
 # machine at all: -fsanitize=fuzzer needs libclang_rt.fuzzer_osx.a, which is absent from Apple
-# clang 17 and from konan's LLVM 21, and Homebrew LLVM is not installed. Register item B1-13.
+# clang 17 and from konan's LLVM 21, and Homebrew LLVM is not installed.
 # scripts/run-fuzz.sh is the real fuzzer and runs on ubuntu-24.04 in CI. What THIS script earns is
-# the other half of B1-13's fix: the same LLVMFuzzerTestOneInput bodies, driven by
+# the other half of the fix: the same LLVMFuzzerTestOneInput bodies, driven by
 # fuzz/replay_main.c over a committed corpus, as an ordinary sanitized regression test that runs in
 # every later gate. It discovers nothing. It refuses to forget.
 #

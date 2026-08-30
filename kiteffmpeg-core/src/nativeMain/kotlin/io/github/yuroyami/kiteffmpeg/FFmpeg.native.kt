@@ -9,7 +9,7 @@ import kotlinx.cinterop.toKString
 public actual object FFmpeg {
 
     /*
-     * Register item B1-22. The version/configuration queries come through the identity gate, and the
+     * The version and configuration queries come through the identity gate, and the
      * three availability queries come through KiteFFmpeg's opaque helper boundary. No raw libav
      * declaration is needed by this file.
      *

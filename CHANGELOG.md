@@ -100,7 +100,7 @@ was private and unpublished.
   application GPL-3.0, which is not a decision a library should make on their behalf.
   `FFmpegLicense.GPL` survives as a LABEL for a tree you built yourself (it is a path
   segment and rides into the identity report); what is gone is KiteFFmpeg producing one.
-  This also deletes register row P0-14, where `portableDesktopArgs()` ignored the licence
+  This also fixes the case where `portableDesktopArgs()` ignored the licence
   argument and wrote trees containing no GPL code into directories named `gpl` - a
   curiosity while private, a false public statement about licensing once published.
 

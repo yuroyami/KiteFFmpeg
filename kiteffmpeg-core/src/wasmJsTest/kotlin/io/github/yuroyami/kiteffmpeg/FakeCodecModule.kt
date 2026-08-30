@@ -14,7 +14,7 @@ import kotlin.js.JsAny
  *
  * The fake is deliberately small. It implements what the code under test actually reads and
  * nothing else; a call into an entry point it does not carry fails loudly rather than answering
- * plausibly, which is the failure mode `KC-WASM-MODEL` describes in production code.
+ * plausibly, which is the failure mode the plan describes in production code.
  */
 
 /** A module carrying every runtime piece `KiteFFmpegWeb.attach` requires, plus a working heap. */

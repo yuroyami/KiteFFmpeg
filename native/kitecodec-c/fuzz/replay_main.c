@@ -1,6 +1,6 @@
 /* The corpus replay driver: main() for a fuzz target on a machine with no libFuzzer.
  *
- * Register item B1-13. Coverage-guided fuzzing cannot run on this host at all: the runtime
+ * Coverage-guided fuzzing cannot run on this host at all: the runtime
  * archive libclang_rt.fuzzer_osx.a is absent from Apple clang 17 and from konan's LLVM 21, and
  * Homebrew LLVM is not installed, so -fsanitize=fuzzer fails at the link. The plan's answer is
  * two drivers over one body. This is the second one, and what it earns is smaller and honest: it

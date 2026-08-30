@@ -495,7 +495,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     )
 
     /*
-     * AV1 note, and it is a warning as much as a pin (register row PAR-6, and the new row it
+     * AV1 note, and it is a warning as much as a pin (see PLANNING.md, and the new row it
      * opened).
      *
      * `av1_videotoolbox` is pinned above so the hwaccel exists on every Apple target that has AV1
@@ -888,7 +888,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
                     append(
                         "A consumer that downloads one release and links it against a klib whose C was " +
                             "compiled against another gets a successful static link and wrong struct " +
-                            "field offsets, which is register item B1-02. Make all of them name one " +
+                            "field offsets, which is what the identity gate is for. Make all of them name one " +
                             "release, or check the vendored tree out at the release they name.",
                     )
                 },
@@ -985,11 +985,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
          * difference.
          *
          * **The deployment floor is the one exception, and it is read back OUT of that shredding**
-         * (KC-FLOOR-DRIFT). Which OS version a tree runs on is a capability, not a build location,
+         * Which OS version a tree runs on is a capability, not a build location,
          * but it rides inside `--cc`, which is machine-specific by key and therefore stripped. The
          * floor was invisible on both sides: the task's unsplit `--cc=...` string is dropped by key,
          * and the installed side's `-mmacosx-version-min=12.0'` fragment starts with ONE dash, so
-         * the `--` filter dropped it too. SOL-B4 pinned the macOS floor on 2026-08-25 and this check
+         * the `--` filter dropped it too. The macOS floor was pinned on 2026-08-25 and this check
          * could not have noticed if a tree ignored the pin. Scanning every token for the floor
          * pattern catches it from either rendering, and quoting is handled by the value pattern
          * stopping before the quote rather than by trimming.

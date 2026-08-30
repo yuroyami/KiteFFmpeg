@@ -71,7 +71,7 @@ public sealed class FFmpegError(public val code: Int, public val message: String
     public class Io(code: Int, message: String) : FFmpegError(code, message)
 
     /**
-     * The call was interrupted through [MediaSource.interrupt] (`AVERROR_EXIT`, KC-CANCEL).
+     * The call was interrupted through [MediaSource.interrupt] (`AVERROR_EXIT`).
      *
      * Not a property of the media: the owner abandoned the source, and every later blocking
      * call on it fails with this too. Close the source; nothing else on it is owed an answer.

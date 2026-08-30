@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
  * The two cases plan section 15.2 B1.3 names for [CompileKiteFFmpegCTask]: a correct object archives,
  * and an object of the wrong architecture fails with a message naming both architectures and the
  * target. A third case covers the output-directory guard, because that guard is the other half of
- * register item B1-11 and is as easy to break as it is to state.
+ * the architecture guard and is as easy to break as it is to state.
  *
  * The compiler is the real konan clang and the objects are real objects. A fixture would prove that
  * a fake `file` output matches a hand written expectation and nothing about the toolchain. The
@@ -295,7 +295,7 @@ class CompileKiteFFmpegCTaskTest {
         }
 
     /**
-     * The three defines of register item B1-02's identity gate, as clang sees them.
+     * The three defines of the identity gate, as clang sees them.
      *
      * The value has to arrive wrapped in C string quotes: `src/kitecodec_abi.c` reads each one as a
      * `const char *`, so `-DKC_BUILD_FFMPEG_REF=n8.0` would expand to an identifier that unit has never
@@ -456,7 +456,7 @@ class CompileKiteFFmpegCTaskTest {
         assertTrue(header.indexOf("KC_A") < header.indexOf("KC_Z"), "defines must be emitted in key order")
     }
     /**
-     * SOL-B4. The C helper layer targets the SAME macOS floor as everything else in the product.
+     * The C helper layer targets the SAME macOS floor as everything else in the product.
      *
      * It compiled at `macos11.0` while Kotlin/Native links at 12.0 and the FFmpeg archives had
      * inherited the SDK's 26.0. Three floors in one binary, none of them agreeing. 11.0 was the

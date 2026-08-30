@@ -70,7 +70,7 @@ abstract class GenerateWasmBindingTask @Inject constructor() : DefaultTask() {
         /**
          * Entry points a generator must not touch, with the reason on each.
          *
-         * `ffkmp_fmt_open_input_io` takes two function pointers and is X-06's whole subject.
+         * `ffkmp_fmt_open_input_io` takes two function pointers and is a subject of its own.
          * `kc_jvm_attach` takes a `JavaVM *`, which does not exist in a browser at all.
          */
         val HAND_WRITTEN = setOf("ffkmp_fmt_open_input_io", "kc_jvm_attach")

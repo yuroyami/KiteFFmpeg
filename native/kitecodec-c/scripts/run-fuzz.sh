@@ -2,7 +2,7 @@
 #
 # Build and run the six libFuzzer targets. This is the REAL fuzzer, and it does not run on macOS.
 #
-# Register item B1-13, measured again while writing this script rather than quoted from the plan:
+# Measured again while writing this script rather than quoted from the plan:
 #
 #   /usr/bin/clang -fsanitize=fuzzer            Apple clang 17.0.0 (clang-1700.3.19.1)
 #     ld: library '.../lib/clang/17/lib/darwin/libclang_rt.fuzzer_osx.a' not found      exit 1
@@ -79,7 +79,7 @@ if ! "$CC" -fsanitize=fuzzer -o "$PREFLIGHT_DIR/preflight" "$PREFLIGHT_DIR/prefl
     echo "  the error:" >&2
     sed 's/^/    /' "$PREFLIGHT_DIR/preflight.log" | head -10 >&2
     echo >&2
-    echo "  This is register item B1-13 and it is expected on macOS: libclang_rt.fuzzer_osx.a" >&2
+    echo "  This is expected on macOS: libclang_rt.fuzzer_osx.a" >&2
     echo "  ships with neither Apple clang nor konan's LLVM. The real fuzzer runs in the" >&2
     echo "  fuzz-linux job of .github/workflows/ci.yml on ubuntu-24.04." >&2
     echo "  The local gate is:  ./scripts/build-host.sh asan && ./scripts/replay-corpus.sh" >&2

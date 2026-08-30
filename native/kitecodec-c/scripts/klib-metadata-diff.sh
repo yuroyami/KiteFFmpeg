@@ -60,7 +60,7 @@
 # is 18784 lines, sha256 361e94272da47423678c58c78fb19d9aee6ee932c74ec4a779a9271629284517. The
 # differential was zero declarations added, 15 declarations removed, zero direct bindings added, 15
 # direct bindings removed, and zero other changed lines added. The 15 are the dead exported helpers
-# of register item B1-08, and the 30 removed "other" lines are those 15 declarations plus the
+# of the deleted helper surface, and the 30 removed "other" lines are those 15 declarations plus the
 # `@kotlinx/cinterop/ExperimentalForeignApi` line each one carried. Nothing else moved: the 80
 # structural lines realigned on each side are the per-fragment boilerplate this file already
 # explains, and they cancel.

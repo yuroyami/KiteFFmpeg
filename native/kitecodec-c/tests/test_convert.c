@@ -21,7 +21,7 @@
  *   result carries those rather than the source's YUV tags. A caller reading
  *   dst->color_range gets what the pixels are, which is the only reading worth trusting.
  *
- *   Allocation cost per call, which is the actual subject of B1-23. Measured under the interposer
+ *   Allocation cost per call, which is the actual subject here. Measured under the interposer
  *   in the plain variant: an even-height frame costs 9 allocating calls per conversion and an
  *   odd-height frame costs 61, deterministic and repeatable, with the difference coming from
  *   swscale needing full filter tables when the last chroma row is half populated. Every call
@@ -300,7 +300,7 @@ static void case_ten_bit_destination(void)
     KC_EQ_INT(ffkmp_frame_format(dst), AV_PIX_FMT_P010LE);
     luma = (unsigned)dst->data[0][0] | ((unsigned)dst->data[0][1] << 8);
     /* 235 in 8 bits becomes 235 << 8 in P010's 16 bit little-endian container, which is the
-     * alignment register item D26 is about. Asserting it here means a conversion that started
+     * alignment the plan is about. Asserting it here means a conversion that started
      * shifting by 6 instead of 8 would fail this case rather than a renderer. */
     KC_EQ_INT((int)luma, 235 << 8);
     kc_detail("luma word %u, expected %u", luma, 235u << 8);
@@ -370,7 +370,7 @@ static void case_round_trip(void)
     ffkmp_frame_free(rgba);
 }
 
-/* ---- Allocation, the actual B1-23 baseline ---- */
+/* ---- Allocation, the actual baseline ---- */
 
 static void case_allocation_baseline(void)
 {

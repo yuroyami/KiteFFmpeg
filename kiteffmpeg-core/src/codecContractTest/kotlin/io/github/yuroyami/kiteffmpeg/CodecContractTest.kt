@@ -497,7 +497,7 @@ internal class CodecContractTest {
     }
 
     /**
-     * KC-EVIDENCE-MUX. The poison in `addCopyStream` becomes falsifiable.
+     * The poison in `addCopyStream` becomes falsifiable.
      *
      * `avformat_new_stream` mutates the format context and FFmpeg cannot take a stream back, so a
      * failure after it leaves a half-configured stream in the muxer. The sink poisons itself for

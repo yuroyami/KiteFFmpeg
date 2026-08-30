@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the 17.5 format matrix through the WEB decode path (PLANNING.md, toward X-14).
+# Runs the format matrix through the WEB decode path. See PLANNING.md.
 #
 # Not the project's own suite: that is Kotlin and needs the engine, which the web does not have
 # yet. This is the honest interim, and it says so. It answers one question the owner actually asks,
@@ -11,7 +11,7 @@
 # "codec not in the lean set" is a real finding.
 #
 # It reports per STREAM, video and audio both, since 2026-08-18. It used to decode one stream per
-# row, video where there was video, and that is how PAR-4 stayed invisible: vp9.webm reported PLAYS
+# row, video where there was video, and that is how the opus gap stayed invisible: vp9.webm reported PLAYS
 # on the strength of its picture while its opus track had no decoder in the build at all. A probe
 # that answers "does the web play my formats" has to look at the whole file.
 set -euo pipefail
@@ -46,7 +46,7 @@ const ROWS = ["sync1080p30.mp4","baseline.mkv","multitrack.mkv","vp9.webm","mpeg
 
 // What the 17.6 LEAN web tier carries, BY CODEC rather than by row.
 //
-// Per row was the old shape and it is exactly what hid PAR-4. vp9.webm was marked in-tier, this
+// Per row was the old shape and it is exactly what hid the opus gap. vp9.webm was marked in-tier, this
 // probe decoded its video stream only, and the opus track that nothing in the build could decode
 // never appeared in the report at all. A row is a CONTAINER; what is in or out of a tier is a
 // codec, and a container can hold one of each.

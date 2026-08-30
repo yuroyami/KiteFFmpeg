@@ -1,7 +1,7 @@
 /* Ownership and lifetime suite for the extracted FFmpeg helper layer.
  *
- * Register items B1-14 (the allocation interposer is the local leak instrument, because
- * LeakSanitizer is unsupported on macOS arm64) and B1-23 (the per-call SwsContext inside
+ * The allocation interposer is the local leak instrument, because LeakSanitizer is
+ * unsupported on macOS arm64, and the per-call SwsContext inside
  * ffkmp_frame_convert_pixfmt is kept as B2's caching baseline, so this suite asserts what the
  * helper does today rather than what it ought to do).
  *
@@ -18,7 +18,7 @@
  *
  * The set was 43 until B1.4, which deleted four of them as dead exported surface: frame_ref,
  * frame_make_writable, packet_ref and fmt_alloc_output, none of which any Kotlin file imported
- * (register item B1-08). Their cases went with them, except that container inference from the
+ * when the deleted surface went. Their cases went with them, except that container inference from the
  * path extension moved to ffkmp_fmt_alloc_output2, which takes the same path with a NULL format.
  *
  *   Frames  (7)  frame_alloc, frame_free, frame_unref, frame_get_buffer, frame_clone,
@@ -317,7 +317,7 @@ static void case_frame_clone_refuses_null(int measure)
     OWN_LIVE_EXACTLY(measure, &before, 0, "net");
 }
 
-/* B1-23, first of the three awkward helpers by plan order but kept next to the frame cases
+/* First of the three awkward helpers by plan order but kept next to the frame cases
  * because that is what it returns. */
 static void case_frame_convert_pixfmt_is_caller_owned(int measure)
 {

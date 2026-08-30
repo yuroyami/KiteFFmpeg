@@ -18,7 +18,7 @@ import kotlin.js.JsAny
  *
  * Because that one is twenty times slower on the web, and the difference is not the conversion, it
  * is the crossing. Kotlin/Wasm has no bulk typed-array bridge, so a `ByteArray` of pixels is filled
- * one byte at a time through a JS call each: the X-01 probe measured that path at 160 to 240 ms per
+ * one byte at a time through a JS call each: the web probe measured that path at 160 to 240 ms per
  * 1080p frame against a 33.3 ms budget, which is not playback. Doing the same work with the
  * conversion in C and the result handed straight to a JS array measured 8.5 to 9.7 ms.
  *

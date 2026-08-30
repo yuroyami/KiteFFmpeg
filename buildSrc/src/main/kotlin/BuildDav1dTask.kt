@@ -15,7 +15,7 @@ import java.nio.file.Files
  * Cross-compiles dav1d (VideoLAN's SIMD AV1 software decoder) as a static library for one
  * [target] and installs it into `native-libs/deps/<target>/{include,lib}` where
  * [BuildFFmpegTask] picks it up when its dav1d switch is on (ACCEPTED,
- * demand-driven, optional; register row KC-AV1SW).
+ * demand-driven, optional).
  *
  * Needs meson, ninja and (for x86 asm) nasm on the host, and a dav1d source checkout at
  * [sourceDir]:  `git clone --depth 1 --branch <ref> https://code.videolan.org/videolan/dav1d
@@ -95,7 +95,7 @@ abstract class BuildDav1dTask : DefaultTask() {
             // configure compile-probe dies on the missing dav1d headers. pcfiledir rather
             // than the absolute path, because this repo lives under '#Kite' and pkg-config
             // treats '#' as a comment start with no escape (the same character that banned
-            // make from build-host.sh, register item B1-15).
+            // make from build-host.sh).
             val pc = output.resolve("lib/pkgconfig/dav1d.pc")
             check(pc.isFile) { "meson install produced no dav1d.pc under $output" }
             pc.writeText(

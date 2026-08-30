@@ -1,4 +1,4 @@
-# Coverage-guided fuzzing of the C string entry points. Plan sub-phase B1.5, register item B1-13.
+# Coverage-guided fuzzing of the C string entry points.
 #
 # WHY THIS IS NOT IN ci.yml ANY MORE (moved 2026-08-24). It fuzzes six targets for five minutes
 # each, so it takes half an hour by design, and jobs run in parallel: that ONE job was the reason a

@@ -2,7 +2,7 @@
 #
 # Build the host test binaries for the extracted FFmpeg helper layer.
 #
-# There is no make, no cmake and no ninja here, and that is deliberate. Register item B1-15:
+# There is no make, no cmake and no ninja here, and that is deliberate:
 # cmake is not installed on the proving machine, and GNU make starts a comment at an
 # unescaped '#' while both repositories live under a path containing '#Kite'. Driving clang
 # directly is the only form that is both available and safe under this path, and it is proven
@@ -17,7 +17,7 @@
 #   plain  -O2, no runtime instrumentation. The compile-fidelity and correctness variant.
 #          This is also the only variant in which the allocation interposer works, so it is
 #          the variant that carries the leak evidence (LeakSanitizer is not supported on
-#          macOS arm64, register item B1-14).
+#          macOS arm64).
 #   asan   -fsanitize=address,undefined -fno-omit-frame-pointer -O1. Catches the
 #          out-of-bounds class that the identity gate of B1.6 prevents.
 #   tsan   -fsanitize=thread -O1. Keeps the threaded cases honest.
@@ -33,7 +33,7 @@
 #                     reported and never compared, so a host build that leaves them at their
 #                     defaults still tests the gate; what they must not be is absent, because
 #                     then the report would say "unknown" and test_identity would fail on the
-#                     register item B1-21 case that asserts both licence fields are populated.
+#                     case that asserts both licence fields are populated.
 #
 # Outputs, all under build/<variant>/ which is gitignored:
 #   lib/libkitecodec_helpers_host.a   the extracted helper layer plus the identity gate

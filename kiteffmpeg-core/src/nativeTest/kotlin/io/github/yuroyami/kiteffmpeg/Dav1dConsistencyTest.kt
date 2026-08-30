@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The dav1d switch's consistency law (D-7, KC-AV1SW). dav1d is OPTIONAL, so this test asserts
+ * The dav1d switch's consistency law. dav1d is OPTIONAL, so this test asserts
  * no presence: it asserts that the linked FFmpeg's own configure record and its decoder table
  * AGREE about libdav1d. A tree built with the switch on that cannot find the decoder, or a
  * default tree that somehow grew one, are both integration defects this catches on any machine.

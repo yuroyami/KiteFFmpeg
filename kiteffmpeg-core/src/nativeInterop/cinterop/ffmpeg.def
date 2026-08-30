@@ -4,7 +4,7 @@ language = C
 # define KC_API, kitecodec_abi.h guards its own definition with #ifndef, and listing it last means the
 # helper header's unguarded definition is always the one that wins. It includes no FFmpeg header and
 # names no FFmpeg type, so nothing it adds can pull a new libav type into the binding; what it adds is
-# the identity gate of register item B1-02 and the six kc_ functions register item B1-22 moves behind it.
+# the FFmpeg identity gate and the six kc_ functions that sit behind it.
 headers = kitecodec_helpers.h kitecodec_handles.h kitecodec_abi.h
 headerFilter = kitecodec_helpers.h kitecodec_handles.h kitecodec_abi.h
 # THE VENDORED/PUBLISHED DEF (2026-08-22). Every archive below is embedded INTO this

@@ -53,7 +53,7 @@ KC_API int ffkmp_avseek_flag_any(void)      { return AVSEEK_FLAG_ANY; }
 /* avformat_seek_file, which av_seek_frame cannot express: a bounded window rather than a single
    target. A player uses it to say "land at or before here, but no earlier than there", which is
    what makes a retry ladder cheap instead of a fixed pessimistic backoff. */
-/* KC-CANCEL entry poll, mirroring helpers_format.c: every context this layer opens carries an
+/* The cancellation entry poll, mirroring helpers_format.c: every context this layer opens carries an
    int cell as the interrupt opaque, and FFmpeg's own poll sites do not cover buffered reads. */
 static int kc_playback_interrupted(AVFormatContext *s) {
     return s && s->interrupt_callback.callback && s->interrupt_callback.opaque

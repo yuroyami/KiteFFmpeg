@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# The repository-wide cross-check for the 15 helpers B1.4 deleted, register item B1-08.
+# The repository-wide cross-check for the 15 helpers that were deleted.
 #
 # Why it exists. Those 15 were exported symbols of a versioned library that no Kotlin file
 # imported: a compatibility promise nobody meant to make. Deleting them is only safe if nothing
@@ -104,7 +104,7 @@ fail() {
     status=1
 }
 
-echo "check-deleted-surface.sh: register item B1-08, the deleted helper surface"
+echo "check-deleted-surface.sh: the deleted helper surface"
 echo "  KiteFFmpeg   $REPO"
 echo "  KitePlayer  ${OTHER:-not found beside this repository}"
 echo "  list        $SURFACE_FILE"

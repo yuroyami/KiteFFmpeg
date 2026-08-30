@@ -130,7 +130,7 @@ jobs:
       # The committed dump is therefore a macosArm64 dump, and apiCheck has to be scoped the same
       # way it was produced. This pairing came apart once: the dump was regenerated WITHOUT the flag,
       # so it listed thirteen targets while the gate could only present three, and apiCheck failed on
-      # the target header alone for days without guarding anything (row KC-APICHECK-RED, fixed
+      # the target header alone for days without guarding anything (fixed
       # 2026-08-23). If you re-dump, re-dump with this flag. Widening it to every target needs an
       # FFmpeg tree per target in CI.
       # check-deleted-surface.sh joined this step at the interlude: it needs no build
@@ -138,7 +138,7 @@ jobs:
       # repositories. Here it can only scan this one; KitePlayer got its own CI on 2026-08-24 and
       # this script is not in it yet.
       #
-      # checkWasmBindingMirror joined on 2026-08-24 (row KC-WASM-MIRROR). generateWasmBinding writes
+      # checkWasmBindingMirror joined on 2026-08-24. generateWasmBinding writes
       # into gitignored native-libs/, so the file that actually COMPILES is a committed copy under
       # wasmJsMain. Two copies with nothing comparing them drift, and the drift only shows up at
       # runtime in a browser. It regenerates in memory from signature-baseline.txt and compares; it
@@ -154,7 +154,7 @@ jobs:
       # ffkmp_ helper. klib-metadata-diff.sh --check dumps its metadata and fails when it differs
       # from the committed baseline. Deliberate changes re-baseline with --update in the same commit.
       #
-      # The archive listing is the producer-side half of register item B1-11. The C compile task
+      # The archive listing is the producer-side half of the architecture guard. The C compile task
       # asserts each object's architecture before archiving, which is what actually prevents a
       # wrong-architecture library reaching a consumer; this prints what was built, per target
       # directory, so the log says which targets got one. `file` on an ar archive names the format
@@ -195,7 +195,7 @@ jobs:
     # Added by B1.6. Deliberately its own job and not steps inside macos-arm64, so that this block
     # can be moved, reordered or merged without touching anything another sub-phase wrote.
     # ---------------------------------------------------------------------------------------------
-    name: Host C suites and the FFmpeg identity gate (register items B1-02, KC-CI-C)
+    name: Host C suites and the FFmpeg identity gate
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -254,7 +254,7 @@ jobs:
         run: ./scripts/symbol-audit.sh --host
       # The Kotlin end of the gate: the report crossing into Kotlin with both version columns, the
       # typed FFmpegError a consumer can catch, and the entry points letting a healthy runtime
-      # through. Plus the build-side checks of register items B1-03 and B1-04.
+      # through. Plus the build-side checks of the FFmpeg release pins.
       # Warm the Kotlin/Native toolchain before anything reaches the C helper task. konan fetches
       # its LLVM and per-target sysroots into ~/.konan/dependencies ON DEMAND, when a Kotlin/Native
       # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
@@ -271,7 +271,7 @@ jobs:
       # The web backend, which until now NO job here ran a single test against. 2,316 lines of
       # wasmJsMain shipped on the strength of "it compiles": the register carried twelve rows marked
       # done with nothing that could fail if they regressed, and three Wasm fixes landed on
-      # 2026-08-23 with no source set to test them (register rows KC-EVIDENCE-WASM, KC-WASM-MODEL).
+      # 2026-08-23 with no source set to test them.
       #
       # It runs here because it needs nothing this job does not already have. There is no FFmpeg,
       # no konan and no native toolchain in this path: the tests drive the backend through a FAKE
@@ -333,7 +333,7 @@ jobs:
       # So this job now reads the same prebuilt STATIC tree the published artifact is built from,
       # fetched from this repository's own companion release and checksum-verified. That also ends
       # the older lie in this job's name: it was never testing "the oldest supported headers", it
-      # was testing whatever Ubuntu shipped that week. Register row KC-CI-KONAN asked for exactly
+      # was testing whatever Ubuntu shipped that week. The plan asked for exactly
       # this move.
       #
       # The ffmpeg CLI still comes from apt, for scripts/e2e.sh's assertions only. It is not what

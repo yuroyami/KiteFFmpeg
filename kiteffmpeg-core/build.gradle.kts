@@ -402,7 +402,7 @@ kotlin {
             /*
              * What this archive was built for, read by the FFmpeg identity gate in
              * native/kitecodec-c/src/kitecodec_abi.c and reported in every rejection and every
-             * diagnostic dump (register items B1-02 and B1-21). They are reported, never compared:
+             * diagnostic dump. They are reported, never compared:
              * the comparison is between the six LIB*_VERSION_INT macros the same compile froze and
              * the six *_version() functions the linked runtime answers with. What these three add is
              * the other half of an actionable sentence, which is what the build decided to provision.
@@ -790,7 +790,7 @@ fun registerBuildDav1d(triple: TargetTriple) =
         repoRoot.set(rootDir)
     }
 
-// Linux and Windows joined the set when KC-AV1SW went from "demand-driven" to demanded: AV1 files
+// Linux and Windows joined the set when software AV1 went from "demand-driven" to demanded: AV1 files
 // reach a desktop as often as a phone, and neither tree compiles a single hwaccel, so without dav1d
 // their AV1 route is the typed refusal and nothing else. The set lives on the task so the tasks
 // registered and the cross files written can never disagree.
@@ -1220,7 +1220,7 @@ run {
  * ── The host JNI library rides the jvm artifact (phase W) ────────────────
  *
  * `linkKiteFFmpegJniMacosArm64` was scaffolded as test-only, loaded through the
- * `kiteffmpeg.jni.path` property. A desktop consumer has no such property, so W-01's real JVM
+ * `kiteffmpeg.jni.path` property. A desktop consumer has no such property, so the real JVM
  * variant would still fail at the first `System.loadLibrary`. Staging the dylib into the jvm
  * resource tree under `kiteffmpeg-native/<os>-<arch>/` is what makes one `implementation()` line
  * enough on a desktop, and it is the layout `JniLibrary.jvm.kt` reads. Linux and Windows twins
@@ -1367,7 +1367,7 @@ run {
         }
     }
 
-    // The falsifiability arm for W-01 and W-02, kept in the build so it can be re-run rather than
+    // The falsifiability arm for the JVM loader, kept in the build so it can be re-run rather than
     // described. `-Pkiteffmpeg.jni.falsify=true` points the loader at a path that cannot exist, so
     // every jvm test that touches the backend must fail. A green run under this flag would mean
     // the suite is not reaching the native library at all.

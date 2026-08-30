@@ -27,7 +27,7 @@ the plan:
 
 Only the header directory `lib/clang/17/include/fuzzer` is present. `-fsanitize=fuzzer-no-link`
 does compile, exit 0, but that is coverage instrumentation with no driver and it fuzzes nothing.
-That is register item B1-13, and `scripts/run-fuzz.sh` detects it by compiling a two line program
+`scripts/run-fuzz.sh` detects it by compiling a two line program
 and exits 3 with one sentence rather than dumping a linker error.
 
 So the local gate replays a committed corpus. It discovers nothing. It refuses to forget.

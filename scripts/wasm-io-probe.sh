@@ -44,7 +44,7 @@ const bytes = readFileSync(process.argv[2]);
 const FALSIFY = process.argv[3] === "--falsify";
 
 // The JS-resident source. FFmpeg calls these synchronously; in a browser they live in a Worker,
-// which is the whole reason X-08 exists. Here node is already the right thread.
+// which is the whole reason a Worker is wanted. Here node is already the right thread.
 let position = 0;
 const readFn = M.addFunction((opaque, buf, len) => {
   if (FALSIFY) return -1;                     // a source that can never satisfy a read

@@ -69,7 +69,7 @@ class BuildFFmpegWasmTaskTest {
      * What each MustPlay row actually CONTAINS, as `ffprobe` reports it, not as memory recalls it.
      *
      * A row is listed here with every codec it needs, so adding a codec to the web tier can never
-     * again mean "the one somebody happened to think of". PAR-4 is why this shape exists: the old
+     * again mean "the one somebody happened to think of". The missing opus decoder is why this shape exists: the old
      * version asserted a flat hand-written list, opus was never on it, and the tier decoded the
      * picture of `vp9.webm` and `av1.mkv` while dropping their sound with no test going red.
      */

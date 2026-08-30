@@ -41,7 +41,7 @@ import javax.inject.Inject
  * Apple clang is the right choice for the host test binaries of `scripts/build-host.sh` and the
  * wrong one here.
  *
- * **Why no make, no cmake and no ninja** (register item B1-15): cmake is not installed on the
+ * **Why no make, no cmake and no ninja**: cmake is not installed on the
  * proving machine, and GNU make starts a comment at an unescaped `#` while this repository lives
  * under a path containing `#Kite`. Driving clang and `llvm-ar` directly is the only form that is
  * both available and safe under this path.
@@ -50,7 +50,7 @@ import javax.inject.Inject
  *
  *  - [outputDir] is keyed by the konan target name and is never shared between targets, and the
  *    task refuses to run when the directory it was handed is not named after its own target. That
- *    is register item B1-11: a wrong-architecture archive is embedded by cinterop without a word of
+ *    is the architecture guard: a wrong-architecture archive is embedded by cinterop without a word of
  *    complaint and fails only at the consumer's final link, with
  *    `ld: archive member '/' not a mach-o file`. The producer must catch it, so every object is run
  *    past [verifyObjectArchitecture] before it is archived.
@@ -109,11 +109,11 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
      * Preprocessor defines describing what this archive was built for, passed as `-DNAME="value"`.
      *
      * Three of them today, all read by `src/kitecodec_abi.c` and reported by the FFmpeg identity gate
-     * of register item B1-02: `KC_BUILD_FFMPEG_REF`, `KC_BUILD_FFMPEG_LICENSE` and
+     * of the identity gate: `KC_BUILD_FFMPEG_REF`, `KC_BUILD_FFMPEG_LICENSE` and
      * `KC_BUILD_FFMPEG_DIR`. They are reported and never compared, because the comparison the gate
      * makes is between the header macros and the runtime; these describe the provisioning decision the
      * build took, which is what turns a rejection into an actionable sentence and what makes register
-     * item B1-21's contradiction visible (the build declares a licence flavour, the linked runtime
+     * contradiction visible (the build declares a licence flavour, the linked runtime
      * answers with another, and both strings ride in the report).
      *
      * An `@Input` and not a hardcoded string, so changing the FFmpeg ref or the licence flavour
@@ -143,7 +143,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
 
     /**
      * Where `libkitecodec.a` and the objects behind it land. Its last path segment must be
-     * [konanTargetName]; see the class note on register item B1-11.
+     * [konanTargetName]; see the class note on wrong-architecture archives.
      */
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -496,7 +496,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
          * eleven strings were measured on this host by compiling one translation unit per target.
          *
          * `file` reads the architecture and not the platform, so macos_arm64, ios_arm64 and
-         * ios_simulator_arm64 share a string. That is the right scope: register item B1-11 is about
+         * ios_simulator_arm64 share a string. That is the right scope: the guard is about
          * an archive of the wrong ARCHITECTURE reaching a target, which is what was measured to
          * pass silently through cinterop and fail at the consumer's link. The platform is fixed by
          * the triple and the sysroot, and cross-target mixing is prevented by keying [outputDir] on
@@ -539,7 +539,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
                     "Archiving it would embed a wrong-architecture library in the klib, which " +
                     "cinterop accepts without complaint and which then fails at the consumer's " +
                     "final link with `ld: archive member '/' not a mach-o file` (register item " +
-                    "B1-11). Check the triple and the sysroot in CompileKiteFFmpegCTask.specFor.",
+                    "Check the triple and the sysroot in CompileKiteFFmpegCTask.specFor.",
             )
         }
 
