@@ -288,9 +288,11 @@ class PipelineRoundTripTest {
      * contract demands, so a CLOSED frame's freed AVFrame reached FFmpeg. The media-type guard is
      * the other half: a video frame handed to an audio encoder was read as samples, not refused.
      *
-     * The sink is closed with runCatching because nothing is ever encoded here: a sink that
-     * declared streams and wrote no packets fails its own close, which is a different contract and
-     * not what this test is about.
+     * The sink used to be closed inside a runCatching here, on the claim that a sink which declared
+     * streams and wrote no packets fails its own close. It does not, and measuring it on 2026-08-30
+     * is what removed the swallow: close succeeds and writes a header and a trailer, which is what
+     * the P1-5 fix was for. Swallowing it meant a real close failure in these two tests could never
+     * be seen. `EmptySinkContractTest` now pins that behaviour directly.
      */
     @Test
     fun anEncoderRefusesAClosedFrame() {
@@ -313,7 +315,7 @@ class PipelineRoundTripTest {
             closed.close()
             assertFailsWith<IllegalStateException> { runBlocking { video.drive(flowOf(closed)) } }
         } finally {
-            runCatching { sink.close() }
+            sink.close()
         }
     }
 
@@ -337,7 +339,7 @@ class PipelineRoundTripTest {
             )
             assertFailsWith<IllegalArgumentException> { runBlocking { audio.drive(flowOf(videoFrame)) } }
         } finally {
-            runCatching { sink.close() }
+            sink.close()
         }
     }
 
