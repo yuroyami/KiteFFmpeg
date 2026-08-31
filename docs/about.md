@@ -28,7 +28,7 @@ There is one status table for the whole project, and it lives in the [README](ht
 
 The two things a reader most often needs from it:
 
-- **KiteFFmpeg IS on Maven Central.** `io.github.yuroyami:kiteffmpeg-core:0.1.3`, one dependency line,
+- **KiteFFmpeg IS on Maven Central.** `io.github.yuroyami:kiteffmpeg-core:0.1.0`, one dependency line,
   FFmpeg embedded inside the artifacts. There is no Gradle plugin any more and no FFmpeg download
   step: the plugin was deleted and FFmpeg moved inside the published klibs, so a consumer needs
   nothing on disk. This paragraph said the opposite until 2026-08-24, which was three published

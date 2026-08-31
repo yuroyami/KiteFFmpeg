@@ -102,7 +102,7 @@ linker configuration.
 kotlin {
     macosArm64()          // any supported target; see the table below
     sourceSets.commonMain.dependencies {
-        implementation("io.github.yuroyami:kiteffmpeg-core:0.1.3")
+        implementation("io.github.yuroyami:kiteffmpeg-core:0.1.0")
     }
 }
 ```
@@ -123,7 +123,7 @@ Stated exactly, because rounding this up is how people lose an afternoon.
 
 | Thing | Status |
 |---|---|
-| `kiteffmpeg-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.3** |
+| `kiteffmpeg-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.0** |
 | FFmpeg zips, ALL 11 triples (dav1d inside every one) | **published** on the `ffmpeg-n8.0` release, one canonical copy for every KiteFFmpeg version. Build evidence and the LGPL source offer; consumers need none of them |
 
 **FFmpeg embedded, 2026-08-22.** The Gradle plugin is deleted and dav1d is mandatory.
@@ -305,18 +305,18 @@ they do not decode, encode, filter, remux or transcode media.
 
 | Target | Public artifact | Current evidence | FFmpeg comes from |
 |---|---|---|---|
-| `macosArm64` | **yes**, 0.1.3 | unit tests, native tests and an e2e transcode, run twice: against Homebrew, and against the vendored LGPL build compiled from source | the vendored portable LGPL tree, embedded in the klib (Homebrew only as the dev fallback) |
-| `linuxX64` | **yes**, 0.1.3 | unit tests, native tests and an e2e transcode in CI, against the SHIPPED profile: the prebuilt static n8.0 tree from this repository's own companion release | the vendored portable LGPL tree, embedded in the klib. NOT apt: Ubuntu's `libav*` need glibc 2.29/2.34 while Kotlin/Native links its own 2.19 sysroot, so `ld.lld` refuses them |
-| `androidNativeArm64` / `Arm32` / `X64` | **yes**, 0.1.3 | the klib compiles, per ABI. No tests run on Android. | NDK cross-compile of the LGPL MediaCodec profile |
-| JVM | **yes**, 0.1.3 | the real JNI tree, not a placeholder: 41 tests including the shared codec contract and the VideoToolbox hwaccel contract run over real FFmpeg on an arm64 Mac. The published jar carries a **macOS arm64** library and only that one, so a JVM consumer on Linux or Windows still gets the typed unavailable placeholder | vendored macOS LGPL tree, linked into the bundled JNI library |
-| Android AAR, `minSdk 26` | **yes**, 0.1.3 | the published AAR carries JNI for `arm64-v8a` and `x86_64`, and its own manifest declares `minSdkVersion 26`; both ELF link arms and 16 KiB ELF/app packaging rules are checked. No Android playback or physical-device qualification is claimed. | NDK cross-compile of the LGPL Android profile |
-| `js` | **yes**, 0.1.3 | Node tests verify readable unavailable diagnostics, empty capabilities and typed unsupported failures; no media runtime exists | none; unsupported placeholder |
-| `wasmJs` | **yes**, 0.1.3 | Node/Wasm tests verify the same placeholder contract; no media runtime exists | none; unsupported placeholder |
-| `mingwX64` | **yes**, 0.1.3 | `mingwX64Test` RUNS on a Windows runner in CI, plus a sample link and an end-to-end transcode. This row said "nothing has been run" until 2026-08-24 | the prebuilt static mingw-x64 tree from this repository's own companion release, embedded in the klib. BtbN is gone: its builds are SHARED, so there is no `libavformat.a` to embed, and it prunes old autobuilds so any pin 404s |
-| `iosArm64`, `iosSimulatorArm64` | **yes**, 0.1.3 | no CI claim; local arm64-Mac proof only | the portable LGPL playback build with SDK zlib and VideoToolbox DECODE (encode stays desktop-only), embedded in the klib |
-| `iosX64` | **yes**, 0.1.3 | CI-built tree; klib publishes; nothing has run on an Intel simulator | the vendored portable LGPL tree, embedded in the klib |
-| `macosX64` | **yes**, 0.1.3 | cross-baked with dav1d on an arm64 Mac and CI; klib publishes | the vendored portable LGPL tree, embedded in the klib |
-| `linuxArm64` | **yes**, 0.1.3 | 109 native tests pass in an arm64 Linux container over the vendored cross-build, covering demux, decode, encode, filter and transcode | the vendored portable LGPL cross-build (konan toolchain), embedded in the klib |
+| `macosArm64` | **yes**, 0.1.0 | unit tests, native tests and an e2e transcode, run twice: against Homebrew, and against the vendored LGPL build compiled from source | the vendored portable LGPL tree, embedded in the klib (Homebrew only as the dev fallback) |
+| `linuxX64` | **yes**, 0.1.0 | unit tests, native tests and an e2e transcode in CI, against the SHIPPED profile: the prebuilt static n8.0 tree from this repository's own companion release | the vendored portable LGPL tree, embedded in the klib. NOT apt: Ubuntu's `libav*` need glibc 2.29/2.34 while Kotlin/Native links its own 2.19 sysroot, so `ld.lld` refuses them |
+| `androidNativeArm64` / `Arm32` / `X64` | **yes**, 0.1.0 | the klib compiles, per ABI. No tests run on Android. | NDK cross-compile of the LGPL MediaCodec profile |
+| JVM | **yes**, 0.1.0 | the real JNI tree, not a placeholder: 41 tests including the shared codec contract and the VideoToolbox hwaccel contract run over real FFmpeg on an arm64 Mac. The published jar carries a **macOS arm64** library and only that one, so a JVM consumer on Linux or Windows still gets the typed unavailable placeholder | vendored macOS LGPL tree, linked into the bundled JNI library |
+| Android AAR, `minSdk 26` | **yes**, 0.1.0 | the published AAR carries JNI for `arm64-v8a` and `x86_64`, and its own manifest declares `minSdkVersion 26`; both ELF link arms and 16 KiB ELF/app packaging rules are checked. No Android playback or physical-device qualification is claimed. | NDK cross-compile of the LGPL Android profile |
+| `js` | **yes**, 0.1.0 | Node tests verify readable unavailable diagnostics, empty capabilities and typed unsupported failures; no media runtime exists | none; unsupported placeholder |
+| `wasmJs` | **yes**, 0.1.0 | Node/Wasm tests verify the same placeholder contract; no media runtime exists | none; unsupported placeholder |
+| `mingwX64` | **yes**, 0.1.0 | `mingwX64Test` RUNS on a Windows runner in CI, plus a sample link and an end-to-end transcode. This row said "nothing has been run" until 2026-08-24 | the prebuilt static mingw-x64 tree from this repository's own companion release, embedded in the klib. BtbN is gone: its builds are SHARED, so there is no `libavformat.a` to embed, and it prunes old autobuilds so any pin 404s |
+| `iosArm64`, `iosSimulatorArm64` | **yes**, 0.1.0 | no CI claim; local arm64-Mac proof only | the portable LGPL playback build with SDK zlib and VideoToolbox DECODE (encode stays desktop-only), embedded in the klib |
+| `iosX64` | **yes**, 0.1.0 | CI-built tree; klib publishes; nothing has run on an Intel simulator | the vendored portable LGPL tree, embedded in the klib |
+| `macosX64` | **yes**, 0.1.0 | cross-baked with dav1d on an arm64 Mac and CI; klib publishes | the vendored portable LGPL tree, embedded in the klib |
+| `linuxArm64` | **yes**, 0.1.0 | 109 native tests pass in an arm64 Linux container over the vendored cross-build, covering demux, decode, encode, filter and transcode | the vendored portable LGPL cross-build (konan toolchain), embedded in the klib |
 
 Every triple has an FFmpeg zip on the v-tag release, and since FFmpeg was embedded every
 published klib embeds its FFmpeg, so the "FFmpeg comes from" column above

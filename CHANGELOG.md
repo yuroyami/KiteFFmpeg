@@ -6,6 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 **Versioning policy:** KiteFFmpeg is pre-1.0. During 0.x, minor versions may contain breaking API changes; they are called out here when they happen. From 1.0 on, breaking changes only land in major versions.
 
+## [Unreleased]
+
+Nothing yet.
+
+## [0.1.0] - 2026-08-30
+
+**The project was renamed.** KiteCodec became KiteFFmpeg on 2026-08-29, because the name now says
+what it is: a binding for FFmpeg, which is the only media engine it will ever wrap.
+
+The artifact is `io.github.yuroyami:kiteffmpeg-core` and its version line starts again at 0.1.0.
+That number is LOWER than the old `kitecodec-core` 0.1.3 and is NEWER than it: a new artifact id
+starts its own line. The old coordinates stay on Maven Central exactly as they are and receive
+nothing further.
+
+```kotlin
+implementation("io.github.yuroyami:kiteffmpeg-core:0.1.0")
+```
+
+Names beginning `kc_`, `ffkmp_` and `libkitecodec` inside the C layer are unchanged on purpose.
+They are internal to the build and invisible to anything that depends on this library.
+
+### Added
+
+- **An interrupt seam.** `MediaSource.interrupt()` is the one member callable from another thread
+  while a read, seek or decode is blocked, so a stalled network open no longer holds a thread until
+  the socket gives up. One-way by design: an interrupted source is being abandoned, not paused, and
+  there is no way to clear the flag, because a cancelled read resuming into freed state is the bug
+  it exists to prevent. `close()` stays both legal and required.
+- **Stream disposition**, exposed on `StreamInfo` as `default`, `forced` and `hearingImpaired`, so a
+  player can pick the right subtitle track instead of guessing from the title string.
+
+### Changed
+
+- **FFmpeg n8.0 to n8.1.2**, rebuilt for all eleven triples with dav1d 1.5.4 inside every one.
+- **A reader reselects its streams without moving its cursor**, so switching audio track no longer
+  costs a seek.
+
+### Carried from 0.1.3
+
+Everything. The AAC encoder fix, the embedded-FFmpeg integration, the Android AAR, the real JVM
+variant, mandatory dav1d and the portable profiles are all present and unchanged. See the 0.1.3
+entry below for what each one was.
+
+> Everything below this line shipped as `io.github.yuroyami:kitecodec-core`, the artifact id used
+> before the 2026-08-29 rename. Those versions stay on Maven Central and receive nothing further.
+
 ## [0.1.3] - 2026-08-24
 
 **Start here.** 0.1.0 and 0.1.1 are on Maven Central and stay there; 0.1.2 was tagged and never
@@ -84,7 +130,7 @@ The companion zips for this release are on `ffmpeg-n8.0-r2`. The older `ffmpeg-n
 unchanged, because `NOTICE` names it as the LGPL source offer for 0.1.0 and 0.1.1, which are on
 Maven Central permanently. A consumer needs neither: FFmpeg is already inside the artifact.
 
-## [0.1.0] - 2026-08-21
+## kitecodec-core 0.1.0 - 2026-08-21
 
 First public release. The repository went public on this date; everything before it
 was private and unpublished.
@@ -103,10 +149,6 @@ was private and unpublished.
   This also fixes the case where `portableDesktopArgs()` ignored the licence
   argument and wrote trees containing no GPL code into directories named `gpl` - a
   curiosity while private, a false public statement about licensing once published.
-
-## [Unreleased]
-
-Nothing yet.
 
 ## [0.1.1] - 2026-08-22
 

@@ -22,7 +22,7 @@ Two points decide whether KiteFFmpeg is usable for you:
   than a codec. No Android playback is qualified on a physical device. `js` and `wasmJs` compile and
   publish the common API but report no capabilities and reject every media operation with typed
   `FFmpegError.Unsupported`.
-- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg-core:0.1.3` on Maven Central, one
+- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg-core:0.1.0` on Maven Central, one
   dependency line, FFmpeg embedded inside the artifacts. There is no Gradle plugin and no FFmpeg
   download step. `mingwX64` builds and tests in CI and has prebuilt FFmpeg assets; `iosX64`,
   `macosX64` and `linuxArm64` remain unqualified. This paragraph said "Nothing is published" until
