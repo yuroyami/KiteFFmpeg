@@ -139,4 +139,44 @@ class BuildFFmpegRefsTest {
             vendorRelease,
         )
     }
+
+    /**
+     * The clone refs are a SECOND kind of pin, and reading only the first kind is what let CI go
+     * red for two days. A workflow's `FFMPEG_VERSION:` names prebuilt zips that already exist on a
+     * release tag; a `git clone --branch` names the source a job compiles. The 8.1.2 bump moved the
+     * env vars and left three clone literals at n8.0.
+     */
+    @Test
+    fun `every FFmpeg clone ref in a workflow is read, and the env var is not mistaken for one`() {
+        val workflow = """
+            env:
+              FFMPEG_VERSION: n8.0
+              FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
+            jobs:
+              a:
+                steps:
+                  - run: |
+                      git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+                      git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
+              b:
+                steps:
+                  - run: git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+        """.trimIndent()
+
+        assertEquals(
+            listOf("n8.1.2", "n8.1.2"),
+            BuildFFmpegTask.readWorkflowFFmpegCloneRefs(workflow),
+            "the dav1d clone must not be read, and the env var must not be read as a clone",
+        )
+        // The env reader still answers its own question, and answers a different one.
+        assertEquals("n8.0", BuildFFmpegTask.readWorkflowFFmpegVersion(workflow))
+    }
+
+    @Test
+    fun `a workflow that clones no FFmpeg reports none, so a blind check can be told from a clean one`() {
+        assertEquals(
+            emptyList(),
+            BuildFFmpegTask.readWorkflowFFmpegCloneRefs("jobs:\n  a:\n    steps:\n      - run: echo hi"),
+        )
+    }
 }

@@ -902,6 +902,22 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
          * that stopped pinning the release is a drift this check exists to catch, and silently treating
          * it as agreement would be the wrong answer.
          */
+        /**
+         * Every FFmpeg ref a workflow CLONES, in order of appearance.
+         *
+         * Distinct from [readWorkflowFFmpegVersion], and the distinction is the whole point. A
+         * workflow's `FFMPEG_VERSION:` names the PREBUILT zips a job downloads, so it is keyed to
+         * binaries that already exist on a release. A `git clone --branch <ref>` names the SOURCE a
+         * job compiles, so it has to equal what buildSrc expects or the build meets the wrong
+         * headers. The 8.1.2 bump moved the env vars and left these literals at n8.0, and the
+         * existing check could not see them because it only ever read the env.
+         */
+        fun readWorkflowFFmpegCloneRefs(workflowText: String): List<String> =
+            Regex("""git\s+clone\b[^\n]*--branch\s+(\S+)[^\n]*FFmpeg\.git""")
+                .findAll(workflowText)
+                .map { it.groupValues[1] }
+                .toList()
+
         fun readWorkflowFFmpegVersion(workflowText: String): String? =
             workflowText.lineSequence()
                 .map { it.trim() }

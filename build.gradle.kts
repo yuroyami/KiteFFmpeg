@@ -141,15 +141,40 @@ run {
 
     // The plugin pin site died with the plugin (2026-08-22): with FFmpeg embedded in
     // the klibs there is no consumer-side version to keep honest, only the two producer pins.
-    BuildFFmpegTask.assertFFmpegRefsAgree(
-        listOf(
-            BuildFFmpegTask.FFmpegRefSite(
-                "buildSrc/src/main/kotlin/BuildFFmpegTask.kt DEFAULT_SOURCE_REF",
-                BuildFFmpegTask.DEFAULT_SOURCE_REF,
-            ),
-            BuildFFmpegTask.FFmpegRefSite(".github/workflows/publish.yml FFMPEG_VERSION", workflowRef),
+    // ci.yml joined the comparison on 2026-08-30, and it joined because it had already drifted.
+    // The 8.1.2 bump moved buildSrc and publish.yml and left ci.yml's three `git clone --branch`
+    // literals at n8.0, so every job that BUILDS FFmpeg from source cloned 8.0, met a build
+    // expecting 8.1.2, and went red. The check that exists to catch exactly this could not see the
+    // file it happened in, because it only ever read `FFMPEG_VERSION:`.
+    //
+    // The clone refs are read rather than the env var, and that is deliberate. `FFMPEG_VERSION:` in
+    // ci.yml and docs.yml names the PREBUILT zips a job downloads, so it is keyed to binaries that
+    // exist on a release tag. A clone ref names the SOURCE a job compiles. Only the second has to
+    // equal what buildSrc expects; conflating them is what would force the two to move together
+    // when they legitimately move apart.
+    val ciWorkflow = layout.projectDirectory.file(".github/workflows/ci.yml")
+    val ciText = providers.fileContents(ciWorkflow).asText.orNull
+        ?: throw GradleException("Cannot check the FFmpeg release pins: no ${ciWorkflow.asFile.path}.")
+    val ciCloneRefs = BuildFFmpegTask.readWorkflowFFmpegCloneRefs(ciText)
+    if (ciCloneRefs.isEmpty()) {
+        throw GradleException(
+            "Cannot check the FFmpeg release pins: .github/workflows/ci.yml clones FFmpeg nowhere. " +
+                "Either a job stopped building from source, or the clone line changed shape and " +
+                "this check went blind, which is the failure it exists to prevent.",
+        )
+    }
+
+    val refSites = mutableListOf(
+        BuildFFmpegTask.FFmpegRefSite(
+            "buildSrc/src/main/kotlin/BuildFFmpegTask.kt DEFAULT_SOURCE_REF",
+            BuildFFmpegTask.DEFAULT_SOURCE_REF,
         ),
-        vendorRelease,
+        BuildFFmpegTask.FFmpegRefSite(".github/workflows/publish.yml FFMPEG_VERSION", workflowRef),
     )
+    ciCloneRefs.forEachIndexed { index, ref ->
+        refSites.add(BuildFFmpegTask.FFmpegRefSite("ci.yml FFmpeg clone " + (index + 1), ref))
+    }
+
+    BuildFFmpegTask.assertFFmpegRefsAgree(refSites, vendorRelease)
 
 }
