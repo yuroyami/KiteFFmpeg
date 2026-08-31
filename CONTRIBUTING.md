@@ -21,7 +21,7 @@ To work on the static-linking path or the FFmpeg build tasks themselves:
 ```bash
 git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 brew install nasm meson ninja                             # nasm for x86_64 asm, meson/ninja for dav1d
-./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64        # LGPL, and the only flavour built here
+./gradlew :kiteffmpeg:buildFFmpegForMacosArm64        # LGPL, and the only flavour built here
 ```
 
 Every profile is portable as of 2026-08-22: no third-party media libraries are needed on any target,
@@ -36,7 +36,7 @@ you build your own GPL tree, put it under `native-libs/gpl/<target>/` and select
 
 ```bash
 # Unit + native tests (pick your host target):
-./gradlew :kiteffmpeg-core:macosArm64Test        # or linuxX64Test / mingwX64Test
+./gradlew :kiteffmpeg:macosArm64Test        # or linuxX64Test / mingwX64Test
 
 # End-to-end: build the sample CLI, then transcode a generated clip and ffprobe-assert it:
 ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64

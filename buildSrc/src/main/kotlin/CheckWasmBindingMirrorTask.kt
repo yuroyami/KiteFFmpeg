@@ -57,7 +57,7 @@ abstract class CheckWasmBindingMirrorTask : DefaultTask() {
             appendLine(firstDifference(expected, actual))
             appendLine()
             appendLine("Regenerate and copy it back:")
-            appendLine("  ./gradlew :kiteffmpeg-core:generateWasmBinding")
+            appendLine("  ./gradlew :kiteffmpeg:generateWasmBinding")
             appendLine("  cp native-libs/deps/wasm32/binding/${GenerateWasmBindingTask.KOTLIN_FILE} ${mirror.path}")
         })
     }

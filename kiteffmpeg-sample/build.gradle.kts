@@ -10,7 +10,7 @@ plugins {
 kotlin {
     jvmToolchain(21)
 
-    // Same flavour selection as :kiteffmpeg-core. Without this the sample always resolved the LGPL
+    // Same flavour selection as :kiteffmpeg. Without this the sample always resolved the LGPL
     // tree while the library it links was built against the GPL one, and the Windows CI job passes
     // -Pkiteffmpeg.ffmpeg.license=gpl and got away with it only because the DLLs were on PATH.
     val selectedLicense =
@@ -85,7 +85,7 @@ kotlin {
             }
         }
         commonMain.dependencies {
-            implementation(project(":kiteffmpeg-core"))
+            implementation(project(":kiteffmpeg"))
             implementation(libs.kotlinx.coroutines.core)
         }
     }

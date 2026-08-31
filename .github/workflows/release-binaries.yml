@@ -81,7 +81,7 @@ jobs:
       - name: Build FFmpeg (NDK, dav1d inside)
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          ./gradlew :kiteffmpeg-core:buildFFmpegFor${{ matrix.task }} \
+          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} \
             -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
@@ -129,7 +129,7 @@ jobs:
       # nothing installed; with the portable profile the only bundleable archive is dav1d itself.
       - name: Build FFmpeg (dav1d inside)
         run: |
-          ./gradlew :kiteffmpeg-core:buildFFmpegFor${{ matrix.task }} \
+          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} \
             -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
@@ -177,12 +177,12 @@ jobs:
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.task }} --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.task }} --stacktrace || true
       # The bake depends on the dav1d task since FFmpeg was embedded, so one Gradle call builds both
       # (dav1d cross-compiles with the same konan toolchain the warmup just provisioned).
       - name: Build FFmpeg (dav1d inside)
         run: |
-          ./gradlew :kiteffmpeg-core:buildFFmpegFor${{ matrix.task }} \
+          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} \
             -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}

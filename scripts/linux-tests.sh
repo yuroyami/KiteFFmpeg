@@ -29,10 +29,10 @@ DOCKER_CONFIG="${DOCKER_CONFIG:-$(mktemp -d)}"
 [ -f "$DOCKER_CONFIG/config.json" ] || echo '{}' > "$DOCKER_CONFIG/config.json"
 export DOCKER_CONFIG
 
-echo "== linking :kiteffmpeg-core:linkDebugTest$LINK_SUFFIX"
-"$ROOT/gradlew" -p "$ROOT" ":kiteffmpeg-core:linkDebugTest$LINK_SUFFIX" "${SCOPE[@]}"
+echo "== linking :kiteffmpeg:linkDebugTest$LINK_SUFFIX"
+"$ROOT/gradlew" -p "$ROOT" ":kiteffmpeg:linkDebugTest$LINK_SUFFIX" "${SCOPE[@]}"
 
-BINARY="kiteffmpeg-core/build/bin/$TARGET/debugTest/test.kexe"
+BINARY="kiteffmpeg/build/bin/$TARGET/debugTest/test.kexe"
 [ -f "$ROOT/$BINARY" ] || { echo "MISSING $BINARY" >&2; exit 1; }
 
 # TMPDIR is not set in a bare container, and the suite's own temp-file helper refuses to guess.

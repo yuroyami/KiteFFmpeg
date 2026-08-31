@@ -5,7 +5,7 @@
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <io.github.yuroyami:kiteffmpeg-core>
+// Library unique name: <io.github.yuroyami:kiteffmpeg>
 open annotation class io.github.yuroyami.kiteffmpeg/KiteFFmpegLowLevelApi : kotlin/Annotation { // io.github.yuroyami.kiteffmpeg/KiteFFmpegLowLevelApi|null[0]
     constructor <init>() // io.github.yuroyami.kiteffmpeg/KiteFFmpegLowLevelApi.<init>|<init>(){}[0]
 }

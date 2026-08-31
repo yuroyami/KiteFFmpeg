@@ -507,7 +507,7 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
     companion object {
         /**
          * Every target this task can cross-build the chain for, and therefore every target
-         * `:kiteffmpeg-core` may register a `buildAssChainFor<Target>` task for. One list, read by
+         * `:kiteffmpeg` may register a `buildAssChainFor<Target>` task for. One list, read by
          * both the registration and the refusals, so the two can never disagree.
          *
          * wasm32 is absent because it is not a [TargetTriple]. Android is PRESENT here and still

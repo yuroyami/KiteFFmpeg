@@ -1,5 +1,5 @@
 library {
-  // module name: <io.github.yuroyami:kiteffmpeg-core-cinterop-ffmpeg>
+  // module name: <io.github.yuroyami:kiteffmpeg-cinterop-ffmpeg>
 
   library fragment {
     // package name: ffmpeg

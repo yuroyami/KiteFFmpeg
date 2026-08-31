@@ -1,4 +1,4 @@
-# The post-S1.a.8 Kotlin to FFmpeg coupling baseline of kiteffmpeg-core.
+# The post-S1.a.8 Kotlin to FFmpeg coupling baseline of kiteffmpeg.
 #
 # The opaque migration changes what the two ratchets mean. Before S1.a.8, direct FFmpeg imports
 # stood at 246 and ffmpeg_typed_crossings combined 273 ffkmp_ mentions with 14 direct libav calls

@@ -134,7 +134,7 @@ kotlin {
     }
 
     /*
-     * Publish guard. Publishing kiteffmpeg-core (anything whose task name starts with "publish",
+     * Publish guard. Publishing kiteffmpeg (anything whose task name starts with "publish",
      * except tasks addressed to :kiteffmpeg-gradle-plugin, which publishes independently via
      * publishPlugins) requires BOTH:
      *   (a) -Pkiteffmpeg.stableTargetsOnly=true, because experimental targets must not leak into
@@ -275,7 +275,7 @@ kotlin {
             put(macosArm64(), TargetTriple.MacosArm64)
             put(linuxX64(), TargetTriple.LinuxX64)
             // Android NDK targets (LGPL FFmpeg profile w/ MediaCodec, see BuildFFmpegTask).
-            // Vendored-only: run :kiteffmpeg-core:buildFFmpegForAndroid<Abi> first.
+            // Vendored-only: run :kiteffmpeg:buildFFmpegForAndroid<Abi> first.
             put(androidNativeArm64(), TargetTriple.AndroidArm64)
             put(androidNativeArm32(), TargetTriple.AndroidArm32)
             put(androidNativeX64(), TargetTriple.AndroidX64)
@@ -338,7 +338,7 @@ kotlin {
             if (missing.isNotEmpty() || !hasHeaders || !hasProvenance) {
                 throw GradleException(
                     "kiteffmpeg.phoneTargetsOnly=true requires its complete vendored ${triple.dirName} FFmpeg tree. " +
-                        "Run :kiteffmpeg-core:buildFFmpegFor${triple.gradleSuffix} first.",
+                        "Run :kiteffmpeg:buildFFmpegFor${triple.gradleSuffix} first.",
                 )
             }
         }
@@ -466,7 +466,7 @@ kotlin {
          * Gradle state: editing only a helper source re-executes the C compile and writes a
          * new archive, and `cinteropFfmpegMacosArm64` then reports UP-TO-DATE and keeps the STALE
          * archive inside the klib, with or without the configuration cache. Gradle says why under
-         * `--info`: "Caching disabled for task ':kiteffmpeg-core:cinteropFfmpegMacosArm64' because:
+         * `--info`: "Caching disabled for task ':kiteffmpeg:cinteropFfmpegMacosArm64' because:
          * CInterop task uses custom Up-To-Date check for content of headers instead of Gradle
          * mechanisms." That check covers the def file and the headers, not a library the def merely
          * names. A clean build and CI were always correct; local incremental development was not,
@@ -748,7 +748,7 @@ val checkWasmBindingMirror =
         description = "Fails if the committed wasm binding differs from what generateWasmBinding would write."
         signatureBaseline.set(rootDir.resolve("native/kitecodec-c/signature-baseline.txt"))
         mirrorFile.set(
-            rootDir.resolve("kiteffmpeg-core/src/wasmJsMain/kotlin/io/github/yuroyami/kiteffmpeg/wasm/KiteFFmpegWasm.kt"),
+            rootDir.resolve("kiteffmpeg/src/wasmJsMain/kotlin/io/github/yuroyami/kiteffmpeg/wasm/KiteFFmpegWasm.kt"),
         )
     }
 
@@ -851,7 +851,7 @@ mavenPublishing {
     // Only when a key actually exists. The comment above said signing "only activates when
     // in-memory GPG keys are present", and that was not true of an unconditional
     // signAllPublications(): a publishToMavenLocal on a machine with no key failed with
-    // "Cannot perform signing task ':kiteffmpeg-core:signJsPublication' because it has no
+    // "Cannot perform signing task ':kiteffmpeg:signJsPublication' because it has no
     // configured signatory". That is how the consumer smoke job died once it finally got far
     // enough to publish. publish.yml sets ORG_GRADLE_PROJECT_signingInMemoryKey, which Gradle
     // exposes as this property, so the real Central publication still signs everything.
@@ -868,7 +868,7 @@ mavenPublishing {
     }
 
     // Coordinates come from the project defaults: GROUP / VERSION in gradle.properties (applied to
-    // allprojects at the root) + this module's name -> io.github.yuroyami:kiteffmpeg-core:<VERSION>.
+    // allprojects at the root) + this module's name -> io.github.yuroyami:kiteffmpeg:<VERSION>.
     // (An explicit coordinates() call is not possible here: another applied plugin already reads them,
     // and thereby finalises them, during configuration.)
 
@@ -1258,7 +1258,7 @@ run {
                 if (!ffmpegRoot.resolve("lib").isDirectory) {
                     logger.lifecycle(
                         "[KiteFFmpeg] skipping the $dirName JNI library: no FFmpeg tree at " +
-                            "$ffmpegRoot. Run :kiteffmpeg-core:buildFFmpegFor${dirName.split("-")
+                            "$ffmpegRoot. Run :kiteffmpeg:buildFFmpegFor${dirName.split("-")
                                 .joinToString("") { part -> part.replaceFirstChar(Char::uppercase) }} first.",
                     )
                     return@mapNotNull null

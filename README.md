@@ -21,7 +21,7 @@ building filter graphs.
 > **This project was called KiteCodec until 2026-08-29.** The name now says what it is: a
 > binding for FFmpeg, which is the only media engine it will ever wrap. Two things follow.
 >
-> The artifact is `io.github.yuroyami:kiteffmpeg-core`, and its version line starts again at
+> The artifact is `io.github.yuroyami:kiteffmpeg`, and its version line starts again at
 > **0.1.0**. That number is smaller than the old `kitecodec-core` 0.1.3 and is NEWER than it: a
 > new artifact id starts its own line, and 0.1.0 carries everything 0.1.3 had plus the FFmpeg
 > n8.1.2 trees, the interrupt seam and the stream disposition work. The old coordinates stay on
@@ -102,7 +102,7 @@ linker configuration.
 kotlin {
     macosArm64()          // any supported target; see the table below
     sourceSets.commonMain.dependencies {
-        implementation("io.github.yuroyami:kiteffmpeg-core:0.1.0")
+        implementation("io.github.yuroyami:kiteffmpeg:0.1.0")
     }
 }
 ```
@@ -123,7 +123,7 @@ Stated exactly, because rounding this up is how people lose an afternoon.
 
 | Thing | Status |
 |---|---|
-| `kiteffmpeg-core` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.0** |
+| `kiteffmpeg` with embedded FFmpeg: all 11 native targets, JVM and the Android AAR | **on Maven Central** at **0.1.0** |
 | FFmpeg zips, ALL 11 triples (dav1d inside every one) | **published** on the `ffmpeg-n8.0` release, one canonical copy for every KiteFFmpeg version. Build evidence and the LGPL source offer; consumers need none of them |
 
 **FFmpeg embedded, 2026-08-22.** The Gradle plugin is deleted and dav1d is mandatory.
@@ -134,10 +134,10 @@ memory corruption is gone by construction: FFmpeg travels inside the klib that
 was compiled against it. The GitHub release zips remain as build evidence, the
 LGPL source-offer anchor, and the input the publication pipeline embeds.
 
-**Inside this repository** the `:kiteffmpeg-core:buildFFmpegFor<Target>` tasks
+**Inside this repository** the `:kiteffmpeg:buildFFmpegFor<Target>` tasks
 cross-compile the vendored trees (each bake builds dav1d first), record their
 configure line at `lib/kiteffmpeg/ffmpeg-configure.txt`, and
-`:kiteffmpeg-core:checkFFmpegRecipes` reports a stale tree;
+`:kiteffmpeg:checkFFmpegRecipes` reports a stale tree;
 `-Pkiteffmpeg.ffmpeg.autoBake=true` re-bakes automatically. A host without
 vendored trees falls back to a system (brew/apt) FFmpeg for its own desktop
 target only, via `ffmpeg-system.def`; published artifacts always embed.
@@ -352,7 +352,7 @@ MediaCodec is reached only by asking FFmpeg for a named decoder such as
 | Hardware decode, and zero-copy hwframes | Hardware *encode* does work. `h264_videotoolbox` is verified on macOS arm64. Pass `allow_sw` on VMs and CI runners, where the encoder exists but the hardware block does not. |
 | Direct MediaCodec or Android UI integration | The Android loader attaches its `JavaVM`, then callers may select an FFmpeg-owned named decoder. There is no direct `MediaCodec` API, Compose component, Android View, Android playback or physical-device qualification here. |
 | `https` in the vendored profile | It needs a TLS backend cross-compiled per target. Use `http`, a local file, or link a system FFmpeg. |
-| A stable API | 0.1.x is pre-1.0. The version policy is deliberate: the minor stays frozen and only the patch digit moves, each bump owner-approved, so 0.1.x is the series to depend on. `explicitApi()` is on, every public declaration states its visibility and return type, and there is a committed klib dump under `kiteffmpeg-core/api/` that `apiCheck` verifies in every local gate and in CI, where the macOS ratchets job runs it on every push, so an accidental signature change fails a build. That is a change being visible, not a promise that it will not happen. |
+| A stable API | 0.1.x is pre-1.0. The version policy is deliberate: the minor stays frozen and only the patch digit moves, each bump owner-approved, so 0.1.x is the series to depend on. `explicitApi()` is on, every public declaration states its visibility and return type, and there is a committed klib dump under `kiteffmpeg/api/` that `apiCheck` verifies in every local gate and in CI, where the macOS ratchets job runs it on every push, so an accidental signature change fails a build. That is a change being visible, not a promise that it will not happen. |
 
 ## Build and test it here
 
@@ -366,7 +366,7 @@ brew install ffmpeg
 KEXE=kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
 $KEXE transcode in.mp4 out.mp4 "scale=1280:720" -acopy   # also: info, probe, thumbnail, remux
 
-./gradlew :kiteffmpeg-core:macosArm64Test          # or linuxX64Test / mingwX64Test
+./gradlew :kiteffmpeg:macosArm64Test          # or linuxX64Test / mingwX64Test
 scripts/e2e.sh "$KEXE"
 ```
 
@@ -388,7 +388,7 @@ cd native/kitecodec-c
 ./scripts/check-deleted-surface.sh  # nothing refers to a deleted helper, in either repo
 ./scripts/symbol-audit.sh         # what the archive needs, exports and keeps private
 ./scripts/replay-corpus.sh        # every committed fuzz seed, under ASan and UBSan
-cd ../.. && ./gradlew :kiteffmpeg-core:apiCheck checkCinteropCoupling
+cd ../.. && ./gradlew :kiteffmpeg:apiCheck checkCinteropCoupling
 ```
 
 Four limits of this machine are measured rather than assumed, and they shape all

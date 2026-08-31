@@ -1,4 +1,4 @@
-# Module kiteffmpeg-core
+# Module kiteffmpeg
 
 A coroutine-first Kotlin Multiplatform API over FFmpeg's libav* libraries.
 

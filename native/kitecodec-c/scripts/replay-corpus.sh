@@ -170,7 +170,7 @@ generate_corpus() {
         filter_audio)
             # A syntactically valid single-filter chain whose numeric argument carries the padding,
             # the same construction as FilterDescriptionLengthTest.description() in
-            # kiteffmpeg-core's own test, at the one length that is not committed. Once plain and
+            # kiteffmpeg's own test, at the one length that is not committed. Once plain and
             # once behind an [in0] label, for the single and multi input builders.
             python3 -c '
 import sys

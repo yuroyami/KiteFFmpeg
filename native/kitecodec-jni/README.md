@@ -20,7 +20,7 @@ What it is:
 What it may never do, enforced by `scripts/source-discipline.sh` and `scripts/symbol-audit.sh`:
 include a libav header, spell a direct FFmpeg call, or export anything but `JNI_OnLoad`.
 
-Built by `:kiteffmpeg-core:linkKiteFFmpegJni{MacosArm64,AndroidArm64,AndroidX64}`. The macOS dylib
+Built by `:kiteffmpeg:linkKiteFFmpegJni{MacosArm64,AndroidArm64,AndroidX64}`. The macOS dylib
 is test-only (jvmTest loads it through the `kiteffmpeg.jni.path` system property); the two Android
 arms are the AAR's `jniLibs` inputs, linked with 16 KiB page alignment.
 

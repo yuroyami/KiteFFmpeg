@@ -28,7 +28,7 @@
 #      from the helper, handle and ABI headers, including opaque alias targets and aggregate bodies.
 #
 # The default archive is the SHIPPED one, built per konan target by
-# :kiteffmpeg-core:compileKiteFFmpegCFor<Target> and embedded in the cinterop klib. That is the
+# :kiteffmpeg:compileKiteFFmpegCFor<Target> and embedded in the cinterop klib. That is the
 # archive whose exported set a consumer sees. The host archive from scripts/build-host.sh is
 # compiled with the same -fvisibility=hidden and answers the same way; `--host` points there. The
 # local Apple proof produces three FFmpeg trees and corresponding helper archives: macos_arm64,
@@ -81,8 +81,8 @@ if [ -z "$ARCHIVE" ]; then
         ARCHIVE="$ROOT/build/plain/lib/libkitecodec_helpers_host.a"
         HINT="build it first:  ./scripts/build-host.sh plain"
     else
-        ARCHIVE="$REPO/kiteffmpeg-core/build/kitecodec-c/$TARGET/libkitecodec.a"
-        HINT="build it first:  ./gradlew :kiteffmpeg-core:compileKiteFFmpegCFor<Target>"
+        ARCHIVE="$REPO/kiteffmpeg/build/kitecodec-c/$TARGET/libkitecodec.a"
+        HINT="build it first:  ./gradlew :kiteffmpeg:compileKiteFFmpegCFor<Target>"
     fi
 fi
 [ -f "$ARCHIVE" ] || {

@@ -14,7 +14,7 @@ FF="$ROOT/native-libs/lgpl/wasm32"
 KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
 CLIP="${KITE_DEMO_CLIP:-$ROOT/../KitePlayer/testmedia/sync1080p30.mp4}"
 OUT="$ROOT/build/wasm-browser-demo"
-[ -f "$KC" ] || { echo "run :kiteffmpeg-core:compileKiteFFmpegCForWasm first" >&2; exit 1; }
+[ -f "$KC" ] || { echo "run :kiteffmpeg:compileKiteFFmpegCForWasm first" >&2; exit 1; }
 [ -f "$CLIP" ] || { echo "no clip at $CLIP" >&2; exit 1; }
 
 rm -rf "$OUT"; mkdir -p "$OUT"

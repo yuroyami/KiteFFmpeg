@@ -96,7 +96,7 @@ case "$VARIANT" in
 esac
 
 # What the artifact was built for, carried into the identity report of src/kitecodec_abi.c. The
-# shipped archive gets the same three from kiteffmpeg-core/build.gradle.kts through
+# shipped archive gets the same three from kiteffmpeg/build.gradle.kts through
 # CompileKiteFFmpegCTask.buildDefines; here they describe the host tree the tests link against.
 KC_BUILD_REF="${KC_BUILD_REF:-n8.0}"
 KC_BUILD_LICENSE="${KC_BUILD_LICENSE:-lgpl}"

@@ -35,7 +35,7 @@
 
 /* What the artifact was built for, supplied by the build.
  *
- * kiteffmpeg-core/build.gradle.kts passes all three through CompileKiteFFmpegCTask.buildDefines, which
+ * kiteffmpeg/build.gradle.kts passes all three through CompileKiteFFmpegCTask.buildDefines, which
  * declares them as task inputs so changing one rebuilds the archive. scripts/build-host.sh passes the
  * same three for the host test binaries. The fallbacks are not decoration: an archive that reports
  * "unknown" here was built by something that did not say, and a bug report saying so is worth more

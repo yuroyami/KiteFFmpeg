@@ -3,7 +3,7 @@
 The FFmpeg helper layer as real C, with its own build, its own tests and its own sanitizer runs.
 
 Until sub-phase B1.2 this code existed only as 949 lines of text inside
-`kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def`. Text in a def file has no translation
+`kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def`. Text in a def file has no translation
 unit, so it had no object file, no test, no sanitizer run and no coverage. Its only compile check
 was cinterop's, and its only test was whatever Kotlin happened to call, which left 19 of the
 176 helpers never called at all. That is register item B1-01 in `KitePlayer/PLANNING.md`.
@@ -77,7 +77,7 @@ kept as the record of where the ten files came from:
   Nine signatures span more than one line, at def lines 251, 262, 470, 489, 531, 616, 644, 684
   and 816, and those keep their original line breaks in the header.
 * 15 of the 172 exported helpers are emitted nowhere. They are register item B1-08, and the set is
-  derived rather than listed: the header used to declare 172 helpers, the `kiteffmpeg-core` Kotlin
+  derived rather than listed: the header used to declare 172 helpers, the `kiteffmpeg` Kotlin
   sources import 157 distinct `ffkmp_` names, and the difference is exactly those 15.
 * The remaining 157 lose the whole `static inline ` token and gain `KC_API`, which is what makes
   them real exported symbols. See "KC_API and the nine units" below.
@@ -265,13 +265,13 @@ klib rather than a host binary. The def parses only `kitecodec_helpers.h`,
 `kitecodec_handles.h` and `kitecodec_abi.h`; libav headers are private to the C archive:
 
 ```bash
-../../gradlew :kiteffmpeg-core:cinteropFfmpegMacosArm64
+../../gradlew :kiteffmpeg:cinteropFfmpegMacosArm64
 ./scripts/klib-metadata-diff.sh          # reports added and removed declarations by name
 ./scripts/klib-metadata-diff.sh --check  # the same, and exits non-zero on any difference
 ./scripts/klib-metadata-diff.sh --update # re-baseline after reading and accepting a change
 ```
 
-Editing a `.c` body here does reach the klib, but only because `kiteffmpeg-core/build.gradle.kts`
+Editing a `.c` body here does reach the klib, but only because `kiteffmpeg/build.gradle.kts`
 declares the archive an input of the cinterop task. The cinterop task runs its own up-to-date
 check over the def and the headers and would otherwise report UP-TO-DATE and keep the previous
 archive, which was measured at B1.3 and is written up in that build file and in the plan's
@@ -455,7 +455,7 @@ Done in B1.3: the Gradle compile task (`buildSrc/CompileKiteFFmpegCTask.kt`) and
 make this library the one cinterop consumes.
 
 Done in B1.4: the split into nine units, `KC_API`, the deletion of the 15 dead helpers and of the
-six unreferenced def files under `kiteffmpeg-core/src/nativeInterop/cinterop/archived/`,
+six unreferenced def files under `kiteffmpeg/src/nativeInterop/cinterop/archived/`,
 `symbol-audit.sh`, `check-deleted-surface.sh`, and `verify-lift.sh`'s new three-way shape.
 
 Done in B1.5: the six fuzz targets under `fuzz/`, their 103 committed seeds, `replay-corpus.sh`

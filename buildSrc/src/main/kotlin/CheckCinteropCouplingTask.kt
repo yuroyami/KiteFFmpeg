@@ -14,7 +14,7 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * The zero ceiling on direct FFmpeg coupling in kiteffmpeg-core's Kotlin.
+ * The zero ceiling on direct FFmpeg coupling in kiteffmpeg's Kotlin.
  *
  * S1.a.8 removes FFmpeg's headers from the cinterop definition. Kotlin may import and call the
  * KiteFFmpeg-owned `ffkmp_`, `kc_` and `KC_` surface, but it may neither import a raw FFmpeg name,
@@ -47,7 +47,7 @@ import java.io.File
  */
 abstract class CheckCinteropCouplingTask : DefaultTask() {
 
-    /** The module source root to measure, `kiteffmpeg-core/src`. Also holds `ffmpeg.def`. */
+    /** The module source root to measure, `kiteffmpeg/src`. Also holds `ffmpeg.def`. */
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val sourceDir: DirectoryProperty

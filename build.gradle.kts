@@ -8,7 +8,7 @@ plugins {
     // Applied (not deferred) at the root so `dokkaGenerate` aggregates every
     // library module into one API site at build/dokka/html (deployed to /api/).
     alias(libs.plugins.dokka)
-    // Guards the public API surface of :kiteffmpeg-core (apiDump / apiCheck, klib-aware).
+    // Guards the public API surface of :kiteffmpeg (apiDump / apiCheck, klib-aware).
     alias(libs.plugins.binary.compatibility.validator)
 }
 
@@ -19,7 +19,7 @@ allprojects {
 
 /* Aggregate the published library modules into a single Dokka API reference. */
 dependencies {
-    dokka(project(":kiteffmpeg-core"))
+    dokka(project(":kiteffmpeg"))
 }
 
 dokka {
@@ -61,11 +61,11 @@ allprojects {
 
 
 apiValidation {
-    // Only :kiteffmpeg-core is a published library with a guarded API surface.
+    // Only :kiteffmpeg is a published library with a guarded API surface.
     ignoredProjects += listOf("kiteffmpeg-sample")
 
     // Native declarations remain guarded in klibs. Every scope has one public JVM target using
-    // the unavailable placeholder, so its dump lives directly under kiteffmpeg-core/api/. The
+    // the unavailable placeholder, so its dump lives directly under kiteffmpeg/api/. The
     // phone proof adds an unpublished custom JNI compilation without changing that artifact.
     @OptIn(kotlinx.validation.ExperimentalBCVApi::class)
     klib {
@@ -74,14 +74,14 @@ apiValidation {
 }
 
 /*
- * The ratchet on kiteffmpeg-core's coupling to FFmpeg's C types. It recomputes the four counts of
+ * The ratchet on kiteffmpeg's coupling to FFmpeg's C types. It recomputes the four counts of
  * native/kitecodec-c/coupling-baseline.txt and fails when any one of them rose. See
  * CheckCinteropCouplingTask for what each count is and why the deferral needs a ratchet at all.
  */
 tasks.register<CheckCinteropCouplingTask>("checkCinteropCoupling") {
     group = "verification"
-    description = "Fails when kiteffmpeg-core's coupling to FFmpeg's C types grew past its baseline."
-    sourceDir.set(layout.projectDirectory.dir("kiteffmpeg-core/src"))
+    description = "Fails when kiteffmpeg's coupling to FFmpeg's C types grew past its baseline."
+    sourceDir.set(layout.projectDirectory.dir("kiteffmpeg/src"))
     baselineFile.set(layout.projectDirectory.file("native/kitecodec-c/coupling-baseline.txt"))
     // Count four needs the C of the helper layer. Before B1.3 that was the def body; from B1.3 it is
     // this tree, and reading both is what keeps the count identical across the move. The file tree

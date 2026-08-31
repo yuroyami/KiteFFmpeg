@@ -28,7 +28,7 @@ There is one status table for the whole project, and it lives in the [README](ht
 
 The two things a reader most often needs from it:
 
-- **KiteFFmpeg IS on Maven Central.** `io.github.yuroyami:kiteffmpeg-core:0.1.0`, one dependency line,
+- **KiteFFmpeg IS on Maven Central.** `io.github.yuroyami:kiteffmpeg:0.1.0`, one dependency line,
   FFmpeg embedded inside the artifacts. There is no Gradle plugin any more and no FFmpeg download
   step: the plugin was deleted and FFmpeg moved inside the published klibs, so a consumer needs
   nothing on disk. This paragraph said the opposite until 2026-08-24, which was three published
@@ -45,7 +45,7 @@ The two things a reader most often needs from it:
 
 ## What's next
 
-- **The FFmpeg binary release**: unblocking `release-binaries.yml` is what turns `FFmpegSource.Prebuilt` from a 404 into the default path, and is the prerequisite for publishing `kiteffmpeg-core` at all.
+- **The FFmpeg binary release**: unblocking `release-binaries.yml` is what turns `FFmpegSource.Prebuilt` from a 404 into the default path, and is the prerequisite for publishing `kiteffmpeg` at all.
 - **Android runtime qualification and publication**: the JNI/AAR source and packaging model is in
   place; playback qualification, physical-device evidence, consumer publication and app/UI
   integration remain.
@@ -57,7 +57,7 @@ The two things a reader most often needs from it:
 
 ### One opaque native boundary
 
-The Kotlin/Native binding is **one** cinterop module (`kiteffmpeg-core/src/nativeInterop/cinterop/ffmpeg.def`), but
+The Kotlin/Native binding is **one** cinterop module (`kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def`), but
 the def parses only KiteFFmpeg's helper, handle and ABI headers. It no longer parses libav\*
 functions, constants or struct layouts. Eleven incomplete forward tags remain behind the eleven
 `kc_*` aliases, and Kotlin source is forbidden to name those tags directly. The aliases and
@@ -104,7 +104,7 @@ native/kitecodec-c/                  ← the C helper layer: nine units, its own
 ├── src/kitecodec_abi.c              ← the identity gate itself
 ├── tests/ fuzz/ scripts/            ← seven suites, six fuzz targets and the audits
 native/kitecodec-jni/                ← dynamically registered JNI adapter; no libav headers
-kiteffmpeg-core/src/
+kiteffmpeg/src/
 ├── nativeInterop/cinterop/
 │   └── ffmpeg.def                   ← opaque cinterop; names the compiled helper archive
 ├── commonMain/kotlin/io/github/yuroyami/kiteffmpeg/
@@ -166,7 +166,7 @@ KiteFFmpeg links against an FFmpeg you provide. Inside this repository it either
 
     ```bash
     git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
-    ./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64   # or :buildFFmpegForAll
+    ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64   # or :buildFFmpegForAll
     ```
 
     The build copies source to a unique hash-free temporary workspace, configures and installs there, records the normalized configure invocation at `lib/kiteffmpeg/ffmpeg-configure.txt`, verifies that record plus all six archives and headers, stages a Java/NIO copy beside the declared output and only then replaces the old tree. Packaging reads only that installed single-line record. The mobile Apple tasks use the shared STANDARD software-playback profile plus SDK zlib. They do not use the desktop third-party stack, GPL, VideoToolbox or hardware encode.

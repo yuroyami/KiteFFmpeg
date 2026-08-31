@@ -2,7 +2,7 @@
 #
 # The compatibility instrument for the `ffmpeg` cinterop surface.
 #
-# `apiCheck` guards kiteffmpeg-core's own klib. It says nothing about the cinterop klib, which is
+# `apiCheck` guards kiteffmpeg's own klib. It says nothing about the cinterop klib, which is
 # a separate artifact and is where KiteFFmpeg's opaque kc_/ffkmp_ bindings live. This script is that
 # missing guard: it dumps the cinterop klib's metadata, first rejects any raw libav surface, then
 # filters it, compares it against a committed baseline, and reports which declarations were added
@@ -108,10 +108,10 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-KLIB_DIR="$REPO/kiteffmpeg-core/build/classes/kotlin/$TARGET/main/cinterop/kiteffmpeg-core-cinterop-ffmpeg"
+KLIB_DIR="$REPO/kiteffmpeg/build/classes/kotlin/$TARGET/main/cinterop/kiteffmpeg-cinterop-ffmpeg"
 if [ ! -d "$KLIB_DIR" ]; then
     echo "klib-metadata-diff.sh: no cinterop klib at $KLIB_DIR" >&2
-    echo "  build it first:  ./gradlew :kiteffmpeg-core:cinteropFfmpeg$TARGET" >&2
+    echo "  build it first:  ./gradlew :kiteffmpeg:cinteropFfmpeg$TARGET" >&2
     exit 1
 fi
 

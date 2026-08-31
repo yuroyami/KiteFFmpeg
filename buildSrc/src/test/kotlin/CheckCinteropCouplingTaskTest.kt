@@ -21,7 +21,7 @@ class CheckCinteropCouplingTaskTest {
         System.getProperty("kiteffmpeg.repo.root") ?: "..",
     ).canonicalFile
 
-    private val sourceDir: File get() = repoRoot.resolve("kiteffmpeg-core/src")
+    private val sourceDir: File get() = repoRoot.resolve("kiteffmpeg/src")
 
     private val committedBaseline: File get() = repoRoot.resolve("native/kitecodec-c/coupling-baseline.txt")
 

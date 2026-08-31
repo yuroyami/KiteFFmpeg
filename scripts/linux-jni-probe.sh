@@ -12,7 +12,7 @@ set -euo pipefail
 
 PLATFORM="${1:-linux/arm64}"
 VERSION="${KITE_JNI_VERSION:-0.0.9}"
-JAR="${KITE_JNI_JAR:-$HOME/.m2/repository/io/github/yuroyami/kiteffmpeg-core-jvm/$VERSION/kiteffmpeg-core-jvm-$VERSION.jar}"
+JAR="${KITE_JNI_JAR:-$HOME/.m2/repository/io/github/yuroyami/kiteffmpeg-jvm/$VERSION/kiteffmpeg-jvm-$VERSION.jar}"
 IMAGE="${KITE_JDK_IMAGE:-eclipse-temurin:21-jdk}"
 [ -f "$JAR" ] || { echo "no jar at $JAR" >&2; exit 1; }
 

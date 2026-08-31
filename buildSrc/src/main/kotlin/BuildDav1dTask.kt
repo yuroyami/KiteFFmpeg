@@ -267,9 +267,9 @@ abstract class BuildDav1dTask : DefaultTask() {
 
         /**
          * Every target this task can write a cross file for, and therefore every target
-         * `:kiteffmpeg-core` may register a `buildDav1dFor<Target>` task for.
+         * `:kiteffmpeg` may register a `buildDav1dFor<Target>` task for.
          *
-         * ONE list, read by both the registration in `kiteffmpeg-core/build.gradle.kts` and the
+         * ONE list, read by both the registration in `kiteffmpeg/build.gradle.kts` and the
          * refusal above, because the two drifting apart produces the worst shape of this bug: a
          * task that exists, runs, and dies on "needs its cross file written first".
          *

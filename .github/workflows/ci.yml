@@ -1,4 +1,4 @@
-# Builds + tests kiteffmpeg-core and runs an end-to-end transcode on every desktop K/N target
+# Builds + tests kiteffmpeg and runs an end-to-end transcode on every desktop K/N target
 # that can get an FFmpeg toolchain in CI:
 #
 #   - macOS arm64  → the VENDORED LGPL profile, built from source. This job carries the ratchets
@@ -113,7 +113,7 @@ jobs:
         run: |
           git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
-          ./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64 --stacktrace
+          ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 --stacktrace
       # The ratchets below read this tree. If it is missing they would silently fall back to the
       # brew install above, which is the drift this job just stopped having.
       - name: Confirm the ratchets will read the vendored tree
@@ -125,9 +125,9 @@ jobs:
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
       # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
-      # The two ratchets. apiCheck compares kiteffmpeg-core's klib against the committed dump in
-      # kiteffmpeg-core/api, so a public API change fails here instead of shipping.
+        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
+      # The two ratchets. apiCheck compares kiteffmpeg's klib against the committed dump in
+      # kiteffmpeg/api, so a public API change fails here instead of shipping.
       # checkCinteropCoupling recounts the Kotlin-to-FFmpeg coupling and fails when it grew.
       #
       # -Pkiteffmpeg.hostTargetsOnly=true is load bearing, not cosmetic: this runner builds a tree for
@@ -157,12 +157,12 @@ jobs:
       # needs no build output either, so it sits with the other cheap gates.
       - name: Public API baseline + FFmpeg coupling ratchet + deleted surface + wasm binding mirror
         run: |
-          ./gradlew :kiteffmpeg-core:apiCheck -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+          ./gradlew :kiteffmpeg:apiCheck -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
           ./gradlew checkCinteropCoupling --stacktrace
-          ./gradlew :kiteffmpeg-core:checkWasmBindingMirror --stacktrace
+          ./gradlew :kiteffmpeg:checkWasmBindingMirror --stacktrace
           ./gradlew checkReleaseTargetMirror --stacktrace
           ./native/kitecodec-c/scripts/check-deleted-surface.sh
-      # The third ratchet, and the only guard on the cinterop klib: apiCheck covers kiteffmpeg-core's
+      # The third ratchet, and the only guard on the cinterop klib: apiCheck covers kiteffmpeg's
       # own klib, and the cinterop klib is a separate artifact holding every FFmpeg binding and every
       # ffkmp_ helper. klib-metadata-diff.sh --check dumps its metadata and fails when it differs
       # from the committed baseline. Deliberate changes re-baseline with --update in the same commit.
@@ -174,16 +174,16 @@ jobs:
       # and not the architecture, so the objects are listed too, where it does.
       - name: Cinterop metadata baseline + the C archives that were built
         run: |
-          ./gradlew :kiteffmpeg-core:cinteropFfmpegMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+          ./gradlew :kiteffmpeg:cinteropFfmpegMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
           ./native/kitecodec-c/scripts/klib-metadata-diff.sh --check
-          for archive in kiteffmpeg-core/build/kitecodec-c/*/libkitecodec.a; do
+          for archive in kiteffmpeg/build/kitecodec-c/*/libkitecodec.a; do
             echo "$archive: $(file -b "$archive")"
           done
-          for object in kiteffmpeg-core/build/kitecodec-c/*/obj/*.o; do
+          for object in kiteffmpeg/build/kitecodec-c/*/obj/*.o; do
             echo "$object: $(file -b "$object")"
           done
       - name: Unit + native tests
-        run: ./gradlew :kiteffmpeg-core:macosArm64Test --stacktrace
+        run: ./gradlew :kiteffmpeg:macosArm64Test --stacktrace
       # buildSrc's tests are not in the main build's task graph, so they need naming. They cover the
       # coupling ratchet and the C compile task, including its wrong-architecture refusal.
       - name: Build-logic tests
@@ -275,10 +275,10 @@ jobs:
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
       # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
       - name: Kotlin surface and build-side checks
         run: |
-          ./gradlew :kiteffmpeg-core:macosArm64Test --tests '*FFmpegIdentityTest*' \
+          ./gradlew :kiteffmpeg:macosArm64Test --tests '*FFmpegIdentityTest*' \
             -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
           ./gradlew :buildSrc:test --stacktrace
       # The web backend, which until now NO job here ran a single test against. 2,316 lines of
@@ -299,7 +299,7 @@ jobs:
       # 2026-08-30 and did not come back across four attempts, so the honest move is to run the
       # browser half and let it say so if it returns, rather than keep skipping it on a stale reason.
       - name: Web backend tests (wasmJs, node and browser)
-        run: ./gradlew :kiteffmpeg-core:wasmJsTest -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+        run: ./gradlew :kiteffmpeg:wasmJsTest -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -336,7 +336,7 @@ jobs:
       # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
       # references, which is what the `|| true` is for. Warm first, fetch second.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlinLinuxX64 --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlinLinuxX64 --stacktrace || true
       # NOT apt. A distro FFmpeg cannot be linked by Kotlin/Native on a modern Ubuntu, and this
       # is not a flag problem: Ubuntu 24.04's libav* .so files reference glibc 2.29 and 2.34
       # symbols, while Kotlin/Native links against its own glibc 2.19 sysroot for portability, so
@@ -366,7 +366,7 @@ jobs:
           test -f native-libs/lgpl/linux-x64/lib/libavformat.a
           rm -f "${asset}" "${asset}.sha256"
       - name: Unit + native tests
-        run: ./gradlew :kiteffmpeg-core:linuxX64Test --stacktrace
+        run: ./gradlew :kiteffmpeg:linuxX64Test --stacktrace
       - name: Link sample
         run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableLinuxX64
       - name: End-to-end transcode
@@ -471,7 +471,7 @@ jobs:
         run: |
           git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
-          ./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64 --stacktrace
+          ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 --stacktrace
       - name: Confirm the vendored tree is what gets linked
         run: test -f native-libs/lgpl/macos-arm64/lib/libavformat.a
       # No -Pkiteffmpeg.ffmpeg.license=gpl anywhere below: LGPL is the shipping default.
@@ -482,9 +482,9 @@ jobs:
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
       # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 --stacktrace || true
       - name: Unit + native tests against the vendored build
-        run: ./gradlew :kiteffmpeg-core:macosArm64Test --stacktrace
+        run: ./gradlew :kiteffmpeg:macosArm64Test --stacktrace
       - name: Link sample
         run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
       - name: End-to-end transcode against the vendored build
@@ -548,7 +548,7 @@ jobs:
           git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          ./gradlew :kiteffmpeg-core:buildFFmpegFor${{ matrix.task }} --stacktrace
+          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} --stacktrace
       # Warm the Kotlin/Native toolchain before anything reaches the C helper task. konan fetches
       # its LLVM and per-target sysroots into ~/.konan/dependencies ON DEMAND, when a Kotlin/Native
       # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
@@ -556,9 +556,9 @@ jobs:
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
       # below reports the real result.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.kotlinTarget }} --stacktrace || true
-      - name: Compile kiteffmpeg-core klib (${{ matrix.kotlinTarget }})
-        run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.kotlinTarget }} --stacktrace
+        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.kotlinTarget }} --stacktrace || true
+      - name: Compile kiteffmpeg klib (${{ matrix.kotlinTarget }})
+        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.kotlinTarget }} --stacktrace
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -570,9 +570,9 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # Consumer end-to-end smoke: publishes kiteffmpeg-core + the Gradle plugin to mavenLocal from
+  # Consumer end-to-end smoke: publishes kiteffmpeg + the Gradle plugin to mavenLocal from
   # this checkout (host desktop target only, via -Pkiteffmpeg.hostTargetsOnly=true, see
-  # kiteffmpeg-core/build.gradle.kts), generates a throwaway consumer project, and builds + RUNS a
+  # kiteffmpeg/build.gradle.kts), generates a throwaway consumer project, and builds + RUNS a
   # real executable that calls into FFmpeg. This proves the full consumer chain end to end:
   # plugin resolution from mavenLocal, klib + bundled cinterop compile, final native link, and
   # runtime symbol resolution.
@@ -612,7 +612,7 @@ jobs:
       # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
       # references, which is what the `|| true` is for. Warm first, fetch second.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlin${{ matrix.taskSuffix }} -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.taskSuffix }} -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
       # THE PREBUILT STATIC TREE, and this is the whole validity of the job.
       #
       # It used to brew/apt install FFmpeg. FFmpegPaths then resolved a SYSTEM, DYNAMIC install, so
@@ -698,7 +698,7 @@ jobs:
               }
               sourceSets {
                   commonMain.dependencies {
-                      implementation("io.github.yuroyami:kiteffmpeg-core:$VERSION")
+                      implementation("io.github.yuroyami:kiteffmpeg:$VERSION")
                   }
               }
           }
@@ -753,7 +753,7 @@ jobs:
             konan-windows-x64-
       # Warm before the tree exists; see the note on the Linux job for why the order matters.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlinMingwX64 --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlinMingwX64 --stacktrace || true
       # BtbN is GONE from this job, and both reasons it had to go were proven on CI.
       #
       # 1. Its builds are SHARED: DLLs plus import libraries, no libavformat.a. Since FFmpeg was embedded the
@@ -788,7 +788,7 @@ jobs:
         shell: pwsh
         run: choco install ffmpeg -y --no-progress
       - name: Unit + native tests
-        run: ./gradlew :kiteffmpeg-core:mingwX64Test --stacktrace
+        run: ./gradlew :kiteffmpeg:mingwX64Test --stacktrace
       - name: Link sample
         run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableMingwX64
       - name: End-to-end transcode

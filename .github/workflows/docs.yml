@@ -72,7 +72,7 @@ jobs:
       # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
       # references, which is what the `|| true` is for. Warm first, fetch second.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg-core:compileKotlinLinuxX64 --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlinLinuxX64 --stacktrace || true
 
       # The HOST triple only, and scoped to match. Fetching all eleven was a mistake: it gave the
       # iOS and macOS targets FFmpeg trees, which registered their C helper tasks, which then tried

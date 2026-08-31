@@ -20,7 +20,7 @@ FF="$ROOT/native-libs/lgpl/wasm32"
 KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
 MEDIA="${KITE_TESTMEDIA:-$ROOT/../KitePlayer/testmedia}"
 [ -d "$MEDIA" ] || { echo "no testmedia at $MEDIA" >&2; exit 1; }
-[ -f "$KC" ] || { echo "run :kiteffmpeg-core:compileKiteFFmpegCForWasm first" >&2; exit 1; }
+[ -f "$KC" ] || { echo "run :kiteffmpeg:compileKiteFFmpegCForWasm first" >&2; exit 1; }
 
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 python3 - "$ROOT/native-libs/deps/wasm32/binding/kiteffmpeg-exports.json" "$WORK/exports.json" <<'PY'

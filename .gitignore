@@ -26,3 +26,7 @@ __pycache__/
 
 # Local runs of .github/scripts/package-ffmpeg.sh
 /dist/
+
+# JVM crash dumps. Four were committed by accident and carried local paths.
+hs_err_pid*.log
+replay_pid*.log

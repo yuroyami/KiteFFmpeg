@@ -10,7 +10,7 @@
 #   ./scripts/wasm-report-offsets.sh --write    # regenerate it after a deliberate struct change
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET="$ROOT/kiteffmpeg-core/src/wasmJsMain/kotlin/io/github/yuroyami/kiteffmpeg/wasm/ReportLayout.kt"
+TARGET="$ROOT/kiteffmpeg/src/wasmJsMain/kotlin/io/github/yuroyami/kiteffmpeg/wasm/ReportLayout.kt"
 MODE="${1:-check}"
 command -v emcc >/dev/null || { echo "emcc is not on PATH" >&2; exit 1; }
 

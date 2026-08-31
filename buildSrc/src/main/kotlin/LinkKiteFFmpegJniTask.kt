@@ -143,7 +143,7 @@ abstract class PrepareKiteFFmpegJniHarnessTask @Inject constructor(
  * Compiles the `native/kitecodec-jni` adapter and links ONE shared JNI library against the opaque
  * helper archive and a static FFmpeg tree (S1.c.1 step 6).
  *
- * Three registrations exist (kiteffmpeg-core/build.gradle.kts): the test-only macOS dylib that
+ * Three registrations exist (kiteffmpeg/build.gradle.kts): the test-only macOS dylib that
  * jvmTest loads through the `kiteffmpeg.jni.path` system property, and the two Android arms whose
  * outputs are the exact `jniLibs` inputs of the AAR. The Android arms use the NDK's clang with the
  * 16 KiB page flags and the version script; the macOS arm uses the system clang with an

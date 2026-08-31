@@ -7,7 +7,7 @@
 # anywhere refers to them, and "nothing" has to mean both repositories and every file type, not
 # just the ones a Kotlin developer thinks to grep.
 #
-# Why it must run with kiteffmpeg-core/src/nativeInterop/cinterop/archived/ already deleted. That
+# Why it must run with kiteffmpeg/src/nativeInterop/cinterop/archived/ already deleted. That
 # directory held six def files that no build file referenced and that redefined the same helper
 # names. A grep run while it still existed reported a definition for almost every deleted name and
 # would have masked a real reference behind duplicate noise. Plan section 15.2 B1.4 step 3 puts the
@@ -98,7 +98,7 @@ EXCLUDES="--exclude-dir=build --exclude-dir=.claude --exclude-dir=.git --exclude
 --exclude-dir=.gradle --exclude-dir=.kotlin --exclude-dir=testmedia --exclude-dir=native-libs \
 --exclude-dir=node_modules"
 
-ARCHIVED="$REPO/kiteffmpeg-core/src/nativeInterop/cinterop/archived"
+ARCHIVED="$REPO/kiteffmpeg/src/nativeInterop/cinterop/archived"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

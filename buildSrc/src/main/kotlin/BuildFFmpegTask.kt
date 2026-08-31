@@ -282,7 +282,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         val root = outputDir.get().asFile.parentFile.parentFile.resolve("deps/${target.dirName}/dav1d")
         require(root.resolve("lib/libdav1d.a").isFile) {
             "native-libs/deps/${target.dirName}/dav1d/lib/libdav1d.a does not exist, and dav1d is " +
-                "mandatory in every KiteFFmpeg FFmpeg. Run :kiteffmpeg-core:buildDav1dFor${target.gradleSuffix} first."
+                "mandatory in every KiteFFmpeg FFmpeg. Run :kiteffmpeg:buildDav1dFor${target.gradleSuffix} first."
         }
         return root
     }

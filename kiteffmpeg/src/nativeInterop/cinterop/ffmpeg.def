@@ -17,7 +17,7 @@ headerFilter = kitecodec_helpers.h kitecodec_handles.h kitecodec_abi.h
 # libavutil; libavcodec from libdav1d, which is why dav1d is LAST. There is deliberately no
 # libraryPaths entry: a def-relative path resolves against the Gradle project directory, and the
 # directories are per konan target, so search paths arrive as -libraryPath from
-# kiteffmpeg-core/build.gradle.kts.
+# kiteffmpeg/build.gradle.kts.
 staticLibraries = libkitecodec.a libavformat.a libavcodec.a libavfilter.a libswscale.a libswresample.a libavutil.a libdav1d.a
 # Platform flags only: the archives are embedded, so no -lav* here (a -l flag would make every
 # consumer link fail with "library not found"). What a STATIC libav* still draws from the

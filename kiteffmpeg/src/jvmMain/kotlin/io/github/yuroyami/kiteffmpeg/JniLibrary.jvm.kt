@@ -13,7 +13,7 @@ import java.nio.file.StandardCopyOption
  * 2. `System.loadLibrary`, which reads `java.library.path`. This is how a packager (jpackage, a
  *    distro package, a Gradle run task) supplies its own copy without unpacking anything.
  * 3. The copy bundled in this jar under `native/<os>-<arch>/`, extracted once to a temp file.
- *    This is what makes `implementation("...:kiteffmpeg-core")` enough for a desktop app.
+ *    This is what makes `implementation("...:kiteffmpeg")` enough for a desktop app.
  */
 internal actual object JniLibrary {
     actual val isAndroid: Boolean = false
@@ -44,7 +44,7 @@ internal actual object JniLibrary {
             ?.filter { it.isNotEmpty() }
             ?: throw UnsatisfiedLinkError(
                 "kitecodec_jni is neither on java.library.path nor bundled at $directoryResource. " +
-                    "This build of kiteffmpeg-core carries no native library for $platformDirectory; " +
+                    "This build of kiteffmpeg carries no native library for $platformDirectory; " +
                     "supply one with -Dkiteffmpeg.jni.path or -Djava.library.path.",
             )
 

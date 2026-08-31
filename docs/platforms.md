@@ -22,7 +22,7 @@ Two points decide whether KiteFFmpeg is usable for you:
   than a codec. No Android playback is qualified on a physical device. `js` and `wasmJs` compile and
   publish the common API but report no capabilities and reject every media operation with typed
   `FFmpegError.Unsupported`.
-- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg-core:0.1.0` on Maven Central, one
+- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.1.0` on Maven Central, one
   dependency line, FFmpeg embedded inside the artifacts. There is no Gradle plugin and no FFmpeg
   download step. `mingwX64` builds and tests in CI and has prebuilt FFmpeg assets; `iosX64`,
   `macosX64` and `linuxArm64` remain unqualified. This paragraph said "Nothing is published" until
@@ -64,9 +64,9 @@ For a self-contained binary, build a minimal FFmpeg from source. The build expec
 ```bash
 git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 
-./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64
+./gradlew :kiteffmpeg:buildFFmpegForMacosArm64
 # or build every configured target at once:
-./gradlew :kiteffmpeg-core:buildFFmpegForAll
+./gradlew :kiteffmpeg:buildFFmpegForAll
 ```
 
 The Gradle task cross-compiles a pinned codec and filter set and drops `.a` libraries under `native-libs/<license>/<target>/` (`lgpl` or `gpl`). `FFmpegPaths` notices, compiles the C archive against that tree and switches the final link to the static libraries. Desktop size is around 25 MB; no mobile size is claimed before it is measured.
@@ -133,13 +133,13 @@ See [Licensing](#licensing) below before you ship one.
 On an arm64 Mac, the local phone selector registers exactly `macosArm64`, `iosArm64` and `iosSimulatorArm64`:
 
 ```bash
-./gradlew :kiteffmpeg-core:buildFFmpegForMacosArm64 \
-  :kiteffmpeg-core:buildFFmpegForIosArm64 \
-  :kiteffmpeg-core:buildFFmpegForIosSimulatorArm64
+./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 \
+  :kiteffmpeg:buildFFmpegForIosArm64 \
+  :kiteffmpeg:buildFFmpegForIosSimulatorArm64
 
-./gradlew :kiteffmpeg-core:compileKotlinMacosArm64 \
-  :kiteffmpeg-core:compileKotlinIosArm64 \
-  :kiteffmpeg-core:compileKotlinIosSimulatorArm64 \
+./gradlew :kiteffmpeg:compileKotlinMacosArm64 \
+  :kiteffmpeg:compileKotlinIosArm64 \
+  :kiteffmpeg:compileKotlinIosSimulatorArm64 \
   -Pkiteffmpeg.applePhoneTargetsOnly=true
 ```
 
@@ -170,7 +170,7 @@ build this project ships, so testing against it proved the wrong thing.
 
 Then build with `-Pkiteffmpeg.ffmpeg.license=gpl` (matching the flavor directory), and make sure the `bin\` directory with the DLLs is on `PATH` at run time. An LGPL BtbN variant exists too (`...-win64-lgpl-shared.zip`); put it under `native-libs\lgpl\mingw-x64` and skip the property. This is exactly how [CI](https://github.com/yuroyami/KiteFFmpeg/blob/main/.github/workflows/ci.yml) runs the Windows tests and e2e transcode on every push.
 
-**Option B: vendored static cross-compile.** Run `:kiteffmpeg-core:buildFFmpegForMingwX64` (or the `Gpl` variant) with a mingw-w64 cross toolchain (`x86_64-w64-mingw32-gcc`) available. This is realistic from a Linux host or MSYS2; it needs the `vendor/ffmpeg` clone described above.
+**Option B: vendored static cross-compile.** Run `:kiteffmpeg:buildFFmpegForMingwX64` (or the `Gpl` variant) with a mingw-w64 cross toolchain (`x86_64-w64-mingw32-gcc`) available. This is realistic from a Linux host or MSYS2; it needs the `vendor/ffmpeg` clone described above.
 
 Windows builds, tests, and e2e-transcodes in CI via Option A, against a BtbN tag, asset name and SHA-256 pinned in the workflow. There is no one-command onboarding path on a bare Windows machine, no system-FFmpeg discovery, and no prebuilt KiteFFmpeg asset for `mingw-x64`. You stage the tree yourself.
 
@@ -181,8 +181,8 @@ Kotlin/Native treats the Android NDK as just another native family, so the entir
 ```bash
 git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 export ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/<version>
-./gradlew :kiteffmpeg-core:buildFFmpegForAndroidArm64       # NDK cross-compile, ~6 min
-./gradlew :kiteffmpeg-core:compileKotlinAndroidNativeArm64  # the klib
+./gradlew :kiteffmpeg:buildFFmpegForAndroidArm64       # NDK cross-compile, ~6 min
+./gradlew :kiteffmpeg:compileKotlinAndroidNativeArm64  # the klib
 ```
 
 The same Android FFmpeg profile also supplies the JNI libraries for the regular Android target.

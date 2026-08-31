@@ -170,7 +170,7 @@ class LinkKiteFFmpegJniTaskTest {
     @Test
     fun coreBuildWiresBothDedicatedAndroidHelpersAndThePlatformExportControls() {
         val repoRoot = File(checkNotNull(System.getProperty("kiteffmpeg.repo.root")))
-        val source = repoRoot.resolve("kiteffmpeg-core/build.gradle.kts").readText()
+        val source = repoRoot.resolve("kiteffmpeg/build.gradle.kts").readText()
         val helperRegistrations = sourceSection(
             source,
             "val androidHelperTasks = LinkKiteFFmpegJniTask.ANDROID_ABI_RECIPES.associateWith { arm ->",

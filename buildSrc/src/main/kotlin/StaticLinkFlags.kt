@@ -41,7 +41,7 @@ object StaticLinkFlags {
     /**
      * Extra `-L` search paths for a LOCAL vendored build. Since the portable profiles no target
      * resolves anything from a host package manager, so this is always empty. The signature stays
-     * because `kiteffmpeg-core/build.gradle.kts` wires it per target, and a future profile that
+     * because `kiteffmpeg/build.gradle.kts` wires it per target, and a future profile that
      * reintroduces a host dependency changes this ONE function instead of that script.
      */
     fun hostFallbackSearchFlags(

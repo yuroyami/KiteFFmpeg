@@ -61,12 +61,12 @@ abstract class CheckFFmpegRecipesTask : DefaultTask() {
                 stamp.readText().trim(),
                 expectation.fingerprint.toList(),
             ) ?: return@forEach
-            stale += "  ${tree.name}: $reason\n    fix: ./gradlew :kiteffmpeg-core:${expectation.taskName}"
+            stale += "  ${tree.name}: $reason\n    fix: ./gradlew :kiteffmpeg:${expectation.taskName}"
         }
         if (checked == 0) {
             logger.lifecycle(
                 "[KiteFFmpeg] checkFFmpegRecipes: no vendored tree carries a recipe stamp, so there is " +
-                    "nothing to compare. Bake one with :kiteffmpeg-core:buildFFmpegFor<Target>.",
+                    "nothing to compare. Bake one with :kiteffmpeg:buildFFmpegFor<Target>.",
             )
             return
         }

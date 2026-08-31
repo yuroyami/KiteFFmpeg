@@ -41,7 +41,7 @@ Everything routes through one demux pass. When you decode several streams, or co
 ## Install
 
 !!! warning "Not consumable from Maven Central today"
-    Neither `kiteffmpeg-core` nor the Gradle plugin has been published, and the FFmpeg Release assets the plugin's default `FFmpegSource.Prebuilt` downloads do not exist. The [README](https://github.com/yuroyami/KiteFFmpeg#install) carries the complete consumer build script and the [release status](https://github.com/yuroyami/KiteFFmpeg#release-status), and is the single place either is tracked. Until that changes, you work inside the KiteFFmpeg checkout.
+    Neither `kiteffmpeg` nor the Gradle plugin has been published, and the FFmpeg Release assets the plugin's default `FFmpegSource.Prebuilt` downloads do not exist. The [README](https://github.com/yuroyami/KiteFFmpeg#install) carries the complete consumer build script and the [release status](https://github.com/yuroyami/KiteFFmpeg#release-status), and is the single place either is tracked. Until that changes, you work inside the KiteFFmpeg checkout.
 
 The bindings link against libav\*, so FFmpeg has to be present at build time. For a dynamically linked build, it must be present at run time as well.
 
@@ -57,7 +57,7 @@ The bindings link against libav\*, so FFmpeg has to be present at build time. Fo
     ```bash
     sudo apt install ffmpeg libavcodec-dev libavformat-dev \
         libavfilter-dev libavutil-dev libswscale-dev libswresample-dev
-    ./gradlew :kiteffmpeg-core:linuxX64Test
+    ./gradlew :kiteffmpeg:linuxX64Test
     ```
 
 JVM and Android are published artifacts, not source-only actuals. The Android AAR on Maven Central

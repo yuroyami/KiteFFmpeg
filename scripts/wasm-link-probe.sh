@@ -16,7 +16,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FF="$ROOT/native-libs/lgpl/wasm32"
 KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
 for required in "$KC" "$FF/lib/libavfilter.a" "$FF/include/libavformat/avformat.h"; do
-  [ -e "$required" ] || { echo "missing $required. Run :kiteffmpeg-core:compileKiteFFmpegCForWasm first." >&2; exit 1; }
+  [ -e "$required" ] || { echo "missing $required. Run :kiteffmpeg:compileKiteFFmpegCForWasm first." >&2; exit 1; }
 done
 command -v emcc >/dev/null || { echo "emcc is not on PATH" >&2; exit 1; }
 command -v node >/dev/null || { echo "node is not on PATH" >&2; exit 1; }

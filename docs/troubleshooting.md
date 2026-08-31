@@ -7,7 +7,7 @@ Most build-time problems have one cause: KiteFFmpeg links against an FFmpeg **yo
 `FFmpegPaths.resolve` looks for a vendored static tree under `native-libs/<license>/<target>/{include,lib}` first, then falls back to a system install. This error means neither existed. Fix one of the two:
 
 - install FFmpeg system-wide (`brew install ffmpeg` on macOS; the `libav*-dev` packages via apt on Linux), or
-- vendor a static build: `./gradlew :kiteffmpeg-core:buildFFmpegFor<Target>` (see [prerequisites](#vendored-build-prerequisites) below).
+- vendor a static build: `./gradlew :kiteffmpeg:buildFFmpegFor<Target>` (see [prerequisites](#vendored-build-prerequisites) below).
 
 Note the `<license>` path segment: if you put your own GPL tree under `native-libs/gpl/<target>/` but did not pass `-Pkiteffmpeg.ffmpeg.license=gpl`, the build looks under `native-libs/lgpl/` and misses your libraries. Flavour and property must match. (KiteFFmpeg itself builds only the LGPL flavour; the `buildFFmpegFor<Target>Gpl` tasks were deleted on 2026-08-21.)
 
@@ -89,7 +89,7 @@ The NDK cross-compile resolves its toolchain from, in order: the `ANDROID_NDK_HO
 
 ```bash
 export ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/<version>
-./gradlew :kiteffmpeg-core:buildFFmpegForAndroidArm64
+./gradlew :kiteffmpeg:buildFFmpegForAndroidArm64
 ```
 
 The vendored `vendor/ffmpeg` clone is required here too. The repository's Android FFmpeg builds

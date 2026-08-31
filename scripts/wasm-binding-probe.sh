@@ -18,7 +18,7 @@ FF="$ROOT/native-libs/lgpl/wasm32"
 KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
 EXPORTS="$ROOT/native-libs/deps/wasm32/binding/kiteffmpeg-exports.json"
 for required in "$KC" "$EXPORTS" "$FF/lib/libavfilter.a"; do
-  [ -e "$required" ] || { echo "missing $required. Run :kiteffmpeg-core:generateWasmBinding and :compileKiteFFmpegCForWasm." >&2; exit 1; }
+  [ -e "$required" ] || { echo "missing $required. Run :kiteffmpeg:generateWasmBinding and :compileKiteFFmpegCForWasm." >&2; exit 1; }
 done
 
 WORK=$(mktemp -d)
