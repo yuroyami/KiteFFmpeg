@@ -122,7 +122,8 @@ above is the front door.
 |---|---|
 | **Plays media** | `macosArm64`, `linuxX64`, `linuxArm64`, `mingwX64`, `iosArm64`, `iosSimulatorArm64`, JVM on macOS arm64 |
 | **Builds, nothing has run** | `macosX64`, `iosX64`, `androidNativeArm64` / `Arm32` / `X64`, and the Android AAR (`minSdk 26`, JNI for `arm64-v8a` and `x86_64`) |
-| **Placeholder** | `js`, `wasmJs`. The API resolves and capability probes answer, every media call throws `FFmpegError.Unsupported` |
+| **Plays media, once you supply the wasm module** | `wasmJs`. Demux, decode and seek are real. Encode, mux and filter are refused by design |
+| **Placeholder** | `js`. The API resolves and capability probes answer, every media call throws `FFmpegError.Unsupported` |
 
 All of these publish at 0.1.0. Two caveats worth reading before you plan around the first row: the
 iOS entries are proven on a development Mac rather than in CI, and the JVM jar carries a **macOS
@@ -130,15 +131,30 @@ arm64** native library and only that one, so a JVM app on Linux or Windows resol
 and then gets the typed unavailable placeholder. Per-target detail is in
 [Platform support](docs/platforms.md).
 
-The placeholder targets are deliberate. A `js` build that silently did nothing would be worse than
-one that tells you it cannot.
+`js` is a deliberate placeholder: a build that silently did nothing would be worse than one that
+tells you it cannot.
+
+**`wasmJs` is not a placeholder.** It carries a real playback backend over a generated binding.
+FFmpeg cannot be linked into the same binary in a browser, so it arrives as a separate wasm module
+you load once before anything else:
+
+```kotlin
+KiteFFmpegWeb.load("/kite.mjs")     // or attach() a module the page already instantiated
+check(FFmpeg.identity.isAcceptable)
+```
+
+Calls before that throw `KiteFFmpegWeb.NotLoaded`. Two things to know before choosing it: the
+module is not published with the artifact, so you build it yourself with
+`:kiteffmpeg:buildFFmpegForWasm*` (needs emscripten); and the Kotlin side is tested against a fake
+codec module, which proves the binding reads the right fields and proves nothing about the built
+artifact. A real browser run against a real module has not been recorded yet.
 
 ## What it will not do
 
 | Not available | What that means for you |
 |---|---|
 | A JVM distribution beyond macOS arm64 | Linux and Windows JVM apps get the typed unavailable placeholder, not a codec. |
-| A Web codec backend | `js` and `wasmJs` are dependency-compatible placeholders. |
+| Encode, mux or filter on the web | Both web targets refuse them. `wasmJs` is a playback backend: demux, decode, seek. `js` refuses everything. |
 | Any GPL FFmpeg | There is no GPL build and no way to swap the embedded one. Shipping GPL binaries would make your whole app GPL-3.0, which is not a choice a library should make for you. |
 | `libx264`, `libx265`, `libsvtav1`, `libopus`, `libmp3lame` | No third-party encoder is linked. `mpeg4` is the software video baseline and `aac` the audio one. Decoding is far wider than encoding. |
 | A bitstream filter API | Nothing binds `av_bsf_*`. The common ones are compiled in, so libavformat still inserts them automatically during a stream copy. |
