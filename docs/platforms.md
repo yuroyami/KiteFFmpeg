@@ -158,8 +158,8 @@ place, which is why the Windows job tests the SHIPPED profile rather than somebo
 
 ```powershell
 # Tag and asset are pinned, never "latest", and the checksum is verified before use.
-$tag  = "ffmpeg-n8.0-r2"
-$name = "ffmpeg-n8.0-lgpl-mingw-x64.zip"
+$tag  = "ffmpeg-n8.1.2"
+$name = "ffmpeg-n8.1.2-lgpl-mingw-x64.zip"
 Invoke-WebRequest -Uri "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$name" -OutFile $name
 Expand-Archive $name -DestinationPath native-libs\lgpl\mingw-x64
 ```

@@ -52,14 +52,19 @@ env:
   # when a new companion release is published. Conflating the two is what broke CI from 2026-08-29:
   # the 8.1.2 bump moved buildSrc and publish.yml, the clone literals here stayed at n8.0, and the
   # drift check could not see them because it only read this line.
-  FFMPEG_VERSION: n8.0
-  # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from,
+  FFMPEG_VERSION: n8.1.2
+  # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
+  # Both name n8.1.2 today; they are still two settings, because they came apart once and will
+  # again. The ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as
+  # the LGPL source offer for kitecodec-core artifacts already on Maven Central, and Central cannot
+  # withdraw a version. What follows is the record of why they parted in 2026-08.
+  #
   # because on 2026-08-24 they stopped being the same thing. The aac encoder was missing from the
   # Linux and Windows profiles, so those binaries had to be rebuilt; they went to a NEW tag rather
   # than over ffmpeg-n8.0, because NOTICE names that release as the LGPL source offer for artifacts
   # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
   # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
-  FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
+  FFMPEG_ASSET_TAG: ffmpeg-n8.1.2
 
 jobs:
   macos-arm64:
@@ -767,8 +772,8 @@ jobs:
       - name: Fetch the prebuilt static FFmpeg (mingw-x64)
         shell: pwsh
         env:
-          FFMPEG_VERSION: n8.0
-          FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
+          FFMPEG_VERSION: n8.1.2
+          FFMPEG_ASSET_TAG: ffmpeg-n8.1.2
         run: |
           $base = "https://github.com/${{ github.repository }}/releases/download/$env:FFMPEG_ASSET_TAG"
           $asset = "ffmpeg-$env:FFMPEG_VERSION-lgpl-mingw-x64.zip"

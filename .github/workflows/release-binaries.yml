@@ -31,13 +31,13 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to attach the binaries to. Keep it FFmpeg-keyed (ffmpeg-n8.0): the zips are identical across KiteFFmpeg versions and publish.yml fetches from exactly this tag."
+        description: "Release tag to attach the binaries to. Keep it FFmpeg-keyed (ffmpeg-n8.1.2): the zips are identical across KiteFFmpeg versions and publish.yml fetches from exactly this tag."
         required: true
-        default: "ffmpeg-n8.0"
+        default: "ffmpeg-n8.1.2"
       ffmpeg_version:
-        description: "FFmpeg source tag to build (e.g. n8.0)"
+        description: "FFmpeg source tag to build (e.g. n8.1.2)"
         required: true
-        default: "n8.0"
+        default: "n8.1.2"
       dav1d_version:
         description: "dav1d source tag (must equal BuildDav1dTask.DEFAULT_SOURCE_REF)"
         required: true

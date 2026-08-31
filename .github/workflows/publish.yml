@@ -45,13 +45,18 @@ env:
   # FFmpeg release whose prebuilt assets kiteffmpeg compiles against and embeds. Keep in
   # sync with BuildFFmpegTask.DEFAULT_SOURCE_REF (buildSrc); the root build asserts they agree.
   FFMPEG_VERSION: n8.1.2
-  # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from,
+  # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
+  # Both name n8.1.2 today; they are still two settings, because they came apart once and will
+  # again. The ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as
+  # the LGPL source offer for kitecodec-core artifacts already on Maven Central, and Central cannot
+  # withdraw a version. What follows is the record of why they parted in 2026-08.
+  #
   # because on 2026-08-24 they stopped being the same thing. The aac encoder was missing from the
   # Linux and Windows profiles, so those binaries had to be rebuilt; they went to a NEW tag rather
   # than over ffmpeg-n8.0, because NOTICE names that release as the LGPL source offer for artifacts
   # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
   # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
-  FFMPEG_ASSET_TAG: ffmpeg-n8.0-r2
+  FFMPEG_ASSET_TAG: ffmpeg-n8.1.2
 
 jobs:
   check-version:
