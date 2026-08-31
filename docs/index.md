@@ -40,10 +40,15 @@ Everything routes through one demux pass. When you decode several streams, or co
 
 ## Install
 
-!!! warning "Not consumable from Maven Central today"
-    Neither `kiteffmpeg` nor the Gradle plugin has been published, and the FFmpeg Release assets the plugin's default `FFmpegSource.Prebuilt` downloads do not exist. The [README](https://github.com/yuroyami/KiteFFmpeg#install) carries the complete consumer build script and the [release status](https://github.com/yuroyami/KiteFFmpeg#release-status), and is the single place either is tracked. Until that changes, you work inside the KiteFFmpeg checkout.
+```kotlin
+commonMain.dependencies {
+    implementation("io.github.yuroyami:kiteffmpeg:0.1.0")
+}
+```
 
-The bindings link against libav\*, so FFmpeg has to be present at build time. For a dynamically linked build, it must be present at run time as well.
+That is the whole setup. FFmpeg is compiled into each published artifact, so there is nothing to
+install and nothing to configure. The rest of this page is about working INSIDE the KiteFFmpeg
+checkout, where you build FFmpeg yourself.
 
 === "macOS"
 

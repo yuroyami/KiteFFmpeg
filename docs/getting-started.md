@@ -54,7 +54,7 @@ KiteFFmpeg links against FFmpeg's libav* libraries. You need them present before
 
     Every profile is portable (2026-08-22): no third-party libraries are needed on any target. The prerequisites are `make`, a C toolchain and, for the x86_64 targets' assembly, `nasm`. The dav1d flavour additionally needs `meson` and `ninja`. On macOS: `brew install nasm meson ninja`. See [Troubleshooting](troubleshooting.md#vendored-build-prerequisites) if configure fails.
 
-    Every bake is **LGPL** (no libx264 / libx265). There are no GPL build tasks: a GPL tree is something you build and own yourself, consumed through `FFmpegSource.Local`.
+    Every bake is **LGPL** (no libx264 / libx265). There are no GPL build tasks: a GPL tree is something you build and own yourself, and point this repository's build at.
 
 !!! tip "Android"
 
@@ -112,9 +112,9 @@ what the runnable examples below assume. A consumer does not need any of it.
     }
     ```
 
-    A composite build substitutes the dependency with the included project, so the version is omitted deliberately. Your FFmpeg comes from KiteFFmpeg's own `FFmpegPaths` resolution (Step 1), not from the Gradle plugin.
+    A composite build substitutes the dependency with the included project, so the version is omitted deliberately. Your FFmpeg comes from KiteFFmpeg's own `FFmpegPaths` resolution (Step 1).
 
-For a private consumer proof, publish the three Apple variants locally in a separate invocation with `./gradlew publishToMavenLocal -Pkiteffmpeg.applePhoneTargetsOnly=true`. Then configure the consumer plugin with `source = FFmpegSource.Local`, `license = FFmpegLicense.LGPL` and `localRoot` pointing at this checkout's absolute `native-libs` directory. Its fixed layout is `<localRoot>/<license.id>/<target-triple>/{include,lib}`. The plugin validates every wired tree and performs no download. This selector is local-only; any remote `publish` task refuses it during configuration.
+To test a consumer against locally published artifacts instead, run `./gradlew publishToMavenLocal`. On an arm64 Mac, `-Pkiteffmpeg.applePhoneTargetsOnly=true` narrows that to macosArm64, iosArm64 and iosSimulatorArm64. Both selectors are local-only; any remote `publish` task refuses them during configuration.
 
 Once `kiteffmpeg` is publicly published, a native
 consumer build script can replace the composite build. It is written out in full in the

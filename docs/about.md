@@ -43,7 +43,6 @@ The two things a reader most often needs from it:
 
 ## What's next
 
-- **The FFmpeg binary release**: unblocking `release-binaries.yml` is what turns `FFmpegSource.Prebuilt` from a 404 into the default path, and is the prerequisite for publishing `kiteffmpeg` at all.
 - **Android runtime qualification and publication**: the JNI/AAR source and packaging model is in
   place; playback qualification, physical-device evidence, consumer publication and app/UI
   integration remain.
@@ -146,7 +145,7 @@ KiteFFmpeg follows `ffmpeg.c`'s own rules at every stage:
 
 ## FFmpeg sourcing
 
-KiteFFmpeg links against an FFmpeg you provide. Inside this repository it either discovers a host system install or builds a vendored tree. A consumer plugin has a third, no-network Local mode for reusing a complete generated tree.
+A consumer provides nothing: FFmpeg is compiled into every published artifact. This section is about the repository itself, where the build either discovers a host system install or cross-builds a vendored tree per target.
 
 === "Dynamic (default)"
 
@@ -168,10 +167,6 @@ KiteFFmpeg links against an FFmpeg you provide. Inside this repository it either
     ```
 
     The build copies source to a unique hash-free temporary workspace, configures and installs there, records the normalized configure invocation at `lib/kiteffmpeg/ffmpeg-configure.txt`, verifies that record plus all six archives and headers, stages a Java/NIO copy beside the declared output and only then replaces the old tree. Packaging reads only that installed single-line record. The mobile Apple tasks use the shared STANDARD software-playback profile plus SDK zlib. They do not use the desktop third-party stack, GPL, VideoToolbox or hardware encode.
-
-=== "Local consumer tree"
-
-    After a private `publishToMavenLocal`, set `source = FFmpegSource.Local` and point `localRoot` at the absolute `native-libs` directory. The plugin requires `<localRoot>/<license.id>/<target-triple>/{include,lib}` for every wired target and never downloads. Local iOS is LGPL-only and links SDK zlib; local macOS searches its tree before the host fallback and uses the desktop static link set. Nothing about this mode implies a public artifact or CI result.
 
 See [Platform support](platforms.md) for the per-target detail.
 

@@ -11,15 +11,15 @@ Most build-time problems have one cause: KiteFFmpeg links against an FFmpeg **yo
 
 Note the `<license>` path segment: if you put your own GPL tree under `native-libs/gpl/<target>/` but did not pass `-Pkiteffmpeg.ffmpeg.license=gpl`, the build looks under `native-libs/lgpl/` and misses your libraries. Flavour and property must match. (KiteFFmpeg itself builds only the LGPL flavour; the `buildFFmpegFor<Target>Gpl` tasks were deleted on 2026-08-21.)
 
-## "Local FFmpeg tree is incomplete"
+## "FFmpeg tree is incomplete"
 
-The consumer plugin's `FFmpegSource.Local` accepts one layout only:
-`<localRoot>/<license.id>/<target-triple>/{include,lib}`. Every wired target must contain
-`include/libavformat/avformat.h` and `libavcodec.a`, `libavformat.a`, `libavutil.a`,
-`libavfilter.a`, `libswscale.a` and `libswresample.a`. The configuration error lists every missing
-file. Point `localRoot` at the directory above `lgpl/` or finish the producer build first. Local
-never downloads a missing file. Local with GPL on any iOS target is refused before tree validation
-with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
+Building inside this repository, a target's tree must contain
+`include/libavformat/avformat.h` plus `libavcodec.a`, `libavformat.a`, `libavutil.a`,
+`libavfilter.a`, `libswscale.a` and `libswresample.a` under
+`native-libs/<license>/<target-triple>/`. The error lists every missing file. Finish the
+`buildFFmpegFor<Target>` task first. Nothing is ever downloaded to fill a gap.
+
+Consumers of the published artifact never see this: FFmpeg is compiled in.
 
 ## macOS: Homebrew in a non-standard prefix
 

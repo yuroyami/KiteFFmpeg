@@ -26,17 +26,14 @@ dependency and call Kotlin functions.
 ## Install
 
 ```kotlin
-// build.gradle.kts
-kotlin {
-    macosArm64()          // or any target in the table below
-    sourceSets.commonMain.dependencies {
-        implementation("io.github.yuroyami:kiteffmpeg:0.1.0")
-    }
+commonMain.dependencies {
+    implementation("io.github.yuroyami:kiteffmpeg:0.1.0")
 }
 ```
 
-That is the whole setup. Each native artifact carries its own FFmpeg build (about 10 MB) and its
-own platform linker flags.
+That goes in the `sourceSets` block you already have, and it is the entire setup. Every target you
+declare gets FFmpeg automatically: the artifact for each platform carries its own FFmpeg build
+(about 10 MB) and its own linker settings.
 
 ## One call does the whole job
 
