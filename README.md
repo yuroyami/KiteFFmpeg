@@ -1,10 +1,20 @@
 # KiteFFmpeg
 
-Video and audio processing for Kotlin Multiplatform: read a media file, change it, write it back.
+Video and audio for Kotlin Multiplatform. Open a media file, change it, save it.
 
-FFmpeg is compiled into the library, for every target. No FFmpeg install, no Gradle plugin, no
-linker setup, no `ffmpeg` process to launch and no log output to parse. You add one dependency and
-call Kotlin functions.
+Things people build with it:
+
+- Shrink a large video so it uploads faster
+- Cut a clip between two timestamps
+- Grab a thumbnail from any point in a video
+- Add a watermark, a blur, or a colour change
+- Change an `.mkv` into an `.mp4` without re-encoding it
+- Read raw frames and draw them yourself
+
+FFmpeg does the actual work, and it is **already compiled into the library** for every platform.
+You do not install FFmpeg. You do not add a Gradle plugin or touch linker settings. There is no
+`ffmpeg` command being launched behind your back, and no console output to parse. You add one
+dependency and call Kotlin functions.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteFFmpeg/ci.yml?label=CI)](https://github.com/yuroyami/KiteFFmpeg/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.yuroyami/kiteffmpeg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.yuroyami/kiteffmpeg)
@@ -28,10 +38,11 @@ kotlin {
 That is the whole setup. Each native artifact carries its own FFmpeg build (about 10 MB) and its
 own platform linker flags.
 
-## The whole pipeline in one call
+## One call does the whole job
 
-Demux, decode, filter, encode, mux. One pass, video and audio together, and memory does not grow
-with the length of the input.
+This reads `input.mp4`, scales it down, tweaks the colour, adds a vignette, re-encodes the video
+and audio, and writes `output.mp4`. Video and audio are handled together in a single pass, and
+memory stays flat whether the file is one minute or three hours.
 
 ```kotlin
 Transcoder.transcode(
@@ -50,50 +61,56 @@ Transcoder.transcode(
 )
 ```
 
-Filters use FFmpeg's own filtergraph syntax, so anything you can write for `ffmpeg -vf` works here
-unchanged. Set `videoCopy` or `audioCopy` to stream-copy instead: the equivalent of `-c copy`,
-timestamp rescale only, bit-exact.
+That filter string is FFmpeg's own syntax, so anything you already know how to write for
+`ffmpeg -vf` works here unchanged.
 
-Frames arrive as a `Flow<Frame>`. Progress arrives as a typed callback. Failures arrive as one
-`FFmpegException` over a sealed `FFmpegError`, so a missing encoder is something you branch on
-rather than a string you match.
+Set `videoCopy` or `audioCopy` if you want to keep a stream exactly as it is instead of
+re-encoding it. That is much faster and loses nothing.
 
-<details>
-<summary>New to FFmpeg? The words this page uses</summary>
+Errors come back as one `FFmpegException` wrapping a sealed `FFmpegError`, so "this device has no
+AAC encoder" is a case you can match on in code, not a string you have to read.
 
-| Term | What it means |
-|---|---|
-| demux | Split one media file into its separate streams of compressed packets. |
-| decode | Turn compressed packets into raw frames: pixels, or audio samples. |
-| encode | Turn raw frames back into compressed packets. |
-| mux | Write the packets of several streams into one container file. |
-| filter graph | A chain of processing steps applied to frames, written as one text string. |
-| transcode | Decode, then encode again, usually into a different codec or size. |
-| remux | Move packets into a different container. Nothing is decoded. |
-| stream copy | Pass packets through without decoding or encoding. The result is bit-exact. |
-| pts | Presentation timestamp. When a frame should appear or play. |
+## The words FFmpeg uses
 
-</details>
+FFmpeg has its own vocabulary and this page uses it. Here is the whole of it, in plain terms.
 
-## What it does
-
-`transcode`, `remux`, `extractFrame` and the encoders' `drive` are suspend functions, and decode
-flows are collected. Call them from a coroutine.
-
-| Task | Entry point | Guide |
+| Word | What it means | Everyday version |
 |---|---|---|
-| Transcode a file | `Transcoder.transcode(...)` | [Transcoding](docs/transcoding.md) |
-| Cut a frame-exact clip | `transcode(..., startMicros, endMicros)` | [Transcoding](docs/transcoding.md) |
-| Rewrite a container losslessly | `Remuxer.remux(...)` | [Remuxing](docs/remuxing.md) |
-| Read decoded frames | `MediaSource.decodedFrames(...)` | [Decoding](docs/decoding.md) |
-| Decode several streams in one pass | `MediaSource.decodeStreams(...)` | [Decoding](docs/decoding.md) |
-| Grab a thumbnail | `MediaSource.extractFrame(...)` | [Decoding](docs/decoding.md) |
-| Apply a filter chain | `FilterGraph.buildVideo` / `buildVideoMulti` | [Filtering](docs/filtering.md) |
-| Encode frames you generate | `MediaSink` plus `Frame.ofVideo` / `ofAudio` | [Encoding and muxing](docs/encoding-muxing.md) |
-| Probe what is linked | `FFmpeg.hasEncoder(...)` / `hasFilter(...)` | [Platform support](docs/platforms.md) |
+| **stream** | One track inside a file | The video track, or the English audio track |
+| **packet** | A chunk of still-compressed data | One small piece of the video track |
+| **frame** | One decoded picture, or a slice of sound | A single image you could display |
+| **demux** | Split a file into its streams | Unpack the box |
+| **decode** | Turn packets into frames | Unzip a picture so you can look at it |
+| **encode** | Turn frames back into packets | Zip the picture back up |
+| **mux** | Write streams into one file | Pack the box again |
+| **transcode** | Decode, then encode differently | Re-save it smaller, or in another format |
+| **remux** | Move streams to a new container, no re-encoding | Change the box, keep the contents |
+| **filter** | A step that changes frames | Scale, blur, watermark, adjust colour |
+| **pts** | The timestamp on a frame | When this frame should appear |
 
-Trim bounds are microseconds into the content, not raw container timestamps. A filter graph names
-its inputs `[in0]` to `[inN-1]` and its single output `[out]`.
+You do not need any of it for the example above. It matters once you start reading frames
+yourself.
+
+## What you can call
+
+These are suspend functions, so call them from a coroutine. Frame readers are Kotlin `Flow`s, so
+you collect them.
+
+| What you want to do | Call | Guide |
+|---|---|---|
+| Re-save a video smaller, or in another format | `Transcoder.transcode(...)` | [Transcoding](docs/transcoding.md) |
+| Cut a clip between two times | `transcode(..., startMicros, endMicros)` | [Transcoding](docs/transcoding.md) |
+| Change the file type without re-encoding | `Remuxer.remux(...)` | [Remuxing](docs/remuxing.md) |
+| Grab a single picture from a video | `MediaSource.extractFrame(...)` | [Decoding](docs/decoding.md) |
+| Read every frame yourself | `MediaSource.decodedFrames(...)` | [Decoding](docs/decoding.md) |
+| Read video and audio frames together | `MediaSource.decodeStreams(...)` | [Decoding](docs/decoding.md) |
+| Scale, blur, watermark, adjust colour | `FilterGraph.buildVideo` / `buildVideoMulti` | [Filtering](docs/filtering.md) |
+| Build a file out of frames you made | `MediaSink` plus `Frame.ofVideo` / `ofAudio` | [Encoding and muxing](docs/encoding-muxing.md) |
+| Ask what this build supports | `FFmpeg.hasEncoder(...)` / `hasFilter(...)` | [Platform support](docs/platforms.md) |
+
+Two details that catch people out. Cut times are **microseconds into the video**, counted from the
+start of the content, not the raw numbers stored in the file. And a filter chain names its inputs
+`[in0]`, `[in1]` and so on, with a single output called `[out]`.
 
 ### Reading frames
 
@@ -107,23 +124,25 @@ MediaSource.open("input.mp4").use { source ->
 }
 ```
 
-Two concurrent `decodedFrames` flows would race the demuxer and are rejected. To read video and
-audio together, use `decodeStreams(...)`, which decodes them in one pass.
+You cannot collect two of these at once from the same file: they would both try to move the read
+position, so the second one is rejected. Use `decodeStreams(...)` when you want video and audio
+together.
 
-For a player, which needs audio and video decoding to advance independently and to seek while both
-run, there is a lower-level surface behind the `@KiteFFmpegLowLevelApi` opt-in: `openPacketReader`
-for owned packets with a real seek window, and `openDecoder` for one independently driven decoder
-per stream. [KitePlayer](https://github.com/yuroyami/KitePlayer) is built on it. The batch API
-above is the front door.
+**Building a media player?** The API above reads a file front to back, which is right for
+converting and wrong for playback: a player needs audio and video to advance separately, and to
+jump around while both are running. There is a second, lower-level API for that, behind an opt-in
+annotation (`@KiteFFmpegLowLevelApi`) because it hands you objects you must free yourself.
+[KitePlayer](https://github.com/yuroyami/KitePlayer) is built on it. If you are not writing a
+player, stay with the API above.
 
 ## Where it runs
 
 | | Targets |
 |---|---|
 | **Plays real media** | `macosArm64`, `iosArm64`, `iosSimulatorArm64`, the Android AAR (`minSdk 26`, `arm64-v8a` and `x86_64`), `linuxX64`, `linuxArm64`, `mingwX64` |
-| **Plays media, once you supply the wasm module** | `wasmJs`. Demux, decode and seek are real. Encode, mux and filter are refused by design |
-| **Builds, nothing has run** | `macosX64`, `iosX64`, and the `androidNative*` klibs, which are Kotlin/Native for Android and not what an Android app resolves |
-| **Placeholder** | `js`. The API resolves and capability probes answer, every media call throws `FFmpegError.Unsupported` |
+| **Plays media, once you supply the wasm module** | `wasmJs`. Reading and decoding work, including seeking. Writing files (encode, mux) and filtering are refused by design |
+| **Builds, nothing has run** | `macosX64`, `iosX64`, and the `androidNative*` targets, which are for Kotlin/Native on Android and are not what a normal Android app uses |
+| **Placeholder** | `js`. The code compiles and you can ask it what it supports (nothing), but every media call throws `FFmpegError.Unsupported` |
 
 All of these publish at 0.1.0.
 
@@ -161,18 +180,18 @@ artifact. A real browser run against a real module has not been recorded yet.
 | Not available | What that means for you |
 |---|---|
 | A JVM distribution beyond macOS arm64 | Linux and Windows JVM apps get the typed unavailable placeholder, not a codec. |
-| Encode, mux or filter on the web | Both web targets refuse them. `wasmJs` is a playback backend: demux, decode, seek. `js` refuses everything. |
+| Writing or filtering media on the web | Both web targets refuse it. `wasmJs` can read and decode; it cannot produce a file. `js` refuses everything. |
 | Any GPL FFmpeg | There is no GPL build and no way to swap the embedded one. Shipping GPL binaries would make your whole app GPL-3.0, which is not a choice a library should make for you. |
 | `libx264`, `libx265`, `libsvtav1`, `libopus`, `libmp3lame` | No third-party encoder is linked. `mpeg4` is the software video baseline and `aac` the audio one. Decoding is far wider than encoding. |
-| A bitstream filter API | Nothing binds `av_bsf_*`. The common ones are compiled in, so libavformat still inserts them automatically during a stream copy. |
-| Hardware *decode* and zero-copy hwframes | Hardware **encode** works. On VMs and CI runners pass `allow_sw`, where the encoder exists but the hardware block does not. |
+| Choosing a bitstream filter yourself | These fix up packet formatting when moving between container types. You cannot pick one by hand, but the common ones are built in and FFmpeg applies them for you during a copy. |
+| Hardware-accelerated *decoding* | Hardware **encoding** works. On virtual machines and CI runners pass `allow_sw`, where the encoder exists but the physical chip does not. |
 | `https` | The embedded build has no TLS backend. Use `http`, a local file, or link your own FFmpeg tree. |
 | An automated device job in CI | Android and iOS are verified by hand and by a shipping app, not by a phone farm on every push. Desktop and Windows are CI-verified. |
-| A stable API | 0.1.x is pre-1.0. `explicitApi()` is on and a committed klib dump is verified by `apiCheck` on every push, so a signature change fails a build rather than surprising you. That is visibility, not a promise of no change. |
+| A frozen API | 0.1.x is pre-1.0, so signatures can still change. What you do get: every public declaration is explicit, and a snapshot of the whole API is checked on every push, so a change fails the build here rather than surprising you at your call site. |
 
 ### What the published builds can encode
 
-Read out of the shipped `libavcodec.a`, not from a configure line.
+This list was read out of the shipped binary itself, not copied from a build script.
 
 | | macOS | Linux / Windows | iOS | Android |
 |---|---|---|---|---|
