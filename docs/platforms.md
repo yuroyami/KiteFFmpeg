@@ -2,14 +2,14 @@
 
 Decode, encode, transcode, remux, and filter video and audio from shared Kotlin code. Transcode
 means decode and then re-encode. Remux means copy the existing streams into a different container.
-The API lives in `commonMain`: Kotlin/Native actuals use cinterop, while the local Android proof
-uses a dynamically registered JNI bridge over the same opaque FFmpeg helper boundary. A separate
-unpublished JVM compilation tests that bridge. Public JVM, JS and WasmJs expose an invariant
-unsupported placeholder, not an FFmpeg-backed runtime. No target artifact is publicly available yet.
+The API lives in `commonMain`: Kotlin/Native actuals use cinterop, while JVM and Android use a
+dynamically registered JNI bridge over the same opaque FFmpeg helper boundary. `wasmJs` uses a
+generated binding over a wasm module you load at runtime. `js` is the one unsupported placeholder.
+Everything is published on Maven Central with FFmpeg embedded.
 
 ## Target matrix
 
-There is one target table for the project and it lives in the [README](https://github.com/yuroyami/KiteFFmpeg#targets). It records, per target, whether a public artifact exists, exactly what build/test evidence exists, and where FFmpeg comes from. This page covers the part it does not: how to obtain an FFmpeg for each target, and what is inside the one KiteFFmpeg builds.
+There is one target table for the project and it lives in the [README](https://github.com/yuroyami/KiteFFmpeg#where-it-runs). It records, per target, whether a public artifact exists, exactly what build/test evidence exists, and where FFmpeg comes from. This page covers the part it does not: how to obtain an FFmpeg for each target, and what is inside the one KiteFFmpeg builds.
 
 Two points decide whether KiteFFmpeg is usable for you:
 
@@ -19,14 +19,15 @@ Two points decide whether KiteFFmpeg is usable for you:
   `libkitecodec_jni.so` for `arm64-v8a` and `x86_64` with 16 KiB alignment and packaging checks. The
   JVM jar carries `libkitecodec_jni.dylib` for **macOS arm64 and no other host**, so a JVM consumer
   on Linux or Windows still falls back to `unsupportedMain` and gets readable diagnostics rather
-  than a codec. No Android playback is qualified on a physical device. `js` and `wasmJs` compile and
-  publish the common API but report no capabilities and reject every media operation with typed
+  than a codec. Android and iOS play real media on real phones as the engine under
+  [KitePlayer](https://github.com/yuroyami/KitePlayer); what they lack is an automated device job in
+  this repository's CI. `wasmJs` is a real playback backend once its wasm module is loaded, while
+  `js` reports no capabilities and rejects every media operation with typed
   `FFmpegError.Unsupported`.
 - **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.1.0` on Maven Central, one
   dependency line, FFmpeg embedded inside the artifacts. There is no Gradle plugin and no FFmpeg
-  download step. `mingwX64` builds and tests in CI and has prebuilt FFmpeg assets; `iosX64`,
-  `macosX64` and `linuxArm64` remain unqualified. This paragraph said "Nothing is published" until
-  2026-08-24, which was three published versions out of date.
+  download step. `mingwX64` builds and tests in CI; `linuxArm64` runs its native suite in an arm64
+  container; `iosX64` and `macosX64` remain unqualified.
 
 ## FFmpeg is a prerequisite
 
@@ -206,8 +207,8 @@ It is deliberately different from the desktop one:
     three Apple targets. It is a build-scope selector, refused by remote publication; it is not what
     decides whether an artifact exists. The published AAR carries exactly `arm64-v8a` and `x86_64`
     JNI libraries at `minSdk 26`. Both arms are link- and package-checked with 16 KiB constraints;
-    x86_64 has no runtime qualification. `js` and `wasmJs` remain typed placeholders in every
-    scope.
+    x86_64 has no runtime qualification. `js` remains a typed placeholder in every scope; `wasmJs`
+    does not, and carries a real playback backend.
 
 ## Licensing
 

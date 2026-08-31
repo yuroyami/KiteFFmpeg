@@ -1,6 +1,6 @@
 # KiteFFmpeg
 
-**One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; JVM and Android use a narrow JNI bridge, and both are published. The JVM jar carries a macOS arm64 library only, so JVM consumers on other hosts, along with `js` and `wasmJs`, get an invariant unsupported placeholder contract. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
+**One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; JVM and Android use a narrow JNI bridge; `wasmJs` uses a generated binding over a wasm module you load. The JVM jar carries a macOS arm64 library only, so JVM consumers on other hosts, along with `js`, get an invariant unsupported placeholder contract. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
 
 ```kotlin
 // One call: demux -> decode -> filter -> encode -> mux, in a single pass.
@@ -64,8 +64,11 @@ JVM and Android are published artifacts, not source-only actuals. The Android AA
 declares `minSdkVersion 26` in its own manifest and carries `libkitecodec_jni.so` for `arm64-v8a`
 and `x86_64` with 16 KiB ELF/app packaging. The JVM jar carries a **macOS arm64** library and only
 that one, so a JVM consumer on Linux or Windows gets the typed unavailable placeholder rather than a
-codec. No Android playback is qualified on a physical device. JS and WasmJs compile as unsupported
-placeholders: they report no capabilities and reject media operations predictably. See
+codec. Android and iOS play real media on real phones as the engine under
+[KitePlayer](https://github.com/yuroyami/KitePlayer); what they lack is an automated device job in
+this repository's CI. `wasmJs` is a real playback backend once its wasm module is loaded, and `js`
+is an unsupported placeholder that reports no capabilities and rejects media operations
+predictably. See
 [Platform support](platforms.md).
 
 ## What you can do
@@ -166,11 +169,10 @@ See **[Filtering](filtering.md)**.
 
 ## Status
 
-KiteFFmpeg is pre-1.0 and actively developed. The public pipeline is implemented for Kotlin/Native
-and JVM and Android are published actuals for the same common contracts. Native runtime evidence
-remains the qualified baseline; the JVM JNI boundary is proved by 41 tests over real FFmpeg on an
-arm64 Mac, and the Android evidence stops at source, link and packaging checks. It does not establish physical-device playback, UI integration
-or a full product tier. Web variants are T1 placeholders, not a codec-runtime claim. Nothing is
-published, and the FFmpeg release the Gradle plugin fetches from does not exist yet.
+KiteFFmpeg is pre-1.0 and actively developed. The public pipeline is implemented for Kotlin/Native,
+JVM and Android over the same common contracts, and everything is published on Maven Central with
+FFmpeg embedded. The JVM JNI boundary is proved by 89 tests over real FFmpeg on an arm64 Mac.
+Android and iOS device evidence is hand-verified and app-shipped rather than automated in this
+repository's CI.
 
-One target table covers the whole project and lives in the [README](https://github.com/yuroyami/KiteFFmpeg#targets). For the design, the FFmpeg sourcing modes, and what is next, see **[About KiteFFmpeg](about.md)**.
+One target table covers the whole project and lives in the [README](https://github.com/yuroyami/KiteFFmpeg#where-it-runs). For the design, the FFmpeg sourcing modes, and what is next, see **[About KiteFFmpeg](about.md)**.

@@ -1,10 +1,10 @@
 # About KiteFFmpeg
 
 **One coroutine-first Kotlin API for video and audio.** KiteFFmpeg binds to FFmpeg's libav\*
-libraries through Kotlin/Native cinterop or, in the local Android proof, a dynamically registered
-JNI adapter over the same opaque C helpers, and both are published. 41 tests exercise that adapter over real FFmpeg on an arm64 Mac. Public
-JVM, JS and WasmJs use an invariant unsupported placeholder implementation. There is no `ffmpeg`
-subprocess, and memory stays constant regardless of input length.
+libraries through Kotlin/Native cinterop, or through a dynamically registered JNI adapter over the
+same opaque C helpers on JVM and Android. `wasmJs` carries a real playback backend over a generated
+binding. `js` is the one unsupported placeholder. There is no `ffmpeg` subprocess, and memory stays
+constant regardless of input length.
 
 This page covers the project's current status, its roadmap, the binding architecture, and the license. For the API itself, start with [Getting started](getting-started.md) or the [API reference](https://yuroyami.github.io/KiteFFmpeg/api/).
 
@@ -19,26 +19,24 @@ Everything routes through a single demux pass. When you decode several streams, 
 ## Current Status
 
 KiteFFmpeg is pre-1.0 and actively developed. The full **demux -> decode -> filter -> encode -> mux**
-API is implemented for both video and audio, in a single pass. Kotlin/Native has the standing
-runtime evidence; Android actuals and an unpublished JVM harness share the JNI contracts, with host
-tests and Android link/packaging checks. Public JVM and Web use the tested unavailable contract.
-No target artifact has been publicly released.
+API is implemented for both video and audio, in a single pass. It is published on Maven Central, and
+Android and iOS play real media on real phones as the engine under
+[KitePlayer](https://github.com/yuroyami/KitePlayer).
 
-There is one status table for the whole project, and it lives in the [README](https://github.com/yuroyami/KiteFFmpeg#targets). It records, per target, whether a public artifact exists, what build/test evidence exists, and where FFmpeg comes from.
+There is one status table for the whole project, and it lives in the [README](https://github.com/yuroyami/KiteFFmpeg#where-it-runs). It records, per target, whether a public artifact exists, what build/test evidence exists, and where FFmpeg comes from.
 
 The two things a reader most often needs from it:
 
 - **KiteFFmpeg IS on Maven Central.** `io.github.yuroyami:kiteffmpeg:0.1.0`, one dependency line,
   FFmpeg embedded inside the artifacts. There is no Gradle plugin any more and no FFmpeg download
   step: the plugin was deleted and FFmpeg moved inside the published klibs, so a consumer needs
-  nothing on disk. This paragraph said the opposite until 2026-08-24, which was three published
-  versions out of date.
+  nothing on disk.
 - **JVM, Android and Web.** The published Android AAR is real: its own manifest declares
   `minSdkVersion 26` and it carries `libkitecodec_jni.so` for `arm64-v8a` and `x86_64`. The
   published JVM jar carries a **macOS arm64** library and only that one, so a JVM consumer on Linux
-  or Windows still gets the typed unavailable placeholder. No Android playback is qualified on a
-  physical device. JS and WasmJs are tested placeholders whose media operations fail with typed
-  `FFmpegError.Unsupported`.
+  or Windows still gets the typed unavailable placeholder. `wasmJs` is a real playback backend once
+  you load its wasm module: demux, decode and seek work, while encode, mux and filter are refused.
+  `js` is the placeholder, failing with typed `FFmpegError.Unsupported`.
 
 !!! note "Frame ownership"
     Frames emitted by the public `Flow` APIs (`MediaSource.decodedFrames`, `MediaSource.decodeStreams`, `FilterGraph.process`) are **owned by the collector**. Each stays valid until you close it, so buffering operators such as `buffer()` and `toList()` are safe. Every collected frame must be closed, or its native buffers leak. Frames passed to a callback (`FilterGraph.feedInput`'s `onOutput`) are valid only for the duration of that call. `Frame.copy()` takes an O(1) owned snapshot. The native `AVFrame*` is deliberately not exposed in `commonMain`.

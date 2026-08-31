@@ -8,7 +8,7 @@ in one call. Kotlin/Native actuals use cinterop; the local Android proof uses a 
 registered JNI adapter over the same opaque C helper boundary. **Both are published.** The Android
 AAR carries `libkitecodec_jni.so` for `arm64-v8a` and `x86_64` at `minSdk 26`; the JVM jar carries a
 macOS arm64 library and only that one, so a JVM consumer on Linux or Windows still gets the
-invariant unsupported placeholder. JS and WasmJs are that placeholder in every scope: diagnostics
-are readable, capabilities are empty, and media operations fail with typed
-`FFmpegError.Unsupported`. There is no subprocess. Since FFmpeg was embedded the FFmpeg binaries ride INSIDE
+invariant unsupported placeholder. `wasmJs` is a real playback backend over a generated binding,
+once its wasm module is loaded. `js` is the placeholder: diagnostics are readable, capabilities are
+empty, and media operations fail with typed `FFmpegError.Unsupported`. There is no subprocess. Since FFmpeg was embedded the FFmpeg binaries ride INSIDE
 the published artifacts, so a consumer provisions nothing.

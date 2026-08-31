@@ -257,11 +257,11 @@ try {
 
 ## Status and platforms
 
-The decoding contracts have Kotlin/Native and JVM/Android actuals. Native uses cinterop; the local
-Android proof uses opaque, generation-tagged JNI handles, tested by an unpublished JVM harness
-that loads a test-only macOS dylib. Public JVM always reports no capabilities and throws typed
-`FFmpegError.Unsupported`. Android currently has source/link/AAR-packaging evidence only; no
-playback or physical-device qualification. Nothing is publicly published. See
+The decoding contracts have Kotlin/Native, JVM/Android and `wasmJs` actuals. Native uses cinterop;
+JVM and Android use opaque, generation-tagged JNI handles. A JVM consumer on a host other than
+macOS arm64 gets no capabilities and typed `FFmpegError.Unsupported`, because the jar bundles only
+the macOS arm64 library. Android and iOS decode real media on real phones as the engine under
+[KitePlayer](https://github.com/yuroyami/KitePlayer). See
 [Platform support](platforms.md) for the exact matrix and [Getting started](getting-started.md) for
 the repository-local path.
 
