@@ -120,16 +120,23 @@ above is the front door.
 
 | | Targets |
 |---|---|
-| **Plays media** | `macosArm64`, `linuxX64`, `linuxArm64`, `mingwX64`, `iosArm64`, `iosSimulatorArm64`, JVM on macOS arm64 |
-| **Builds, nothing has run** | `macosX64`, `iosX64`, `androidNativeArm64` / `Arm32` / `X64`, and the Android AAR (`minSdk 26`, JNI for `arm64-v8a` and `x86_64`) |
+| **Plays real media** | `macosArm64`, `iosArm64`, `iosSimulatorArm64`, the Android AAR (`minSdk 26`, `arm64-v8a` and `x86_64`), `linuxX64`, `linuxArm64`, `mingwX64` |
 | **Plays media, once you supply the wasm module** | `wasmJs`. Demux, decode and seek are real. Encode, mux and filter are refused by design |
+| **Builds, nothing has run** | `macosX64`, `iosX64`, and the `androidNative*` klibs, which are Kotlin/Native for Android and not what an Android app resolves |
 | **Placeholder** | `js`. The API resolves and capability probes answer, every media call throws `FFmpegError.Unsupported` |
 
-All of these publish at 0.1.0. Two caveats worth reading before you plan around the first row: the
-iOS entries are proven on a development Mac rather than in CI, and the JVM jar carries a **macOS
-arm64** native library and only that one, so a JVM app on Linux or Windows resolves the artifact
-and then gets the typed unavailable placeholder. Per-target detail is in
-[Platform support](docs/platforms.md).
+All of these publish at 0.1.0.
+
+Android and iOS play real media on real phones: this is the engine under
+[KitePlayer](https://github.com/yuroyami/KitePlayer), which is device-tested on both, down to
+per-frame GPU timings on a Redmi Note 8. What those platforms do not have is an **automated device
+job in this repository's CI** (nobody runs a phone farm here), so their evidence is hand-verified
+and app-shipped rather than green-on-every-push. Desktop and Windows are the reverse: CI-verified
+on every push.
+
+One thing to plan around: the JVM jar carries a **macOS arm64** native library and only that one, so
+a JVM app on Linux or Windows resolves the artifact and then gets the typed unavailable placeholder.
+Per-target detail is in [Platform support](docs/platforms.md).
 
 `js` is a deliberate placeholder: a build that silently did nothing would be worse than one that
 tells you it cannot.
@@ -160,7 +167,7 @@ artifact. A real browser run against a real module has not been recorded yet.
 | A bitstream filter API | Nothing binds `av_bsf_*`. The common ones are compiled in, so libavformat still inserts them automatically during a stream copy. |
 | Hardware *decode* and zero-copy hwframes | Hardware **encode** works. On VMs and CI runners pass `allow_sw`, where the encoder exists but the hardware block does not. |
 | `https` | The embedded build has no TLS backend. Use `http`, a local file, or link your own FFmpeg tree. |
-| Android playback qualification | The AAR builds, links and packages correctly. Nothing has been played on a physical device. |
+| An automated device job in CI | Android and iOS are verified by hand and by a shipping app, not by a phone farm on every push. Desktop and Windows are CI-verified. |
 | A stable API | 0.1.x is pre-1.0. `explicitApi()` is on and a committed klib dump is verified by `apiCheck` on every push, so a signature change fails a build rather than surprising you. That is visibility, not a promise of no change. |
 
 ### What the published builds can encode
