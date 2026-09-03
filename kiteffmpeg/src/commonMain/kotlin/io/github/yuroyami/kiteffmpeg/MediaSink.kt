@@ -72,7 +72,25 @@ public expect class MediaSink : AutoCloseable {
 }
 
 /** An output stream fed by stream-copy. Opaque handle; packets flow through [Remuxer]/[Transcoder]. */
-public expect class CopyStream
+public expect class CopyStream {
+    /**
+     * Writes one demuxed packet through to the muxer, rebasing and rescaling its timestamps the
+     * way [Remuxer] does. For a caller driving its own read loop: a tee, a recording taken while
+     * something else plays, a split on the caller's own boundaries.
+     *
+     * The packet stays the caller's, unchanged and open. A REFERENCE is what reaches the muxer,
+     * because `av_interleaved_write_frame` takes ownership of the payload it is given and the
+     * rebase rewrites the stream index and the timestamps: handing it the caller's packet would
+     * blank the very thing a tee still needs.
+     *
+     * Ordering is the caller's to get right. Packets must arrive in the order the muxer expects
+     * for the stream, which for a copy of a demuxed stream means the order they were read in.
+     *
+     * @throws IllegalStateException when [packet] is closed, or when this stream's sink is.
+     */
+    @KiteFFmpegLowLevelApi
+    public fun write(packet: Packet)
+}
 
 public data class VideoEncoderSpec(
     val codec: CodecId,

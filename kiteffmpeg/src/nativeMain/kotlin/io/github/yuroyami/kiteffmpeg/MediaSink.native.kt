@@ -747,6 +747,13 @@ public actual class CopyStream internal constructor(
      * rescale from the source stream's time-base onto whatever the output muxer chose.
      * `av_interleaved_write_frame` takes ownership of the payload; the packet comes back blank.
      */
+    @KiteFFmpegLowLevelApi
+    public actual fun write(packet: Packet) {
+        // A copy, for the reason the expect declaration gives: av_interleaved_write_frame takes
+        // ownership of the payload and the rebase rewrites the stream index and the timestamps.
+        packet.copy().use { owned -> writeCopyPacket(owned.native) }
+    }
+
     internal fun writeCopyPacket(packet: CPointer<kc_packet>) {
         // Header first, because avformat_write_header may rewrite the stream time-base we read below.
         sink.ensureHeaderWritten()

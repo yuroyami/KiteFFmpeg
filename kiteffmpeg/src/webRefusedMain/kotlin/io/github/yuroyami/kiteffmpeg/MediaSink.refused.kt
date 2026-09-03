@@ -28,7 +28,10 @@ public actual class MediaSink private constructor() : AutoCloseable {
     }
 }
 
-public actual class CopyStream private constructor()
+public actual class CopyStream private constructor() {
+    @KiteFFmpegLowLevelApi
+    public actual fun write(packet: Packet): Unit = placeholderBackendUnavailable("Writing a packet")
+}
 
 public actual class VideoEncoder private constructor() : AutoCloseable {
     public actual suspend fun drive(

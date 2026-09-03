@@ -258,6 +258,7 @@ public final class io/github/yuroyami/kiteffmpeg/ColorTransfer$Companion {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/CopyStream {
+	public final fun write (Lio/github/yuroyami/kiteffmpeg/Packet;)V
 }
 
 public final class io/github/yuroyami/kiteffmpeg/CorruptData : java/lang/Enum {

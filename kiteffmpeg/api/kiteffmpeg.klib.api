@@ -984,7 +984,9 @@ final class io.github.yuroyami.kiteffmpeg/ColorInfo { // io.github.yuroyami.kite
     }
 }
 
-final class io.github.yuroyami.kiteffmpeg/CopyStream // io.github.yuroyami.kiteffmpeg/CopyStream|null[0]
+final class io.github.yuroyami.kiteffmpeg/CopyStream { // io.github.yuroyami.kiteffmpeg/CopyStream|null[0]
+    final fun write(io.github.yuroyami.kiteffmpeg/Packet) // io.github.yuroyami.kiteffmpeg/CopyStream.write|write(io.github.yuroyami.kiteffmpeg.Packet){}[0]
+}
 
 final class io.github.yuroyami.kiteffmpeg/Disposition { // io.github.yuroyami.kiteffmpeg/Disposition|null[0]
     constructor <init>(kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // io.github.yuroyami.kiteffmpeg/Disposition.<init>|<init>(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]

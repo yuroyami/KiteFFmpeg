@@ -550,6 +550,13 @@ public actual class CopyStream internal constructor(
     private val streamIndex = Internals.streamIndex(streamToken)
     private var baseTimestamp = FrameInfo.NOPTS
 
+    @KiteFFmpegLowLevelApi
+    public actual fun write(packet: Packet) {
+        // A copy, for the reason the expect declaration gives: the write consumes what it is
+        // handed and the rebase rewrites it.
+        packet.copy().use { owned -> owned.locked { writeCopyPacket(it) } }
+    }
+
     internal fun writeCopyPacket(packet: Long): Unit = sink.withMuxLock {
         check(streamToken != 0L) { "CopyStream is closed with its MediaSink" }
         sink.ensureHeaderWritten()
