@@ -185,8 +185,11 @@ extern "C" {
 
 /* Run the gate, once per process, and return its verdict: KC_STATUS_OK or a negative kc_status.
  *
- * Every KiteFFmpeg entry point calls this FIRST, before anything allocates. Cheap after the first
- * call: pthread_once plus a load of a cached int. Safe to call from any thread at any time.
+ * Every KiteFFmpeg entry point calls this FIRST, before anything allocates: the Kotlin factories
+ * through requireCompatibleFFmpeg, and every C constructor helper through KC_GATE_OPEN below. That
+ * second half was missing until the gate-refusal suite was written, and the claim on this line was
+ * false for a pure C or JNI consumer, which reaches the exported helpers directly. Cheap after the
+ * first call: pthread_once plus a load of a cached int. Safe to call from any thread at any time.
  *
  * When the environment variable KITECODEC_FFMPEG_ABI_BYPASS is exactly "1", a rejection is
  * downgraded to KC_STATUS_OK, a warning naming the exact mismatch with both identities is written to
@@ -196,6 +199,11 @@ extern "C" {
  * plan section 15.4 under B1.6 and section 15.6 question 3.
  */
 KC_API int kc_init(void);
+
+/* True when the gate accepts this FFmpeg. Every constructor helper asks before it builds anything,
+ * which is what makes the gate hold for a pure C or JNI consumer and not only for the Kotlin call
+ * sites. Cheap: kc_init after its first call is a pthread_once plus a load. */
+#define KC_GATE_OPEN() (kc_init() == KC_STATUS_OK)
 
 /* Copy the identity report into the caller's storage. Runs kc_init() first, so the report is always
  * populated. `out` may be NULL, in which case this only ensures the gate has run. */

@@ -37,6 +37,7 @@ static enum AVPixelFormat ffkmp_pick_videotoolbox_format_(
    without VideoToolbox answers AVERROR(ENOSYS) here and the caller keeps its typed refusal.
    A repeated call replaces the previous device context rather than leaking it. */
 KC_API int ffkmp_codecctx_use_videotoolbox(AVCodecContext *c) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     AVBufferRef *device = NULL;
     int rc;
     if (!c) return AVERROR(EINVAL);

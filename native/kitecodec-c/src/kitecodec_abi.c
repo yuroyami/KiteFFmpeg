@@ -297,8 +297,27 @@ static void kc_run_gate(void)
     kc_warn_bypassed(report);
 }
 
+#if defined(KC_TESTING) && !defined(KC_ABI_DOCTORED)
+/* Forces what kc_init answers, so the host suite can drive the refusal every entry point owes.
+ * There is no other way to reach it: the verdict is computed once from the FFmpeg this process
+ * linked, and a host build links a compatible one by construction. KC_TESTING is defined only by
+ * native/kitecodec-c/scripts/build-host.sh, so neither the flag nor this function exists in any
+ * shipped archive. `active` zero restores the real verdict. */
+static int kc_test_gate_forced = 0;
+static int kc_test_gate_status = KC_STATUS_OK;
+
+KC_API void kc_test_force_gate_status(int32_t active, int32_t status)
+{
+    kc_test_gate_forced = active;
+    kc_test_gate_status = status;
+}
+#endif
+
 KC_API int kc_init(void)
 {
+#if defined(KC_TESTING) && !defined(KC_ABI_DOCTORED)
+    if (kc_test_gate_forced) return kc_test_gate_status;
+#endif
     pthread_once(&kc_gate_once, kc_run_gate);
     return kc_gate_report.status;
 }

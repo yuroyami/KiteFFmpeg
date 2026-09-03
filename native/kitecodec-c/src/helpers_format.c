@@ -43,6 +43,7 @@ KC_API void ffkmp_fmt_interrupt(AVFormatContext *ctx) {
 }
 
 KC_API int  ffkmp_fmt_open_input(AVFormatContext **out, const char *path) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
     if (!path) return AVERROR(EINVAL);
@@ -79,6 +80,7 @@ KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
 KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
                                  const char *const *keys, const char *const *values,
                                  int n, AVDictionary **unused) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
     if (unused) *unused = NULL;
@@ -173,6 +175,7 @@ KC_API AVDictionary* ffkmp_fmt_metadata(AVFormatContext *c)     { return c ? c->
 /* Allocates an output context with an explicit container short name ("mp4", "matroska");
    NULL/empty format falls back to extension inference from the path. */
 KC_API int  ffkmp_fmt_alloc_output2(AVFormatContext **out, const char *path, const char *format) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
     if ((!format || !format[0]) && (!path || !path[0])) return AVERROR(EINVAL);
@@ -204,9 +207,11 @@ KC_API int ffkmp_fmt_free_output(AVFormatContext **ctx) {
     return rc;
 }
 KC_API AVStream* ffkmp_fmt_new_stream(AVFormatContext *ctx, const AVCodec *codec) {
+    if (!KC_GATE_OPEN()) return NULL;
     return ctx ? avformat_new_stream(ctx, codec) : NULL;
 }
 KC_API int ffkmp_fmt_io_open(AVFormatContext *ctx, const char *path) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!ctx) return AVERROR(EINVAL);
     if (ctx->oformat && (ctx->oformat->flags & AVFMT_NOFILE)) return 0;
     return avio_open(&ctx->pb, path, AVIO_FLAG_WRITE);
@@ -281,6 +286,7 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
                                    int64_t size,
                                    const char *const *keys, const char *const *values,
                                    int n, AVDictionary **unused) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
     if (unused) *unused = NULL;

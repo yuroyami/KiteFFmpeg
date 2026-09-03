@@ -59,6 +59,7 @@ KC_API int ffkmp_graph_build_video(
     int width, int height, int pix_fmt,
     int tb_num, int tb_den, int fr_num, int fr_den, int sar_num, int sar_den
 ) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out_graph || !out_src || !out_sink) return AVERROR(EINVAL);
     *out_graph = NULL; *out_src = NULL; *out_sink = NULL;
     if (!description) return AVERROR(EINVAL);
@@ -109,6 +110,7 @@ KC_API int ffkmp_graph_build_audio(
        option names were renamed across FFmpeg 7→8, the filter-string syntax never changes. */
     int out_sample_fmt, int out_sample_rate, int out_channels
 ) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out_graph || !out_src || !out_sink) return AVERROR(EINVAL);
     *out_graph = NULL; *out_src = NULL; *out_sink = NULL;
     AVFilterGraph *graph = avfilter_graph_alloc();
@@ -254,6 +256,7 @@ KC_API int ffkmp_graph_build_video_multi(
     const int *fr_nums, const int *fr_dens,
     const int *sar_nums, const int *sar_dens
 ) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out_graph || !out_srcs || !out_sink) return AVERROR(EINVAL);
     *out_graph = NULL; *out_sink = NULL;
     if (!description || n <= 0 || !widths || !heights || !pix_fmts ||
@@ -301,6 +304,7 @@ KC_API int ffkmp_graph_build_audio_multi(
     const int *tb_nums, const int *tb_dens,
     int out_sample_fmt, int out_sample_rate, int out_channels
 ) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out_graph || !out_srcs || !out_sink) return AVERROR(EINVAL);
     *out_graph = NULL; *out_sink = NULL;
     if (n <= 0 || !sample_rates || !sample_fmts || !channels || !tb_nums || !tb_dens) {

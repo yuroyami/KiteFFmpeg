@@ -15,7 +15,7 @@
 
 /* ════════════ AVPacket ════════════ */
 
-KC_API AVPacket* ffkmp_packet_alloc(void)        { return av_packet_alloc(); }
+KC_API AVPacket* ffkmp_packet_alloc(void)        { return KC_GATE_OPEN() ? av_packet_alloc() : NULL; }
 KC_API void      ffkmp_packet_free(AVPacket *p)  { if (p) { AVPacket *q = p; av_packet_free(&q); } }
 KC_API void      ffkmp_packet_unref(AVPacket *p) { if (p) av_packet_unref(p); }
 KC_API int64_t   ffkmp_packet_pts(AVPacket *p)           { return p ? p->pts : AV_NOPTS_VALUE; }
@@ -37,7 +37,7 @@ KC_API void      ffkmp_packet_rescale_ts(AVPacket *p, int sn, int sd, int dn, in
 
 KC_API AVPacket* ffkmp_packet_clone(const AVPacket *packet) {
     AVPacket *out;
-    if (!packet) return NULL;
+    if (!packet || !KC_GATE_OPEN()) return NULL;
     out = av_packet_alloc();
     if (!out) return NULL;
     if (av_packet_ref(out, packet) < 0) {

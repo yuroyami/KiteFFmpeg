@@ -16,9 +16,10 @@
 
 /* ════════════ AVCodec / AVCodecContext ════════════ */
 
-KC_API AVCodecContext* ffkmp_codecctx_alloc(const AVCodec *c) { return avcodec_alloc_context3(c); }
+KC_API AVCodecContext* ffkmp_codecctx_alloc(const AVCodec *c) { return KC_GATE_OPEN() ? avcodec_alloc_context3(c) : NULL; }
 KC_API void  ffkmp_codecctx_free(AVCodecContext *c) { if (c) { AVCodecContext *q = c; avcodec_free_context(&q); } }
 KC_API int   ffkmp_codecctx_open(AVCodecContext *c, const AVCodec *codec) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     return c ? avcodec_open2(c, codec, NULL) : AVERROR(EINVAL);
 }
 KC_API int   ffkmp_codecctx_from_par(AVCodecContext *c, AVCodecParameters *p) {
@@ -119,12 +120,12 @@ KC_API int   ffkmp_codecctx_set_opt(AVCodecContext *c, const char *key, const ch
 KC_API void  ffkmp_codecctx_set_full_range(AVCodecContext *c) {
     if (c) c->color_range = AVCOL_RANGE_JPEG;
 }
-KC_API const AVCodec* ffkmp_find_decoder_by_id(int id) { return avcodec_find_decoder((enum AVCodecID)id); }
+KC_API const AVCodec* ffkmp_find_decoder_by_id(int id) { return KC_GATE_OPEN() ? avcodec_find_decoder((enum AVCodecID)id) : NULL; }
 KC_API const kc_codec* ffkmp_find_encoder_by_name(const char *name) {
-    return name ? avcodec_find_encoder_by_name(name) : NULL;
+    return (name && KC_GATE_OPEN()) ? avcodec_find_encoder_by_name(name) : NULL;
 }
 KC_API const kc_codec* ffkmp_find_decoder_by_name(const char *name) {
-    return name ? avcodec_find_decoder_by_name(name) : NULL;
+    return (name && KC_GATE_OPEN()) ? avcodec_find_decoder_by_name(name) : NULL;
 }
 KC_API int ffkmp_codec_id(const kc_codec *codec) {
     return codec ? (int)codec->id : 0;

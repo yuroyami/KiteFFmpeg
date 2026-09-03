@@ -16,6 +16,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "kitecodec_handles.h"
+/* For KC_GATE_OPEN: every constructor helper below asks the identity gate before it builds
+   anything, so the gate holds for a pure C or JNI consumer and not only for the Kotlin callers. */
+#include "kitecodec_abi.h"
 
 /* KC_API marks the helpers the Kotlin side imports as deliberately exported.
  *

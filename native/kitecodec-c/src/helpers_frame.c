@@ -21,7 +21,7 @@
 
 /* ════════════ AVFrame ════════════ */
 
-KC_API AVFrame* ffkmp_frame_alloc(void)        { return av_frame_alloc(); }
+KC_API AVFrame* ffkmp_frame_alloc(void)        { return KC_GATE_OPEN() ? av_frame_alloc() : NULL; }
 KC_API void     ffkmp_frame_free(AVFrame *f)   { if (f) { AVFrame *p = f; av_frame_free(&p); } }
 KC_API void     ffkmp_frame_unref(AVFrame *f)  { if (f) av_frame_unref(f); }
 KC_API int64_t  ffkmp_frame_pts(AVFrame *f)         { return f ? f->pts : AV_NOPTS_VALUE; }
@@ -54,7 +54,7 @@ KC_API void     ffkmp_frame_use_best_effort_ts(AVFrame *f) {
 }
 /* Deep-copy via new references to the same (refcounted) buffers, so O(1), no pixel copy.
    The clone owns its references: safe to hold after the source frame is reused/unref'd. */
-KC_API AVFrame* ffkmp_frame_clone(const AVFrame *f) { return f ? av_frame_clone(f) : NULL; }
+KC_API AVFrame* ffkmp_frame_clone(const AVFrame *f) { return (f && KC_GATE_OPEN()) ? av_frame_clone(f) : NULL; }
 
 /* Maps an AVColorSpace onto the SWS_CS_* table sws_getCoefficients understands. */
 static int kc_sws_cs_for(enum AVColorSpace spc, int height) {

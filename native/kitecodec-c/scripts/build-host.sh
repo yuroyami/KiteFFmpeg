@@ -106,6 +106,11 @@ else
     KC_BUILD_DIR="$(pkg-config --variable=libdir libavutil)"
 fi
 BUILD_DEFINES=(
+    # Host test builds only. Compiles the forced-gate-verdict seam kc_init carries, which is the
+    # only way a suite can drive the refusal every constructor helper owes: the real verdict is
+    # computed once from the FFmpeg this process linked, and a host build links a compatible one
+    # by construction. Never defined by the Gradle cross-build, so no shipped archive has it.
+    "-DKC_TESTING"
     "-DKC_BUILD_FFMPEG_REF=\"$KC_BUILD_REF\""
     "-DKC_BUILD_FFMPEG_LICENSE=\"$KC_BUILD_LICENSE\""
     "-DKC_BUILD_FFMPEG_DIR=\"$KC_BUILD_DIR\""
@@ -228,7 +233,10 @@ if [ -f "$ROOT/tests/test_identity.c" ]; then
         object="$OBJ/kitecodec_abi_$case_name.o"
         echo "  cc  kitecodec_abi.c (doctored: $case_name)"
         # shellcheck disable=SC2086
-        "$CC" $BASE_FLAGS $VARIANT_FLAGS "${BUILD_DEFINES[@]}" \
+        # KC_ABI_DOCTORED keeps the KC_TESTING-only gate-forcing seam out of these copies. They
+        # are the same translation unit compiled five more times against doctored version headers,
+        # so anything KC_API in it would otherwise be defined six times over at link.
+        "$CC" $BASE_FLAGS $VARIANT_FLAGS "${BUILD_DEFINES[@]}" -DKC_ABI_DOCTORED \
             -I "$shim" $FF_CFLAGS -I "$ROOT/include" -I "$ROOT/tests" \
             -fvisibility=hidden -c "$ROOT/src/kitecodec_abi.c" -o "$object"
         IDENTITY_OBJECTS="$IDENTITY_OBJECTS $object"
