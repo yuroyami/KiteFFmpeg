@@ -5,7 +5,7 @@ product built as two repositories, and a backlog split across two files is how a
 
 Everything for BOTH repositories is in the sibling checkout, in two files:
 
-- **`../KitePlayer/MASTER_PLAN.md`** is every open item, ordered into phases. Read it every
+- **`../KitePlayer/MASTER_PLAN.md`** is every open item, grouped by what blocks it. Read it every
   session. KiteFFmpeg's items live there with everyone else's. The law: the same commit that
   changes the tree updates it; finished work is deleted; done means gone.
 - **`../KitePlayer/GOTCHAS.md`** is the working rules, the build and toolchain traps, and the
