@@ -13,6 +13,7 @@
 #define KC_DETAIL_MAX 400
 
 static const char *suite_name = "unnamed";
+static int require_alloc_accounting = 0;
 static char case_name[KC_NAME_MAX];
 static char case_detail[KC_DETAIL_MAX];
 static int case_open;
@@ -49,8 +50,12 @@ void kc_suite_begin(const char *suite)
     /* Probe the interposer once here, so its own allocation never lands inside a case window
      * and no suite has to remember to warm it up. */
     (void)kc_alloc_active();
-    /* Ported from kiteplayer-rt's harness at the interlude, where this mechanism existed
-     * first; the two harnesses are a pair and a fix to either lands in both. Without it, every
+    /* Ported from kiteplayer-rt's harness, where this mechanism existed first. The two
+     * harnesses are separate files by design and stay that way: this one links FFmpeg and that
+     * one must not, and their assertion vocabularies have diverged by domain. They are peers,
+     * not one library with two copies, so nothing is shared across the repositories. What IS
+     * shared is the obligation: a defect found in either is checked against the other, which is
+     * how this hard failure and the realloc term in new_calls came back here. Without it, every
      * KC_ALLOC_* assertion degrades to a recorded partial when the interposer is not effective,
      * and the review measured that one word in interpose_alloc.c's section name makes exactly
      * that happen with the whole ownership gate still green: "39 cases, 39 passed, 39 with a
@@ -59,7 +64,8 @@ void kc_suite_begin(const char *suite)
      * gate step sets KC_REQUIRE_ALLOC_ACCOUNTING=1 and a blind interposer fails the suite
      * instead of hollowing it. */
     require = getenv("KC_REQUIRE_ALLOC_ACCOUNTING");
-    if (require != NULL && require[0] == '1' && !kc_alloc_active()) {
+    require_alloc_accounting = (require != NULL && require[0] == '1');
+    if (require_alloc_accounting && !kc_alloc_active()) {
         printf("FAIL   %s: KC_REQUIRE_ALLOC_ACCOUNTING=1 but the allocation interposer is not "
                "effective in this build variant\n", suite_name);
         fflush(stdout);
@@ -119,6 +125,12 @@ void kc_partial(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(reason, sizeof(reason), fmt, args);
     va_end(args);
+    /* The second half of the mechanism kc_suite_begin describes, and it was missing: begin
+     * refuses a blind interposer, but a case that skipped a required property for any other
+     * reason still recorded a partial and passed. kiteplayer-rt's harness has failed on this
+     * since the mechanism was written there. */
+    if (require_alloc_accounting)
+        kc_fail_at(__FILE__, __LINE__, "a property was skipped while it was required: %s", reason);
     cases_partial++;
     kc_detail("partial: %s", reason);
 }
@@ -234,7 +246,7 @@ int kc_alloc_active(void)
 static long long new_calls(const kc_alloc_counts *counts)
 {
     return counts->malloc_calls + counts->calloc_calls + counts->posix_memalign_calls
-        + counts->aligned_alloc_calls + counts->valloc_calls;
+        + counts->aligned_alloc_calls + counts->valloc_calls + counts->realloc_calls;
 }
 
 long long kc_alloc_live_delta(const kc_alloc_counts *before)
