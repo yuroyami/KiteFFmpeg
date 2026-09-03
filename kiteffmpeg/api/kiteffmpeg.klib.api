@@ -445,7 +445,7 @@ final class io.github.yuroyami.kiteffmpeg.dsl/AudioEncoderTuning { // io.github.
 }
 
 final class io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder { // io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder|null[0]
-    final fun aformat(kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ...) // io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder.aformat|aformat(kotlin.String?;kotlin.Int?;kotlin.String?){}[0]
+    final fun aformat(io.github.yuroyami.kiteffmpeg/SampleFormat? = ..., kotlin/Int? = ..., kotlin/String? = ...) // io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder.aformat|aformat(io.github.yuroyami.kiteffmpeg.SampleFormat?;kotlin.Int?;kotlin.String?){}[0]
     final fun aresample(kotlin/Int) // io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder.aresample|aresample(kotlin.Int){}[0]
     final fun atempo(kotlin/Double) // io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder.atempo|atempo(kotlin.Double){}[0]
     final fun loudnorm(kotlin/Double = ..., kotlin/Double = ..., kotlin/Double = ...) // io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder.loudnorm|loudnorm(kotlin.Double;kotlin.Double;kotlin.Double){}[0]
@@ -455,22 +455,22 @@ final class io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder { // io.github.
 }
 
 final class io.github.yuroyami.kiteffmpeg.dsl/AudioFormat : io.github.yuroyami.kiteffmpeg.dsl/FilterStep { // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat|null[0]
-    constructor <init>(kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ...) // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.<init>|<init>(kotlin.String?;kotlin.Int?;kotlin.String?){}[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/SampleFormat? = ..., kotlin/Int? = ..., kotlin/String? = ...) // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.<init>|<init>(io.github.yuroyami.kiteffmpeg.SampleFormat?;kotlin.Int?;kotlin.String?){}[0]
 
     final val channelLayout // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.channelLayout|{}channelLayout[0]
         final fun <get-channelLayout>(): kotlin/String? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.channelLayout.<get-channelLayout>|<get-channelLayout>(){}[0]
     final val filterName // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.filterName|{}filterName[0]
         final fun <get-filterName>(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.filterName.<get-filterName>|<get-filterName>(){}[0]
     final val sampleFormat // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.sampleFormat|{}sampleFormat[0]
-        final fun <get-sampleFormat>(): kotlin/String? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.sampleFormat.<get-sampleFormat>|<get-sampleFormat>(){}[0]
+        final fun <get-sampleFormat>(): io.github.yuroyami.kiteffmpeg/SampleFormat? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.sampleFormat.<get-sampleFormat>|<get-sampleFormat>(){}[0]
     final val sampleRate // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.sampleRate|{}sampleRate[0]
         final fun <get-sampleRate>(): kotlin/Int? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.sampleRate.<get-sampleRate>|<get-sampleRate>(){}[0]
 
     final fun compile(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.compile|compile(){}[0]
-    final fun component1(): kotlin/String? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.component1|component1(){}[0]
+    final fun component1(): io.github.yuroyami.kiteffmpeg/SampleFormat? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.component1|component1(){}[0]
     final fun component2(): kotlin/Int? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.component2|component2(){}[0]
     final fun component3(): kotlin/String? // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.component3|component3(){}[0]
-    final fun copy(kotlin/String? = ..., kotlin/Int? = ..., kotlin/String? = ...): io.github.yuroyami.kiteffmpeg.dsl/AudioFormat // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.copy|copy(kotlin.String?;kotlin.Int?;kotlin.String?){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/SampleFormat? = ..., kotlin/Int? = ..., kotlin/String? = ...): io.github.yuroyami.kiteffmpeg.dsl/AudioFormat // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.copy|copy(io.github.yuroyami.kiteffmpeg.SampleFormat?;kotlin.Int?;kotlin.String?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/AudioFormat.toString|toString(){}[0]

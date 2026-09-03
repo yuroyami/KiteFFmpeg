@@ -1091,8 +1091,8 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/AudioEncoderTuning {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder {
-	public final fun aformat (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)V
-	public static synthetic fun aformat$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)V
+	public final fun aformat-v8_MnOo (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)V
+	public static synthetic fun aformat-v8_MnOo$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)V
 	public final fun aresample (I)V
 	public final fun atempo (D)V
 	public final fun loudnorm (DDD)V
@@ -1103,19 +1103,18 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/dsl/AudioFormat : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
-	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun compile ()Ljava/lang/String;
-	public final fun component1 ()Ljava/lang/String;
+	public final fun component1-yQFzvFI ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/Integer;
 	public final fun component3 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;
-	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;
+	public final fun copy-v8_MnOo (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;
+	public static synthetic fun copy-v8_MnOo$default (Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/AudioFormat;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getChannelLayout ()Ljava/lang/String;
 	public fun getFilterName ()Ljava/lang/String;
-	public final fun getSampleFormat ()Ljava/lang/String;
+	public final fun getSampleFormat-yQFzvFI ()Ljava/lang/String;
 	public final fun getSampleRate ()Ljava/lang/Integer;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
+import io.github.yuroyami.kiteffmpeg.SampleFormat
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
 import io.github.yuroyami.kiteffmpeg.PixelFormat
@@ -53,7 +54,7 @@ class KdGoldensTest {
             atempo(1.5)
             aresample(48_000)
             pan("stereo", "c0=FL+0.7*FC", "c1=FR+0.7*FC")
-            aformat(sampleFormat = "fltp", sampleRate = 48_000)
+            aformat(sampleFormat = SampleFormat.FltP, sampleRate = 48_000)
             loudnorm()
         }
         assertEquals(
@@ -84,15 +85,15 @@ class KdGoldensTest {
         // so a value carrying a comma closed the aformat step and opened a filter of its own.
         assertEquals(
             "aformat=sample_fmts='fltp,volume=0'",
-            AudioFormat(sampleFormat = "fltp,volume=0").compile(),
+            AudioFormat(sampleFormat = SampleFormat("fltp,volume=0")).compile(),
         )
         assertEquals(
             "aformat=sample_fmts='a:b'",
-            AudioFormat(sampleFormat = "a:b").compile(),
+            AudioFormat(sampleFormat = SampleFormat("a:b")).compile(),
         )
         // The ordinary value is unchanged, which is why the golden above did not have to move:
         // escapeFilterValue quotes only values that carry a structural character.
-        assertEquals("aformat=sample_fmts=fltp", AudioFormat(sampleFormat = "fltp").compile())
+        assertEquals("aformat=sample_fmts=fltp", AudioFormat(sampleFormat = SampleFormat.FltP).compile())
     }
 
     @Test

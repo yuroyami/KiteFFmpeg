@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
+import io.github.yuroyami.kiteffmpeg.SampleFormat
 import io.github.yuroyami.kiteffmpeg.FFmpeg
 import io.github.yuroyami.kiteffmpeg.FFmpegError
 import io.github.yuroyami.kiteffmpeg.FFmpegException
@@ -176,7 +177,13 @@ public data class Pan(val layout: String, val outputs: List<String>) : FilterSte
 }
 
 public data class AudioFormat(
-    val sampleFormat: String? = null,
+    /**
+     * The sample format to pin, typed. It was a raw String while [SampleFormat] already existed,
+     * which is the one place in this DSL where a caller could spell a format FFmpeg would reject
+     * and only find out at parse time. Still escaped on the way out: a value class holds whatever
+     * it was constructed with.
+     */
+    val sampleFormat: SampleFormat? = null,
     val sampleRate: Int? = null,
     val channelLayout: String? = null,
 ) : FilterStep {
@@ -186,7 +193,7 @@ public data class AudioFormat(
             // Escaped like every other value. This one alone was interpolated raw, one
             // line above a neighbour that did escape, so `AudioFormat(sampleFormat = "fltp,volume=0")`
             // silently appended a whole extra filter to the graph.
-            sampleFormat?.let { add("sample_fmts=${escapeFilterValue(it)}") }
+            sampleFormat?.let { add("sample_fmts=${escapeFilterValue(it.name)}") }
             sampleRate?.let { add("sample_rates=$it") }
             channelLayout?.let { add("channel_layouts=${escapeFilterValue(it)}") }
         }
@@ -311,7 +318,7 @@ public class AudioFilterBuilder internal constructor() {
     public fun aresample(sampleRate: Int) { steps += Aresample(sampleRate) }
     public fun pan(layout: String, vararg outputs: String) { steps += Pan(layout, *outputs) }
     public fun aformat(
-        sampleFormat: String? = null,
+        sampleFormat: SampleFormat? = null,
         sampleRate: Int? = null,
         channelLayout: String? = null,
     ) { steps += AudioFormat(sampleFormat, sampleRate, channelLayout) }
