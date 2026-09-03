@@ -179,15 +179,23 @@ drifted into it would produce findings B1 cannot fix and cannot bound.
 Two consequences worth stating so nobody has to rediscover them:
 
 1. `ffkmp_fmt_alloc_output2` **is** called by `fuzz_format_option.c` and `fuzz_metadata.c`, because
-   an `AVFormatContext` is needed before an option or a tag can be set on one. It is called with a
-   **fixed path constant** and a fixed muxer short name, and the path is never fuzzed.
+   an `AVFormatContext` is needed before an option or a tag can be set on one. There it is called
+   with a **fixed path constant** and a fixed muxer short name. Its `format` argument now has a
+   target of its own, `fuzz_muxer_name.c`: the muxer NAME is a registry lookup and not a path, so it
+   sits on this side of the boundary, and the path constant stays fixed there for the same reason it
+   is fixed here. The path itself is still never fuzzed.
    `avformat_alloc_output_context2` guesses the muxer and copies the path into `ctx->url`; it opens
    nothing, and `ffkmp_fmt_free_output` closes `ctx->pb` only when `pb` is non-NULL, which it never
    is here. So no file is created and no protocol runs. The constant is named
    `kc_fuzz_never_opened.out` so that a file by that name appearing anywhere would be traceable to
    this directory instead of mysterious.
+1b. The three remaining name lookups, `ffkmp_find_encoder_by_name`, `ffkmp_find_decoder_by_name`
+   and `ffkmp_filter_exists`, have a target too, `fuzz_codec_name.c`. Same shape as
+   `fuzz_format_name.c` and the same reason: a caller-supplied string walks a registry, and all
+   three are public through one-line Kotlin functions that pass it straight down.
+
 2. Nothing here reads or writes media. There is no `AVPacket` and no `AVFrame` carrying data in any
-   of the six targets, deliberately, so no finding from this directory can be about a bitstream.
+   of the eight targets, deliberately, so no finding from this directory can be about a bitstream.
 
 **What B8 inherits from here.** The two drivers over one body, the corpus layout, `kc_fuzz.h`'s
 input contract, `run-fuzz.sh`'s budget flags and the `--prove-power` check below. What B8 has to add

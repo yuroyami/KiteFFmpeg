@@ -39,7 +39,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 
 # The six targets of plan section 15.3, in the order sub-phase B1.5 step 1 lists them. Keep this
 # list, the fuzz/fuzz_*.c files, the fuzz/corpus subdirectories and run-fuzz.sh in agreement.
-ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name"
+ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name"
 
 PROVE_POWER=0
 if [ "${1:-}" = "--prove-power" ]; then
