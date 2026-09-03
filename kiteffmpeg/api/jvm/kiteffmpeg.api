@@ -460,6 +460,13 @@ public final class io/github/yuroyami/kiteffmpeg/FilterGraph$Companion {
 	public final fun buildVideoMulti (Ljava/lang/String;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/FilterGraphKt {
+	public static final fun buildAudio-ZufzVok (Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;ILjava/lang/String;ILio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/String;I)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public static synthetic fun buildAudio-ZufzVok$default (Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;ILjava/lang/String;ILio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/String;IILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public static final fun buildVideo-0IAIwdE (Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+	public static synthetic fun buildVideo-0IAIwdE$default (Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;Lio/github/yuroyami/kiteffmpeg/dsl/FilterChain;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FilterGraph;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/Frame : java/lang/AutoCloseable {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Frame$Companion;
 	public fun close ()V
@@ -1288,6 +1295,7 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/FilterChain {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getSteps ()Ljava/util/List;
 	public fun hashCode ()I
+	public final fun missingFilters ()Ljava/util/List;
 	public final fun requireAvailable ()V
 	public fun toString ()Ljava/lang/String;
 }

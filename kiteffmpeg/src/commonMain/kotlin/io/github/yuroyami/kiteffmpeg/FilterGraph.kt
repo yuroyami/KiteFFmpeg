@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.dsl.FilterChain
 import kotlinx.coroutines.flow.Flow
 
 /** Per-input description for [FilterGraph.buildVideoMulti]. */
@@ -150,4 +151,46 @@ public expect class FilterGraph : AutoCloseable {
             outputChannels: Int = 0,
         ): FilterGraph
     }
+}
+
+/**
+ * Builds a video graph from a typed [FilterChain], refusing before FFmpeg is asked to parse
+ * anything when this build lacks one of the chain's filters.
+ *
+ * The refusal is [FilterChain.requireAvailable]'s: one [FFmpegError.FilterNotFound] naming every
+ * missing filter. Ask [FilterChain.missingFilters] first if you would rather branch than catch.
+ *
+ * An extension on the companion rather than a member of it, deliberately: [FilterGraph] is an
+ * expect class, so a member would owe an actual in every platform source set for a function whose
+ * body is the same everywhere and calls only the string overload each of them already has.
+ */
+public fun FilterGraph.Companion.buildVideo(
+    chain: FilterChain,
+    width: Int,
+    height: Int,
+    pixelFormat: PixelFormat,
+    timeBase: Rational,
+    frameRate: Rational,
+    sampleAspectRatio: Rational = Rational(1, 1),
+): FilterGraph {
+    chain.requireAvailable()
+    return buildVideo(chain.compile(), width, height, pixelFormat, timeBase, frameRate, sampleAspectRatio)
+}
+
+/** The audio half of [buildVideo]'s chain overload, with the same refusal. */
+public fun FilterGraph.Companion.buildAudio(
+    chain: FilterChain,
+    sampleRate: Int,
+    sampleFormat: SampleFormat,
+    channels: Int,
+    timeBase: Rational,
+    outputSampleRate: Int = 0,
+    outputSampleFormat: SampleFormat = SampleFormat.None,
+    outputChannels: Int = 0,
+): FilterGraph {
+    chain.requireAvailable()
+    return buildAudio(
+        chain.compile(), sampleRate, sampleFormat, channels, timeBase,
+        outputSampleRate, outputSampleFormat, outputChannels,
+    )
 }

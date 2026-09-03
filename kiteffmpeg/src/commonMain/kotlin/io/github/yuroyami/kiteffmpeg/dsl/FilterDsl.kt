@@ -230,21 +230,48 @@ public data class FilterChain(val steps: List<FilterStep>) {
     public fun compile(): String = steps.joinToString(",") { it.compile() }
 
     /**
-     * Fails typed when a typed step's filter is absent from this build (law 6), naming the
-     * filter. [Raw] steps are exempt by design; their KDoc says whose claim they are.
+     * The typed steps whose filter this FFmpeg build does not carry, in the order they appear and
+     * without repeats. Empty means the chain can be built.
+     *
+     * [Raw] steps are exempt by design: they carry no filter name this side can check, and their
+     * KDoc says whose claim they are.
      */
-    public fun requireAvailable() {
-        for (step in steps) {
-            val name = step.filterName ?: continue
-            if (!FFmpeg.hasFilter(name)) {
-                throw FFmpegException(
-                    FFmpegError.Internal(
-                        "filter '$name' is not in this FFmpeg build; " +
-                            "it needs a tier that carries it",
-                    ),
-                )
-            }
-        }
+    public fun missingFilters(): List<String> = missingFilters(FFmpeg::hasFilter)
+
+    /**
+     * The same answer against a supplied availability predicate.
+     *
+     * It exists because the public form can only ever report what the FFmpeg this test run happens
+     * to link, and a development machine links a build that carries everything: on it the missing
+     * case is unreachable and a suite that only called the public form would pass while proving
+     * nothing about ordering, de-duplication or the exemption. The predicate is the seam that makes
+     * those testable on any build.
+     */
+    internal fun missingFilters(has: (String) -> Boolean): List<String> =
+        steps.mapNotNull { it.filterName }.distinct().filterNot(has)
+
+    /**
+     * Fails typed when this build lacks any of the chain's filters, naming ALL of them rather than
+     * the first: a chain that needs two filters this build does not carry should say so once,
+     * not across two failed builds.
+     *
+     * The error is [FFmpegError.FilterNotFound], which is what FFmpeg itself would eventually
+     * answer, so a caller can catch one type whether the refusal came from here or from the parse.
+     */
+    public fun requireAvailable(): Unit = requireAvailable(FFmpeg::hasFilter)
+
+    /** [requireAvailable] against a supplied predicate; see [missingFilters]. */
+    internal fun requireAvailable(has: (String) -> Boolean) {
+        val missing = missingFilters(has)
+        if (missing.isEmpty()) return
+        throw FFmpegException(
+            FFmpegError.FilterNotFound(
+                FFmpegError.AVERROR_FILTER_NOT_FOUND,
+                "this FFmpeg build has no ${missing.joinToString(", ")}; " +
+                    "the chain needs a tier that carries " +
+                    if (missing.size == 1) "it" else "them",
+            ),
+        )
     }
 }
 
