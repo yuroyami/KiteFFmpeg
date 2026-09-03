@@ -61,6 +61,34 @@
 #include <libavutil/log.h>
 #include <libavutil/pixfmt.h>
 
+/* ---- The measured baselines, and the only ratcheting numbers in this file ----
+ *
+ * Everything else here is CONTRACT: a property that must hold whatever the allocator, the FFmpeg
+ * build or the machine happens to do. These four are the opposite. They are counts measured on one
+ * machine against one FFmpeg, and a change in any of them is a ratchet move, not a bug by itself:
+ * it moves in the same commit as the change that caused it, with the old and new numbers in the
+ * commit message, exactly like every other baseline in this project. Naming them here rather than
+ * writing them inline is the whole point, so that a diff shows a measurement moving instead of an
+ * assertion being edited.
+ *
+ * Re-measure by running the suite in a variant where accounting is live:
+ *     ./scripts/build-host.sh plain && ./scripts/run-c-tests.sh plain test_convert
+ * The failure message of each assertion carries the figure that was measured.
+ *
+ * What they mean, in the order the case exercises them:
+ *   HELD_LIVE          blocks the caller still owns after one conversion: the frame and its buffer
+ *   PER_CALL_REBUILD   allocating calls when the shape changed and swscale rebuilt its context
+ *   PER_CALL_STEADY    allocating calls once the thread-local context already matches
+ *   PER_CALL_ODD       allocating calls for a 64x63 conversion, which pays a rebuild AND swscale's
+ *                      slow path for the odd height
+ */
+enum {
+    KC_BASELINE_HELD_LIVE = 4,
+    KC_BASELINE_PER_CALL_REBUILD = 9,
+    KC_BASELINE_PER_CALL_STEADY = 4,
+    KC_BASELINE_PER_CALL_ODD = 61
+};
+
 /* argv[0] of this process, so the invalid-format case can re-run itself in a child. */
 static const char *self_path;
 
@@ -372,6 +400,8 @@ static void case_round_trip(void)
 
 /* ---- Allocation, the actual baseline ---- */
 
+/* The one case that asserts MEASURED COUNTS rather than properties. Every number it compares
+ * against is named at the top of this file; nothing else in the suite ratchets. */
 static void case_allocation_baseline(void)
 {
     AVFrame *even = flat_yuv420p(64, 64, 81, 90, 240, 1);
@@ -394,8 +424,9 @@ static void case_allocation_baseline(void)
         held_live = kc_alloc_live_delta(&before);
         kc_detail("new=%lld freed=%lld live=%lld", kc_alloc_new_delta(&before),
                   kc_alloc_free_delta(&before), held_live);
-        KC_CHECKF(held_live == 4, "expected 4 live blocks after a conversion, measured %lld",
-                  held_live);
+        KC_CHECKF(held_live == KC_BASELINE_HELD_LIVE,
+                  "expected %d live blocks after a conversion, measured %lld",
+                  KC_BASELINE_HELD_LIVE, held_live);
         per_call_even = kc_alloc_new_delta(&before);
     } else {
         kc_partial("allocation pairing not observable in this variant");
@@ -425,15 +456,16 @@ static void case_allocation_baseline(void)
          * the context (the case above ran after a differently shaped conversion); steady is the
          * cost once the context matches. Both are asserted, so a regression that reintroduces
          * per-call context construction fails here with numbers in it. */
-        KC_CHECKF(per_call_even == 9,
+        KC_CHECKF(per_call_even == KC_BASELINE_PER_CALL_REBUILD,
                   "a shape-changing conversion cost %lld allocating calls, the recorded baseline "
-                  "is 9", per_call_even);
-        KC_CHECKF(steady == 4,
-                  "a cache-hit conversion cost %lld allocating calls, the recorded baseline is 4",
-                  steady);
+                  "is %d", per_call_even, KC_BASELINE_PER_CALL_REBUILD);
+        KC_CHECKF(steady == KC_BASELINE_PER_CALL_STEADY,
+                  "a cache-hit conversion cost %lld allocating calls, the recorded baseline is %d",
+                  steady, KC_BASELINE_PER_CALL_STEADY);
         KC_CHECKF(steady < per_call_even, "the cache did not make a repeat cheaper");
         per_call_even = steady;
-        kc_detail("rebuild=9, cache hit=4 allocating calls, 8 repeats, all identical");
+        kc_detail("rebuild=%d, cache hit=%d allocating calls, 8 repeats, all identical",
+                  KC_BASELINE_PER_CALL_REBUILD, KC_BASELINE_PER_CALL_STEADY);
         kc_note("sws_getCachedContext keeps one context per thread. Only a shape change (size or");
         kc_note("either pixel format) pays construction again, which is what perf blocker 3 asked");
         kc_note("for; the four remaining calls are the destination frame and its buffer.");
@@ -450,9 +482,9 @@ static void case_allocation_baseline(void)
         ffkmp_frame_free(dst);
         per_call_odd = kc_alloc_new_delta(&before);
         held_by_cache = kc_alloc_live_delta(&before);
-        KC_CHECKF(per_call_odd == 61,
-                  "a 64x63 conversion cost %lld allocating calls, the recorded baseline is 61",
-                  per_call_odd);
+        KC_CHECKF(per_call_odd == KC_BASELINE_PER_CALL_ODD,
+                  "a 64x63 conversion cost %lld allocating calls, the recorded baseline is %d",
+                  per_call_odd, KC_BASELINE_PER_CALL_ODD);
         KC_CHECKF(per_call_odd > per_call_even, "the odd case did not cost more");
         /* The frame is gone but the NEW context is not: the cache holds exactly one, so what
          * stays live here is the odd context minus the even one it replaced. */
