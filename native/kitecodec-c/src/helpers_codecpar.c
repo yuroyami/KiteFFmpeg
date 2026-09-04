@@ -25,6 +25,19 @@ KC_API int     ffkmp_media_type_data(void)       { return (int)AVMEDIA_TYPE_DATA
 KC_API int     ffkmp_media_type_attachment(void) { return (int)AVMEDIA_TYPE_ATTACHMENT; }
 KC_API int     ffkmp_codecpar_codec_id(AVCodecParameters *p)   { return p ? (int)p->codec_id : 0; }
 KC_API int64_t ffkmp_codecpar_bit_rate(AVCodecParameters *p)   { return p ? p->bit_rate : 0; }
+KC_API int32_t ffkmp_codecpar_field_order(const AVCodecParameters *p) {
+    if (!p) return 0;
+    switch (p->field_order) {
+        case AV_FIELD_PROGRESSIVE: return 1;
+        /* TT and TB both present the TOP field first; BB and BT present the bottom one first. The
+           second letter is the CODED order, which no caller here acts on. */
+        case AV_FIELD_TT:
+        case AV_FIELD_TB: return 2;
+        case AV_FIELD_BB:
+        case AV_FIELD_BT: return 3;
+        default: return 0;
+    }
+}
 KC_API int     ffkmp_codecpar_width(AVCodecParameters *p)      { return p ? p->width : 0; }
 KC_API int     ffkmp_codecpar_height(AVCodecParameters *p)     { return p ? p->height : 0; }
 KC_API int     ffkmp_codecpar_format(AVCodecParameters *p)     { return p ? p->format : -1; }

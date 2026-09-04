@@ -184,6 +184,9 @@ KC_API int  ffkmp_fmt_alloc_output2(AVFormatContext **out, const char *path, con
     if (rc < 0 || !c) return rc < 0 ? rc : AVERROR_UNKNOWN;
     *out = c; return 0;
 }
+KC_API int64_t ffkmp_fmt_bit_rate(const AVFormatContext *ctx) {
+    return ctx ? ctx->bit_rate : 0;
+}
 /* Muxer private options (movflags, …): AV_OPT_SEARCH_CHILDREN reaches oformat priv_data. */
 KC_API int  ffkmp_fmt_set_opt(AVFormatContext *c, const char *k, const char *v) {
     /* Interlude guard: a NULL key used to reach av_opt_set's name comparison and crash,

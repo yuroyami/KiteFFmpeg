@@ -191,8 +191,13 @@ abi_is_newer_than() {
 # over an array is what clang folds into it, so it is libc under a synthesised name rather than a
 # new dependency anyone wrote. _strstr stayed when the [out] label scan replaced it, because the
 # list is a permit list and removing an entry is its own measured act.
+# _kc_init joined 2026-09-04 with the identity gate inside the constructor helpers. It is this
+# library's OWN symbol, in kitecodec_abi.c, and it is undefined in the helper archive only because
+# the two are separate translation units; the linked product always carries both. It is on the list
+# rather than exempted by a rule, because the rule this check enforces is "the helper layer takes no
+# dependency nobody wrote down", and this one is written down here.
 ALLOWED_UNDEFINED="_memcpy _snprintf _strstr _bzero ___stack_chk_fail ___stack_chk_guard __tlv_bootstrap
-_pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk"
+_pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk _kc_init"
 
 # Calls that must never appear. A library does not print, does not log through its host's logger,
 # and does not reach into an Apple runtime from portable C.
@@ -447,14 +452,14 @@ fi
 # silently retargeted to another C tag. This check records declaration SHAPES from all three public
 # headers. Selection is per header and deliberate:
 #
-#   kitecodec_helpers.h  every KC_API prototype (188)
+#   kitecodec_helpers.h  every KC_API prototype (190)
 #   kitecodec_handles.h  every opaque typedef (11)
 #   kitecodec_abi.h      KC_API prototypes (7), enum definitions (3), report typedef (1)
 #
 # Comments and preprocessor lines are discarded. Declarations may span lines, and a semicolon ends
 # a record only at brace depth zero, so enum fields and the report fields remain inside their one
 # complete record. Whitespace is normalized, records are C-locale sorted WITHOUT deduplication, and
-# the exact installed scope is 214 records.
+# the exact installed scope is 216 records, two more since K2 bound the field order and the container bit rate.
 #
 # THE MOVE, written down here and nowhere else: change a public declaration
 # deliberately, run
@@ -586,8 +591,8 @@ if [ "$WRITE_SIGNATURE_BASELINE" = 1 ]; then
             | LC_ALL=C sort > "$WORK/prev_signatures.txt"
         cmp -s "$WORK/prev_signatures.txt" "$WORK/actual_signatures.txt" && SIGNATURE_CHANGED=0
     fi
-    if [ "$ACTUAL_SIGNATURE_COUNT" -ne 214 ]; then
-        fail "refusing to rewrite $SIGNATURE_BASELINE_FILE: expected 214 records, found $ACTUAL_SIGNATURE_COUNT"
+    if [ "$ACTUAL_SIGNATURE_COUNT" -ne 216 ]; then
+        fail "refusing to rewrite $SIGNATURE_BASELINE_FILE: expected 216 records, found $ACTUAL_SIGNATURE_COUNT"
     elif [ "$SIGNATURE_CHANGED" = 1 ] && ! abi_is_newer_than "$SIGNATURE_WAS"; then
         fail "refusing to rewrite $SIGNATURE_BASELINE_FILE: a public declaration changed but the"
         echo "        ABI version did not rise. The baseline was written at ${SIGNATURE_WAS:-no"
@@ -602,7 +607,7 @@ if [ "$WRITE_SIGNATURE_BASELINE" = 1 ]; then
             echo "# Exact scope: 188 helper KC_API prototypes, eleven opaque handle typedefs, seven"
             echo "# ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report"
             echo "# typedef. Comments and preprocessor lines are absent; whitespace is normalized;"
-            echo "# records are sorted without deduplication. There must be exactly 214 records."
+            echo "# records are sorted without deduplication. There must be exactly 216 records."
             echo "#"
             echo "# THE MOVE, and this file is the only place it is written down: change the public"
             echo "# declaration deliberately, run ./scripts/symbol-audit.sh"
@@ -610,15 +615,15 @@ if [ "$WRITE_SIGNATURE_BASELINE" = 1 ]; then
             echo "# that commit message. --write-baseline is separate and changes export names."
             cat "$WORK/actual_signatures.txt"
         } > "$SIGNATURE_BASELINE_FILE"
-        echo "  baseline REWRITTEN at $SIGNATURE_BASELINE_FILE (214 records)"
+        echo "  baseline REWRITTEN at $SIGNATURE_BASELINE_FILE (216 records)"
         echo "  commit it with the declaration change it records and log every changed record"
     fi
     echo
 else
     echo "7. public declaration shapes equal the committed signature baseline"
-    echo "  selected $ACTUAL_SIGNATURE_COUNT normalized record(s); expected 214"
-    if [ "$ACTUAL_SIGNATURE_COUNT" -ne 214 ]; then
-        fail "public declaration selection changed scope: expected 214 records, found $ACTUAL_SIGNATURE_COUNT"
+    echo "  selected $ACTUAL_SIGNATURE_COUNT normalized record(s); expected 216"
+    if [ "$ACTUAL_SIGNATURE_COUNT" -ne 216 ]; then
+        fail "public declaration selection changed scope: expected 216 records, found $ACTUAL_SIGNATURE_COUNT"
     fi
     if [ ! -f "$SIGNATURE_BASELINE_FILE" ]; then
         fail "$SIGNATURE_BASELINE_FILE does not exist; create it with: $0 --write-signature-baseline"
@@ -632,8 +637,8 @@ else
         comm -13 "$WORK/baseline_signatures.txt" "$WORK/actual_signatures.txt" \
             > "$WORK/signatures_extra.txt"
         echo "  baseline lists $BASELINE_SIGNATURE_COUNT record(s)"
-        if [ "$BASELINE_SIGNATURE_COUNT" -ne 214 ]; then
-            fail "signature baseline scope is not 214 records"
+        if [ "$BASELINE_SIGNATURE_COUNT" -ne 216 ]; then
+            fail "signature baseline scope is not 216 records"
         fi
         if [ -s "$WORK/signatures_missing.txt" ]; then
             fail "in the signature baseline but not in the headers (removed or changed):"
@@ -645,7 +650,7 @@ else
             echo "        Deliberate? Rerun with --write-signature-baseline in the same commit."
         fi
         [ -s "$WORK/signatures_missing.txt" ] || [ -s "$WORK/signatures_extra.txt" ] || \
-            echo "  ok: all 214 records are equal"
+            echo "  ok: all 216 records are equal"
     fi
     echo
 fi

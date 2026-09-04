@@ -42,7 +42,7 @@
 /* The version of THIS C surface, not of FFmpeg. Major changes when a declaration in its public headers
  * changes shape; minor when something is added compatibly. Read at runtime by kc_abi_version(). */
 #define KITECODEC_C_ABI_MAJOR 2
-#define KITECODEC_C_ABI_MINOR 6
+#define KITECODEC_C_ABI_MINOR 7
 
 /* The six libraries the gate covers, and their fixed order inside the report's arrays. Every array
  * in kc_ffmpeg_report is indexed by these, and kc_ffmpeg_library_name() names them. */

@@ -175,6 +175,11 @@ KC_API int     ffkmp_media_type_data(void);
 KC_API int     ffkmp_media_type_attachment(void);
 KC_API int     ffkmp_codecpar_codec_id(kc_codec_par *p);
 KC_API int64_t ffkmp_codecpar_bit_rate(kc_codec_par *p);
+/* The stream's field order, as the display order rather than the coded one:
+   0 unknown, 1 progressive, 2 top field first, 3 bottom field first. FFmpeg's coded-order variants
+   (TT/BB/TB/BT) collapse onto the display order they present in, because a deinterlacer needs to
+   know which field to show first and nothing here needs to know how they were stored. */
+KC_API int32_t ffkmp_codecpar_field_order(const kc_codec_par *p);
 KC_API int     ffkmp_codecpar_width(kc_codec_par *p);
 KC_API int     ffkmp_codecpar_height(kc_codec_par *p);
 KC_API int     ffkmp_codecpar_format(kc_codec_par *p);
@@ -430,6 +435,10 @@ KC_API kc_dict* ffkmp_fmt_metadata(kc_fmt_ctx *c);
  * either selector may be NULL when the other one is present.
  */
 KC_API int  ffkmp_fmt_alloc_output2(kc_fmt_ctx **out, const char *path, const char *format);
+
+/* The container's own bit rate estimate in bits per second, or 0 when it has none. Resurrected for
+   plan item K2: the always-null containerBitrate stat is what it is for. */
+KC_API int64_t ffkmp_fmt_bit_rate(const kc_fmt_ctx *ctx);
 
 /* Ownership. The option system copies key and value, so neither string is retained and both
  * may be freed immediately. A NULL context is refused with AVERROR(EINVAL), and so is a NULL
