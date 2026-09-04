@@ -384,11 +384,17 @@ internal external fun ffkmp_stream_rotation_degrees(module: JsAny, a0: Int): Int
 @JsFun("(m) => m._kc_init()")
 internal external fun kc_init(module: JsAny): Int
 
+@JsFun("(m, a0) => m._ffkmp_codecpar_field_order(a0)")
+internal external fun ffkmp_codecpar_field_order(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_codecpar_bit_rate(a0)")
 internal external fun ffkmp_codecpar_bit_rate(module: JsAny, a0: Int): Long
 
 @JsFun("(m, a0) => m._ffkmp_codecpar_ch_layout_mask(a0)")
 internal external fun ffkmp_codecpar_ch_layout_mask(module: JsAny, a0: Int): Long
+
+@JsFun("(m, a0) => m._ffkmp_fmt_bit_rate(a0)")
+internal external fun ffkmp_fmt_bit_rate(module: JsAny, a0: Int): Long
 
 @JsFun("(m, a0) => m._ffkmp_fmt_duration(a0)")
 internal external fun ffkmp_fmt_duration(module: JsAny, a0: Int): Long

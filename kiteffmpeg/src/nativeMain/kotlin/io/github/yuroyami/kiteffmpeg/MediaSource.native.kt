@@ -8,6 +8,8 @@ import ffmpeg.ffkmp_codecctx_open
 import ffmpeg.ffkmp_codecctx_receive_frame
 import ffmpeg.ffkmp_codecctx_send_packet
 import ffmpeg.ffkmp_codecpar_bit_rate
+import ffmpeg.ffkmp_fmt_bit_rate
+import ffmpeg.ffkmp_codecpar_field_order
 import ffmpeg.ffkmp_codecpar_bit_depth
 import ffmpeg.ffkmp_codecpar_ch_layout_mask
 import ffmpeg.ffkmp_codecpar_chroma_location
@@ -224,6 +226,7 @@ public actual class MediaSource internal constructor(
      * Read once at open, because it cannot change afterwards and because reading it lazily would
      * mean touching the format context, which [close] frees.
      */
+    public actual val bitrateBps: Long? = ffkmp_fmt_bit_rate(ctx).takeIf { it > 0L }
     public actual val isSeekable: Boolean = ffkmp_fmt_is_seekable(ctx) != 0
 
     // Attached pictures (album art) are excluded first: they are video streams by type but not
@@ -940,6 +943,7 @@ private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> {
                 sampleAspectRatio = sar,
                 color = readCodecParameterColor(par),
                 vp9 = if (codecName == "vp9") readVp9CodecInfo(par) else null,
+                fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(par)),
             ) else null,
             audio = if (type == MediaType.Audio) AudioStreamInfo(
                 sampleRate = ffkmp_codecpar_sample_rate(par),

@@ -113,6 +113,8 @@ internal object Internals {
     private external fun nativeCodecParType(token: Long): Int
     private external fun nativeCodecParId(token: Long): Int
     private external fun nativeCodecParBitrate(token: Long): Long
+    private external fun nativeCodecParFieldOrder(token: Long): Int
+    private external fun nativeFmtBitrate(token: Long): Long
     private external fun nativeCodecParWidth(token: Long): Int
     private external fun nativeCodecParHeight(token: Long): Int
     private external fun nativeCodecParFormat(token: Long): Int
@@ -380,6 +382,10 @@ internal object Internals {
     internal fun codecParType(token: Long) = checked { nativeCodecParType(token) }
     internal fun codecParId(token: Long) = checked { nativeCodecParId(token) }
     internal fun codecParBitrate(token: Long) = checked { nativeCodecParBitrate(token) }
+
+    internal fun codecParFieldOrder(token: Long) = checked { nativeCodecParFieldOrder(token) }
+
+    internal fun fmtBitrate(token: Long) = checked { nativeFmtBitrate(token) }
     internal fun codecParWidth(token: Long) = checked { nativeCodecParWidth(token) }
     internal fun codecParHeight(token: Long) = checked { nativeCodecParHeight(token) }
     internal fun codecParFormat(token: Long) = checked { nativeCodecParFormat(token) }

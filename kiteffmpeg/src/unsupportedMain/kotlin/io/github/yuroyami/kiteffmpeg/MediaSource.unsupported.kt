@@ -18,6 +18,8 @@ public actual class MediaSource private constructor() : AutoCloseable {
         get() = placeholderBackendUnavailable("Reading media open options")
     public actual val startTimeMicros: Long
         get() = placeholderBackendUnavailable("Reading media start time")
+    public actual val bitrateBps: Long?
+        get() = placeholderBackendUnavailable("Reading the container bit rate")
     public actual val isSeekable: Boolean
         get() = placeholderBackendUnavailable("Reading media seekability")
     public actual val primaryVideo: StreamInfo?

@@ -87,6 +87,7 @@ public actual class MediaSource internal constructor(
         setStreamDiscardSelection(context, streams.mapTo(HashSet()) { it.index })
     }
 
+    public actual val bitrateBps: Long? = Internals.fmtBitrate(formatToken).takeIf { it > 0L }
     public actual val isSeekable: Boolean = Internals.fmtIsSeekable(formatToken)
     // Attached pictures (album art) are excluded first, exactly as the native side does.
     public actual val primaryVideo: StreamInfo?
@@ -585,6 +586,7 @@ private fun buildStreams(format: Long): List<StreamInfo> = buildList {
                         vp9 = if (codecName == "vp9") {
                             readVp9CodecInfo(parameters)
                         } else null,
+                        fieldOrder = FieldOrder.ofCode(Internals.codecParFieldOrder(parameters)),
                     ) else null,
                     audio = if (type == MediaType.Audio) AudioStreamInfo(
                         sampleRate = Internals.codecParSampleRate(parameters),

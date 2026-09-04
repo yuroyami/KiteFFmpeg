@@ -34,6 +34,15 @@ public expect class MediaSource : AutoCloseable {
      * bounds) are relative to the start of the content, so `10_000_000` always means ten seconds
      * in. Subtract this from a frame's own pts to move it onto the timeline those parameters use.
      */
+    /**
+     * The CONTAINER's own bit rate estimate in bits per second, or null when it has none.
+     *
+     * Not the sum of the streams' rates and not a measurement: it is what the demuxer wrote down,
+     * which for a variable-rate file is an estimate and for a live source is usually nothing. Read
+     * it as a hint for a progress bar or a quality label, never as an exact figure.
+     */
+    public val bitrateBps: Long?
+
     public val startTimeMicros: Long
 
     /**

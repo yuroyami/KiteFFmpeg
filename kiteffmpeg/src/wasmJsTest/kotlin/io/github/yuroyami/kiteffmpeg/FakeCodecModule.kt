@@ -473,6 +473,11 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         m._ffkmp_codecpar_color_transfer = () => colorDeclared ? 1 : 2;
         m._ffkmp_codecpar_color_range = () => colorDeclared ? 2 : 0;
         m._ffkmp_codecpar_chroma_location = () => 2;
+        // Top field first, and a container rate that is not a round million. Both are real values
+        // rather than zeroes for the same reason the colour fields are: a backend that never reads
+        // them answers Unknown and null, which is exactly what a missing read looks like.
+        m._ffkmp_codecpar_field_order = () => 2;
+        m._ffkmp_fmt_bit_rate = () => 3141592n;
         m._ffkmp_codecpar_ch_layout_mask = () => 3n;
 
         // The subtitle-only base fake never needed a pixel format; the video branch reads one and

@@ -158,4 +158,23 @@ class WebContainerModelTest {
 
         override fun close(): Unit = Unit
     }
+
+    @Test
+    fun theVideoStreamsFieldOrderIsRead() {
+        open().use { source ->
+            val video = assertNotNull(source.primaryVideo?.video, "no video stream")
+            assertEquals(FieldOrder.TopFirst, video.fieldOrder)
+            assertTrue(video.fieldOrder.isInterlaced)
+        }
+    }
+
+    @Test
+    fun theContainerBitRateIsRead() {
+        open().use { source ->
+            // Not a round number on purpose: a backend that answered a plausible constant instead
+            // of reading would have to guess this one.
+            assertEquals(3_141_592L, source.bitrateBps)
+        }
+    }
+
 }

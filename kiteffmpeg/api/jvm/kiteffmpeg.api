@@ -440,6 +440,21 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpegLibraryIdentity {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/FieldOrder : java/lang/Enum {
+	public static final field BottomFirst Lio/github/yuroyami/kiteffmpeg/FieldOrder;
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FieldOrder$Companion;
+	public static final field Progressive Lio/github/yuroyami/kiteffmpeg/FieldOrder;
+	public static final field TopFirst Lio/github/yuroyami/kiteffmpeg/FieldOrder;
+	public static final field Unknown Lio/github/yuroyami/kiteffmpeg/FieldOrder;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun isInterlaced ()Z
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/FieldOrder;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/FieldOrder;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FieldOrder$Companion {
+}
+
 public final class io/github/yuroyami/kiteffmpeg/FilterGraph : java/lang/AutoCloseable {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;
 	public fun close ()V
@@ -582,17 +597,19 @@ public final class io/github/yuroyami/kiteffmpeg/MediaInfo {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/MediaProbe {
-	public fun <init> (Ljava/lang/String;Ljava/lang/Long;JZLjava/util/Map;Ljava/util/List;Ljava/util/List;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/Long;
 	public final fun component3 ()J
 	public final fun component4 ()Z
-	public final fun component5 ()Ljava/util/Map;
-	public final fun component6 ()Ljava/util/List;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Ljava/util/Map;
 	public final fun component7 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Ljava/lang/Long;JZLjava/util/Map;Ljava/util/List;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
-	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/MediaProbe;Ljava/lang/String;Ljava/lang/Long;JZLjava/util/Map;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public final fun component8 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/MediaProbe;Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitrateBps ()Ljava/lang/Long;
 	public final fun getChapters ()Ljava/util/List;
 	public final fun getDurationMicros ()Ljava/lang/Long;
 	public final fun getFormatName ()Ljava/lang/String;
@@ -634,6 +651,7 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSource : java/lang/AutoClo
 	public final fun decodedFrames (Lio/github/yuroyami/kiteffmpeg/StreamInfo;)Lkotlinx/coroutines/flow/Flow;
 	public final fun extractFrame (JLio/github/yuroyami/kiteffmpeg/StreamInfo;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun extractFrame$default (Lio/github/yuroyami/kiteffmpeg/MediaSource;JLio/github/yuroyami/kiteffmpeg/StreamInfo;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun getBitrateBps ()Ljava/lang/Long;
 	public final fun getChapters ()Ljava/util/List;
 	public final fun getCorruptData ()Lio/github/yuroyami/kiteffmpeg/CorruptData;
 	public final fun getCorruptDataSkipped ()J
@@ -968,8 +986,8 @@ public final class io/github/yuroyami/kiteffmpeg/VideoInput {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
-	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()I
 	public final fun component2 ()I
 	public final fun component3-OLR4av4 ()Ljava/lang/String;
@@ -977,10 +995,12 @@ public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
 	public final fun component5 ()Lio/github/yuroyami/kiteffmpeg/Rational;
 	public final fun component6 ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
 	public final fun component7 ()Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
-	public final fun copy-CZcpzjU (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
-	public static synthetic fun copy-CZcpzjU$default (Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public final fun component8 ()Lio/github/yuroyami/kiteffmpeg/FieldOrder;
+	public final fun copy-X0f0e8I (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public static synthetic fun copy-X0f0e8I$default (Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getColor ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun getFieldOrder ()Lio/github/yuroyami/kiteffmpeg/FieldOrder;
 	public final fun getFrameRate ()Lio/github/yuroyami/kiteffmpeg/Rational;
 	public final fun getHeight ()I
 	public final fun getPixelFormat-OLR4av4 ()Ljava/lang/String;

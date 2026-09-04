@@ -101,7 +101,46 @@ public data class VideoStreamInfo(
     val color: ColorInfo = ColorInfo.Unspecified,
     /** VP9 sequence metadata, present only for VP9 streams. Unknown fields stay null. */
     val vp9: Vp9CodecInfo? = null,
+    /**
+     * Whether the stream is interlaced, and which field a deinterlacer must show first.
+     *
+     * [FieldOrder.Unknown] on most files, because most containers do not say. That is not the same
+     * as progressive and must not be treated as it: a caller deciding whether to deinterlace has
+     * to choose what an unknown answer means for it.
+     */
+    val fieldOrder: FieldOrder = FieldOrder.Unknown,
 )
+
+/**
+ * How a video stream's fields are ordered, in DISPLAY order.
+ *
+ * FFmpeg distinguishes four interlaced values by coded order as well (TT, BB, TB, BT); the second
+ * letter says only how the fields were stored, which nothing acting on this needs, so they collapse
+ * onto the order they are presented in.
+ */
+public enum class FieldOrder {
+    /** The container did not say. Not a synonym for [Progressive]. */
+    Unknown,
+    Progressive,
+    /** Interlaced, top field shown first. */
+    TopFirst,
+    /** Interlaced, bottom field shown first. */
+    BottomFirst,
+    ;
+
+    /** True for the two interlaced answers, which is the question a deinterlacer actually asks. */
+    public val isInterlaced: Boolean get() = this == TopFirst || this == BottomFirst
+
+    public companion object {
+        /** Maps the C layer's 0 to 3 onto this enum; anything else is [Unknown]. */
+        internal fun ofCode(code: Int): FieldOrder = when (code) {
+            1 -> Progressive
+            2 -> TopFirst
+            3 -> BottomFirst
+            else -> Unknown
+        }
+    }
+}
 
 /** Codec-level VP9 declarations copied from FFmpeg's probed stream parameters. */
 public data class Vp9CodecInfo(

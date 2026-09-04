@@ -57,6 +57,8 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_color_range
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_color_space
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_color_transfer
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_extradata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_field_order
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_bit_rate
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_dict_entry_value
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_count
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_get
@@ -142,6 +144,9 @@ public actual class MediaSource internal constructor(
 
     public actual val startTimeMicros: Long
         get() = ffkmp_fmt_start_time(requireModule(), alive()).takeIf { it != Long.MIN_VALUE } ?: 0L
+
+    public actual val bitrateBps: Long?
+        get() = ffkmp_fmt_bit_rate(requireModule(), alive()).takeIf { it > 0L }
 
     public actual val isSeekable: Boolean
         get() = ffkmp_fmt_is_seekable(requireModule(), alive()) != 0
@@ -601,6 +606,7 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                         ffkmp_codecpar_sample_aspect_ratio(m, par, n, d)
                     },
                     color = readParameterColor(m, par),
+                    fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(m, par)),
                 )
             } else {
                 null

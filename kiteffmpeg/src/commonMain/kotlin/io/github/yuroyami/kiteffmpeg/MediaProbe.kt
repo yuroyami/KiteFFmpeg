@@ -20,6 +20,13 @@ public data class MediaProbe(
     val startTimeMicros: Long,
     /** Whether a seek can be honoured at all. */
     val isSeekable: Boolean,
+    /**
+     * What the container claims its bit rate is, in bits per second, or null when it claims nothing.
+     *
+     * An estimate for anything variable-rate, and usually absent for a live source. Good enough to
+     * label a file; not a measurement.
+     */
+    val bitrateBps: Long?,
     /** Container-level tags, as the demuxer read them. */
     val metadata: Map<String, String>,
     val chapters: List<Chapter>,
@@ -68,6 +75,7 @@ private fun MediaSource.toProbe(): MediaProbe = MediaProbe(
     durationMicros = durationMicros,
     startTimeMicros = startTimeMicros,
     isSeekable = isSeekable,
+    bitrateBps = bitrateBps,
     metadata = metadata,
     chapters = chapters,
     streams = streams,

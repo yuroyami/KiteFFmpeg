@@ -394,6 +394,10 @@ JNIEXPORT jint JNICALL kj_codecpar_id(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,token,KJ_KIND_CODEC_PAR);(void)cls;return p?ffkmp_codecpar_codec_id(p):-1;}
 JNIEXPORT jlong JNICALL kj_codecpar_bitrate(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,token,KJ_KIND_CODEC_PAR);(void)cls;return p?ffkmp_codecpar_bit_rate(p):0;}
+JNIEXPORT jint JNICALL kj_codecpar_field_order(JNIEnv *env,jclass cls,jlong token)
+{kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,token,KJ_KIND_CODEC_PAR);(void)cls;return p?ffkmp_codecpar_field_order(p):0;}
+JNIEXPORT jlong JNICALL kj_fmt_bitrate(JNIEnv *env,jclass cls,jlong token)
+{kc_fmt_ctx*c=(kc_fmt_ctx*)kj_handle_get(env,token,KJ_KIND_FMT_CTX);(void)cls;return c?ffkmp_fmt_bit_rate(c):0;}
 JNIEXPORT jint JNICALL kj_codecpar_width(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,token,KJ_KIND_CODEC_PAR);(void)cls;return p?ffkmp_codecpar_width(p):0;}
 JNIEXPORT jint JNICALL kj_codecpar_height(JNIEnv *env,jclass cls,jlong token)
