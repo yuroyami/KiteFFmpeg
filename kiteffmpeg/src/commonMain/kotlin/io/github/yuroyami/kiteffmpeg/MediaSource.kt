@@ -81,6 +81,19 @@ public expect class MediaSource : AutoCloseable {
         private set
 
     /**
+     * Where the container's declaration and the decoder's output disagree, one entry per field.
+     *
+     * Empty for an honest file, which is nearly all of them. A non-empty list means the numbers a
+     * caller allocated against before decoding started were wrong, and the decoded ones are the
+     * ones to trust. See [StreamDivergence].
+     *
+     * Filled from the FIRST decoded frame of each stream, so it is empty until decoding has
+     * started and it answers "did the container lie", not "did the decoder change its mind part
+     * way through". Never reset while the source is open, like [corruptDataSkipped].
+     */
+    public val streamDivergences: List<StreamDivergence>
+
+    /**
      * Decode this stream and emit each decoded frame, owned by the collector.
      *
      * Only one decode flow may collect at a time, because the demuxer is a single cursor.

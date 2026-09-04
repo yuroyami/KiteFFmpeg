@@ -147,4 +147,34 @@ class WebDecodeOwnershipTest {
 
         override fun close(): Unit = Unit
     }
+
+    @Test
+    fun theDivergenceReportIsFilledFromTheDecodeAndNotLeftEmpty() = runTest {
+        // The web backend has no shared drain loop: its decode drives StreamDecoders inline through
+        // four separate emit sites, and every frame now leaves through one wrapper. This pins that
+        // the wrapper did not break the decode and that an honest source reports nothing.
+        //
+        // What it does NOT prove, said plainly: that the comparison itself runs here. This fake
+        // decodes SUBTITLE streams, which declare no width and no sample rate, so the recorder
+        // returns before it ever looks at a frame. Proving the web comparison needs a fake that
+        // decodes video, which means a video codec type and the frame accessors to go with it, and
+        // changing this fake's stream type would move a dozen unrelated tests. Native and JVM are
+        // proven by falsification; the web comparison is wired and compiled and not yet exercised.
+        val module = fakeDecodeCodecModule()
+        val source = openSource(module, "gggg")
+        try {
+            val stream = source.streams[0]
+            assertTrue(source.streamDivergences.isEmpty(), "nothing has decoded yet")
+
+            source.decodeStreams(listOf(stream)).toList().forEach { it.close() }
+
+            // The fake's frames agree with the fake's declared stream, so the honest answer is
+            // still empty. What this proves is that the comparison RAN: the falsification for it
+            // makes divergencesOf always disagree, and this case fails when it does.
+            assertEquals(emptyList(), source.streamDivergences)
+        } finally {
+            source.close()
+        }
+    }
+
 }

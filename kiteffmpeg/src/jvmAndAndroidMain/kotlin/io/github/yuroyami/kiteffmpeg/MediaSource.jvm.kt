@@ -108,6 +108,10 @@ public actual class MediaSource internal constructor(
      * Under [CorruptData.Fail] it throws; otherwise it counts the loss so a caller can tell a
      * clean decode from an incomplete one, which used to be impossible.
      */
+    private val divergences = DivergenceRecorder()
+
+    public actual val streamDivergences: List<StreamDivergence> get() = divergences.found
+
     private fun noteCorruptData(rc: Int) {
         if (corruptData == CorruptData.Fail) throw FFmpegException(avError(rc))
         corruptDataSkipped++
@@ -236,6 +240,8 @@ public actual class MediaSource internal constructor(
                 decoder.stream.type,
                 decoder.stream.timeBase,
             )
+            // First frame of this stream only; the recorder short-circuits before info is read.
+            divergences.observe(decoder.stream) { callbackFrame.info }
             try {
                 onFrame(callbackFrame)
             } finally {

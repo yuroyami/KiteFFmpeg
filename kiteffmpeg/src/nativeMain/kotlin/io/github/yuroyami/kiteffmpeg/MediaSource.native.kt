@@ -243,6 +243,10 @@ public actual class MediaSource internal constructor(
         private set
 
     /** The one place the batch flows decide about damaged data. */
+    private val divergences = DivergenceRecorder()
+
+    public actual val streamDivergences: List<StreamDivergence> get() = divergences.found
+
     private fun noteCorruptData(rc: Int) {
         if (corruptData == CorruptData.Fail) throw FFmpegException(avError(rc))
         corruptDataSkipped++
@@ -394,6 +398,8 @@ public actual class MediaSource internal constructor(
             // reused for the next iteration, so the wrapper is force-closed here (idempotently):
             // a callback that retained it without closing must never see it as still open.
             val view = FrameOps.wrap(frame.nativeFrame, decoder.stream.index, decoder.stream.type, decoder.stream.timeBase)
+            // First frame of this stream only; the recorder short-circuits before info is read.
+            divergences.observe(decoder.stream) { view.info }
             try {
                 onFrame(view)
             } finally {

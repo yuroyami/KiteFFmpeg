@@ -213,6 +213,21 @@ final enum class io.github.yuroyami.kiteffmpeg/CorruptData : kotlin/Enum<io.gith
     final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/CorruptData> // io.github.yuroyami.kiteffmpeg/CorruptData.values|values#static(){}[0]
 }
 
+final enum class io.github.yuroyami.kiteffmpeg/DivergentField : kotlin/Enum<io.github.yuroyami.kiteffmpeg/DivergentField> { // io.github.yuroyami.kiteffmpeg/DivergentField|null[0]
+    enum entry Channels // io.github.yuroyami.kiteffmpeg/DivergentField.Channels|null[0]
+    enum entry Height // io.github.yuroyami.kiteffmpeg/DivergentField.Height|null[0]
+    enum entry PixelFormat // io.github.yuroyami.kiteffmpeg/DivergentField.PixelFormat|null[0]
+    enum entry SampleFormat // io.github.yuroyami.kiteffmpeg/DivergentField.SampleFormat|null[0]
+    enum entry SampleRate // io.github.yuroyami.kiteffmpeg/DivergentField.SampleRate|null[0]
+    enum entry Width // io.github.yuroyami.kiteffmpeg/DivergentField.Width|null[0]
+
+    final val entries // io.github.yuroyami.kiteffmpeg/DivergentField.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.yuroyami.kiteffmpeg/DivergentField> // io.github.yuroyami.kiteffmpeg/DivergentField.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.yuroyami.kiteffmpeg/DivergentField // io.github.yuroyami.kiteffmpeg/DivergentField.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/DivergentField> // io.github.yuroyami.kiteffmpeg/DivergentField.values|values#static(){}[0]
+}
+
 final enum class io.github.yuroyami.kiteffmpeg/FieldOrder : kotlin/Enum<io.github.yuroyami.kiteffmpeg/FieldOrder> { // io.github.yuroyami.kiteffmpeg/FieldOrder|null[0]
     enum entry BottomFirst // io.github.yuroyami.kiteffmpeg/FieldOrder.BottomFirst|null[0]
     enum entry Progressive // io.github.yuroyami.kiteffmpeg/FieldOrder.Progressive|null[0]
@@ -1308,6 +1323,8 @@ final class io.github.yuroyami.kiteffmpeg/MediaSource : kotlin/AutoCloseable { /
         final fun <get-primaryVideo>(): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/MediaSource.primaryVideo.<get-primaryVideo>|<get-primaryVideo>(){}[0]
     final val startTimeMicros // io.github.yuroyami.kiteffmpeg/MediaSource.startTimeMicros|{}startTimeMicros[0]
         final fun <get-startTimeMicros>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/MediaSource.startTimeMicros.<get-startTimeMicros>|<get-startTimeMicros>(){}[0]
+    final val streamDivergences // io.github.yuroyami.kiteffmpeg/MediaSource.streamDivergences|{}streamDivergences[0]
+        final fun <get-streamDivergences>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamDivergence> // io.github.yuroyami.kiteffmpeg/MediaSource.streamDivergences.<get-streamDivergences>|<get-streamDivergences>(){}[0]
     final val streams // io.github.yuroyami.kiteffmpeg/MediaSource.streams|{}streams[0]
         final fun <get-streams>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo> // io.github.yuroyami.kiteffmpeg/MediaSource.streams.<get-streams>|<get-streams>(){}[0]
     final val unusedOpenOptions // io.github.yuroyami.kiteffmpeg/MediaSource.unusedOpenOptions|{}unusedOpenOptions[0]
@@ -1431,6 +1448,30 @@ final class io.github.yuroyami.kiteffmpeg/StreamDecoder : kotlin/AutoCloseable {
     final fun flush() // io.github.yuroyami.kiteffmpeg/StreamDecoder.flush|flush(){}[0]
     final fun receive(): io.github.yuroyami.kiteffmpeg/Frame? // io.github.yuroyami.kiteffmpeg/StreamDecoder.receive|receive(){}[0]
     final fun send(io.github.yuroyami.kiteffmpeg/Packet?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/StreamDecoder.send|send(io.github.yuroyami.kiteffmpeg.Packet?){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/StreamDivergence { // io.github.yuroyami.kiteffmpeg/StreamDivergence|null[0]
+    constructor <init>(kotlin/Int, io.github.yuroyami.kiteffmpeg/DivergentField, kotlin/String, kotlin/String) // io.github.yuroyami.kiteffmpeg/StreamDivergence.<init>|<init>(kotlin.Int;io.github.yuroyami.kiteffmpeg.DivergentField;kotlin.String;kotlin.String){}[0]
+
+    final val declared // io.github.yuroyami.kiteffmpeg/StreamDivergence.declared|{}declared[0]
+        final fun <get-declared>(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamDivergence.declared.<get-declared>|<get-declared>(){}[0]
+    final val decoded // io.github.yuroyami.kiteffmpeg/StreamDivergence.decoded|{}decoded[0]
+        final fun <get-decoded>(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamDivergence.decoded.<get-decoded>|<get-decoded>(){}[0]
+    final val field // io.github.yuroyami.kiteffmpeg/StreamDivergence.field|{}field[0]
+        final fun <get-field>(): io.github.yuroyami.kiteffmpeg/DivergentField // io.github.yuroyami.kiteffmpeg/StreamDivergence.field.<get-field>|<get-field>(){}[0]
+    final val message // io.github.yuroyami.kiteffmpeg/StreamDivergence.message|{}message[0]
+        final fun <get-message>(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamDivergence.message.<get-message>|<get-message>(){}[0]
+    final val streamIndex // io.github.yuroyami.kiteffmpeg/StreamDivergence.streamIndex|{}streamIndex[0]
+        final fun <get-streamIndex>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/StreamDivergence.streamIndex.<get-streamIndex>|<get-streamIndex>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/StreamDivergence.component1|component1(){}[0]
+    final fun component2(): io.github.yuroyami.kiteffmpeg/DivergentField // io.github.yuroyami.kiteffmpeg/StreamDivergence.component2|component2(){}[0]
+    final fun component3(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamDivergence.component3|component3(){}[0]
+    final fun component4(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamDivergence.component4|component4(){}[0]
+    final fun copy(kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/DivergentField = ..., kotlin/String = ..., kotlin/String = ...): io.github.yuroyami.kiteffmpeg/StreamDivergence // io.github.yuroyami.kiteffmpeg/StreamDivergence.copy|copy(kotlin.Int;io.github.yuroyami.kiteffmpeg.DivergentField;kotlin.String;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/StreamDivergence.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/StreamDivergence.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamDivergence.toString|toString(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/StreamInfo { // io.github.yuroyami.kiteffmpeg/StreamInfo|null[0]

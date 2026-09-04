@@ -70,6 +70,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_rescale_q
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_start_time
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 
 /**
@@ -226,6 +227,10 @@ public actual class MediaSource internal constructor(
      * Summed from the decoders the batch flows built, because this backend's flows drive real
      * [StreamDecoder] instances rather than a private decode loop.
      */
+    private val divergences = DivergenceRecorder()
+
+    public actual val streamDivergences: List<StreamDivergence> get() = divergences.found
+
     public actual var corruptDataSkipped: Long = 0L
         private set
 
@@ -240,6 +245,18 @@ public actual class MediaSource internal constructor(
         // always saw zero and a second pass erased the first one's total, which is not what the
         // commonMain KDoc promises.
         val skippedBefore = corruptDataSkipped
+        val declaredByIndex = streams.associateBy { it.index }
+        // Every frame leaves through here so the FIRST one of each stream can be compared against
+        // what the container declared. The stream comes from the loop, never from the frame: asking
+        // the frame would mean reading its info on every frame, which is a dozen calls back across
+        // the binding for a value most callers never look at. The recorder only runs the lambda for
+        // a stream it has not seen, so info is read once per stream and never again.
+        suspend fun FlowCollector<Frame>.emitObserved(streamIndex: Int, frame: Frame?): Frame? {
+            if (frame == null) return null
+            declaredByIndex[streamIndex]?.let { declared -> divergences.observe(declared) { frame.info } }
+            emit(frame)
+            return frame
+        }
         var reader: PacketReader? = null
         try {
             // One try owning both, because openPacketReader takes the cursor lease and can throw.
@@ -252,14 +269,14 @@ public actual class MediaSource internal constructor(
                 val packet = live.read()
                 if (packet == null) {
                     // Drain every decoder before finishing: frames can still be queued inside them.
-                    decoders.values.forEach { decoder ->
+                    decoders.forEach { (streamIndex, decoder) ->
                         // The drain signal is an input like any other and can be refused. Sending it
                         // once and assuming it landed ended the stream while the decoder was still
                         // full, which on a buffered codec is its whole tail.
                         while (!decoder.send(null)) {
-                            while (true) emit(decoder.receive() ?: break)
+                            while (true) emitObserved(streamIndex, decoder.receive()) ?: break
                         }
-                        while (true) emit(decoder.receive() ?: break)
+                        while (true) emitObserved(streamIndex, decoder.receive()) ?: break
                     }
                     corruptDataSkipped = skippedBefore + decoders.values.sumOf { it.corruptDataSkipped }
                     return@flow
@@ -267,14 +284,15 @@ public actual class MediaSource internal constructor(
                 packet.use { p ->
                     val decoder = decoders[p.streamIndex]
                     if (decoder != null) {
+                        val streamIndex = p.streamIndex
                         // Send, drain, retry the SAME packet: false means the decoder did not take
                         // it, and the old code dropped it instead of offering it again. Every
                         // B-frame codec loses frames that way. FFmpeg guarantees a send is accepted
                         // once its output has been drained, which is what ends this loop.
                         while (!decoder.send(p)) {
-                            while (true) emit(decoder.receive() ?: break)
+                            while (true) emitObserved(streamIndex, decoder.receive()) ?: break
                         }
-                        while (true) emit(decoder.receive() ?: break)
+                        while (true) emitObserved(streamIndex, decoder.receive()) ?: break
                     }
                 }
                 // Live, per packet: a caller watching a long decode learns it is losing data while

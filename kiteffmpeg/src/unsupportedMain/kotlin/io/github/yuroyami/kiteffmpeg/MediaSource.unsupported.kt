@@ -16,6 +16,11 @@ public actual class MediaSource private constructor() : AutoCloseable {
         get() = placeholderBackendUnavailable("Reading media chapters")
     public actual val unusedOpenOptions: List<String>
         get() = placeholderBackendUnavailable("Reading media open options")
+    public actual val streamDivergences: List<StreamDivergence>
+        // Nothing decodes here, so nothing was ever compared. Empty rather than a refusal: this is
+        // "no disagreement observed", which is exactly true, and it matches corruptDataSkipped's
+        // 0L on this backend rather than unusedOpenOptions' throw.
+        get() = emptyList()
     public actual val startTimeMicros: Long
         get() = placeholderBackendUnavailable("Reading media start time")
     public actual val bitrateBps: Long?

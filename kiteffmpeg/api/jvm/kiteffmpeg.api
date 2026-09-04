@@ -295,6 +295,18 @@ public final class io/github/yuroyami/kiteffmpeg/Disposition$Companion {
 	public final fun getNone ()Lio/github/yuroyami/kiteffmpeg/Disposition;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/DivergentField : java/lang/Enum {
+	public static final field Channels Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public static final field Height Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public static final field PixelFormat Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public static final field SampleFormat Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public static final field SampleRate Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public static final field Width Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/DivergentField;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/FFmpeg {
 	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/FFmpeg;
 	public final fun getBuildConfiguration ()Ljava/lang/String;
@@ -661,6 +673,7 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSource : java/lang/AutoClo
 	public final fun getPrimaryAudio ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
 	public final fun getPrimaryVideo ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
 	public final fun getStartTimeMicros ()J
+	public final fun getStreamDivergences ()Ljava/util/List;
 	public final fun getStreams ()Ljava/util/List;
 	public final fun getUnusedOpenOptions ()Ljava/util/List;
 	public final fun interrupt ()V
@@ -837,6 +850,24 @@ public final class io/github/yuroyami/kiteffmpeg/StreamDecoder : java/lang/AutoC
 	public final fun isDrained ()Z
 	public final fun receive ()Lio/github/yuroyami/kiteffmpeg/Frame;
 	public final fun send (Lio/github/yuroyami/kiteffmpeg/Packet;)Z
+}
+
+public final class io/github/yuroyami/kiteffmpeg/StreamDivergence {
+	public fun <init> (ILio/github/yuroyami/kiteffmpeg/DivergentField;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()I
+	public final fun component2 ()Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (ILio/github/yuroyami/kiteffmpeg/DivergentField;Ljava/lang/String;Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/StreamDivergence;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/StreamDivergence;ILio/github/yuroyami/kiteffmpeg/DivergentField;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/StreamDivergence;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeclared ()Ljava/lang/String;
+	public final fun getDecoded ()Ljava/lang/String;
+	public final fun getField ()Lio/github/yuroyami/kiteffmpeg/DivergentField;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getStreamIndex ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/StreamInfo {
