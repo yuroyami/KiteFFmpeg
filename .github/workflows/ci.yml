@@ -172,13 +172,14 @@ jobs:
       # target added to the TargetTriple enum and forgotten there is a binary nobody builds, and
       # nothing else notices: the build compiles, the tests pass, and no gate reads a workflow. It
       # needs no build output either, so it sits with the other cheap gates.
-      - name: Public API baseline + FFmpeg coupling ratchet + deleted surface + wasm binding mirror
+      - name: Public API baseline + coupling + deleted surface + wasm mirror + dependency hygiene
         run: |
           ./gradlew :kiteffmpeg:apiCheck -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
           ./gradlew checkCinteropCoupling --stacktrace
           ./gradlew :kiteffmpeg:checkWasmBindingMirror --stacktrace
           ./gradlew checkReleaseTargetMirror --stacktrace
           ./native/kitecodec-c/scripts/check-deleted-surface.sh
+          ./scripts/check-dependency-hygiene.sh
       # The third ratchet, and the only guard on the cinterop klib: apiCheck covers kiteffmpeg's
       # own klib, and the cinterop klib is a separate artifact holding every FFmpeg binding and every
       # ffkmp_ helper. klib-metadata-diff.sh --check dumps its metadata and fails when it differs
