@@ -17,6 +17,7 @@ public actual object Remuxer {
         // The FFmpeg identity gate. First statement of the entry point.
         requireCompatibleFFmpeg()
         require(startMicros >= 0 && endMicros > startMicros) { "Invalid trim window [$startMicros, $endMicros]" }
+        refuseSameFile(input, output)
 
         MediaSource.open(input).use { source ->
             val selected = if (streamIndices == null) {

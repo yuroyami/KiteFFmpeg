@@ -33,6 +33,7 @@ public actual object Transcoder {
             "Nothing to output: no video spec or copy, no audio, no subtitle copy"
         }
         require(startMicros >= 0 && endMicros > startMicros) { "Invalid trim window [$startMicros, $endMicros]" }
+        refuseSameFile(input, output)
 
         MediaSource.open(input).use { source ->
             val videoStream = if (spec != null || videoCopy) {

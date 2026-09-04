@@ -14,6 +14,7 @@ public actual object Remuxer {
         require(startMicros >= 0L && endMicros > startMicros) {
             "Invalid trim window [$startMicros, $endMicros]"
         }
+        refuseSameFile(input, output)
         MediaSource.open(input).use { source ->
             val selected = if (streamIndices == null) {
                 source.streams.filter { it.type != MediaType.Unknown }

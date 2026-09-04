@@ -30,6 +30,7 @@ public actual object Transcoder {
         require(startMicros >= 0L && endMicros > startMicros) {
             "Invalid trim window [$startMicros, $endMicros]"
         }
+        refuseSameFile(input, output)
 
         MediaSource.open(input).use { source ->
             val videoStream = if (spec != null || videoCopy) {
