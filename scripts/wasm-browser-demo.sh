@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds and serves the browser playback proof (PLANNING.md tier one).
+# Builds and serves the browser playback proof.
 #
 # Decodes a real clip with FFmpeg in wasm and draws it to a 2d canvas with putImageData. This is
 # the path S6-D6 correction 2 named: the converted RGBA already lives in emscripten linear memory,

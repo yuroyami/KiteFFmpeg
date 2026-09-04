@@ -495,8 +495,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     )
 
     /*
-     * AV1 note, and it is a warning as much as a pin (see PLANNING.md, and the new row it
-     * opened).
+     * AV1 note, and it is a warning as much as a pin.
      *
      * `av1_videotoolbox` is pinned above so the hwaccel exists on every Apple target that has AV1
      * silicon (A17 Pro, M3 and newer). configure's `av1_videotoolbox_hwaccel_select="av1_decoder"`
@@ -600,8 +599,8 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             "--enable-cross-compile",
         )
         // Linux and Windows cross-build with the SAME toolchain Kotlin/Native links against:
-        // konan's own clang, aimed by -target, over the sysroot konan ships for that triple
-        // (PLANNING.md). This is not a preference. FFmpeg built by any other
+        // konan's own clang, aimed by -target, over the sysroot konan ships for that triple.
+        // This is not a preference. FFmpeg built by any other
         // toolchain can reference a glibc symbol the konan sysroot does not carry, and the failure
         // arrives at LINK time in a consumer's build, which is the worst place to find it.
         //

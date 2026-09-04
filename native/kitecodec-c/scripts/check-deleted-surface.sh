@@ -59,23 +59,17 @@ RESURRECTED=""
 
 # Files allowed to mention a deleted name in prose, each because it is part of the record of the
 # deletion rather than a use of it: the data file that IS the list, the two test files that record
-# why their cases went, the tree's own README, and PLANNING.md, which holds the project's
-# Execution log and so is the primary record of the deletion: its B1.4 entry names all 15 so a
-# later reader can check the list without re-deriving it. This script itself is deliberately NOT on
-# the list any more: since I-14 it reads the names instead of containing them, so a mention
-# appearing in it again would be a regression worth failing on. Paths are relative to the KiteFFmpeg
-# repository root; a path starting with ../ lives in KitePlayer.
+# why their cases went, and the tree's own README. This script itself is deliberately NOT on the
+# list: it reads the names instead of containing them, so a mention appearing in it again would be
+# a regression worth failing on. Paths are relative to the repository root.
 #
-# The entry was added by the B1.4 to B1.6 gate run, which this check FAILED on the gate's own log
-# entry. That is the check working rather than the check being wrong: it refused a new prose mention
-# until someone gave a reason, and the reason is the line above.
+# The list is short on purpose. A new entry means someone wrote a deleted name into prose, and the
+# check refuses it until a reason is given here.
 #
-# It named ../KitePlayer/PLANNING.md until 2026-08-18. That file was split by tense into PLANNING.md
-# and PLANNING.md, and the execution log went to PAST, so this check went red at the split and
-# stayed red: the allowlist pointed at a path that no longer existed while the prose it excused had
-# moved to one that was not listed. Worth naming rather than quietly repointing, because it is the
-# failure mode a cross-repository allowlist has: the split's own verifier proved no LINE was lost
-# and could not know that a tool in the other repository named the file by path.
+# The list held a path in the sibling repository once, and that is the failure mode a cross-repository
+# allowlist has: the other repository renamed the file, this check went red, and the allowlist was
+# pointing at a path that no longer existed while the prose it excused had moved somewhere unlisted.
+# Do not add a path outside this repository again.
 #
 # It happened AGAIN, and this time nothing went red. The docs reset of 2026-08-29 deleted every
 # planning file in KitePlayer except MASTER_PLAN.md and GOTCHAS.md, so the entry pointed at a ghost
@@ -245,8 +239,8 @@ echo
 
 # An allowlist entry excuses prose in a file. A path that does not exist excuses nothing, and it is
 # how the allowlist rots without anyone seeing: check 3 reports it as merely "stale" and passes.
-# That is not hypothetical here. The entry for KitePlayer's PLANNING.md outlived the file twice,
-# once at the 2026-08-18 split and again at the 2026-08-29 docs reset.
+# That is not hypothetical here. An entry pointing into the sibling repository outlived the file it
+# named twice, once at a rename and once at a documentation reset.
 echo "5. every allowlisted path exists, so no entry is excusing a file that is gone"
 : > "$WORK/ghosts.txt"
 while read -r file; do

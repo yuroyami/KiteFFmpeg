@@ -68,7 +68,7 @@ internal class WebIoBridge private constructor(
                         0,
                         "The web backend needs a MediaByteSource that knows its size, because it " +
                             "stages the bytes for FFmpeg's synchronous IO. A source of unknown " +
-                            "length has to stream, which needs the Worker (PLANNING.md).",
+                            "length has to stream, which needs the Worker.",
                     ),
                 )
             if (size > MAX_BYTES) {
@@ -77,7 +77,7 @@ internal class WebIoBridge private constructor(
                         0,
                         "This media is $size bytes and the web backend stages the whole source in " +
                             "memory, so it caps at $MAX_BYTES. Streaming larger media needs the " +
-                            "Worker (PLANNING.md).",
+                            "Worker.",
                     ),
                 )
             }

@@ -2,6 +2,38 @@
 
 Thanks for helping out. KiteFFmpeg is a Kotlin Multiplatform (Kotlin/Native) binding to FFmpeg's libav\* libraries, so contributing means having both a Kotlin toolchain and an FFmpeg to link against.
 
+## Ground rules
+
+These are not style preferences. Each one exists because ignoring it cost someone a day.
+
+- **Red first, always.** Write the failing test, run it, watch it fail at the line you
+  predicted, then fix it, then break the fix and watch it go red again. A test that was never
+  seen red proves nothing.
+- **A claim carries the strength of its evidence and no more.** Compilation is not support. A
+  source-set declaration is not support. A laptop green is not a device green. A simulator
+  green is not a device green. A cached up-to-date Gradle run proves only that the cache is not
+  red. When code, artifacts, docs and measurements disagree, the weakest result is the truth.
+- **No em dashes in any file**: code, comments, Markdown or commit messages. The gate scans for
+  them.
+- **No new dependency without asking first**: not a library, not a plugin, not a toolchain or
+  Gradle bump. C or shader source we author ourselves is fine.
+- **A design act is its own commit.** Deciding a public API shape and executing it never happen
+  in the same commit.
+- **Public API changes run `./gradlew apiDump -Pkiteffmpeg.hostTargetsOnly=true` in the same
+  commit**, and every new public declaration carries KDoc. Explicit API mode is on.
+- **When the tree contradicts an issue or a document, stop and say so.** Do not improvise the
+  document back into truth.
+
+### What we may and may not copy
+
+- This library ships under a permissive licence. Any GPL or LGPL player checked out under
+  `vendor/` is **study only**. Designs, algorithms and thresholds are facts and may be
+  restated. Source text is expression, and a Kotlin transliteration inherits its licence.
+  Never transliterate, and never name a study-only source in a comment as the origin of an
+  implementation.
+- The `ffmpeg` and `ffprobe` binaries as test oracles are always fine. Differential testing
+  compares outputs, never source.
+
 ## Build prerequisites
 
 - **JDK 21** (the build sets `jvmToolchain(21)`).
@@ -45,6 +77,35 @@ scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg
 
 Pure-logic tests (`Rational`, `FrameInfo`) live in `commonTest`; `nativeTest` runs against the actually-linked FFmpeg. CI runs all of this on macOS, Ubuntu, and Windows on every push, a green local `macosArm64Test` + `e2e.sh` is the bar before opening a PR.
 
+## The gate before every commit
+
+Pick the tier by which paths changed, never by how confident you feel. Say which tier you ran
+and which rule selected it.
+
+**Tier 1, every change without exception, seconds:**
+
+```bash
+./gradlew checkCinteropCoupling
+./gradlew :kiteffmpeg:checkFFmpegRecipes
+./native/kitecodec-c/scripts/check-deleted-surface.sh
+./native/kitecodec-c/scripts/run-c-tests.sh plain
+git ls-files -z | xargs -0 grep -n $'\u2014'   # em dash scan: printing nothing is the pass
+```
+
+Tier 1 cannot catch data races, wrong-architecture archives, cinterop surface changes,
+real-media regressions, or anything about a target it did not build. It does catch a vendored
+FFmpeg tree baked from a different recipe than the checkout describes.
+
+**Tier 2, roughly 10 to 15 minutes.** Selected by any of: files under `native/` or `buildSrc/`,
+`kiteffmpeg-gradle-plugin/src/`, any `.def` file, any `build.gradle.kts`, any version catalog,
+or any Kotlin under a platform source set. Contents: Tier 1, plus host cinterop and `apiCheck`
+(both need `-Pkiteffmpeg.hostTargetsOnly=true` on a machine with one FFmpeg tree), the build
+logic and plugin tests, the sanitizer and interpose C runs, corpus replay, the symbol check,
+the klib metadata diff, the host target's test task, `jvmTest`, and `./scripts/linux-tests.sh`.
+
+Run the aggregate task, not a hand-written list of modules. `run-c-tests.sh` never builds
+anything: run `build-host.sh <variant>` first or you are testing yesterday's binaries.
+
 ## Pull request expectations
 
 - **Keep PRs focused**: one change per PR, with tests where the change is testable.
@@ -69,4 +130,5 @@ The build wires [kotlinx binary-compatibility-validator](https://github.com/Kotl
 
 ## Reporting issues
 
-Use the [issue templates](.github/ISSUE_TEMPLATE/). For anything security-sensitive (malformed-media crashes, memory corruption), see [SECURITY.md](SECURITY.md) instead of opening a public issue.
+GitHub Issues is the only tracker for this repository: open work, plans and findings all live there, and
+there is no private planning file. Use the [issue templates](.github/ISSUE_TEMPLATE/). For anything security-sensitive (malformed-media crashes, memory corruption), see [SECURITY.md](SECURITY.md) instead of opening a public issue.

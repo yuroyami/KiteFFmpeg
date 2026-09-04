@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the format matrix through the WEB decode path. See PLANNING.md.
+# Runs the format matrix through the WEB decode path.
 #
 # Not the project's own suite: that is Kotlin and needs the engine, which the web does not have
 # yet. This is the honest interim, and it says so. It answers one question the owner actually asks,

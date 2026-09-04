@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Links the wasm codec archive against the wasm FFmpeg and RUNS it (PLANNING.md).
+# Links the wasm codec archive against the wasm FFmpeg and RUNS it.
 #
 # Compiling proves nothing here. `native/kitecodec-c` is portable C, so it was always going to
 # compile; what was in doubt is whether the web FFmpeg profile actually carries what it calls into.

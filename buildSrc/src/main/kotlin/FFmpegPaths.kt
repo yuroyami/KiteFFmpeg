@@ -219,7 +219,7 @@ enum class TargetTriple(val dirName: String, val gradleSuffix: String) {
     /**
      * Linux and Windows: desktop targets with no cross-built third-party stack.
      *
-     * They get the reduced profile of PLANNING.md's decision W-D4. The full desktop profile
+     * They get the reduced profile, by decision. The full desktop profile
      * demands x264, svt-av1, opus, libass and six more libraries that have never been cross-built
      * for these triples, and building nine dependencies three ways is not what phase W buys. The
      * reduced profile is the 17.6 `standard` tier and plays the whole 17.5 matrix; a consumer who

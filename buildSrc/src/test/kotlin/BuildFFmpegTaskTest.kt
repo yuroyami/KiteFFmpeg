@@ -363,7 +363,7 @@ class BuildFFmpegTaskTest {
     @Test
     fun linuxAndMingwCarryNoneOfTheDesktopThirdPartyStack() {
         val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
-        // Decision W-D4 (PLANNING.md): these three triples get the REDUCED desktop profile,
+        // By decision, these three triples get the REDUCED desktop profile,
         // because none of these libraries has ever been cross-built for them. If one grows back,
         // configure fails and the cross build dies, so pin its absence.
         val forbidden = listOf(
@@ -870,7 +870,7 @@ class BuildFFmpegTaskTest {
     /**
      * The exact `sharedCoreArgs()` line. Changing it must stay a reviewed act, not a silent one.
      *
-     * Shaped by the wide read-side class policy (PLANNING.md): only the WRITE side and the
+     * Shaped by the wide read-side class policy: only the WRITE side and the
      * protocol list are curated, so there is no `--disable-everything` and no named demuxer,
      * decoder, parser or bsf list any more.
      */

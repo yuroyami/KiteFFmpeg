@@ -24,8 +24,6 @@ import java.io.File
  * `@loader_path`, and the referring library's load command rewritten to match. The walk is breadth
  * first because a bundled library can pull in another one. `manifest.txt` lists what came along, so
  * the loader knows what to unpack before it calls `System.load`.
- *
- * PLANNING.md.
  */
 abstract class BundleHostJniTask : DefaultTask() {
 

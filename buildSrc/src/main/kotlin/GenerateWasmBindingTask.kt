@@ -11,7 +11,7 @@ import org.gradle.api.tasks.TaskAction
 import javax.inject.Inject
 
 /**
- * Generates the web binding from `signature-baseline.txt` (PLANNING.md).
+ * Generates the web binding from `signature-baseline.txt`.
  *
  * GENERATED, not hand-written, and the reason is the input: that file is already gated, so the
  * build fails when the C surface drifts from it. A generator makes the binding review rather than

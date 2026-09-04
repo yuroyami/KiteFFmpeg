@@ -15,8 +15,6 @@ import org.gradle.api.tasks.TaskAction
  * needs. The header is TAKEN FROM a JDK image at build time and never committed: OpenJDK's headers
  * carry their own licence, and vendoring one into this repository is a decision the owner has not
  * been asked for and does not need to be.
- *
- * PLANNING.md.
  */
 abstract class ExtractJdkHeadersTask : DefaultTask() {
 

@@ -16,7 +16,7 @@ import java.io.File
 import javax.inject.Inject
 
 /**
- * Compiles `native/kitecodec-c/src` to a wasm32 archive with emscripten (PLANNING.md).
+ * Compiles `native/kitecodec-c/src` to a wasm32 archive with emscripten.
  *
  * Separate from [CompileKiteFFmpegCTask] for the same reason [BuildFFmpegWasmTask] is separate from
  * its sibling: that task resolves a konan LLVM package, a konan sysroot and an Apple SDK, and

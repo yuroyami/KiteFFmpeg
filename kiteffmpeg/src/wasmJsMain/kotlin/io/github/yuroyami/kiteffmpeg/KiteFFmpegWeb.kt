@@ -8,7 +8,7 @@ import kotlin.js.Promise
  *
  * Every other target links FFmpeg into the same binary and can answer `FFmpeg.identity` the instant
  * the process starts. A browser cannot, and cannot block waiting either, so the web needs one
- * explicit step that the common API has nowhere to put (PLANNING.md). Call this once,
+ * explicit step that the common API has nowhere to put. Call this once,
  * await it, and the rest of `kiteffmpeg` behaves normally:
  *
  * ```kotlin

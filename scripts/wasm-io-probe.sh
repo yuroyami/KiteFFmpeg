@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Demuxes a REAL media file whose bytes are supplied by JavaScript (PLANNING.md).
+# Demuxes a REAL media file whose bytes are supplied by JavaScript.
 #
 # This is the one piece the generator deliberately does not emit. `ffkmp_fmt_open_input_io` takes
 # two function pointers, and a callback crossing into JS is a lifetime problem rather than a

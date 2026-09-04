@@ -1,6 +1,6 @@
 /* The three handle entry points that need a JNIEnv, and nothing else.
  *
- * The table itself moved to native/kitecodec-handles on 2026-08-17 (PLANNING.md) so the
+ * The table itself moved to native/kitecodec-handles so the
  * web binding runs the SAME code rather than a second copy. What stays here is exactly what could
  * not go: these three throw, and throwing needs a JNIEnv. Every one of them is a thin wrapper whose
  * only job is turning the table's "0" or "NULL" into a typed JVM exception, which is the contract

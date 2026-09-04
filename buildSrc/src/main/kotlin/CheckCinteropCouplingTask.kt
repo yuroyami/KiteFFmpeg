@@ -35,8 +35,8 @@ import java.io.File
  * `${...}` are removed. Diagnostic text therefore cannot look like coupling, while live code in a
  * template cannot hide from the ratchet.
  *
- * Lowering a baseline number is a normal commit. Raising one needs an Execution log entry; the
- * move procedure is in PLANNING.md's ratchet move table.
+ * Lowering a baseline number is a normal commit. Raising one needs a reason in the commit body,
+ * and the issue that justifies it named there.
  *
  * Two properties of this implementation are load bearing rather than incidental:
  *
@@ -98,8 +98,8 @@ abstract class CheckCinteropCouplingTask : DefaultTask() {
                     appendLine(
                         "Kotlin may cross only the KiteFFmpeg-owned ffkmp_/kc_/KC_ boundary. " +
                             "Remove the raw import, call or type. If a numeric ceiling must move " +
-                            "deliberately, update it in the same commit and explain why in the " +
-                            "PLANNING.md Execution log.",
+                            "deliberately, update it in the same commit and say why in the " +
+                            "commit body.",
                     )
                 },
             )
