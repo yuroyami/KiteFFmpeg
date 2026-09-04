@@ -237,7 +237,25 @@ public actual class FilterGraph internal constructor(
                     if (recRc < 0) throw FFmpegException(avError(recRc))
                     val out = FrameOps.wrap(landing.nativeFrame, -1, inputType, outputTimeBase)
                     try {
-                        emit(out.copy())
+                        val emitted = out.copy()
+                        try {
+                            emit(emitted)
+                        } catch (error: Throwable) {
+                            // NOT closed, and this is the decision the two backends now share.
+                            // `take` and `first` end a flow by throwing OUT of emit AFTER the value
+                            // reached the collector, and a scope dying before delivery throws the
+                            // same kind of exception with the frame still ours. Nothing here can
+                            // tell them apart: both are CancellationException, and the one that
+                            // says "delivered" is kotlinx's own internal type.
+                            //
+                            // Closing broke the ordinary case: process(input).first() handed back a
+                            // frame this library had already freed, and every read on it refused.
+                            // Not closing costs one clone on the abnormal one, and a clone is an
+                            // O(1) refcount bump rather than a copy of the samples. A frame the
+                            // caller can actually use beats a byte of memory on a path that ended
+                            // early, so the loss is taken deliberately and named here.
+                            throw error
+                        }
                     } finally {
                         out.close()
                     }

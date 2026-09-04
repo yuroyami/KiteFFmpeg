@@ -141,12 +141,10 @@ public actual class FilterGraph internal constructor(
                             callback.close()
                         }
                     } ?: return
-                    try {
-                        emit(out)
-                    } catch (error: Throwable) {
-                        out.close()
-                        throw error
-                    }
+                    // Emitted and then left alone. See the native backend for the decision the
+                    // two share: a throw out of emit cannot be told apart from a delivery that
+                    // ended the flow, and closing here freed a frame first() had just handed back.
+                    emit(out)
                 }
             }
             input.collect { frame ->
