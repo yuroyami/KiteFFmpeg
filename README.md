@@ -27,7 +27,7 @@ dependency and call Kotlin functions.
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.1.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.2.0")
 }
 ```
 
@@ -141,7 +141,7 @@ player, stay with the API above.
 | **Builds, nothing has run** | `macosX64`, `iosX64`, and the `androidNative*` targets, which are for Kotlin/Native on Android and are not what a normal Android app uses |
 | **Placeholder** | `js`. The code compiles and you can ask it what it supports (nothing), but every media call throws `FFmpegError.Unsupported` |
 
-All of these publish at 0.1.0.
+All of these publish at 0.2.0.
 
 Android and iOS play real media on real phones: this is the engine under
 [KitePlayer](https://github.com/yuroyami/KitePlayer), which is device-tested on both, down to

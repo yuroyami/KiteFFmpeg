@@ -24,7 +24,7 @@ Two points decide whether KiteFFmpeg is usable for you:
   this repository's CI. `wasmJs` is a real playback backend once its wasm module is loaded, while
   `js` reports no capabilities and rejects every media operation with typed
   `FFmpegError.Unsupported`.
-- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.1.0` on Maven Central, one
+- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.2.0` on Maven Central, one
   dependency line, FFmpeg embedded inside the artifacts. There is no Gradle plugin and no FFmpeg
   download step. `mingwX64` builds and tests in CI; `linuxArm64` runs its native suite in an arm64
   container; `iosX64` and `macosX64` remain unqualified.

@@ -10,6 +10,82 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Nothing yet.
 
+## [0.2.0] - 2026-09-04
+
+Six new calls, one breaking rename of a parameter type, and one fixed frame-ownership bug that
+could hand you a frame the library had already freed.
+
+```kotlin
+implementation("io.github.yuroyami:kiteffmpeg:0.2.0")
+```
+
+### Added
+
+- **Read a file's details without opening a handle.** `MediaSource.probe(path)` opens, reads and
+  closes in one blocking call and answers a `MediaProbe`: format name, duration, start time,
+  container bit rate, seekable, metadata, chapters and every stream. It is a value, so there is
+  nothing to close and nothing to leak. There is a second overload over a `MediaByteSource` for
+  bytes you already hold. Use it for a file browser, a playlist scan or a duration check; use
+  `MediaSource.open` when you are going to read frames.
+- **Field order**, on `VideoStreamInfo.fieldOrder`, so an auto-deinterlace has something to decide
+  from. It is a display order: `TopFirst`, `BottomFirst`, `Progressive` or `Unknown`. `Unknown` is
+  not a synonym for progressive. Most files say nothing, and treating silence as progressive skips
+  deinterlacing on material that needs it.
+- **Container bit rate**, on `MediaSource.bitrateBps` and `MediaProbe.bitrateBps`. The stat that
+  used to always answer null now has a source.
+- **A container that lies is on the record.** `MediaSource.streamDivergences` lists the fields
+  where the header disagrees with what the decoder actually produced: width, height, pixel format,
+  sample rate or channels. A mislabelled resolution used to show up as a wrong-sized surface with
+  no way to find out why. This is not an error, the file still plays, and the decoded numbers are
+  the ones to trust.
+- **A filter chain says what your build is missing.** `FilterChain.missingFilters()` answers in
+  chain order, without repeats, and `requireAvailable()` refuses with `FFmpegError.FilterNotFound`
+  naming every missing filter at once. `FilterGraph.buildVideo` and `buildAudio` gain chain
+  overloads that check before FFmpeg parses anything, so you no longer learn this from a parse
+  error about a string.
+- **Push your own packets into a muxer.** `CopyStream.write(packet)` lets a caller who drives its
+  own read loop join a reader to a sink, which previously only `Remuxer` and `Transcoder` could do.
+  It writes a reference, so your packet comes back open and unchanged. Ordering stays yours:
+  packets must reach the muxer in the order the stream expects.
+
+### Changed
+
+- **Breaking: `aformat` takes a typed sample format.** `AudioFilterBuilder.aformat` and
+  `AudioFormat.sampleFormat` were `String?` and are now `SampleFormat?`. A misspelled format used
+  to survive until the graph was parsed. `SampleFormat("fltp")` reads the same as the old string,
+  so the fix is one wrapper per call site.
+- **Breaking: `VideoStreamInfo` gained a field**, so its generated `copy()` has a new signature.
+  Source-compatible if you use named arguments; recompile if you call `copy()` positionally.
+- **A missing filter throws `FFmpegError.FilterNotFound`**, not `FFmpegError.Internal`. The old
+  type was not one a caller would catch for this.
+- **The identity gate now lives in C**, so the eighteen constructor helpers refuse before they
+  build anything. Kotlin callers were already gated; a pure C or JNI consumer was not, though the
+  header said otherwise. Pointer-returning helpers answer NULL, int-returning ones answer
+  `AVERROR_EXTERNAL`, and `kc_ffmpeg_report_get` carries the reason. The C ABI minor moves 6 to 7.
+
+### Fixed
+
+- **A cancelled filter emission no longer frees your frame.** `process(input).first()` used to hand
+  back a frame the JVM backend had already closed, so every read on it refused; the native backend
+  leaked the clone instead. Neither backend can tell "the collector took it" from "the scope died",
+  because both arrive as the same cancellation, so both now leave an emitted frame alone. The cost
+  is one refcount bump on a path that ended early.
+
+### Documentation
+
+The README and all six guides were rewritten for someone who does not already speak FFmpeg. The
+glossary comes before the jargon, the install snippet is the three lines you actually add, and the
+task table asks what you want to do rather than naming the FFmpeg stage. Six pages still told you
+to configure a Gradle plugin deleted in August, and the docs landing page still said nothing was
+published. Both are gone. `wasmJs` is documented as what it is, a real playback backend, with `js`
+as the placeholder.
+
+### Internal
+
+- Fuzz targets for the muxer name and the three codec-name lookups, 25 new corpus seeds.
+- A CI ratchet on how dependencies resolve: no dynamic versions, no inline coordinates, no
+  per-module repositories, no `mavenLocal`, no plain http, and a wrapper pinned by sha256.
+
 ## [0.1.0] - 2026-08-30
 
 **The project was renamed.** KiteCodec became KiteFFmpeg on 2026-08-29, because the name now says
