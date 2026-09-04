@@ -581,6 +581,38 @@ public final class io/github/yuroyami/kiteffmpeg/MediaInfo {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/MediaProbe {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;JZLjava/util/Map;Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun component3 ()J
+	public final fun component4 ()Z
+	public final fun component5 ()Ljava/util/Map;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;JZLjava/util/Map;Ljava/util/List;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/MediaProbe;Ljava/lang/String;Ljava/lang/Long;JZLjava/util/Map;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChapters ()Ljava/util/List;
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getFormatName ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getPrimaryAudio ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getPrimaryVideo ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getStartTimeMicros ()J
+	public final fun getStreams ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun isSeekable ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaProbeKt {
+	public static final fun probe (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public static final fun probe (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Ljava/lang/String;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public static synthetic fun probe$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public static synthetic fun probe$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/MediaSink : java/lang/AutoCloseable {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/MediaSink$Companion;
 	public final fun addAudioEncoder (Lio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;)Lio/github/yuroyami/kiteffmpeg/AudioEncoder;
