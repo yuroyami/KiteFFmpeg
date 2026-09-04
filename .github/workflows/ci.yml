@@ -212,7 +212,7 @@ jobs:
         run: scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
       - name: Upload build reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-macos-arm64
           path: |
@@ -320,7 +320,7 @@ jobs:
         run: ./gradlew :kiteffmpeg:wasmJsTest -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
       - name: Upload build reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-ffmpeg-identity-gate
           path: |
@@ -391,7 +391,7 @@ jobs:
         run: scripts/e2e.sh kiteffmpeg-sample/build/bin/linuxX64/debugExecutable/kiteffmpeg-sample.kexe
       - name: Upload build reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-linux-x64
           path: |
@@ -509,7 +509,7 @@ jobs:
         run: scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
       - name: Upload build reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-vendored-lgpl
           path: |
@@ -579,7 +579,7 @@ jobs:
         run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.kotlinTarget }} --stacktrace
       - name: Upload build reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-android-${{ matrix.abi }}
           path: |
@@ -740,7 +740,7 @@ jobs:
           echo "$out" | grep -q "KITECODEC_SMOKE avutil="
       - name: Upload build reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-consumer-e2e-${{ matrix.label }}
           path: |
@@ -813,7 +813,7 @@ jobs:
         run: scripts/e2e.sh kiteffmpeg-sample/build/bin/mingwX64/debugExecutable/kiteffmpeg-sample.exe ffmpeg ffprobe
       - name: Upload build reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports-windows-x64
           path: |
