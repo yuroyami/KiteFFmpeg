@@ -2,6 +2,14 @@
 
 KiteFFmpeg's own Kotlin code is **Apache-2.0**. The FFmpeg it links against is not. FFmpeg is **LGPL-2.1 or later**, or **GPL** when built with `--enable-gpl`. When you ship an app that embeds KiteFFmpeg, the FFmpeg license travels with your binary, and it carries obligations. This page is the practical guide to meeting them.
 
+The FFmpeg mark used in KiteFFmpeg's logo is separate third-party artwork, not part of the Kotlin
+code's Apache-2.0 license grant. Its official PNG source, credited vectorisation, and attribution
+are recorded in the
+[artwork credits](https://github.com/yuroyami/KiteFFmpeg/blob/main/art/CREDITS.md). Wikimedia's
+public-domain classification does not remove trademark restrictions, and the archived permission
+names the FFmpeg Project rather than downstream branding users. Obtain appropriate clearance before
+publishing KiteFFmpeg's derivative logo.
+
 !!! warning "Not legal advice"
     This page summarizes the obligations as they are commonly understood. It also explains how KiteFFmpeg's build outputs help you meet them. It is not legal advice. For a commercial product, have a lawyer review your distribution plan.
 
@@ -73,8 +81,15 @@ self-contained artifact can only bundle what cross-compiles for all eleven targe
 | dav1d | BSD-2-Clause | bundled in every published artifact; it is the software AV1 decoder |
 | zlib | zlib license | linked from the platform SDK or the system, not bundled |
 
-**Nothing else is linked.** No SVT-AV1, libvpx, libaom, libopus, libmp3lame, libwebp, FreeType,
-HarfBuzz, FriBidi or libass. An earlier "fat" desktop profile enabled most of those and was deleted
+**Nothing else is linked into the FFmpeg archives.** No SVT-AV1, libvpx, libaom, libopus,
+libmp3lame, libwebp, FreeType, HarfBuzz, FriBidi or libass.
+
+**The libass chain is a separate release.** `scripts/package-ass-chain.sh` and the "Release libass
+chain" workflow publish `ass-chain-<target>.zip` assets holding static libass (ISC), HarfBuzz (MIT),
+FreeType (FreeType License) and FriBidi (LGPL-2.1-or-later) archives, each zip carrying the four
+license texts. They are consumed by KitePlayer's `kiteplayer-libass` module, whose published
+artifacts embed them; FriBidi's LGPL terms apply to those artifacts, and their source is the tagged
+upstream checkout named in each zip's `CHAIN.txt`. An earlier "fat" desktop profile enabled most of those and was deleted
 on 2026-08-22, because it could never produce a self-contained Release asset: Homebrew ships
 graphite2 shared-only, so the result always trailed dynamic dependencies.
 

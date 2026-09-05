@@ -1,0 +1,129 @@
+# Builds the libass chain (FriBidi, FreeType, HarfBuzz, libass) as static archives for every target
+# kiteplayer-libass ships, and attaches them to a release as ass-chain-<target>.zip.
+#
+# The chain is what kiteplayer-libass embeds into its klibs and links its JNI adapters from. That
+# module finds a chain in the sibling checkout when there is one and downloads it from the release
+# named here otherwise, verifying the SHA-256 pinned in its ass-chain.sha256. A new chain build is
+# therefore two steps: run this workflow against a new tag, then re-pin in KitePlayer.
+#
+# The tag is chain-keyed (ass-chain-r1, r2, ...), not KiteFFmpeg-versioned: the zips are identical
+# across KiteFFmpeg versions, the same way the FFmpeg binaries are.
+name: Release libass chain
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to attach the chain zips to (chain-keyed, e.g. ass-chain-r1)."
+        required: true
+        default: "ass-chain-r1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-ass-chain-${{ github.event.inputs.release_tag }}
+  cancel-in-progress: false
+
+env:
+  FRIBIDI_TAG: v1.0.16
+  FREETYPE_TAG: VER-2-14-3
+  HARFBUZZ_TAG: 14.2.1
+  LIBASS_TAG: 0.17.4
+
+jobs:
+  # Android and the GNU targets cross-build from macOS too: the konan toolchains the Linux and
+  # Windows chains use are the ones Kotlin/Native itself downloads, and the Android chain uses the
+  # NDK the runner image ships. One runner family keeps the arm64 archive format question (see
+  # BuildAssChainTask's llvm-ar note) identical to the maintainer's machine.
+  chains:
+    name: ${{ matrix.target }}
+    runs-on: macos-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - macos-arm64
+          - ios-arm64
+          - ios-simulator-arm64
+          - android-arm64
+          - android-arm32
+          - android-x64
+          - linux-x64
+          - linux-arm64
+          - mingw-x64
+        include:
+          - { target: macos-arm64,          task: MacosArm64 }
+          - { target: ios-arm64,            task: IosArm64 }
+          - { target: ios-simulator-arm64,  task: IosSimulatorArm64 }
+          - { target: android-arm64,        task: AndroidArm64 }
+          - { target: android-arm32,        task: AndroidArm32 }
+          - { target: android-x64,          task: AndroidX64 }
+          - { target: linux-x64,            task: LinuxX64 }
+          - { target: linux-arm64,          task: LinuxArm64 }
+          - { target: mingw-x64,            task: MingwX64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-ass-chain-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-ass-chain-
+      - name: Install build deps
+        run: brew install meson ninja autoconf automake libtool pkg-config nasm
+      - name: Clone the chain sources
+        run: |
+          git clone --depth 1 --branch "$FRIBIDI_TAG" https://github.com/fribidi/fribidi.git vendor/fribidi
+          git clone --depth 1 --branch "$FREETYPE_TAG" https://gitlab.freedesktop.org/freetype/freetype.git vendor/freetype
+          git clone --depth 1 --branch "$HARFBUZZ_TAG" https://github.com/harfbuzz/harfbuzz.git vendor/harfbuzz
+          git clone --depth 1 --branch "$LIBASS_TAG" https://github.com/libass/libass.git vendor/libass
+      # The Linux and Windows chains compile with konan's clang and link with its sysroots, which
+      # arrive when Kotlin/Native compiles for those targets once. Cheap, and it cannot be skipped.
+      - name: Warm the Kotlin/Native toolchains the chain needs
+        if: startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'mingw')
+        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.task }} --stacktrace || true
+      - name: Build the chain
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          ./gradlew :kiteffmpeg:buildAssChainFor${{ matrix.task }} --stacktrace
+      - name: Package
+        run: bash scripts/package-ass-chain.sh ${{ matrix.target }}
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ass-chain-${{ matrix.target }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Attach to ${{ github.event.inputs.release_tag }}
+    needs: chains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Attach the chains to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la assets
+          gh release view "${{ github.event.inputs.release_tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create "${{ github.event.inputs.release_tag }}" --repo "${{ github.repository }}" \
+              --title "libass chain ${{ github.event.inputs.release_tag }}" \
+              --notes "Static libass, HarfBuzz, FreeType and FriBidi archives for kiteplayer-libass. See docs/licensing.md."
+          gh release upload "${{ github.event.inputs.release_tag }}" assets/* --repo "${{ github.repository }}" --clobber

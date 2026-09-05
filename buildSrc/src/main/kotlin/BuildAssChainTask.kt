@@ -286,9 +286,13 @@ abstract class BuildAssChainTask : DefaultTask() {
     /** CC/CXX/AR/RANLIB for autotools cross builds; empty for the host. */
     private fun toolchainEnv(target: TargetTriple, scratch: File): Map<String, String> = when (target) {
         TargetTriple.MacosArm64 -> emptyMap()
-        TargetTriple.AndroidArm64, TargetTriple.AndroidX64 -> {
+        TargetTriple.AndroidArm64, TargetTriple.AndroidArm32, TargetTriple.AndroidX64 -> {
             val bin = ndkToolchainBin()
-            val prefix = if (target == TargetTriple.AndroidArm64) "aarch64-linux-android" else "x86_64-linux-android"
+            val prefix = when (target) {
+                TargetTriple.AndroidArm64 -> "aarch64-linux-android"
+                TargetTriple.AndroidArm32 -> "armv7a-linux-androideabi"
+                else -> "x86_64-linux-android"
+            }
             val cc = bin.resolve("$prefix${BuildFFmpegTask.ANDROID_API}-clang")
             require(cc.exists()) { "NDK compiler not found: $cc" }
             // -fPIC is not optional on Android and the meson members already get it by default
@@ -333,11 +337,16 @@ abstract class BuildAssChainTask : DefaultTask() {
                 (if (target == TargetTriple.MingwX64) " -std=gnu11 -D__USE_MINGW_ANSI_STDIO=1" else "")
             val link = "-fuse-ld=lld -B${konan.toolchainBin}" +
                 (konan.runtimeDir?.let { " -B$it -L$it" } ?: "")
+            // -fPIC for the same reason Android has it: libass builds through autotools, which adds
+            // none, and the archive then refuses to enter a shared object with "relocation
+            // R_X86_64_PC32 cannot be used against symbol 'font_constructors'". kiteplayer-libass
+            // links the desktop JVM adapter, a shared library, from exactly these archives; the
+            // Kotlin/Native executables that also link them do not mind PIC code.
             mapOf(
-                "CC" to "${konan.clang} $common $link",
+                "CC" to "${konan.clang} $common $link -fPIC",
                 // The C++ half is harfbuzz's, and it reaches this env only through libass'
                 // configure; the chain's own C++ came out of the meson builds above.
-                "CXX" to "${konan.clang}++ $common $link",
+                "CXX" to "${konan.clang}++ $common $link -fPIC",
                 "AR" to if (target == TargetTriple.MingwX64) gnuArWrapper(scratch, konan.ar) else konan.ar,
                 "RANLIB" to "${konan.ar} s",
             )
@@ -348,6 +357,7 @@ abstract class BuildAssChainTask : DefaultTask() {
     private fun hostTripleFor(target: TargetTriple): String? = when (target) {
         TargetTriple.MacosArm64 -> null
         TargetTriple.AndroidArm64 -> "aarch64-linux-android"
+        TargetTriple.AndroidArm32 -> "arm-linux-androideabi"
         TargetTriple.AndroidX64 -> "x86_64-linux-android"
         TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64 -> "arm64-apple-darwin"
         TargetTriple.LinuxX64 -> "x86_64-unknown-linux-gnu"
@@ -360,9 +370,11 @@ abstract class BuildAssChainTask : DefaultTask() {
     private fun crossFileFor(target: TargetTriple, scratch: File): File? {
         val text = when (target) {
             TargetTriple.MacosArm64 -> return null
-            TargetTriple.AndroidArm64, TargetTriple.AndroidX64 -> {
+            TargetTriple.AndroidArm64, TargetTriple.AndroidArm32, TargetTriple.AndroidX64 -> {
                 val (cpuFamily, cpu, ccPrefix) = when (target) {
                     TargetTriple.AndroidArm64 -> Triple("aarch64", "aarch64", "aarch64-linux-android")
+                    // The streaming sticks and budget boxes: 32-bit ARM stays a supported ABI.
+                    TargetTriple.AndroidArm32 -> Triple("arm", "armv7a", "armv7a-linux-androideabi")
                     else -> Triple("x86_64", "x86_64", "x86_64-linux-android")
                 }
                 val bin = ndkToolchainBin()
@@ -516,7 +528,7 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
          */
         val SUPPORTED_TARGETS: Set<TargetTriple> = setOf(
             TargetTriple.MacosArm64,
-            TargetTriple.AndroidArm64, TargetTriple.AndroidX64,
+            TargetTriple.AndroidArm64, TargetTriple.AndroidArm32, TargetTriple.AndroidX64,
             TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64,
             TargetTriple.LinuxX64, TargetTriple.LinuxArm64, TargetTriple.MingwX64,
         )
