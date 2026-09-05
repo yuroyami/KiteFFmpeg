@@ -88,7 +88,7 @@ libmp3lame, libwebp, FreeType, HarfBuzz, FriBidi or libass.
 chain" workflow publish `ass-chain-<target>.zip` assets holding static libass (ISC), HarfBuzz (MIT),
 FreeType (FreeType License) and FriBidi (LGPL-2.1-or-later) archives, each zip carrying the four
 license texts. They are consumed by KitePlayer's `kiteplayer-libass` module, whose published
-artifacts embed them; FriBidi's LGPL terms apply to those artifacts, and their source is the tagged
+artifacts embed them (the web one as a `kiteass.wasm` module linked from the wasm32 chain); FriBidi's LGPL terms apply to those artifacts, and their source is the tagged
 upstream checkout named in each zip's `CHAIN.txt`. An earlier "fat" desktop profile enabled most of those and was deleted
 on 2026-08-22, because it could never produce a self-contained Release asset: Homebrew ships
 graphite2 shared-only, so the result always trailed dynamic dependencies.

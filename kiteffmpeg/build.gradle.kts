@@ -809,6 +809,14 @@ fun registerBuildAssChain(triple: TargetTriple) =
 
 io.github.yuroyami.kiteffmpeg.buildtools.BuildAssChainTask.SUPPORTED_TARGETS.forEach { registerBuildAssChain(it) }
 
+// The web chain, with emscripten. Not a TargetTriple, for the same reason the wasm FFmpeg build is
+// not one; it installs beside the konan chains so kiteplayer-libass finds it the same way.
+tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.BuildAssChainWasmTask>("buildAssChainForWasm32") {
+    sourceRefs = io.github.yuroyami.kiteffmpeg.buildtools.BuildAssChainTask.DEFAULT_SOURCE_REFS
+    vendorDir.set(rootDir.resolve("vendor"))
+    outputDir.set(rootDir.resolve("native-libs/deps/wasm32/ass-chain"))
+}
+
 TargetTriple.entries.forEach { triple ->
     // LGPL flavour for every target (the default).
     registerBuildFFmpeg(triple, FFmpegLicense.LGPL)

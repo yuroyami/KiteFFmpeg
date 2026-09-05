@@ -1,5 +1,5 @@
 # Builds the libass chain (FriBidi, FreeType, HarfBuzz, libass) as static archives for every target
-# kiteplayer-libass ships, and attaches them to a release as ass-chain-<target>.zip.
+# kiteplayer-libass ships, the web included, and attaches them to a release as ass-chain-<target>.zip.
 #
 # The chain is what kiteplayer-libass embeds into its klibs and links its JNI adapters from. That
 # module finds a chain in the sibling checkout when there is one and downloads it from the release
@@ -53,6 +53,7 @@ jobs:
           - linux-x64
           - linux-arm64
           - mingw-x64
+          - wasm32
         include:
           - { target: macos-arm64,          task: MacosArm64 }
           - { target: ios-arm64,            task: IosArm64 }
@@ -63,6 +64,7 @@ jobs:
           - { target: linux-x64,            task: LinuxX64 }
           - { target: linux-arm64,          task: LinuxArm64 }
           - { target: mingw-x64,            task: MingwX64 }
+          - { target: wasm32,               task: Wasm32 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -78,6 +80,10 @@ jobs:
             konan-ass-chain-
       - name: Install build deps
         run: brew install meson ninja autoconf automake libtool pkg-config nasm
+      # The web chain compiles with emscripten; the konan targets never touch it.
+      - name: Install emscripten
+        if: matrix.target == 'wasm32'
+        run: brew install emscripten
       - name: Clone the chain sources
         run: |
           git clone --depth 1 --branch "$FRIBIDI_TAG" https://github.com/fribidi/fribidi.git vendor/fribidi

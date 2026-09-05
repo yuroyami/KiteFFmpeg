@@ -522,9 +522,8 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
          * `:kiteffmpeg` may register a `buildAssChainFor<Target>` task for. One list, read by
          * both the registration and the refusals, so the two can never disagree.
          *
-         * wasm32 is absent because it is not a [TargetTriple]. Android is PRESENT here and still
-         * absent from `:kiteplayer-libass`: this task produces the chain, and consuming it from
-         * Android additionally needs a JNI bridge that does not exist yet.
+         * wasm32 is absent because it is not a [TargetTriple]; [BuildAssChainWasmTask] builds it
+         * with emscripten into the same deps layout.
          */
         val SUPPORTED_TARGETS: Set<TargetTriple> = setOf(
             TargetTriple.MacosArm64,
