@@ -1,5 +1,9 @@
 # KiteFFmpeg
 
+<p align="center">
+  <img src="art/final/kiteffmpeg-logo.svg" width="180" alt="KiteFFmpeg logo">
+</p>
+
 Video and audio for Kotlin Multiplatform. Open a media file, change it, save it.
 
 Things people build with it:
@@ -252,6 +256,13 @@ Apache-2.0. See [NOTICE](NOTICE) and [CHANGELOG.md](CHANGELOG.md).
 
 Not affiliated with the FFmpeg project. FFmpeg is a trademark of Fabrice Bellard; this is an
 independent Kotlin binding that links FFmpeg's LGPL libraries.
+
+The logo shares KitePlayer's wind-loaded outer sail and presses the graphic portion of the FFmpeg
+mark into it as a pale membrane window. The official source PNG is stored unmodified; the crisp
+inlay uses a credited Wikimedia vectorisation of Hervé Flores's artwork. Sources, checksums,
+trademark notice, and the publication caveat are recorded in [the artwork credits](art/CREDITS.md).
+The composition is independent, not official FFmpeg artwork, and is not covered by KiteFFmpeg's
+Apache-2.0 license grant. Obtain appropriate clearance before publishing it as project branding.
 
 Part of the Kite family: [KiteCore](https://github.com/yuroyami/KiteCore),
 [KitePDF](https://github.com/yuroyami/KitePDF),

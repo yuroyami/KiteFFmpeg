@@ -15,9 +15,10 @@ docs_dir: docs
 theme:
   name: material
   language: en
+  logo: assets/kiteffmpeg-icon.svg
+  favicon: assets/favicon.png
   icon:
     repo: fontawesome/brands/github
-    logo: material/movie-open-play
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

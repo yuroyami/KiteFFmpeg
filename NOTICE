@@ -6,6 +6,27 @@ This product includes software developed as part of the KiteFFmpeg project
 Version 2.0. See LICENSE.
 
 --------------------------------------------------------------------------------
+FFmpeg artwork and trademark
+--------------------------------------------------------------------------------
+
+KiteFFmpeg stores an unmodified copy of the white FFmpeg mark published in the
+official FFmpeg website repository and a normalized copy of the logo
+vectorisation hosted by Wikimedia Commons. The independently designed logo uses
+the graphic-only vector silhouette as a pale membrane window inside the shared
+KitePlayer outer sail. The resulting composition is not official FFmpeg
+artwork. The original artwork is credited to illustrator Hervé Flores; the
+vectorisation is credited to Vulphere and VulcanSphere. The derivative
+references KiteFFmpeg's FFmpeg dependency as part of KiteFFmpeg's own library
+branding. FFmpeg is a trademark of Fabrice Bellard. KiteFFmpeg is not endorsed
+by, sponsored by, or affiliated with the FFmpeg project or Fabrice Bellard.
+
+The mark is third-party material and is not covered by KiteFFmpeg's Apache-2.0
+license grant. Wikimedia classifies its vectorisation as public-domain simple
+geometry but separately flags trademark restrictions; the archived
+correspondence grants rights to the FFmpeg Project, not clearly to downstream
+branding users. Its exact sources and publication caveat are in art/CREDITS.md.
+
+--------------------------------------------------------------------------------
 FFmpeg
 --------------------------------------------------------------------------------
 
