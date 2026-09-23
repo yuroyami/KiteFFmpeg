@@ -13,7 +13,12 @@
 
 jlong kj_handle_put_checked(JNIEnv *env, int kind, void *ptr)
 {
-    jlong token = kj_handle_put(kind, ptr);
+    jlong token;
+    /* A token minted while an exception is pending never reaches Kotlin: the JVM throws and drops
+     * the return value, so the object the token names would leak. Refusing sends the caller down
+     * its "no token" path, which frees that object. */
+    if ((*env)->ExceptionCheck(env)) return 0;
+    token = kj_handle_put(kind, ptr);
     if (ptr != NULL && token == 0) {
         kj_throw_handle(env, "native handle table is full");
     }
@@ -23,6 +28,9 @@ jlong kj_handle_put_checked(JNIEnv *env, int kind, void *ptr)
 jlong kj_handle_put_borrowed(JNIEnv *env, int kind, void *ptr, jlong parent_token)
 {
     jlong token;
+    /* The same refusal: a borrowed token nobody receives holds a table slot until its parent
+     * closes. */
+    if ((*env)->ExceptionCheck(env)) return 0;
     if (ptr == NULL || parent_token == 0) {
         kj_throw_handle(env, "cannot mint a borrowed handle without an object and a live parent");
         return 0;

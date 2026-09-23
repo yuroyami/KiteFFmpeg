@@ -37,7 +37,7 @@ metadata accessors. The current symbol set is
 | `scripts/symbol-audit.sh` | Proves what the compiled archive needs, exports and keeps private, and checks all 210 normalized public C declaration records. |
 | `scripts/check-deleted-surface.sh` | Proves nothing in either repository refers to a helper whose status is deleted. |
 | `deleted-surface.txt` | The deleted helper surface: 15 names, one status each. The single copy of the list, and the file to edit when a plan item resurrects one. |
-| `scripts/run-c-tests.sh` | Runs the seven suites for one variant, or in the `interpose` mode: the plain binaries with allocation accounting REQUIRED, so a blinded interposer fails instead of recording partials. |
+| `scripts/run-c-tests.sh` | Runs every suite for one variant, or in the `interpose` mode: the plain binaries with allocation accounting REQUIRED, so a blinded interposer fails instead of recording partials. |
 | `scripts/klib-metadata-diff.sh` | The compatibility instrument for the `ffmpeg` cinterop klib, added by B1.3. |
 | `scripts/replay-corpus.sh` | Replays every committed fuzz seed through the replay driver under ASan and UBSan. Added by B1.5. |
 | `scripts/run-fuzz.sh` | Runs the six libFuzzer targets. Refuses with one sentence on a host whose clang has no fuzzer runtime, which is every clang here. |
@@ -50,8 +50,8 @@ metadata accessors. The current symbol set is
 | `fuzz/README.md` | What is fuzzed, what is deliberately not, and what B8 inherits. |
 | `tests/harness.h`, `tests/harness.c` | The assertion and reporting API every suite uses. |
 | `tests/interpose_alloc.c` | The allocation interposer, the local leak instrument. |
-| `tests/test_*.c` | The seven suites of plan section 15.3 and S1.a.7. |
-| `tests/fake_headers/` | Five doctored identity shim trees and the symbol renamer they share; those same byte-identical source copies exercise the Android attach arm. |
+| `tests/test_*.c` | The suites, one binary each. Both scripts read the list from this directory, so adding a file adds a suite. |
+| `tests/fake_headers/` | Five doctored identity shim trees and the symbol renamer they share; those same byte-identical source copies exercise the Android attach arm. `jni/` holds a stand-in `jni.h` for `test_jni_bridge`, which compiles the Java bridge units without a JDK. |
 | `coupling-baseline.txt` | The Kotlin to FFmpeg coupling ratchet's baseline, added by B1.1. |
 | `build/` | Output. Gitignored. |
 

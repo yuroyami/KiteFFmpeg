@@ -54,6 +54,10 @@ int kj_ints_dup(JNIEnv *env, jintArray values, int **out, int32_t *out_len);
  * kj_handle_get resolves or throws: on a zero, stale, closed or wrong-kind token it throws the
  *   bridge's typed exception on env and returns NULL, and the caller must return immediately
  *   because the pending exception IS the result. Use kj_handle_peek when silence is wanted instead.
+ *
+ * Both mint functions mint nothing and return 0 while a Java exception is pending, because the JVM
+ * drops a native method's return value when it throws, and the token would be lost with it. Every
+ * caller already frees the object it was about to hand over when it gets 0.
  */
 jlong kj_handle_put_checked(JNIEnv *env, int kind, void *ptr);
 jlong kj_handle_put_borrowed(JNIEnv *env, int kind, void *ptr, jlong parent);

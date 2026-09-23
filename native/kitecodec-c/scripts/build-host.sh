@@ -155,9 +155,9 @@ compile() {
     shift 2
     echo "  cc  $(basename "$source")"
     # shellcheck disable=SC2086
-    # kitecodec-jni is on the include path for ONE reason: test_append covers kj_append.h, the
-    # JNI layer's bounded string builder. That header carries no jni.h, so it compiles
-    # here, and the JNI tree has no C test rig of its own to put the suite in.
+    # kitecodec-jni is on the include path for two suites. test_append covers kj_append.h, the
+    # JNI layer's bounded string builder, which carries no jni.h. test_jni_bridge compiles the
+    # bridge units themselves, against the stand-in jni.h that step 5 adds for it alone.
     #
     # kitecodec-handles is there for the same shape of reason: test_handles compiles kc_handles.c
     # INTO itself, because the generation wrap it covers is only reachable by setting the slot
@@ -252,7 +252,13 @@ for test in $TESTS; do
         echo "build-host.sh: missing test source $source" >&2
         exit 1
     }
-    compile "$source" "$OBJ/$test.o"
+    if [ "$test" = "test_jni_bridge" ]; then
+        # The bridge units include <jni.h>. This suite gets the stand-in under
+        # tests/fake_headers/jni instead of a JDK, so the C gate needs no Java install.
+        compile "$source" "$OBJ/$test.o" -I "$ROOT/tests/fake_headers/jni"
+    else
+        compile "$source" "$OBJ/$test.o"
+    fi
     extra=""
     [ "$test" = "test_identity" ] && extra="$IDENTITY_OBJECTS"
     echo "  ld  $test"
