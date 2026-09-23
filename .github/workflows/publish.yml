@@ -29,6 +29,12 @@
 # variants. JS/WasmJs are invariant unsupported placeholders. The publish guard in
 # kiteffmpeg/build.gradle.kts hard-fails if any configured native target is missing its
 # FFmpeg tree, which is why the fetch step must cover all 11.
+#
+# BILL OF MATERIALS. Before the upload, the run writes an SPDX document of the FFmpeg and dav1d
+# that the artifacts embed (scripts/native-sbom.sh), from the archives the fetch step kept, and
+# keeps it as the native-sbom-<version> artifact of the run. Attach that file to the GitHub
+# release page. A digest, a version or a patch that does not match stops the run before the
+# upload. A publish from the maintainer's machine gets no document; run the script by hand there.
 name: Publish release
 
 on:
@@ -105,7 +111,8 @@ jobs:
       # The publish guard requires an FFmpeg tree for EVERY configured target, and cinterop
       # EMBEDS these archives into the published klibs. Fetch this repo's own prebuilt
       # LGPL assets from the release tag being published and unpack into the exact layout
-      # FFmpegPaths.resolve() expects: native-libs/<license>/<triple>/{include,lib}.
+      # FFmpegPaths.resolve() expects: native-libs/<license>/<triple>/{include,lib}. The archives
+      # and their .sha256 files stay in build/prebuilt-ffmpeg for the bill of materials.
       - name: Fetch prebuilt FFmpeg (all 11 triples, lgpl, dav1d inside)
         run: |
           set -euo pipefail
@@ -114,18 +121,29 @@ jobs:
           # release holds them and every KiteFFmpeg version fetches from it. Storing a copy per
           # version release cost 127 MB each for nothing (owner call, 2026-08-22).
           base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
+          kept=build/prebuilt-ffmpeg
+          mkdir -p "${kept}"
           for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
                         linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
             asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
             echo "fetching ${asset}"
-            curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-            curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-            shasum -a 256 -c "${asset}.sha256"
+            curl -fL --retry 3 -o "${kept}/${asset}" "${base}/${asset}"
+            curl -fL --retry 3 -o "${kept}/${asset}.sha256" "${base}/${asset}.sha256"
+            (cd "${kept}" && shasum -a 256 -c "${asset}.sha256")
             mkdir -p "native-libs/lgpl/${triple}"
-            unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
+            unzip -q "${kept}/${asset}" -d "native-libs/lgpl/${triple}"
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
-            rm -f "${asset}" "${asset}.sha256"
           done
+      # Written from the archives the step above kept, and before anything is built or uploaded,
+      # so a refusal stops the run early.
+      - name: Bill of materials for the embedded FFmpeg and dav1d
+        run: ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg
+      - name: Keep the bill of materials
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-sbom-${{ inputs.version }}
+          path: build/sbom/
+          if-no-files-found: error
       # The C helper tasks compile with konan's own LLVM, which only lands in
       # ~/.konan/dependencies once a Kotlin/Native compile has run; on a fresh runner the C task
       # can race it and die with "No LLVM package with a usable clang", measured on this

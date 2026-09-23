@@ -47,10 +47,13 @@ that ships these artifacts must give its users the LGPL notice and keep that
 source available; that release asset satisfies the source half.
 
 The binaries this project builds (its GitHub Release assets, and the trees its
-build tasks produce) are built from unmodified FFmpeg release sources at the
-version pinned in gradle.properties, configured WITHOUT --enable-gpl and without
-any GPL-only component. They are covered by the GNU Lesser General Public License,
-version 2.1 or later.
+build tasks produce) are built from FFmpeg release sources at the version that
+FFMPEG_VERSION names in .github/workflows/publish.yml, with the patches under
+native/patches/ffmpeg applied, configured WITHOUT --enable-gpl and without any
+GPL-only component. They are covered by the GNU Lesser General Public License,
+version 2.1 or later. Each publish run writes an SPDX bill of materials that names
+the FFmpeg and dav1d versions, the patches and the digest of every prebuilt
+archive (scripts/native-sbom.sh).
 
   FFmpeg          https://ffmpeg.org
   LGPL v2.1       https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
