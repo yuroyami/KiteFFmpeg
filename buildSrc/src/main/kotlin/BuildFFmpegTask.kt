@@ -772,9 +772,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             "--enable-zlib",
         ) +
             (cpu?.let { listOf("--cpu=$it") } ?: emptyList()) +
-            // x86_64 inline asm needs nasm in the env; arm32 asm is fragile with clang. Keep
-            // arm64 asm (it matters for sw decode speed), disable elsewhere.
-            (if (target != TargetTriple.AndroidArm64) listOf("--disable-asm") else emptyList())
+            // Assembly is what makes software decode fast, and --disable-asm also turns off every
+            // SIMD extension. x86_64 assembles with nasm, the same nasm the dav1d build already
+            // needs; without it the emulator tree carried no SIMD at all, so an emulator run
+            // measured a build nobody ships. arm32 asm is fragile with clang, so arm32 opts out.
+            (if (target == TargetTriple.AndroidArm32) listOf("--disable-asm") else emptyList())
     }
 
     private fun ndkToolchainBin(): File {

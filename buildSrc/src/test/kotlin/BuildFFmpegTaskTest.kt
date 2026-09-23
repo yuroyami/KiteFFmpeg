@@ -172,7 +172,7 @@ class BuildFFmpegTaskTest {
                     toolchainBin = toolchainBin.toString(),
                     arch = "x86_64",
                     compilerPrefix = "x86_64-linux-android",
-                    suffix = listOf("--disable-asm"),
+                    suffix = emptyList(),
                     installPrefix = "/scratch/install-x64",
                 ),
                 x64,
@@ -284,6 +284,25 @@ class BuildFFmpegTaskTest {
             )
             assertFalse("--disable-asm" in args, "$target must build with aarch64 asm")
             assertTrue("--enable-audiotoolbox" in args, "$target must request AudioToolbox")
+        }
+
+        // The Android emulator ABI assembles with nasm, the same nasm the dav1d build needs. With
+        // --disable-asm its tree carried no SIMD at all, so every emulator run measured a build
+        // nobody ships.
+        val emulatorRoot = Files.createTempDirectory("kiteffmpeg-android-x64-asm-test")
+        try {
+            val toolchainBin = emulatorRoot.resolve("bin").createDirectories()
+            toolchainBin.resolve("x86_64-linux-android24-clang").createFile()
+            val emulator = task.configureArguments(
+                target = TargetTriple.AndroidX64,
+                license = FFmpegLicense.LGPL,
+                installPrefix = "/scratch/install",
+                dav1dRoot = java.io.File("/stub/dav1d"),
+                ndkToolchainBin = { toolchainBin.toFile() },
+            )
+            assertFalse("--disable-asm" in emulator, "AndroidX64 must build with x86_64 asm")
+        } finally {
+            emulatorRoot.toFile().deleteRecursively()
         }
 
         // IosX64 keeps the opt-out, and keeps it for the stated nasm reason.
