@@ -128,6 +128,27 @@ class WebDecodeOwnershipTest {
         }
     }
 
+    @Test
+    fun aClosedFrameRefusesEveryReadWithIllegalStateException() = runTest {
+        // The JVM, Android and native frames throw IllegalStateException here, and the shared
+        // contract suite expects that type. The web frame threw FFmpegException, which a catch
+        // clause for IllegalStateException does not catch.
+        val module = fakeDecodeCodecModule()
+        val source = openSource(module, "g")
+        try {
+            val frame = source.decodeStreams(listOf(source.streams[0])).toList().single()
+            frame.close()
+
+            assertFailsWith<IllegalStateException> { frame.info }
+            assertFailsWith<IllegalStateException> { frame.copyPlanesToByteArray() }
+            assertFailsWith<IllegalStateException> { frame.copy() }
+            // Closing twice stays a no-op rather than a second refusal.
+            frame.close()
+        } finally {
+            source.close()
+        }
+    }
+
     /** The smallest byte source `MediaSource.open` accepts; the fake demuxer ignores its content. */
     private class OneByteSource : MediaByteSource {
         override val size: Long = 1L

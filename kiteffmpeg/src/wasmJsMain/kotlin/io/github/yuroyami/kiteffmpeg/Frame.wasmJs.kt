@@ -36,8 +36,11 @@ public actual class Frame internal constructor(
     private val timeBase: Rational,
 ) : AutoCloseable {
 
-    private fun alive(): Int =
-        if (pointer != 0) pointer else throw FFmpegException(FFmpegError.Internal("this frame is closed"))
+    /** A closed frame throws IllegalStateException here, as it does on the JVM, Android and native. */
+    private fun alive(): Int {
+        check(pointer != 0) { "Frame is closed, its native buffers are gone" }
+        return pointer
+    }
 
     public actual val info: FrameInfo
         get() {
