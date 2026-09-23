@@ -76,6 +76,8 @@ Two practical consequences:
 - **Cancellation is prompt but not instantaneous.** A decode/encode step that is already inside a native call finishes that call first; the loop then observes cancellation before the next one.
 - **A canceled transcode leaves a truncated output file.** The trailer is only written by a clean `MediaSink.close()` / a completed `transcode`, so treat the output of a canceled run as garbage and delete it.
 
+`Transcoder.transcode` runs its work on its own dispatcher, `Dispatchers.IO` unless you pass another, so the thread you call it from stays free, and a cancel sent from that same thread reaches it. Its `onProgress` callback runs in your coroutine context. The other entry points run on the dispatcher you call them from, so call them from a background dispatcher yourself. [Transcoding](transcoding.md#threads-and-cancellation) has the details.
+
 ```kotlin
 val job = launch {
     Transcoder.transcode(input = "in.mp4", output = "out.mp4", spec = spec)

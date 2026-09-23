@@ -36,7 +36,7 @@ output as they are produced. There is no `ffmpeg` subprocess. Kotlin/Native reac
 helpers through cinterop; JVM and Android actuals reach them through JNI. Memory stays constant
 regardless of how long the input is.
 
-`transcode` is a `suspend fun`, so call it from a coroutine. It suspends until the whole file is written, and it honors cancellation at the demux loop.
+`transcode` is a `suspend fun`, so call it from a coroutine. It suspends until the whole file is written. The work itself runs on a dispatcher for blocking work, not on the caller's, so calling it from a UI thread does not freeze that thread. See [Threads and cancellation](#threads-and-cancellation).
 
 !!! note "Requires FFmpeg present at link time"
     KiteFFmpeg binds to FFmpeg's libav\* libraries. The library is consumed by building from source today; install FFmpeg first (`brew install ffmpeg` on macOS, `apt install` on Linux) or use a vendored static build. See [Platform support](platforms.md) for what runs where.
@@ -59,6 +59,7 @@ suspend fun transcode(
     startMicros: Long = 0L,
     endMicros: Long = Long.MAX_VALUE,
     metadata: Map<String, String> = emptyMap(),
+    dispatcher: CoroutineDispatcher? = null,
     onProgress: ((TranscodeProgress) -> Unit)? = null,
 )
 ```
@@ -77,7 +78,8 @@ suspend fun transcode(
 | `startMicros` | `0L` | Trim start, in microseconds. |
 | `endMicros` | `Long.MAX_VALUE` | Trim end, in microseconds. The default means no upper bound. |
 | `metadata` | `emptyMap()` | Container tags written into the output header. |
-| `onProgress` | `null` | Progress callback, fired periodically during the run. |
+| `dispatcher` | `null` | Where the blocking work runs. `null` means `Dispatchers.IO`. |
+| `onProgress` | `null` | Progress callback, fired periodically during the run, in the caller's own coroutine context. |
 
 ## Video encoding
 
@@ -332,6 +334,21 @@ Transcoder.transcode(
 | `percent` | `Double?` | Progress from 0.0 to 1.0 against the trim window, or `null` when the input duration is unknown. |
 
 The callback fires roughly every 30 encoded video frames, or roughly every 100 frames for audio-only runs. It is for UI updates and logging, not for exact frame accounting.
+
+## Threads and cancellation
+
+A transcode is long, blocking work: every step, from reading the input to writing the output, is a call into FFmpeg that holds its thread until it returns. `transcode` therefore runs that work on `dispatcher`, which is `Dispatchers.IO` unless you pass another one, and suspends the caller until it is done. The caller's own dispatcher stays free, so a transcode started from a UI thread or a single-threaded dispatcher does not stop anything else that runs there.
+
+```kotlin
+// Cap the transcodes that run at the same time, on a pool of your own.
+val transcodes = Dispatchers.IO.limitedParallelism(2)
+
+Transcoder.transcode(input, output, spec = videoSpec, dispatcher = transcodes)
+```
+
+`onProgress` still runs in the caller's coroutine context, not on `dispatcher`, so a UI caller can update its views from it directly. The reports reach the caller as it becomes free to take them. When it is busy, older reports are skipped and only the newest is delivered, and the last one arrives before `transcode` returns.
+
+Cancelling the coroutine that called `transcode` stops the work within one packet of the input. `transcode` then throws `CancellationException`, but only after the work has stopped and every decoder, encoder, filter graph and file it opened is closed. The output file of a cancelled transcode is truncated, so delete it. A read that blocks inside FFmpeg itself, such as a network input that stops sending, is not interrupted by the cancellation; it ends when the read returns.
 
 ## Error handling
 
