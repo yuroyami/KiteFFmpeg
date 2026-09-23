@@ -25,10 +25,10 @@
 # Android NDK targets get compile checks: each ABI builds its (self-contained, cached) LGPL
 # FFmpeg and compiles the klib.
 #
-# Not covered (yet): iosArm64 and iosSimulatorArm64 LGPL are locally buildable with the standard
-# software-playback profile, but this workflow has no job for either and makes no CI claim for
-# them. iosX64 remains unqualified, and there are no iOS GPL build tasks. linuxArm64 needs an arm64
-# runner with K/N host support; macosX64 is deprecated by Kotlin 2.3.20.
+# Not covered (yet): no job runs the tests of iosArm64, iosSimulatorArm64, iosX64, linuxArm64 or
+# macosX64. The ratchets job compiles their klibs for the public API check, which is a compile
+# claim only. There are no iOS GPL build tasks. linuxArm64 needs an arm64 runner with K/N host
+# support; macosX64 is deprecated by Kotlin 2.3.20.
 name: CI
 
 on:
@@ -141,21 +141,40 @@ jobs:
       # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
       # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
       # below reports the real result.
+      #
+      # No target flag: every native target is registered, so the download covers every sysroot
+      # that the public API check compiles against. --continue lets the download finish when the
+      # macOS C helper task loses the race above.
       - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
+        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 --continue --stacktrace || true
+      # The public API check compiles the klib of every native target, so each one needs an FFmpeg
+      # tree. The other ten come from this repository's prebuilt release, checksum verified, as in
+      # publish.yml. macos-arm64 is not fetched: this job built it above, and the ratchets read it.
+      - name: Fetch the prebuilt static FFmpeg for the other ten native targets
+        run: |
+          set -euo pipefail
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
+          for triple in macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
+                        linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
+            asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
+            curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
+            curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
+            shasum -a 256 -c "${asset}.sha256"
+            mkdir -p "native-libs/lgpl/${triple}"
+            unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
+            test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
+            rm -f "${asset}" "${asset}.sha256"
+          done
       # The two ratchets. apiCheck compares kiteffmpeg's klib against the committed dump in
       # kiteffmpeg/api, so a public API change fails here instead of shipping.
       # checkCinteropCoupling recounts the Kotlin-to-FFmpeg coupling and fails when it grew.
       #
-      # -Pkiteffmpeg.hostTargetsOnly=true is load bearing, not cosmetic: this runner builds a tree for
-      # macos-arm64 only, so no FFmpeg resolves for the other ten registered targets, their ffmpeg
-      # cinterop is skipped, and compileKotlin<Target> then fails on unresolved `ffmpeg` references.
-      # The committed dump is therefore a macosArm64 dump, and apiCheck has to be scoped the same
-      # way it was produced. This pairing came apart once: the dump was regenerated WITHOUT the flag,
-      # so it listed thirteen targets while the gate could only present three, and apiCheck failed on
-      # the target header alone for days without guarding anything (fixed
-      # 2026-08-23). If you re-dump, re-dump with this flag. Widening it to every target needs an
-      # FFmpeg tree per target in CI.
+      # The committed dump covers all thirteen klib targets, and apiCheck runs with the flag that
+      # wrote it. -Pkiteffmpeg.requireAllTargets=true turns a missing FFmpeg tree into a
+      # configuration failure that names the target, instead of a skipped target. A narrower scope,
+      # such as -Pkiteffmpeg.hostTargetsOnly=true, presents three targets and fails on the dump's
+      # target lines alone. Re-dump with the same flag:
+      #   ./gradlew :kiteffmpeg:apiDump -Pkiteffmpeg.requireAllTargets=true
       # check-deleted-surface.sh joined this step at the interlude: it needs no build
       # output, only the tree, and it holds the fifteen deleted ffkmp_ names dead in both
       # repositories. Here it can only scan this one; KitePlayer got its own CI on 2026-08-24 and
@@ -174,7 +193,7 @@ jobs:
       # needs no build output either, so it sits with the other cheap gates.
       - name: Public API baseline + coupling + deleted surface + wasm mirror + dependency hygiene
         run: |
-          ./gradlew :kiteffmpeg:apiCheck -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+          ./gradlew :kiteffmpeg:apiCheck -Pkiteffmpeg.requireAllTargets=true --stacktrace
           ./gradlew checkCinteropCoupling --stacktrace
           ./gradlew :kiteffmpeg:checkWasmBindingMirror --stacktrace
           ./gradlew checkReleaseTargetMirror --stacktrace

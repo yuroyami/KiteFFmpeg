@@ -19,8 +19,10 @@ These are not style preferences. Each one exists because ignoring it cost someon
   Gradle bump. C or shader source we author ourselves is fine.
 - **A design act is its own commit.** Deciding a public API shape and executing it never happen
   in the same commit.
-- **Public API changes run `./gradlew apiDump -Pkiteffmpeg.hostTargetsOnly=true` in the same
-  commit**, and every new public declaration carries KDoc. Explicit API mode is on.
+- **Public API changes run `./gradlew :kiteffmpeg:apiDump -Pkiteffmpeg.requireAllTargets=true`
+  in the same commit**, and every new public declaration carries KDoc. Explicit API mode is on.
+  The dump covers every klib target, so the run needs all eleven native FFmpeg trees; see
+  [Binary compatibility](#binary-compatibility).
 - **When the tree contradicts an issue or a document, stop and say so.** Do not improvise the
   document back into truth.
 
@@ -98,8 +100,9 @@ FFmpeg tree baked from a different recipe than the checkout describes.
 
 **Tier 2, roughly 10 to 15 minutes.** Selected by any of: files under `native/` or `buildSrc/`,
 `kiteffmpeg-gradle-plugin/src/`, any `.def` file, any `build.gradle.kts`, any version catalog,
-or any Kotlin under a platform source set. Contents: Tier 1, plus host cinterop and `apiCheck`
-(both need `-Pkiteffmpeg.hostTargetsOnly=true` on a machine with one FFmpeg tree), the build
+or any Kotlin under a platform source set. Contents: Tier 1, plus host cinterop (with
+`-Pkiteffmpeg.hostTargetsOnly=true` on a machine with one FFmpeg tree), `apiCheck` (with
+`-Pkiteffmpeg.requireAllTargets=true`, see [Binary compatibility](#binary-compatibility)), the build
 logic and plugin tests, the sanitizer and interpose C runs, corpus replay, the symbol check,
 the klib metadata diff, the host target's test task, `jvmTest`, and `./scripts/linux-tests.sh`.
 
@@ -126,7 +129,18 @@ anything: run `build-host.sh <variant>` first or you are testing yesterday's bin
 
 ## Binary compatibility
 
-The build wires [kotlinx binary-compatibility-validator](https://github.com/Kotlin/binary-compatibility-validator) in klib mode. `./gradlew apiDump` regenerates the ABI baseline, but it compiles **every** native target's klib, so it needs FFmpeg present for all of them (vendored builds under `native-libs/`), in practice it runs on the release CI machine, not a laptop with only Homebrew FFmpeg. API-breaking changes must be intentional and called out in `CHANGELOG.md`.
+The build wires [kotlinx binary-compatibility-validator](https://github.com/Kotlin/binary-compatibility-validator) in klib mode. The committed dump, `kiteffmpeg/api/kiteffmpeg.klib.api`, covers all thirteen klib targets: the eleven native targets, `js` and `wasmJs`. The ratchets job in `.github/workflows/ci.yml` checks it with the same flag that writes it.
+
+Do not dump with `-Pkiteffmpeg.hostTargetsOnly=true`. That scope presents three targets, so it writes a three-target dump, and CI then fails on the target lines alone. Check and dump like this:
+
+```bash
+./gradlew :kiteffmpeg:apiCheck -Pkiteffmpeg.requireAllTargets=true
+./gradlew :kiteffmpeg:apiDump -Pkiteffmpeg.requireAllTargets=true
+```
+
+Both commands compile the klib of every native target, so they need an FFmpeg tree in `native-libs/lgpl/<triple>/` for each of the eleven triples. A macOS host can compile all of them. The prebuilt trees are assets of the release that `FFMPEG_ASSET_TAG` names in the workflows, and the ratchets job shows how to fetch and verify them. When a tree is missing, the flag stops the build during configuration and names the target. Only the host's own target can use a system FFmpeg instead.
+
+API-breaking changes must be intentional and called out in `CHANGELOG.md`.
 
 ## Reporting issues
 
