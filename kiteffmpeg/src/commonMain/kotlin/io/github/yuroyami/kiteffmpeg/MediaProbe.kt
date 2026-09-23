@@ -32,9 +32,13 @@ public data class MediaProbe(
     val chapters: List<Chapter>,
     val streams: List<StreamInfo>,
 ) {
-    /** The first video stream that is not cover art, which is what a thumbnail or a size wants. */
+    /**
+     * The first video stream that is not cover art, which is what a thumbnail or a size wants. A file
+     * whose only video is its cover art returns that picture, as [MediaSource.primaryVideo] does.
+     */
     public val primaryVideo: StreamInfo?
-        get() = streams.firstOrNull { it.type == MediaType.Video }
+        get() = streams.firstOrNull { it.type == MediaType.Video && !it.disposition.attachedPicture }
+            ?: streams.firstOrNull { it.type == MediaType.Video }
 
     /** The first audio stream, which is what a duration or a language usually means. */
     public val primaryAudio: StreamInfo?

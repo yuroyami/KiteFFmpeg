@@ -208,4 +208,31 @@ class WebContainerModelTest {
         }
     }
 
+    @Test
+    fun coverArtListedFirstIsNotThePrimaryVideo() {
+        useCodecModule(fakeCoverArtCodecModule(realVideoFollows = true))
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            assertTrue(source.streams[0].disposition.attachedPicture, "the fake must list the cover art first")
+            assertEquals(MediaType.Video, source.streams[1].type, "the fake must carry a real video second")
+            // The JVM and native backends skip cover art here. The web took the first video stream.
+            assertEquals(1, source.primaryVideo?.index, "the cover art must not be the primary video")
+        }
+    }
+
+    @Test
+    fun aProbeOfAFileWithCoverArtFirstNamesTheRealVideo() {
+        useCodecModule(fakeCoverArtCodecModule(realVideoFollows = true))
+        val probe = MediaSource.probe(OneByteSource())
+        assertEquals(1, probe.primaryVideo?.index, "the probe must skip the cover art too")
+    }
+
+    @Test
+    fun coverArtIsThePrimaryVideoWhenNothingElseIsVideo() {
+        useCodecModule(fakeCoverArtCodecModule(realVideoFollows = false))
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            // A picture beats nothing, as on the other backends.
+            assertEquals(0, source.primaryVideo?.index)
+        }
+    }
+
 }

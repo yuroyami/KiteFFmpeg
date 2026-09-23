@@ -58,6 +58,10 @@ public expect class MediaSource : AutoCloseable {
      */
     public val isSeekable: Boolean
 
+    /**
+     * The first video stream that is not cover art ([Disposition.attachedPicture]). A file whose
+     * only video is its cover art returns that picture rather than null.
+     */
     public val primaryVideo: StreamInfo?
     public val primaryAudio: StreamInfo?
 

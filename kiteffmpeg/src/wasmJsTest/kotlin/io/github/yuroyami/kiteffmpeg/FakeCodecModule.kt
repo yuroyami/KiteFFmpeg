@@ -562,6 +562,11 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         m._ffkmp_codecpar_field_order = () => 2;
         m._ffkmp_fmt_bit_rate = () => 3141592n;
         m._ffkmp_codecpar_ch_layout_mask = () => 3n;
+        // The rest of what a probe reads: the demuxer's name, a duration and seekability.
+        const formatName = cstr("matroska,webm");
+        m._ffkmp_fmt_iformat_name = () => formatName;
+        m._ffkmp_fmt_duration = () => 2000000n;
+        m._ffkmp_fmt_is_seekable = () => 1;
 
         // The subtitle-only base fake never needed a pixel format; the video branch reads one and
         // then asks for its name.
@@ -617,3 +622,26 @@ internal external fun setFakeColorDeclared(module: JsAny, declared: Boolean)
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, v) => m.__setVideoIsVp9(v)")
 internal external fun setFakeVideoIsVp9(module: JsAny, vp9: Boolean)
+
+/**
+ * The model fake with its stream 0 marked as the container's cover art.
+ *
+ * With [realVideoFollows], stream 1 is an ordinary video stream, which is the file whose cover art
+ * comes before its video. Without it, stream 1 stays the model fake's attachment, so the cover art
+ * is the only video stream.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun fakeCoverArtCodecModule(realVideoFollows: Boolean): JsAny =
+    installFakeCoverArtSurface(fakeModelCodecModule(), realVideoFollows)
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m, realVideoFollows) => {
+        const STREAM = 0x600;
+        // The real AV_DISPOSITION_ATTACHED_PIC and AV_DISPOSITION_DEFAULT bits.
+        m._ffkmp_stream_disposition = (stream) => stream === STREAM ? 1024 : 1;
+        if (realVideoFollows) m._ffkmp_codecpar_codec_type = () => 0;
+        return m;
+    }""",
+)
+private external fun installFakeCoverArtSurface(module: JsAny, realVideoFollows: Boolean): JsAny

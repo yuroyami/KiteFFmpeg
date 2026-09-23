@@ -109,3 +109,46 @@ class ColorGuessTest {
         assertTrue(ColorInfo.guessFor(-1080).isUnspecified, "a negative height is not high definition")
     }
 }
+
+/** A probe picks its primary video by the same rule as an open source on every backend. */
+class MediaProbePrimaryVideoTest {
+
+    private fun video(index: Int, coverArt: Boolean) = StreamInfo(
+        index = index,
+        type = MediaType.Video,
+        codec = CodecId(if (coverArt) "mjpeg" else "h264"),
+        timeBase = Rational(1, 1000),
+        durationMicros = null,
+        bitrateBps = null,
+        disposition = Disposition(attachedPicture = coverArt),
+    )
+
+    private fun probeOf(vararg streams: StreamInfo) = MediaProbe(
+        formatName = "mov,mp4,m4a,3gp,3g2,mj2",
+        durationMicros = null,
+        startTimeMicros = 0,
+        isSeekable = true,
+        bitrateBps = null,
+        metadata = emptyMap(),
+        chapters = emptyList(),
+        streams = streams.toList(),
+    )
+
+    @Test
+    fun coverArtListedFirstIsNotThePrimaryVideo() {
+        val cover = video(0, coverArt = true)
+        val movie = video(1, coverArt = false)
+        assertEquals(
+            movie,
+            probeOf(cover, movie).primaryVideo,
+            "a thumbnail of the cover is not a thumbnail of the video",
+        )
+    }
+
+    @Test
+    fun coverArtIsThePrimaryVideoWhenNothingElseIsVideo() {
+        // A picture beats nothing, which is also what an open source answers.
+        val cover = video(0, coverArt = true)
+        assertEquals(cover, probeOf(cover).primaryVideo)
+    }
+}
