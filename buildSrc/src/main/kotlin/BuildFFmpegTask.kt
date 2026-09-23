@@ -782,7 +782,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             val sdkNdk = File(System.getProperty("user.home"), "Library/Android/sdk/ndk")
                 .takeIf { it.isDirectory }
                 ?: File(System.getProperty("user.home"), "Android/Sdk/ndk").takeIf { it.isDirectory }
-            sdkNdk?.listFiles { f: File -> f.isDirectory }?.maxByOrNull { it.name }
+            sdkNdk?.let(::newestNdk)
                 ?: error(
                     "Android NDK not found. Set ANDROID_NDK_HOME or install one via the SDK manager."
                 )

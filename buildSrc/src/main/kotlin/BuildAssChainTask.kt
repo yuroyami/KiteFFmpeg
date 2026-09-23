@@ -483,7 +483,7 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
             val sdkNdk = File(System.getProperty("user.home"), "Library/Android/sdk/ndk")
                 .takeIf { it.isDirectory }
                 ?: File(System.getProperty("user.home"), "Android/Sdk/ndk").takeIf { it.isDirectory }
-            sdkNdk?.listFiles { f: File -> f.isDirectory }?.maxByOrNull { it.name }
+            sdkNdk?.let(::newestNdk)
                 ?: throw GradleException("Android NDK not found. Set ANDROID_NDK_HOME or install one via the SDK manager.")
         }
         val prebuilt = ndk.resolve("toolchains/llvm/prebuilt")
