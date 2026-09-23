@@ -8,7 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Nothing yet.
+### Internal
+
+- The build uses the Android Gradle plugin 9.4.0 (was 9.2.1) and Gradle 9.7.1 (was 9.6.0), the same versions as KitePlayer.
 
 ## [0.2.0] - 2026-09-04
 

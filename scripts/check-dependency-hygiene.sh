@@ -37,9 +37,9 @@
 # NOT checked here, because CI already does it better: the wrapper JAR's own checksum.
 # gradle/actions/setup-gradle validates it on every job by default, against Gradle's published
 # list of known-good jars. That list needs the network and goes stale in a checked-in copy, so
-# this script does not keep one. The two sibling repositories carry wrapper jars with DIFFERENT
-# checksums, which is expected and not a finding: the jar comes from whichever Gradle ran
-# `wrapper`, not from the distribution it points at.
+# this script does not keep one. The two sibling repositories can carry wrapper jars with
+# DIFFERENT checksums, which is expected and not a finding: the jar comes from whichever Gradle
+# ran `wrapper`, not from the distribution it points at.
 #
 #   ./scripts/check-dependency-hygiene.sh             # must PASS
 #   ./scripts/check-dependency-hygiene.sh --falsify   # plants each violation in turn, must FAIL
