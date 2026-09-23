@@ -1,6 +1,8 @@
 # kitecodec-c fuzz targets
 
-Six fuzz targets, one per C entry point that parses a caller's string.
+Ten fuzz targets. Eight give a caller's string to a C entry point that parses it. Two give media
+bytes to the demuxers and the decoders through the custom read callback, which is where untrusted
+media arrives.
 
 ## What runs where, and what each result is worth
 
@@ -9,7 +11,7 @@ means. Nothing here should be read as "the library was fuzzed" unless the Linux 
 
 | Driver | Where | Instruments | Evidence |
 |---|---|---|---|
-| libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux` job of `.github/workflows/ci.yml`, five minutes per target | ASan, UBSan, LeakSanitizer, coverage guidance | Level 8: a declared configuration. The job is written and has never executed, so no search for unknown inputs has happened yet; this row becomes level 2 on the day a run exists and not before. |
+| libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux` job of `.github/workflows/fuzz.yml`, five minutes per target | ASan, UBSan, LeakSanitizer, coverage guidance | A search for unknown inputs. The status note at the top of that workflow records its runs. It links Ubuntu's FFmpeg, which is not instrumented, so for the two byte targets the coverage guidance comes from the helper layer alone. |
 | Corpus replay, `replay_main.c` | this machine, `scripts/replay-corpus.sh`, every later gate | ASan, UBSan | Level 2 for the inputs in the corpus and nothing more. A regression test, and today the only fuzz-shaped evidence that exists. |
 
 **libFuzzer does not exist on this host.** Measured while writing this directory, not quoted from
@@ -31,7 +33,7 @@ and exits 3 with one sentence rather than dumping a linker error.
 
 So the local gate replays a committed corpus. It discovers nothing. It refuses to forget.
 
-## The six targets
+## The targets
 
 | Target | Entry points | Why it is a fuzz target |
 |---|---|---|
@@ -41,6 +43,10 @@ So the local gate replays a committed corpus. It discovers nothing. It refuses t
 | `fuzz_format_option.c` | `ffkmp_fmt_set_opt` | The same, over the muxer's private option table, which is a different set of parsers. |
 | `fuzz_metadata.c` | `ffkmp_fmt_set_metadata` | `av_dict_set` stores rather than looks up: growth, replacement and the NULL-value delete path. |
 | `fuzz_format_name.c` | `ffkmp_pix_fmt_from_name`, `ffkmp_sample_fmt_from_name` | A name looked up in a descriptor table, and the round trip back to a name. |
+| `fuzz_codec_name.c` | `ffkmp_find_encoder_by_name`, `ffkmp_find_decoder_by_name`, `ffkmp_filter_exists` | A name walks the codec and filter registries, straight from `FFmpeg.hasEncoder`, `hasDecoder` and `hasFilter`. |
+| `fuzz_muxer_name.c` | `ffkmp_fmt_alloc_output2`, its `format` argument | A muxer name walks the muxer registry, straight from `MediaSink.open(path, format, options)`. |
+| `fuzz_demux.c` | `ffkmp_fmt_open_input_io`, `ffkmp_fmt_find_stream_info`, `ffkmp_fmt_read_frame`, `ffkmp_fmt_seek_micros`, and the stream, metadata and chapter getters | Container bytes reach a demuxer through the custom read callback, as they do from `MediaSource.open(MediaByteSource)`. Every input is opened twice: seekable with its size known, and as a stream with neither. |
+| `fuzz_decode.c` | the same open, then `ffkmp_codecctx_send_packet`, `ffkmp_codecctx_receive_frame`, the frame copies and the pixel conversion | Every packet that a demuxer reads goes to its stream's decoder, and every frame goes through the copies that a caller reads it with. |
 
 Each target's own file header says what it does, what matrix it runs and what a finding would look
 like. Read the file, not this table.
@@ -56,6 +62,8 @@ disagrees with the split silently stops testing what its file names claim.
 * **Key and value targets.** The input splits at the **first newline**. Before it is the key, after
   it is the value. No newline anywhere means a NULL value, which all three entry points accept.
 * **Name target.** The whole input is one format name.
+* **Byte targets.** The whole input is the media. FFmpeg reads it through the custom read callback
+  of `ffkmp_fmt_open_input_io`, so nothing is split and nothing is NUL terminated.
 
 Every string handed to a helper is a **NUL terminated heap copy**, never a pointer into the
 driver's buffer. libFuzzer's data is not NUL terminated, so passing it directly would read past the
@@ -69,8 +77,10 @@ it in every family.
 
 ## The corpus
 
-103 files, 38077 bytes, all committed, all textual. Per plan section 15.3: small and textual. The
-full replay of all six targets under ASan and UBSan takes 4.4 seconds on this machine.
+The string corpora hold 128 files, 38807 bytes, all committed, all textual. The byte corpora hold
+70 small media files, 117555 bytes, all committed. No media seed is larger than 5559 bytes, which
+keeps every seed under the `-max_len` of 8192 that `run-fuzz.sh` passes. The full replay of all ten
+targets under ASan and UBSan takes about 10 seconds on this machine, the compiles included.
 
 | Directory | Files | What is in it |
 |---|---|---|
@@ -80,6 +90,14 @@ full replay of all six targets under ASan and UBSan takes 4.4 seconds on this ma
 | `corpus/format_option/` | 15 | Muxer options: `movflags` with flag lists, `brand`, `frag_duration`, `avoid_negative_ts` as a named constant, and the same NUL, separator and emptiness edges. |
 | `corpus/metadata/` | 14 | Metadata keys and values, including one that collides with the tag the target pre-sets, invalid UTF-8 in a key, multibyte UTF-8 in a value, and the no-newline seeds that reach `av_dict_set`'s delete path. |
 | `corpus/format_name/` | 20 | Valid pixel and sample format names, the `rgb32` and `bgr32` aliases, a truncated name, uppercase, a leading space, a name with an embedded NUL, and a 4096 byte name. |
+| `corpus/codec_name/` | 14 | Valid encoder, decoder and filter names (`h264`, `aac`, an encoder alias, `null`, `scale`, `yadif`), an unknown name, a comma list, a format specifier, a path, uppercase, a trailing space, an empty input and a 300 byte name. |
+| `corpus/muxer_name/` | 11 | Valid muxer names (`matroska`, `mp4`, `null`, `wav`), an unknown name, a comma list, a format specifier, uppercase, a trailing space, an empty input and a 300 byte name. |
+| `corpus/demux/` | 33 | Small files that 17 demuxers open: MP4 with its index before the media, after it, and with a rotation; Matroska with chapters and tags; WebM, Ogg, WAV, FLAC, MP3 with ID3 tags, ADTS AAC, MPEG-TS, AVI, FLV, raw H.264, IVF, AIFF, CAF, QuickTime, SubRip, WebVTT and ASS. A concat script and an SDP file that each point at something a fuzz run must never open. Ten deliberately corrupted inputs, named `corrupt_*`: truncated files, sizes that lie, changed header bytes, a bad page checksum, random bytes and an empty file. |
+| `corpus/decode/` | 37 | One small file per decoder: H.264, HEVC, VP8, VP9, AV1, MPEG-4, MJPEG, GIF, APNG, MPEG-2, Theora, FFV1, ProRes, AAC, MP3, Opus, Vorbis, FLAC, PCM, AC-3, ALAC and WavPack. Fourteen deliberately corrupted inputs, named `corrupt_*`: twelve with an intact container and changed bytes inside the coded frames, random bytes and an empty file. |
+
+**The media seeds.** The ffmpeg command line tool made them from its own test sources: a 32 by 32
+test picture for three frames and a sine tone, encoded with bit-exact flags. Each `corrupt_*` seed is
+one of those files with bytes changed at fixed offsets, so it can be made again.
 
 **The D27 length vectors.** Plan step 2 names descriptions of length 0, 2047, 2048, 4096 and
 1048576. The first four are committed for both filter targets, once plain and once with an `[in0]`
@@ -162,18 +180,29 @@ Reproducing it is a one-off measurement and deliberately not a committed script:
 depends on a coverage number, and a coverage script that nobody runs is worse than none. The
 invocation is in the Execution log entry for B1.5.
 
-## What B1.5 does not fuzz, and what B8 inherits
+### What the byte corpora reach
 
-**Path entry points get no fuzz target in B1.** Plan sub-phase B1.5 step 3, by name:
+Measured by counting in a scratch build of the two targets, not with a coverage tool.
+
+* `demux`: 17 demuxers open the valid seeds. Every valid seed opens seekable, except the concat
+  script and the SDP file, whose nested opens are refused (see below). As a stream, the CAF file
+  does not open either. Of the ten corrupted seeds, five fail to open in both modes, one fails only
+  when seekable, and four open and then read what is left.
+* `decode`: 23 decoders open, and every valid seed gives frames. The corrupted seeds give damaged
+  frames, no frames, or no open, so they reach the error paths of the decoders.
+
+## What is not fuzzed
+
+**Path entry points get no fuzz target.** By name:
 
 * `ffkmp_fmt_open_input`
 * `ffkmp_fmt_alloc_output2`
 * `ffkmp_fmt_io_open`
 
-The boundary is not squeamishness, it is scope. Fuzzing a path opens the filesystem, and once the
-filesystem is open the thing being fuzzed is a protocol handler and then a demuxer, which means
-container bytes. Container byte fuzzing is **B8's remit by its own wording**, and a B1 target that
-drifted into it would produce findings B1 cannot fix and cannot bound.
+The boundary is scope. Fuzzing a path opens the filesystem, and then the thing being fuzzed is a
+protocol handler before it is a demuxer. Container bytes reach the demuxers through the two byte
+targets instead: from memory, through the custom read callback, with no filesystem and no protocol
+in the way.
 
 Two consequences worth stating so nobody has to rediscover them:
 
@@ -193,52 +222,73 @@ Two consequences worth stating so nobody has to rediscover them:
    `fuzz_format_name.c` and the same reason: a caller-supplied string walks a registry, and all
    three are public through one-line Kotlin functions that pass it straight down.
 
-2. Nothing here reads or writes media. There is no `AVPacket` and no `AVFrame` carrying data in any
-   of the eight targets, deliberately, so no finding from this directory can be about a bitstream.
+2. The eight string targets read and write no media. None of them has an `AVPacket` or an `AVFrame`
+   carrying data, so a finding from one of them is never about a bitstream. The two byte targets
+   are the ones that read media.
 
-**What B8 inherits from here.** The two drivers over one body, the corpus layout, `kc_fuzz.h`'s
-input contract, `run-fuzz.sh`'s budget flags and the `--prove-power` check below. What B8 has to add
-is what B1 refused: path and protocol entry points, container byte corpora, a seed corpus of real
-media, and a resource policy, because a demuxer fed random bytes will hit out-of-memory and timeout
-before it hits memory corruption and those two need classifying before they can be gated on.
+**The demuxer option pairs have no target.** `ffkmp_fmt_open_input2` and `ffkmp_fmt_open_input_io`
+take option pairs that a caller passes to `MediaSource.open(path, options)` and
+`MediaSource.open(io, options)`, and FFmpeg parses those strings with the demuxer's option tables.
+The byte targets pass one fixed pair, so the strings themselves are never fuzzed. These are the two
+public string entry points that have no target.
+
+**The byte targets bound their own work.** A demuxer or a decoder fed random bytes hits a time or
+memory limit long before it hits memory corruption. So each byte target says in its file header
+what it bounds: at most 4096 packets per read loop and 1024 frames per input, `max_pixels` and
+`max_samples` on every decoder, and the pixel conversion only for pictures of at most 65536 pixels.
+The `-timeout`, `-rss_limit_mb` and `-malloc_limit_mb` flags of `run-fuzz.sh` still apply. A timeout
+or an out-of-memory finding still needs a person to classify it before it counts.
+
+**Nested opens are refused.** Some formats name other files or network addresses, a concat script
+or an SDP session for example. The byte targets open every input with `protocol_whitelist=none`, so
+FFmpeg refuses every such open, and a fuzz run touches no file and no network. The targets abort if
+FFmpeg ever gives that option back unused. The `concat_nested_file.ffconcat` and
+`sdp_nested_socket.sdp` seeds keep this checked.
+
+**Subtitles are not decoded.** This library has no subtitle decode entry point, so `fuzz_decode.c`
+decodes audio and video streams only. `fuzz_demux.c` still reads the subtitle containers.
 
 ## Proving the harness has power
 
-A green fuzzer that has never caught anything is not evidence of anything except that it ran. Plan
-sub-phase B1.5's tests require one deliberately planted defect, proved caught, then removed.
+A green fuzzer that has never caught anything is not evidence of anything except that it ran. So one
+deliberately planted defect for each kind of input is proved caught, then removed.
 
 ```bash
 ./scripts/build-host.sh asan
 ./scripts/replay-corpus.sh --prove-power
 ```
 
-What it does:
+What it does, once for each defect:
 
-1. Copies `src/*.c` and `include/*.h` into `build/asan/fuzz/mutant/`. The defect is planted in a
-   **copy** and never in the repository, so it is not in any commit at all, which is a stronger
-   reading of "removed in the same change" than the plan asked for. It also follows what B1.4
-   already established: its suites were proved load bearing by mutation against copies in a scratch
-   directory.
-2. Deletes exactly one line from the copy: the running-length check that D27 installed after the
-   `,aformat=` append in `ffkmp_graph_build_audio`. The mutation is applied by exact text match and
+1. Copies `src/*.c` and `include/*.h` into `build/asan/fuzz/mutant-<name>/`. The defect is planted
+   in a **copy** and never in the repository, so it is not in any commit at all.
+2. Changes exactly one place in the copy. The mutation is applied by exact text match and
    **refuses to run unless it matches exactly once**, so a helper source that changed shape fails
    loudly instead of turning the whole check into a no-op that reports success.
-3. Builds `filter_audio_replay_mutant` against the mutant archive and replays the committed corpus
+3. Builds a mutant replay binary of each target against the mutant archive and replays seeds
    through it.
-4. Requires a non-zero exit **and** a sanitizer report in the output. A non-zero exit with no report
-   is not evidence and is rejected.
+4. Requires a non-zero exit **and** a sanitizer report in the output, and names the input that was
+   caught. A non-zero exit with no report is not evidence and is rejected.
 
-The corpus already carries the input that trips it, `corpus/filter_audio/d27_len_2047`, and the
-target runs the pinned matrix on every seed, so the proof needs no special input. It needs only the
-defect.
+The two defects:
+
+* **The string path.** The running-length check after the `,aformat=` append in
+  `ffkmp_graph_build_audio` is deleted. The corpus already carries the input that trips it,
+  `corpus/filter_audio/d27_len_2047`, and the target runs the pinned matrix on every seed, so the
+  proof needs no special input. It needs only the defect.
+* **The byte path.** A failed `ffkmp_fmt_open_input_io` frees the read buffer it allocated instead
+  of the buffer that the I/O context holds. FFmpeg's probe swaps in its own buffer and frees the
+  first one before it decides whether the input opens, so the changed line frees a buffer a second
+  time. Only an input that cannot be opened reaches that line. The demux and decode targets replay
+  their `corrupt_*` seeds through the mutant, and each must report the double free.
 
 ## Running
 
 ```bash
 ./scripts/build-host.sh asan                       # the helper archive this links against
-./scripts/replay-corpus.sh                         # all six targets, the gate
+./scripts/replay-corpus.sh                         # every target, the gate
 ./scripts/replay-corpus.sh asan filter_audio       # one target, the fast loop
-./scripts/replay-corpus.sh --prove-power           # the planted defect
+./scripts/replay-corpus.sh --prove-power           # the planted defects
 ./scripts/run-fuzz.sh                              # exits 3 here, fuzzes on Linux
 ```
 
@@ -253,7 +303,7 @@ that drives parser error paths on purpose would otherwise bury the one line per 
 
 1. Write `fuzz/fuzz_<name>.c` with one `LLVMFuzzerTestOneInput` and no `main`. Include `kc_fuzz.h`,
    call `kc_fuzz_quiet()` first, and copy every caller string with `kc_fuzz_dup` or
-   `kc_fuzz_split`.
+   `kc_fuzz_split`. A target that reads media opens it with `kc_fuzz_open_media`.
 2. Create `fuzz/corpus/<name>/` and commit at least one seed. An empty corpus directory fails the
    replay rather than passing it, and a replay that ran zero files exits non-zero.
 3. Add `<name>` to `ALL_TARGETS` in **both** `scripts/replay-corpus.sh` and `scripts/run-fuzz.sh`.

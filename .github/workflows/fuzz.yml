@@ -1,7 +1,8 @@
-# Coverage-guided fuzzing of the C string entry points.
+# Coverage-guided fuzzing of the C entry points: the string parsers, and the demuxer and decoder
+# byte paths.
 #
-# WHY THIS IS NOT IN ci.yml ANY MORE (moved 2026-08-24). It fuzzes six targets for five minutes
-# each, so it takes half an hour by design, and jobs run in parallel: that ONE job was the reason a
+# WHY THIS IS NOT IN ci.yml ANY MORE (moved 2026-08-24). It fuzzes every target for five minutes,
+# so it takes most of an hour by design, and jobs run in parallel: that ONE job was the reason a
 # full CI run measured 31 minutes while every other job finished inside four. Fuzzing is valuable
 # BECAUSE it runs long, which is exactly why it should not be the thing standing between a push and
 # the answer to "does this still build". The cheap half, replaying the committed corpus under ASan
@@ -16,7 +17,7 @@
 # neither Apple clang 17 nor konan's LLVM 21, and Homebrew LLVM is not installed on the proving
 # machine, so -fsanitize=fuzzer fails at the link there. Only the header directory
 # lib/clang/17/include/fuzzer exists; -fsanitize=fuzzer-no-link compiles but produces
-# instrumentation with no driver, which fuzzes nothing. So the six targets get two drivers over one
+# instrumentation with no driver, which fuzzes nothing. So the targets get two drivers over one
 # body: libFuzzer here, and the committed-corpus replay under ASan and UBSan everywhere else.
 #
 # LeakSanitizer is the second thing this runner has and macOS does not:
@@ -55,24 +56,30 @@ concurrency:
 
 jobs:
   fuzz-linux:
-    name: Fuzz the C string entry points (libFuzzer, ubuntu-24.04)
+    name: Fuzz the C entry points (libFuzzer, ubuntu-24.04)
     runs-on: ubuntu-24.04
-    # Six targets at five minutes each is 30 minutes of fuzzing, plus the FFmpeg install and the
-    # instrumented build of the helper layer once per target.
-    timeout-minutes: 60
+    # Ten targets at five minutes each is 50 minutes of fuzzing, plus the FFmpeg install and the
+    # instrumented build of the helper layer.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       # clang-18 is ubuntu-24.04's default clang. libclang-rt-18-dev is the package that actually
       # carries libclang_rt.fuzzer.a, and it is the whole reason this job can exist: without it the
       # link fails exactly as it does on macOS, and run-fuzz.sh's preflight says so and exits 3
       # rather than burying the reason in a linker error.
+      #
+      # The demux and decode targets fuzz THIS FFmpeg: Ubuntu's build, which is older than the one
+      # the library embeds, and not instrumented. libFuzzer then steers by the helper layer's
+      # branches only. Inside FFmpeg the sanitizers see a crash, and a bad free or copy through the
+      # calls they intercept, but not every stray read. A finding inside FFmpeg counts only after
+      # it reproduces against the embedded version through the replay driver.
       - name: Install clang, the libFuzzer runtime and FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-18 libclang-rt-18-dev pkg-config \
             libavformat-dev libavcodec-dev libavfilter-dev \
             libavutil-dev libswscale-dev libswresample-dev
-      - name: Fuzz all six targets, five minutes each
+      - name: Fuzz every target, five minutes each
         env:
           KC_CC: clang-18
           KC_FUZZ_SECONDS: 300

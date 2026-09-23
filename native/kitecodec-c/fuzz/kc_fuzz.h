@@ -1,4 +1,4 @@
-/* Shared plumbing for the six fuzz targets of plan sub-phase B1.5.
+/* Shared plumbing for the fuzz targets in this directory.
  *
  * Each target is one `LLVMFuzzerTestOneInput` in one source file, and that one body serves two
  * drivers:
@@ -33,6 +33,12 @@
  *
  *   Name target, fuzz_format_name
  *     The whole input is one format name, handed to both from-name lookups.
+ *
+ *   Byte targets, fuzz_demux and fuzz_decode
+ *     The whole input is the media: container bytes as a file or a stream delivers them.
+ *     kc_fuzz_open_media below serves them to FFmpeg through the custom read callback of
+ *     ffkmp_fmt_open_input_io. Nothing is split and nothing is NUL terminated, because no
+ *     part of the input is a string.
  *
  * Every string a target passes to a helper is a heap copy with a NUL appended, made by
  * kc_fuzz_dup below, and never a pointer into the driver's own buffer. Two reasons, and both are
@@ -86,5 +92,27 @@ int kc_fuzz_split(const uint8_t *data, size_t size, char **out_key, char **out_v
 
 /* Releases what kc_fuzz_dup or kc_fuzz_split returned. A NULL pointer is accepted. */
 void kc_fuzz_free(char *s);
+
+/* The media a byte target opens, served from memory. `position` is where the next read starts.
+ * It can lie past `size` after a seek, and a read there answers end of stream. */
+typedef struct kc_fuzz_media {
+    const uint8_t *data;
+    size_t size;
+    int64_t position;
+} kc_fuzz_media;
+
+/* Opens `media` from its first byte through ffkmp_fmt_open_input_io.
+ *
+ * With `seekable` set, the open gets a seek callback and the size, as a file opens. Without it,
+ * the open gets neither, as a live stream opens. The callbacks keep the contract in
+ * kitecodec_helpers.h and answer the way the Kotlin backends' own callbacks answer.
+ *
+ * The open passes one option, protocol_whitelist=none. A playlist or a reference inside the
+ * input then cannot make FFmpeg open a file or a network address during a fuzz run. If FFmpeg
+ * gives the option back unused, that protection is gone, so the call aborts.
+ *
+ * Returns what the open returns. On success *out is the context, which the caller closes with
+ * ffkmp_fmt_close_input_io. On failure *out is NULL. */
+int kc_fuzz_open_media(kc_fmt_ctx **out, kc_fuzz_media *media, int seekable);
 
 #endif /* KITECODEC_FUZZ_H */

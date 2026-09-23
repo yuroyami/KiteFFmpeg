@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build and run the six libFuzzer targets. This is the REAL fuzzer, and it does not run on macOS.
+# Build and run the libFuzzer targets. This is the REAL fuzzer, and it does not run on macOS.
 #
 # Measured again while writing this script rather than quoted from the plan:
 #
@@ -23,7 +23,7 @@
 #
 # Usage:  ./scripts/run-fuzz.sh [target ...]
 #         target names are the stems after fuzz_, for example filter_audio. With none given, all
-#         six run, which is what the CI job does.
+#         of them run, which is what the CI job does.
 #
 # Environment:
 #   KC_CC             compiler to use. Default /usr/bin/clang here, clang-18 or similar in CI.
@@ -42,9 +42,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 
-# The six targets of plan section 15.3. Keep this list, the fuzz/fuzz_*.c files, the
+# One name per fuzz/fuzz_*.c file. Keep this list, the fuzz/fuzz_*.c files, the
 # fuzz/corpus subdirectories and replay-corpus.sh in agreement.
-ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name"
+ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode"
 TARGETS="${*:-$ALL_TARGETS}"
 
 CC="${KC_CC:-/usr/bin/clang}"
@@ -81,7 +81,7 @@ if ! "$CC" -fsanitize=fuzzer -o "$PREFLIGHT_DIR/preflight" "$PREFLIGHT_DIR/prefl
     echo >&2
     echo "  This is expected on macOS: libclang_rt.fuzzer_osx.a" >&2
     echo "  ships with neither Apple clang nor konan's LLVM. The real fuzzer runs in the" >&2
-    echo "  fuzz-linux job of .github/workflows/ci.yml on ubuntu-24.04." >&2
+    echo "  fuzz-linux job of .github/workflows/fuzz.yml on ubuntu-24.04." >&2
     echo "  The local gate is:  ./scripts/build-host.sh asan && ./scripts/replay-corpus.sh" >&2
     echo "  which replays the committed corpus through the same target bodies under ASan and" >&2
     echo "  UBSan. It is a regression test, not a fuzz run." >&2

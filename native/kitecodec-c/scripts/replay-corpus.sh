@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Replay the committed fuzz corpus through the six fuzz targets, under ASan and UBSan.
+# Replay the committed fuzz corpus through every fuzz target, under ASan and UBSan.
 #
 # This is the LOCAL gate for plan sub-phase B1.5, and it is not a fuzz run. Say it plainly, because
 # the difference decides what the result is worth. Coverage-guided fuzzing cannot happen on this
@@ -17,7 +17,7 @@
 #         variant is one of: plain asan tsan. Default asan, which is the gate's variant, because
 #         ASan and UBSan are the instruments that make a replay worth running.
 #         target names are the stems after fuzz_, for example filter_audio. With none given, all
-#         six run, which is what a gate does.
+#         of them run, which is what a gate does.
 #
 # Build the helper archive first:  ./scripts/build-host.sh <variant>
 # This script compiles only the fuzz sources; it never builds the helper layer, so a gate cannot
@@ -37,9 +37,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 
-# The six targets of plan section 15.3, in the order sub-phase B1.5 step 1 lists them. Keep this
+# One name per fuzz/fuzz_*.c file: the string targets first, then the two byte targets. Keep this
 # list, the fuzz/fuzz_*.c files, the fuzz/corpus subdirectories and run-fuzz.sh in agreement.
-ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name"
+ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode"
 
 PROVE_POWER=0
 if [ "${1:-}" = "--prove-power" ]; then
@@ -186,7 +186,7 @@ open(path, "w").write(head + "0" * (length - len(head)))
 ' 1048576 "$dir/d27_generated_multi_len_1048576"
             ;;
         *)
-            # The other five targets have no length vector the plan names, so they get none. An
+            # The other targets have no length vector the plan names, so they get none. An
             # empty generated directory is not an error and the counts below say zero.
             ;;
     esac
@@ -221,62 +221,89 @@ build_shared() {
     echo "  cc  kc_fuzz.c replay_main.c"
 }
 
-# ── prove_power: the deliberate defect ───────────────────────────────────────────────────────
+# ── prove_power: the deliberate defects ──────────────────────────────────────────────────────
 #
 # Plan sub-phase B1.5's tests say: plant one deliberate defect, prove the harness catches it, then
 # remove it in the same change. This function is that requirement turned into something repeatable,
 # which is strictly more than the plan asked for and costs the same.
 #
-# The defect is planted in a COPY of the helper sources under build/, never in the repository. Two
+# The defects are planted in COPIES of the helper sources under build/, never in the repository. Two
 # reasons: B1.4 established the pattern (its suites were proved load bearing by mutation against
 # copies in a scratch directory), and B1.5 does not own src/helpers_filter.c, so mutating the file
 # in place is not available to it. The consequence is that the defect is never in any commit at all,
 # which is a stronger version of "removed in the same change" than the plan asked for.
 #
-# The mutation is one deletion: the running-length check that D27 installed after the ",aformat="
+# Two defects, one for each kind of input.
+#
+# The string path. One deletion: the running-length check that D27 installed after the ",aformat="
 # append in ffkmp_graph_build_audio. That is the exact defect D27 records, at the exact site. With
 # it gone, a 2047 byte description plus pinned output leaves the running total at 2056, so the next
-# append addresses full_desc + 2056 in a char[2048] and its size argument wraps.
+# append addresses full_desc + 2056 in a char[2048] and its size argument wraps. The corpus already
+# has that input: fuzz/corpus/filter_audio/d27_len_2047, and the target runs the pinned matrix on
+# every seed. So the proof needs no special input; it needs only the defect.
 #
-# The corpus already has that input: fuzz/corpus/filter_audio/d27_len_2047, and the target runs the
-# pinned matrix on every seed. So the proof needs no special input; it needs only the defect.
-prove_power() {
-    local mutant="$OUT/mutant"
-    local target="filter_audio"
+# The byte path. One changed line: when ffkmp_fmt_open_input_io fails, it frees the read buffer it
+# allocated instead of the buffer the I/O context holds. FFmpeg's probe swaps that buffer for its
+# own, and frees the first one, before it decides whether the input can be opened. So the changed
+# line frees a buffer for the second time, and only an input that cannot be opened reaches it. The
+# demux and decode targets replay the deliberately corrupted seeds, the files named corrupt_*,
+# through the mutant, and each target must report the double free.
 
-    echo "prove-power: planting one deliberate defect in a COPY of the helper sources"
-    echo "  copy       $mutant"
+# Applies one named mutation to a copy of the helper sources, builds a helper archive from the copy,
+# and links a mutant replay binary for each target named after it. The mutation is applied by exact
+# text match and refused unless it matches exactly once: a mutation that silently matched nothing
+# would make the whole proof a no-op that reports success.
+build_mutants() {
+    local mutation="$1"
+    shift
+    local mutant="$OUT/mutant-$mutation"
     rm -rf "$mutant"
     mkdir -p "$mutant/src" "$mutant/include"
     cp "$ROOT"/src/*.c "$mutant/src/"
     cp "$ROOT"/include/*.h "$mutant/include/"
+    echo "  copy       $mutant"
 
-    # The mutation, applied by exact text match and refused unless it matches exactly once. A sed
-    # that silently matched nothing would make this whole function a no-op that reports success.
-    python3 - "$mutant/src/helpers_filter.c" <<'PY'
+    python3 - "$mutant/src" "$mutation" <<'PY'
+import os
 import sys
 
-path = sys.argv[1]
+src, name = sys.argv[1], sys.argv[2]
+MUTATIONS = {
+    "length_check": (
+        "helpers_filter.c",
+        '        n += snprintf(full_desc + n, sizeof(full_desc) - n, ",aformat=");\n'
+        '        if (n < 0 || n >= (int)sizeof(full_desc)) '
+        '{ avfilter_graph_free(&graph); return AVERROR(EINVAL); }\n',
+        '        n += snprintf(full_desc + n, sizeof(full_desc) - n, ",aformat=");\n',
+        'deleted the running-length check after the ",aformat=" append in ffkmp_graph_build_audio',
+    ),
+    "open_failure_buffer": (
+        "helpers_format.c",
+        '    int rc = avformat_open_input(&c, NULL, NULL, &options);\n'
+        '    if (rc < 0) {\n'
+        '        av_dict_free(&options);\n'
+        '        av_freep(&pb->buffer);\n',
+        '    int rc = avformat_open_input(&c, NULL, NULL, &options);\n'
+        '    if (rc < 0) {\n'
+        '        av_dict_free(&options);\n'
+        '        av_freep(&buffer);\n',
+        'a failed ffkmp_fmt_open_input_io frees the buffer it allocated, not the one the '
+        'I/O context holds',
+    ),
+}
+file, old, new, what = MUTATIONS[name]
+path = os.path.join(src, file)
 text = open(path).read()
-
-append = '        n += snprintf(full_desc + n, sizeof(full_desc) - n, ",aformat=");\n'
-check = ('        if (n < 0 || n >= (int)sizeof(full_desc)) '
-         '{ avfilter_graph_free(&graph); return AVERROR(EINVAL); }\n')
-pair = append + check
-
-count = text.count(pair)
+count = text.count(old)
 if count != 1:
     sys.exit("prove-power: the mutation site matched %d times, expected exactly 1. "
              "The helper source changed shape; update the mutation in "
              "scripts/replay-corpus.sh." % count)
-
-open(path, "w").write(text.replace(pair, append))
-print("  mutation   deleted the running-length check after the \",aformat=\" append "
-      "in ffkmp_graph_build_audio")
+open(path, "w").write(text.replace(old, new))
+print("  mutation   " + what)
 PY
 
-    local mobj="$OUT/mutant-obj"
-    rm -rf "$mobj"
+    local mobj="$mutant/obj"
     mkdir -p "$mobj"
     local objects=""
     for source in "$mutant"/src/*.c; do
@@ -294,22 +321,27 @@ PY
 
     mkdir -p "$OBJ" "$BIN"
     build_shared
-    # shellcheck disable=SC2086
-    "$CC" $BASE_FLAGS $VARIANT_FLAGS $FF_CFLAGS -I "$mutant/include" -I "$ROOT/fuzz" \
-        -c "$ROOT/fuzz/fuzz_$target.c" -o "$OBJ/fuzz_${target}_mutant.o"
-    # shellcheck disable=SC2086
-    "$CC" $BASE_FLAGS $VARIANT_FLAGS -o "$BIN/${target}_replay_mutant" \
-        "$OBJ/fuzz_${target}_mutant.o" "$OBJ/kc_fuzz.o" "$OBJ/replay_main.o" "$mlib" \
-        $FF_LDFLAGS $FF_LIBS
-    echo "  ld         ${target}_replay_mutant"
+    for target in "$@"; do
+        # shellcheck disable=SC2086
+        "$CC" $BASE_FLAGS $VARIANT_FLAGS $FF_CFLAGS -I "$mutant/include" -I "$ROOT/fuzz" \
+            -c "$ROOT/fuzz/fuzz_$target.c" -o "$OBJ/fuzz_${target}_mutant.o"
+        # shellcheck disable=SC2086
+        "$CC" $BASE_FLAGS $VARIANT_FLAGS -o "$BIN/${target}_replay_mutant" \
+            "$OBJ/fuzz_${target}_mutant.o" "$OBJ/kc_fuzz.o" "$OBJ/replay_main.o" "$mlib" \
+            $FF_LDFLAGS $FF_LIBS
+        echo "  ld         ${target}_replay_mutant"
+    done
     echo
+}
 
-    generate_corpus "$target"
-    local files=()
-    while IFS= read -r file; do files+=("$file"); done < <(find "$ROOT/fuzz/corpus/$target" -type f | sort)
-    while IFS= read -r file; do files+=("$file"); done < <(find "$GENERATED/$target" -type f | sort)
+# Replays the given files through one target's mutant and requires the planted defect to be
+# caught: a non-zero exit AND a sanitizer report. A non-zero exit with no report is not evidence
+# and is rejected.
+expect_caught() {
+    local target="$1"
+    shift
+    local log="$OUT/prove-power-$target.log"
 
-    local log="$OUT/prove-power.log"
     # Run it inside a subshell whose stderr is discarded, and end that subshell with an explicit
     # `exit` so bash cannot apply its last-command optimisation and exec the binary in place of the
     # subshell. The mutant is EXPECTED to die on a signal, and whichever shell reaps it prints
@@ -317,11 +349,11 @@ PY
     # the script rather than the success it is. With the fork forced, the message is the subshell's
     # and goes to /dev/null, and the subshell exits normally carrying the code.
     set +e
-    ( "$BIN/${target}_replay_mutant" "${files[@]}" > "$log" 2>&1; exit $? ) 2>/dev/null
+    ( "$BIN/${target}_replay_mutant" "$@" > "$log" 2>&1; exit $? ) 2>/dev/null
     local code=$?
     set -e
 
-    echo "prove-power: the mutant replay exited $code"
+    echo "prove-power: the $target mutant replay exited $code"
     echo "prove-power: the finding, verbatim"
     echo "───────────────────────────────────────────────────────────────────────────────"
     # The sanitizer report, from its first marker line to the end. Printed whole rather than
@@ -330,23 +362,56 @@ PY
     # passes and the first one would win by accident.
     awk '/ERROR: |runtime error: |SUMMARY: /{found = 1} found' "$log" | head -40
     echo "───────────────────────────────────────────────────────────────────────────────"
+    # The driver names each file before it runs it, so the last name is the input that was caught.
+    echo "prove-power: caught on $(grep -E '^  run  ' "$log" | tail -1 | awk '{print $2}')"
     echo "prove-power: full output in $log"
     echo
 
     # The mutant is not deleted. It lives under build/, which is gitignored, so it cannot reach a
     # commit, and leaving it there means the finding can be re-read without rebuilding.
     if [ "$code" -eq 0 ]; then
-        echo "prove-power: FAILED. The planted defect produced no finding, so this harness has not" >&2
-        echo "             been shown to have any power. Do not treat a green replay as evidence" >&2
-        echo "             until this passes." >&2
+        echo "prove-power: FAILED. The planted defect produced no finding in $target, so this" >&2
+        echo "             harness has not been shown to have any power. Do not treat a green" >&2
+        echo "             replay as evidence until this passes." >&2
         return 1
     fi
     if ! grep -qE 'ERROR: |runtime error: ' "$log"; then
-        echo "prove-power: FAILED. The mutant exited $code but printed no sanitizer report, so the" >&2
-        echo "             non-zero exit is not evidence of the defect being detected." >&2
+        echo "prove-power: FAILED. The $target mutant exited $code but printed no sanitizer" >&2
+        echo "             report, so the non-zero exit is not evidence of the defect being" >&2
+        echo "             detected." >&2
         return 1
     fi
-    echo "prove-power: PASSED. The planted defect was caught, and it was never in the repository."
+    return 0
+}
+
+prove_power() {
+    local failed=0
+    local files=()
+
+    echo "prove-power: the string path, a defect planted in a COPY of the helper sources"
+    build_mutants length_check filter_audio
+    generate_corpus filter_audio
+    while IFS= read -r file; do files+=("$file"); done < <(find "$ROOT/fuzz/corpus/filter_audio" -type f | sort)
+    while IFS= read -r file; do files+=("$file"); done < <(find "$GENERATED/filter_audio" -type f | sort)
+    expect_caught filter_audio "${files[@]}" || failed=1
+
+    echo "prove-power: the byte path, a defect planted in a COPY of the helper sources"
+    build_mutants open_failure_buffer demux decode
+    for target in demux decode; do
+        files=()
+        while IFS= read -r file; do files+=("$file"); done < <(find "$ROOT/fuzz/corpus/$target" -type f -name 'corrupt_*' | sort)
+        if [ "${#files[@]}" -eq 0 ]; then
+            echo "prove-power: FAILED. fuzz/corpus/$target has no corrupt_* seeds to replay." >&2
+            failed=1
+            continue
+        fi
+        expect_caught "$target" "${files[@]}" || failed=1
+    done
+
+    if [ "$failed" -ne 0 ]; then
+        return 1
+    fi
+    echo "prove-power: PASSED. Every planted defect was caught, and none was ever in the repository."
     return 0
 }
 
@@ -360,7 +425,7 @@ echo
 
 # Per-target cleanup, not a wipe of the whole directory. Removing $BIN wholesale would mean that
 # `replay-corpus.sh asan filter_audio`, which the README offers as the fast loop while writing a
-# target, silently deleted the other five binaries and left a later timing or debugging run
+# target, silently deleted the other binaries and left a later timing or debugging run
 # measuring a missing file. Measured the hard way while writing this script: a single-target run
 # followed by a direct invocation of another binary gave exit 127 and 0.02 seconds, which reads
 # exactly like a fast pass.
