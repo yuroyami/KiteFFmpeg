@@ -41,7 +41,7 @@ val video = source.primaryVideo   // StreamInfo?: the primary video track, or nu
 val audio = source.primaryAudio   // StreamInfo?: the primary audio track, or null
 ```
 
-`primaryVideo` and `primaryAudio` are nullable. An audio-only file has no `primaryVideo`, so guard for null before you decode.
+`primaryVideo` and `primaryAudio` are nullable. An audio-only file has no `primaryVideo`, so guard for null before you decode. A file whose only picture is its cover art does have one: `primaryVideo` skips cover art when another video stream exists and returns the cover art otherwise.
 
 ### What a stream tells you
 
