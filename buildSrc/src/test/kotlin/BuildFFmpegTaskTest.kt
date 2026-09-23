@@ -286,23 +286,26 @@ class BuildFFmpegTaskTest {
             assertTrue("--enable-audiotoolbox" in args, "$target must request AudioToolbox")
         }
 
-        // The Android emulator ABI assembles with nasm, the same nasm the dav1d build needs. With
-        // --disable-asm its tree carried no SIMD at all, so every emulator run measured a build
-        // nobody ships.
-        val emulatorRoot = Files.createTempDirectory("kiteffmpeg-android-x64-asm-test")
+        // Every Android ABI assembles. The emulator ABI does it with nasm, the same nasm the dav1d
+        // build needs, and 32-bit ARM with NEON for the streaming sticks, which are 32-bit only.
+        // With --disable-asm either tree carried no SIMD at all.
+        val androidRoot = Files.createTempDirectory("kiteffmpeg-android-asm-test")
         try {
-            val toolchainBin = emulatorRoot.resolve("bin").createDirectories()
+            val toolchainBin = androidRoot.resolve("bin").createDirectories()
             toolchainBin.resolve("x86_64-linux-android24-clang").createFile()
-            val emulator = task.configureArguments(
-                target = TargetTriple.AndroidX64,
-                license = FFmpegLicense.LGPL,
-                installPrefix = "/scratch/install",
-                dav1dRoot = java.io.File("/stub/dav1d"),
-                ndkToolchainBin = { toolchainBin.toFile() },
-            )
-            assertFalse("--disable-asm" in emulator, "AndroidX64 must build with x86_64 asm")
+            toolchainBin.resolve("armv7a-linux-androideabi24-clang").createFile()
+            listOf(TargetTriple.AndroidX64, TargetTriple.AndroidArm32).forEach { target ->
+                val args = task.configureArguments(
+                    target = target,
+                    license = FFmpegLicense.LGPL,
+                    installPrefix = "/scratch/install",
+                    dav1dRoot = java.io.File("/stub/dav1d"),
+                    ndkToolchainBin = { toolchainBin.toFile() },
+                )
+                assertFalse("--disable-asm" in args, "$target must build with its assembly")
+            }
         } finally {
-            emulatorRoot.toFile().deleteRecursively()
+            androidRoot.toFile().deleteRecursively()
         }
 
         // IosX64 keeps the opt-out, and keeps it for the stated nasm reason.

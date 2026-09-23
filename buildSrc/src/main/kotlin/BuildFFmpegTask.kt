@@ -771,12 +771,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             "--enable-decoder=h264_mediacodec,hevc_mediacodec,av1_mediacodec,vp9_mediacodec,vp8_mediacodec",
             "--enable-zlib",
         ) +
-            (cpu?.let { listOf("--cpu=$it") } ?: emptyList()) +
-            // Assembly is what makes software decode fast, and --disable-asm also turns off every
-            // SIMD extension. x86_64 assembles with nasm, the same nasm the dav1d build already
-            // needs; without it the emulator tree carried no SIMD at all, so an emulator run
-            // measured a build nobody ships. arm32 asm is fragile with clang, so arm32 opts out.
-            (if (target == TargetTriple.AndroidArm32) listOf("--disable-asm") else emptyList())
+            // Every Android ABI keeps its assembly, which is what makes software decode fast;
+            // --disable-asm would also turn off every SIMD extension. x86_64 assembles with nasm,
+            // the same nasm the dav1d build already needs, and 32-bit ARM builds its NEON with the
+            // NDK's clang. FFmpeg picks its NEON functions at run time, from the CPU it finds.
+            (cpu?.let { listOf("--cpu=$it") } ?: emptyList())
     }
 
     private fun ndkToolchainBin(): File {
