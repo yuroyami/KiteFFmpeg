@@ -42,5 +42,9 @@ internal object MediaOracle {
      * no oracle, so the caller skips the comparison instead of reading a file that was never made.
      */
     fun reference(input: String, arguments: List<String>, output: String): Boolean =
-        runMediaOracle("ffmpeg", listOf("-v", "error", "-y", "-i", input) + arguments + output) != null
+        generate(listOf("-i", input) + arguments, output)
+
+    /** Runs `ffmpeg <arguments> output`, for an input only `ffmpeg` can make. False without an oracle. */
+    fun generate(arguments: List<String>, output: String): Boolean =
+        runMediaOracle("ffmpeg", listOf("-v", "error", "-y") + arguments + output) != null
 }

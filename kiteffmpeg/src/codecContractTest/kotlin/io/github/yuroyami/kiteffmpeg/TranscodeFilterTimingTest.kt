@@ -153,12 +153,11 @@ internal class TranscodeFilterTimingTest {
             )
         }
         val samples = TranscodeFixtures.decodedSampleCount(output)
-        // One decoded block of slack on each side of the selection, doubled by the filter.
-        assertTrue(abs(samples - rate) < 2 * 4_096, "half a second at half speed came out as $samples samples")
+        // atempo works in windows of a few thousand samples, so its length is only near double.
+        assertTrue(abs(samples - rate) < 4_096, "half a second at half speed came out as $samples samples")
         val reference = path("wav")
         if (MediaOracle.reference(input, listOf("-af", "atrim=end=0.5,atempo=0.5", "-c:a", "pcm_s16le"), reference)) {
-            val expected = checkNotNull(MediaOracle.audioSampleCount(reference))
-            assertTrue(abs(samples - expected) < 2 * 4_096, "ffmpeg made $expected samples, this made $samples")
+            assertEquals(MediaOracle.audioSampleCount(reference), samples, "samples ffmpeg made from the same selection")
         }
     }
 

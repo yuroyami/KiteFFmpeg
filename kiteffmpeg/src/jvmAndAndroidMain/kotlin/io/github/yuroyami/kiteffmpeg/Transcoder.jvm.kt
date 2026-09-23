@@ -140,9 +140,7 @@ public actual object Transcoder {
                                 )
                             }
 
-                            fun timestamp(frame: Frame): Long = if (frame.info.hasPts) {
-                                source.toRelativeMicros(frame.info.pts, frame.streamTimeBase)
-                            } else Long.MIN_VALUE
+                            val trim = TrimWindow(startMicros, endMicros, source.startTimeMicros)
 
                             // No trim check here. The trim applies once, to the decoded input
                             // below; a filter that moves time may put its frames past endMicros,
@@ -170,19 +168,23 @@ public actual object Transcoder {
                                 decode,
                                 copy,
                                 onFrame = { frame ->
-                                    val micros = timestamp(frame)
-                                    val isLead = frame.streamIndex == lead.index
                                     when {
-                                        micros != Long.MIN_VALUE && micros > endMicros -> {
+                                        trim.isPastEnd(frame) -> {
+                                            val isLead = frame.streamIndex == lead.index
                                             frame.close()
                                             if (isLead) throw StopDemux()
                                         }
-                                        startMicros > 0L && micros != Long.MIN_VALUE && micros < startMicros ->
-                                            frame.close()
-                                        frame.streamIndex == videoStream?.index ->
-                                            videoGraph?.feedFrame(frame, ::encodeVideo) ?: encodeVideo(frame)
-                                        frame.streamIndex == audioStream?.index ->
-                                            audioGraph!!.feedFrame(frame, ::encodeAudio)
+                                        frame.streamIndex == videoStream?.index -> when {
+                                            trim.startsBeforeStart(frame) -> frame.close()
+                                            else -> videoGraph?.feedFrame(frame, ::encodeVideo) ?: encodeVideo(frame)
+                                        }
+                                        frame.streamIndex == audioStream?.index -> {
+                                            // Cut to the sample: a block that straddles a bound
+                                            // keeps the part inside it.
+                                            val kept = trim.keptAudio(frame)
+                                            if (kept !== frame) frame.close()
+                                            if (kept != null) audioGraph!!.feedFrame(kept, ::encodeAudio)
+                                        }
                                         else -> frame.close()
                                     }
                                 },

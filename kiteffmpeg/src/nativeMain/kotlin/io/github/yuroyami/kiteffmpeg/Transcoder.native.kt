@@ -139,20 +139,9 @@ public actual object Transcoder {
                                 )
                             }
 
-                            /**
-                             * Frame pts to media-relative micros, read in the frame's own
-                             * time-base. Graph output frames carry the graph's time-base and
-                             * decoder frames carry the stream's.
-                             *
-                             * The result is relative, not absolute, because startMicros and
-                             * endMicros are measured from the start of the content.
-                             *
-                             * @see MediaSource.startTimeMicros for the two timelines involved
-                             */
-                            fun ptsMicros(frame: Frame): Long =
-                                if (frame.info.hasPts) {
-                                    source.toRelativeMicros(frame.info.pts, frame.streamTimeBase)
-                                } else Long.MIN_VALUE  // treat as "always inside the window"
+                            // Both bounds are relative to the start of the content (see
+                            // MediaSource.startTimeMicros).
+                            val trim = TrimWindow(startMicros, endMicros, source.startTimeMicros)
 
                             // No trim check here. The trim applies once, to the decoded input
                             // below; a filter that moves time may put its frames past endMicros,
@@ -235,29 +224,33 @@ public actual object Transcoder {
                                 decode = decodeList,
                                 copy = copyList,
                                 onFrame = { frame ->
-                                    val micros = ptsMicros(frame)
-                                    val isLead = frame.streamIndex == leadStream.index
                                     when {
-                                        micros != Long.MIN_VALUE && micros > endMicros -> {
+                                        trim.isPastEnd(frame) -> {
+                                            val isLead = frame.streamIndex == leadStream.index
                                             frame.close()
-                                            if (isLead) throw StopDemux()
                                             // Non-lead frames past the end are just dropped;
                                             // the lead stream decides when to stop demuxing.
+                                            if (isLead) throw StopDemux()
                                         }
-                                        // Only filter the start when actually trimming. At
-                                        // start=0, negative pts (audio priming) must pass.
-                                        startMicros > 0 && micros != Long.MIN_VALUE && micros < startMicros ->
-                                            frame.close()  // decode-discard up to the exact start
-                                        else -> when (frame.streamIndex) {
-                                            videoStream?.index -> {
+                                        frame.streamIndex == videoStream?.index -> when {
+                                            // Decode-discard up to the exact start.
+                                            trim.startsBeforeStart(frame) -> frame.close()
+                                            else -> {
                                                 val graph = videoGraphFor(frame)
                                                 if (graph != null) graph.feedFrame(frame, ::encodeVideo)
                                                 else encodeVideo(frame)
                                             }
-                                            audioStream?.index ->
-                                                audioGraphFor(frame).feedFrame(frame, ::encodeAudio)
-                                            else -> frame.close()
                                         }
+                                        frame.streamIndex == audioStream?.index -> {
+                                            // Cut to the sample: a block that straddles a bound
+                                            // keeps the part inside it. The graph is chosen by
+                                            // the decoded frame, whose format the cut keeps.
+                                            val graph = audioGraphFor(frame)
+                                            val kept = trim.keptAudio(frame)
+                                            if (kept !== frame) frame.close()
+                                            if (kept != null) graph.feedFrame(kept, ::encodeAudio)
+                                        }
+                                        else -> frame.close()
                                     }
                                 },
                                 onPacket = { packet, info ->
@@ -271,7 +264,7 @@ public actual object Transcoder {
                                     val pktDts = ffkmp_packet_dts(packet)
                                     val pktPts = ffkmp_packet_pts(packet)
                                     val gateTs = if (pktDts != FrameInfo.NOPTS) pktDts else pktPts
-                                    // Media-relative, same reason as ptsMicros above.
+                                    // Media-relative, like the trim window's bounds.
                                     val gateMicros = if (gateTs != FrameInfo.NOPTS) {
                                         source.toRelativeMicros(gateTs, info.timeBase)
                                     } else Long.MIN_VALUE

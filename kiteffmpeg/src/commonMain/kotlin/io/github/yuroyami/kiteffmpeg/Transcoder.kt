@@ -44,14 +44,20 @@ public expect object Transcoder {
      *                     subtitle codecs the output container accepts (mkv: almost all;
      *                     mp4: mov_text). Otherwise the muxer raises a typed error.
      * @param startMicros trim start, a position in the input relative to the start of the content
-     *                    (see [MediaSource.startTimeMicros]). Output begins at the first frame at or
-     *                    after this point: frame-exact for re-encoded streams, at the preceding
-     *                    keyframe for copied ones. Output timestamps are rebased to zero.
-     * @param endMicros trim end, a position in the input on the same scale. Demuxing stops once
-     *                  the lead stream passes this. The trim selects decoded input before any
-     *                  filter runs, so a filter that moves time, such as `setpts=2*PTS` or
-     *                  `atempo=0.5`, makes the output longer or shorter than the selection, and
-     *                  every frame the filter makes from the selection is encoded.
+     *                    (see [MediaSource.startTimeMicros]). Re-encoded video keeps the frames
+     *                    that start at or after it, and re-encoded audio keeps the samples from it
+     *                    on. Copied streams keep whole packets: copied video from the keyframe at
+     *                    or before it, copied audio and subtitles from the first packet at or
+     *                    after it. Output timestamps are rebased to zero.
+     * @param endMicros trim end, a position in the input on the same scale. Re-encoded streams
+     *                  exclude it: video keeps the frames that start before it, and audio is cut
+     *                  to the sample, the way FFmpeg's `atrim` filter cuts it, so a window from
+     *                  1 s to 2 s holds exactly one second. Copied streams drop the packets whose
+     *                  decode time is after it. Demuxing stops once the lead stream reaches it.
+     *                  The trim selects decoded input before any filter runs, so a filter that
+     *                  moves time, such as `setpts=2*PTS` or `atempo=0.5`, makes the output longer
+     *                  or shorter than the selection, and every frame the filter makes from the
+     *                  selection is encoded.
      * @param metadata container tags written into the output header (`title`, `artist`, …)
      * @param onProgress invoked every ~30 encoded video frames (or ~100 audio frames when
      *                   audio-only) with a [TranscodeProgress]
