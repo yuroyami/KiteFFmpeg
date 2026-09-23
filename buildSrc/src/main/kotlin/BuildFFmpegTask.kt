@@ -439,7 +439,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // that because the macOS host gate resolves FFmpeg from Homebrew, which carries every
         // filter, so the VENDORED profile was only ever exercised on phones. The Linux run is what
         // found it, which is the point of running on more than one surface.
-        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad",
+        // yadif and bwdif (deinterlacing) and loudnorm, ebur128 and alimiter (loudness) are
+        // ordinary player features, and the filter DSL offers deinterlace() and loudnorm().
+        // FFmpeg's configure puts none of the five behind --enable-gpl, so every profile here
+        // can carry them. The web list in BuildFFmpegWasmTask stays minimal on purpose.
+        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter",
 
         "--enable-pthreads",
         "--enable-pic",

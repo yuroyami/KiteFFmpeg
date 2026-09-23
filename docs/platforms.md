@@ -95,7 +95,7 @@ Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywher
 | **Demux** | every native FFmpeg demuxer | same | same | same |
 | **Mux (write)** | mp4/mov, matroska/webm (including `.mka`), mpegts, mp3, wav, flac, ogg/opus, image2 | same | same | same |
 | **Protocols** | `file`, `fd`, `pipe`, `data`, `http`, `tcp` | same | same | same |
-| **Filters** | the shared set: scale, pad, overlay, hue, unsharp, vignette, colorbalance, colorlevels, curves, lut, colorchannelmixer, split, trim/setpts, and the audio set | same | same | same |
+| **Filters** | the shared set: scale, pad, overlay, hue, unsharp, vignette, colorbalance, colorlevels, curves, lut, colorchannelmixer, split, trim/setpts, the deinterlacers yadif and bwdif, and the audio set with the loudness filters loudnorm, ebur128 and alimiter | same | same | same |
 | **Bitstream filters** | all of them (they ride with the wide demuxer class) | same | same | same |
 
 There is no GPL column and no `drawtext`/`eq`/`boxblur` anywhere: this project bakes the LGPL portable profile only. Use `hue` (it has a brightness parameter `b`), `colorlevels` or `curves` where you reached for `eq`. The bitstream filters are never named by KiteFFmpeg. libavformat inserts them during a stream copy, which is a copy of encoded packets with no decode or encode. Without them, a copy between container families produces a *corrupt file* rather than an error.
