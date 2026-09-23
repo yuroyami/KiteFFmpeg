@@ -483,24 +483,36 @@ typedef struct kj_io_state {
     jmethodID seek;    /* (JI)J */
 } kj_io_state;
 
-static JNIEnv *kj_io_env(kj_io_state *st)
+/* The JNIEnv of the thread FFmpeg runs a callback on. Every open reaches FFmpeg from Java today, so
+ * that thread is already attached and GetEnv answers. A thread the JVM does not know is attached for
+ * this one callback and *attached says so; kj_io_release then detaches it before the callback
+ * returns, because an attachment nobody detaches keeps the thread's Java peer alive after the
+ * thread has ended. */
+static JNIEnv *kj_io_env(kj_io_state *st, int *attached)
 {
     JNIEnv *env = NULL;
+    *attached = 0;
     if ((*st->vm)->GetEnv(st->vm, (void **)&env, JNI_VERSION_1_6) == JNI_OK && env != NULL) return env;
 #ifdef __ANDROID__
-    if ((*st->vm)->AttachCurrentThread(st->vm, &env, NULL) == JNI_OK) return env;
+    if ((*st->vm)->AttachCurrentThread(st->vm, &env, NULL) != JNI_OK) return NULL;
 #else
-    if ((*st->vm)->AttachCurrentThread(st->vm, (void **)&env, NULL) == JNI_OK) return env;
+    if ((*st->vm)->AttachCurrentThread(st->vm, (void **)&env, NULL) != JNI_OK) return NULL;
 #endif
-    return NULL;
+    *attached = 1;
+    return env;
 }
 
-static int kj_io_read(void *opaque, unsigned char *buf, int len)
+static void kj_io_release(kj_io_state *st, int attached)
 {
-    kj_io_state *st = (kj_io_state *)opaque;
-    JNIEnv *env = kj_io_env(st);
+    if (attached) (*st->vm)->DetachCurrentThread(st->vm);
+}
+
+/* The read callback's work, on a thread that has a JNIEnv. Every return path ends in kj_io_read,
+ * which releases the thread. */
+static int kj_io_read_with(JNIEnv *env, kj_io_state *st, unsigned char *buf, int len)
+{
     jint want, r;
-    if (env == NULL || len <= 0) return KC_IO_ERR;
+    if (len <= 0) return KC_IO_ERR;
     want = len < KJ_IO_BUFFER_SIZE ? (jint)len : (jint)KJ_IO_BUFFER_SIZE;
     r = (*env)->CallIntMethod(env, st->cb, st->read, st->buffer, want);
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return KC_IO_ERR; }
@@ -513,15 +525,32 @@ static int kj_io_read(void *opaque, unsigned char *buf, int len)
     return r == -1 ? KC_IO_EOF : KC_IO_ERR;
 }
 
+static int kj_io_read(void *opaque, unsigned char *buf, int len)
+{
+    kj_io_state *st = (kj_io_state *)opaque;
+    int attached;
+    JNIEnv *env = kj_io_env(st, &attached);
+    int result = env != NULL ? kj_io_read_with(env, st, buf, len) : KC_IO_ERR;
+    kj_io_release(st, attached);
+    return result;
+}
+
+/* The seek callback's work, on a thread that has a JNIEnv. */
+static int64_t kj_io_seek_with(JNIEnv *env, kj_io_state *st, int64_t offset, int whence)
+{
+    jlong r = (*env)->CallLongMethod(env, st->cb, st->seek, (jlong)offset, (jint)whence);
+    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return KC_IO_ERR; }
+    return r < 0 ? KC_IO_ERR : (int64_t)r;
+}
+
 static int64_t kj_io_seek_cb(void *opaque, int64_t offset, int whence)
 {
     kj_io_state *st = (kj_io_state *)opaque;
-    JNIEnv *env = kj_io_env(st);
-    jlong r;
-    if (env == NULL) return KC_IO_ERR;
-    r = (*env)->CallLongMethod(env, st->cb, st->seek, (jlong)offset, (jint)whence);
-    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return KC_IO_ERR; }
-    return r < 0 ? KC_IO_ERR : (int64_t)r;
+    int attached;
+    JNIEnv *env = kj_io_env(st, &attached);
+    int64_t result = env != NULL ? kj_io_seek_with(env, st, offset, whence) : KC_IO_ERR;
+    kj_io_release(st, attached);
+    return result;
 }
 
 static void kj_io_state_free(JNIEnv *env, kj_io_state *st)

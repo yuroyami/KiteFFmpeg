@@ -1,18 +1,22 @@
 /* The Java bridge under native/kitecodec-jni, on paths that no JVM test can reach.
  *
  * WHY A C SUITE. Every call into the bridge comes from Java, so a JVM test can only drive what a
- * working JVM lets happen. A handle minted while a Java exception is pending is one such path: in
- * the open calls, the only JNI calls that could raise that exception fail only when the JVM is out
- * of memory. This suite compiles the bridge units into itself against the stand-in
- * tests/fake_headers/jni/jni.h and drives them with a fake JNIEnv, so it can raise the exception
- * on purpose.
+ * working JVM lets happen. Two paths are out of its reach:
+ *   - A handle minted while a Java exception is pending. In the open calls, the only JNI calls that
+ *     could raise that exception fail only when the JVM is out of memory.
+ *   - A byte-source callback on a thread the JVM does not know. FFmpeg runs the callbacks on the
+ *     thread that called into it, and every such call arrives from Java on an attached thread.
+ * This suite compiles the bridge units into itself against the stand-in
+ * tests/fake_headers/jni/jni.h and drives them with a fake JNIEnv and JavaVM, so it can make both
+ * happen on purpose.
  *
  * What is compiled: kj_format.c, kj_handles.c and the handle table kc_handles.c, unchanged. kj_util.c
  * is not: it builds Java strings and exceptions, and the stubs below stand in for it.
  *
  * What it cannot prove is how a particular JVM behaves. The fakes follow the JNI specification: an
- * exception stays pending on its thread until something clears it, and a native method's return
- * value is dropped when the method returns with an exception pending.
+ * exception stays pending on its thread until something clears it, a native method's return value
+ * is dropped when the method returns with an exception pending, and GetEnv answers JNI_EDETACHED on
+ * a thread nobody attached.
  */
 
 #include "harness.h"
@@ -22,6 +26,7 @@
 #include "kj_handles.c"
 #include "kj_format.c"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,14 +34,20 @@
 
 /* ---- Fake Java objects ---- */
 
-enum fake_kind { FAKE_STRING = 1, FAKE_ARRAY };
+enum fake_kind { FAKE_STRING = 1, FAKE_ARRAY, FAKE_BYTES, FAKE_PLAIN };
 
-/* One Java object. Strings own their text and arrays own their element slots, not the elements. */
+/* One Java object. Strings own their text, object arrays own their element slots but not the
+ * elements, and byte arrays own their bytes. */
 struct _jobject {
     enum fake_kind kind;
     char *text;
     jobject *elements;
+    jbyte *bytes;
     jsize length;
+};
+
+struct _jmethodID {
+    const char *name;
 };
 
 static char *copy_text(const char *text)
@@ -68,11 +79,23 @@ static jobject fake_array(jsize length)
     return object;
 }
 
+static jobject fake_bytes(jsize length)
+{
+    jobject object = (jobject)calloc(1, sizeof(struct _jobject));
+    KC_NOT_NULL(object);
+    object->kind = FAKE_BYTES;
+    object->bytes = (jbyte *)calloc((size_t)length, 1);
+    KC_NOT_NULL(object->bytes);
+    object->length = length;
+    return object;
+}
+
 static void fake_free(jobject object)
 {
     if (object == NULL) return;
     free(object->text);
     free(object->elements);
+    free(object->bytes);
     free(object);
 }
 
@@ -139,6 +162,67 @@ static void env_delete_local(JNIEnv *env, jobject object)
     (void)object;
 }
 
+/* The Java side of a byte source, as JniByteIo answers the two callbacks. */
+static struct _jmethodID read_method = { "read" };
+static struct _jmethodID seek_method = { "seek" };
+static struct _jobject java_source = { .kind = FAKE_PLAIN };
+
+/* When set, the Java read or seek throws instead of answering. Set before a thread starts and read
+ * on it, so the start of the thread orders the two. */
+static int java_read_throws;
+static int java_seek_throws;
+
+/* A Java read that fills up to 16 bytes with 0x5a, or throws. */
+static jint env_call_int(JNIEnv *caller, jobject object, jmethodID method, ...)
+{
+    va_list args;
+    jbyteArray into;
+    jint want;
+    jint count;
+    (void)caller;
+    KC_CHECK(object == &java_source && method == &read_method);
+    va_start(args, method);
+    into = va_arg(args, jbyteArray);
+    want = va_arg(args, jint);
+    va_end(args);
+    if (java_read_throws) {
+        raise_pending("the source threw inside read");
+        return 0;
+    }
+    KC_CHECK(into != NULL && into->kind == FAKE_BYTES && want <= into->length);
+    count = want < 16 ? want : 16;
+    memset(into->bytes, 0x5a, (size_t)count);
+    return count;
+}
+
+/* A Java seek that moves to the offset it was given, or throws. */
+static jlong env_call_long(JNIEnv *caller, jobject object, jmethodID method, ...)
+{
+    va_list args;
+    jlong offset;
+    jint whence;
+    (void)caller;
+    KC_CHECK(object == &java_source && method == &seek_method);
+    va_start(args, method);
+    offset = va_arg(args, jlong);
+    whence = va_arg(args, jint);
+    va_end(args);
+    KC_EQ_INT(whence, SEEK_SET);
+    if (java_seek_throws) {
+        raise_pending("the source threw inside seek");
+        return 0;
+    }
+    return offset;
+}
+
+static void env_get_bytes(JNIEnv *caller, jbyteArray array, jsize start, jsize length, jbyte *buf)
+{
+    (void)caller;
+    KC_CHECK(array != NULL && array->kind == FAKE_BYTES);
+    KC_CHECK(start >= 0 && length >= 0 && start + length <= array->length);
+    memcpy(buf, array->bytes + start, (size_t)length);
+}
+
 /* The members no case in this suite reaches. Each one fails loudly rather than guessing. */
 static jint env_unexpected_get_vm(JNIEnv *env, JavaVM **vm)
 {
@@ -156,18 +240,6 @@ static jmethodID env_unexpected_method_id(JNIEnv *env, jclass cls, const char *n
 {
     (void)env; (void)cls; (void)name; (void)sig;
     KC_FAIL("the bridge called GetMethodID, which no case here expects");
-}
-
-static jint env_unexpected_call_int(JNIEnv *env, jobject object, jmethodID method, ...)
-{
-    (void)env; (void)object; (void)method;
-    KC_FAIL("the bridge called CallIntMethod, which no case here expects");
-}
-
-static jlong env_unexpected_call_long(JNIEnv *env, jobject object, jmethodID method, ...)
-{
-    (void)env; (void)object; (void)method;
-    KC_FAIL("the bridge called CallLongMethod, which no case here expects");
 }
 
 static jobject env_unexpected_new_global(JNIEnv *env, jobject object)
@@ -188,13 +260,6 @@ static jbyteArray env_unexpected_new_bytes(JNIEnv *env, jsize length)
     KC_FAIL("the bridge called NewByteArray, which no case here expects");
 }
 
-static void env_unexpected_get_bytes(JNIEnv *env, jbyteArray array, jsize start, jsize length,
-                                     jbyte *buf)
-{
-    (void)env; (void)array; (void)start; (void)length; (void)buf;
-    KC_FAIL("the bridge called GetByteArrayRegion, which no case here expects");
-}
-
 static void env_unexpected_set_longs(JNIEnv *env, jlongArray array, jsize start, jsize length,
                                      const jlong *buf)
 {
@@ -208,8 +273,8 @@ static const struct JNINativeInterface_ fake_env_functions = {
     .ExceptionClear = env_exception_clear,
     .GetObjectClass = env_unexpected_object_class,
     .GetMethodID = env_unexpected_method_id,
-    .CallIntMethod = env_unexpected_call_int,
-    .CallLongMethod = env_unexpected_call_long,
+    .CallIntMethod = env_call_int,
+    .CallLongMethod = env_call_long,
     .NewGlobalRef = env_unexpected_new_global,
     .DeleteGlobalRef = env_unexpected_delete_global,
     .DeleteLocalRef = env_delete_local,
@@ -217,12 +282,61 @@ static const struct JNINativeInterface_ fake_env_functions = {
     .GetObjectArrayElement = env_array_get,
     .SetObjectArrayElement = env_array_set,
     .NewByteArray = env_unexpected_new_bytes,
-    .GetByteArrayRegion = env_unexpected_get_bytes,
+    .GetByteArrayRegion = env_get_bytes,
     .SetLongArrayRegion = env_unexpected_set_longs,
 };
 
 static JNIEnv fake_env = &fake_env_functions;
 static JNIEnv *const env = &fake_env;
+
+/* ---- The fake JavaVM ---- */
+
+/* Whether the JVM knows this thread. The suite's own thread plays a Java thread, so main attaches
+ * it first. The counters are written by one thread at a time: each case starts a thread and joins
+ * it before it reads them. */
+static _Thread_local int attached_here;
+static int attach_calls;
+static int detach_calls;
+
+static jint vm_get_env(JavaVM *vm, void **out, jint version)
+{
+    (void)vm;
+    KC_EQ_INT(version, JNI_VERSION_1_6);
+    if (!attached_here) {
+        *out = NULL;
+        return JNI_EDETACHED;
+    }
+    *out = (void *)env;
+    return JNI_OK;
+}
+
+static jint vm_attach(JavaVM *vm, void **out, void *args)
+{
+    (void)vm;
+    (void)args;
+    KC_CHECKF(!attached_here, "the bridge attached a thread the JVM already knows");
+    attached_here = 1;
+    attach_calls++;
+    *out = (void *)env;
+    return JNI_OK;
+}
+
+static jint vm_detach(JavaVM *vm)
+{
+    (void)vm;
+    KC_CHECKF(attached_here, "the bridge detached a thread the JVM does not know");
+    attached_here = 0;
+    detach_calls++;
+    return JNI_OK;
+}
+
+static const struct JNIInvokeInterface_ fake_vm_functions = {
+    .GetEnv = vm_get_env,
+    .AttachCurrentThread = vm_attach,
+    .DetachCurrentThread = vm_detach,
+};
+
+static JavaVM fake_vm = &fake_vm_functions;
 
 /* ---- Stand-ins for kj_util.c ---- */
 
@@ -420,13 +534,147 @@ static void case_open_whose_report_fails_keeps_nothing(void)
     run_open_whose_report_fails(1);
 }
 
+/* ---- Cases: a callback on a thread the JVM never attached leaves it detached ---- */
+
+/* The state kj_fmt_open_input_io would build, pointed at the fakes above. */
+static kj_io_state io_state;
+
+/* One callback, run by run_callback on whatever thread calls it, and what that thread saw. */
+struct callback_run {
+    int seek;
+    int64_t result;
+    unsigned char first_byte;
+    int attached_after;
+    int pending_after;
+};
+
+static void *run_callback(void *arg)
+{
+    struct callback_run *run = (struct callback_run *)arg;
+    unsigned char buf[64] = { 0 };
+    if (run->seek) {
+        run->result = kj_io_seek_cb(&io_state, 4096, SEEK_SET);
+    } else {
+        run->result = kj_io_read(&io_state, buf, (int)sizeof buf);
+    }
+    run->first_byte = buf[0];
+    run->attached_after = attached_here;
+    run->pending_after = pending;
+    return NULL;
+}
+
+/* A short-lived native thread the JVM has never seen, like one FFmpeg or an application made. */
+static void run_on_new_thread(struct callback_run *run)
+{
+    pthread_t thread;
+    KC_EQ_INT(pthread_create(&thread, NULL, run_callback, run), 0);
+    KC_EQ_INT(pthread_join(thread, NULL), 0);
+}
+
+static void case_read_on_unknown_thread_detaches(void)
+{
+    struct callback_run run = { 0 };
+    int attaches = attach_calls;
+    int detaches = detach_calls;
+
+    kc_case("a read on a thread the JVM never attached detaches that thread before it returns");
+    run_on_new_thread(&run);
+    KC_EQ_I64(run.result, 16);
+    KC_EQ_INT(run.first_byte, 0x5a);
+    KC_EQ_INT(attach_calls - attaches, 1);
+    KC_EQ_INT(detach_calls - detaches, 1);
+    KC_EQ_INT(run.attached_after, 0);
+    kc_note("an attachment nobody detaches keeps the thread's Java peer alive after the thread ends");
+}
+
+static void case_throwing_read_on_unknown_thread_detaches(void)
+{
+    struct callback_run run = { 0 };
+    int attaches = attach_calls;
+    int detaches = detach_calls;
+
+    kc_case("a read whose Java side throws detaches the thread too, and leaves no exception pending");
+    java_read_throws = 1;
+    run_on_new_thread(&run);
+    java_read_throws = 0;
+    KC_EQ_I64(run.result, KC_IO_ERR);
+    KC_EQ_INT(run.pending_after, 0);
+    KC_EQ_INT(attach_calls - attaches, 1);
+    KC_EQ_INT(detach_calls - detaches, 1);
+    KC_EQ_INT(run.attached_after, 0);
+}
+
+static void case_seek_on_unknown_thread_detaches(void)
+{
+    struct callback_run run = { .seek = 1 };
+    int attaches = attach_calls;
+    int detaches = detach_calls;
+
+    kc_case("a seek on a thread the JVM never attached detaches it too, whether it moves or throws");
+    run_on_new_thread(&run);
+    KC_EQ_I64(run.result, 4096);
+    KC_EQ_INT(run.attached_after, 0);
+    java_seek_throws = 1;
+    run_on_new_thread(&run);
+    java_seek_throws = 0;
+    KC_EQ_I64(run.result, KC_IO_ERR);
+    KC_EQ_INT(run.pending_after, 0);
+    KC_EQ_INT(run.attached_after, 0);
+    KC_EQ_INT(attach_calls - attaches, 2);
+    KC_EQ_INT(detach_calls - detaches, 2);
+}
+
+static void case_many_short_threads_leave_none_attached(void)
+{
+    int attaches = attach_calls;
+    int detaches = detach_calls;
+    int i;
+
+    kc_case("thirty-two short-lived threads that each read once leave no thread attached");
+    for (i = 0; i < 32; i++) {
+        struct callback_run run = { 0 };
+        run_on_new_thread(&run);
+        KC_EQ_I64(run.result, 16);
+        KC_EQ_INT(run.attached_after, 0);
+    }
+    KC_EQ_INT(attach_calls - attaches, 32);
+    KC_EQ_INT(detach_calls - detaches, 32);
+}
+
+static void case_known_thread_is_left_alone(void)
+{
+    struct callback_run run = { 0 };
+    int attaches = attach_calls;
+    int detaches = detach_calls;
+
+    kc_case("a read on a thread the JVM already knows neither attaches nor detaches it");
+    run_callback(&run);
+    KC_EQ_I64(run.result, 16);
+    KC_EQ_INT(attach_calls - attaches, 0);
+    KC_EQ_INT(detach_calls - detaches, 0);
+    KC_EQ_INT(attached_here, 1);
+}
+
 int main(void)
 {
     kc_suite_begin("test_jni_bridge");
+    attached_here = 1; /* this thread plays a Java thread */
     write_wav();
     case_owned_mint_refused_while_pending();
     case_borrowed_mint_refused_while_pending();
     case_open_reports_its_unused_option();
     case_open_whose_report_fails_keeps_nothing();
+
+    io_state.vm = &fake_vm;
+    io_state.cb = &java_source;
+    io_state.buffer = fake_bytes(KJ_IO_BUFFER_SIZE);
+    io_state.read = &read_method;
+    io_state.seek = &seek_method;
+    case_read_on_unknown_thread_detaches();
+    case_throwing_read_on_unknown_thread_detaches();
+    case_seek_on_unknown_thread_detaches();
+    case_many_short_threads_leave_none_attached();
+    case_known_thread_is_left_alone();
+    fake_free(io_state.buffer);
     return kc_suite_end();
 }
