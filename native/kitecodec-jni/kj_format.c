@@ -83,7 +83,9 @@ done:
     free(c);
     if (rc < 0 || ctx == NULL) { ffkmp_dict_free(&unused); kj_throw_ffmpeg(env, rc, "fmt_open_input2"); return 0; }
     /* The unused remainder crosses as ONE unit-separated string in slot 0 (empty string when
-     * everything was consumed), the same joining the identity report already uses. */
+     * everything was consumed), the same joining the identity report already uses. The keys are
+     * standard UTF-8, so they cross through kj_string_new: NewStringUTF reads modified UTF-8 and
+     * garbles every character above the basic multilingual plane. */
     if (unused_keys_out != NULL && (*env)->GetArrayLength(env, unused_keys_out) >= 1) {
         size_t total = 1;
         kc_dict_entry *e = NULL;
@@ -102,7 +104,7 @@ done:
                 at += len;
             }
             joined[at] = '\0';
-            jstring js = (*env)->NewStringUTF(env, joined);
+            jstring js = kj_string_new(env, joined);
             free(joined);
             if (js != NULL) {
                 (*env)->SetObjectArrayElement(env, unused_keys_out, 0, js);
@@ -638,7 +640,7 @@ done:
                 at += len;
             }
             joined[at] = '\0';
-            jstring js = (*env)->NewStringUTF(env, joined);
+            jstring js = kj_string_new(env, joined);
             free(joined);
             if (js != NULL) {
                 (*env)->SetObjectArrayElement(env, unused_keys_out, 0, js);
