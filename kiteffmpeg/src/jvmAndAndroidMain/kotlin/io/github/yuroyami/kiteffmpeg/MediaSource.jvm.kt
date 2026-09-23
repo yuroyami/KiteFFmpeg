@@ -31,6 +31,14 @@ public actual class MediaSource internal constructor(
 
     internal fun toAbsoluteMicros(relativeMicros: Long): Long = relativeMicros + startTimeMicros
 
+    /**
+     * The exception for a read, seek or probe on this source that failed with [code]. When the
+     * source reads a [MediaByteSource], the exception that source threw becomes the cause, because
+     * FFmpeg itself only received an error code.
+     */
+    internal fun demuxFailure(code: Int): FFmpegException =
+        FFmpegException(avError(code)).also { jniIo?.explain(it) }
+
     private fun beginDemux(): Long = synchronized(stateLock) {
         check(formatToken != 0L) { "MediaSource is closed" }
         check(!demuxing) {
@@ -180,7 +188,7 @@ public actual class MediaSource internal constructor(
             currentCoroutineContext().ensureActive()
             val rc = Internals.fmtReadFrame(context, packet)
             if (rc == Internals.errorEof) break
-            if (rc < 0) throw FFmpegException(avError(rc))
+            if (rc < 0) throw demuxFailure(rc)
             val index = Internals.packetStreamIndex(packet)
             val decoder = decoderByIndex[index]
             val copyInfo = if (decoder == null) copyByIndex[index] else null
@@ -262,7 +270,7 @@ public actual class MediaSource internal constructor(
                     "demuxer cursor. Use PacketReader.seek instead."
             }
             val rc = Internals.fmtSeekMicros(formatToken, -1, toAbsoluteMicros(micros))
-            if (rc < 0) throw FFmpegException(avError(rc))
+            if (rc < 0) throw demuxFailure(rc)
         }
     }
 
@@ -518,6 +526,7 @@ private fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>)
             unusedSlot,
         )
     } catch (error: Throwable) {
+        if (error is FFmpegException) adapter.explain(error)
         adapter.closeSource()
         throw error
     }
@@ -536,6 +545,7 @@ private fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>)
             jniIo = adapter,
         )
     } catch (error: Throwable) {
+        if (error is FFmpegException) adapter.explain(error)
         Internals.fmtCloseInputIo(context)
         adapter.closeSource()
         throw error

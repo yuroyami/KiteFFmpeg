@@ -9,16 +9,20 @@ package io.github.yuroyami.kiteffmpeg
  *
  * Error contract, mirroring kitecodec_helpers.h: [read] returns bytes read > 0, -1 at end of
  * stream, -2 on failure; [seek] returns the new absolute position or -2. Exceptions never
- * cross into C: they are caught here, parked, and reported as -2.
+ * cross into C: they are caught here, parked, and reported as -2. [explain] then attaches the
+ * parked exception to the error FFmpeg reports, so the caller sees what the source threw.
  */
 internal class JniByteIo(private val io: MediaByteSource) {
 
     private var position = 0L
 
-    /** The last failure [read] or [seek] swallowed, for a truer diagnosis than FFmpeg's EIO. */
+    /**
+     * The exception the last [read] or [seek] swallowed, kept for the error it causes. FFmpeg can
+     * report that error one call later, so it waits here until [explain] takes it. A read that
+     * delivers bytes clears it: FFmpeg recovered, so it no longer explains a later error.
+     */
     @Volatile
-    var failure: Throwable? = null
-        private set
+    private var failure: Throwable? = null
 
     /** Called from C. Fills [into] from the source, returns count, -1 EOF, -2 error. */
     @Suppress("unused")
@@ -27,6 +31,7 @@ internal class JniByteIo(private val io: MediaByteSource) {
         when {
             r > 0 -> {
                 position += r
+                failure = null
                 r
             }
             r < 0 -> -1
@@ -56,6 +61,16 @@ internal class JniByteIo(private val io: MediaByteSource) {
     } catch (t: Throwable) {
         failure = t
         -2L
+    }
+
+    /**
+     * Attaches the swallowed exception to [error] as its cause, once. [error] is what FFmpeg's error
+     * code became, and without the cause it only says that an I/O operation failed.
+     */
+    fun explain(error: FFmpegException) {
+        val swallowed = failure ?: return
+        failure = null
+        if (error.cause == null) error.initCause(swallowed)
     }
 
     /** Runs on MediaSource.close, after the C side dropped its refs. */

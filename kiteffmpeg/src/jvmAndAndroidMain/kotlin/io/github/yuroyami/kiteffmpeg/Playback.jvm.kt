@@ -69,7 +69,7 @@ public actual class PacketReader internal constructor(
             while (true) {
                 val rc = Internals.fmtReadFrame(formatToken, scratch)
                 if (rc == Internals.errorEof) return null
-                if (rc < 0) throw FFmpegException(avError(rc))
+                if (rc < 0) throw source.demuxFailure(rc)
                 val timeBase = timeBaseByStream[Internals.packetStreamIndex(scratch)]
                 if (timeBase == null) {
                     Internals.packetUnref(scratch)
@@ -103,7 +103,7 @@ public actual class PacketReader internal constructor(
             SeekDirection.Any -> Internals.seekFlagAny
         }
         val rc = Internals.fmtSeekFile(formatToken, -1, min, target, max, flags)
-        if (rc < 0) throw FFmpegException(avError(rc))
+        if (rc < 0) throw source.demuxFailure(rc)
     }
 
     @Throws(FFmpegException::class)
