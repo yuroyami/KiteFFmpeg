@@ -97,6 +97,11 @@ public data class VideoEncoderSpec(
     val width: Int,
     val height: Int,
     val pixelFormat: PixelFormat = PixelFormat.Yuv420p,
+    /**
+     * The constant rate of the output. The encoder's time-base has one tick per frame at this
+     * rate, so it holds at most one frame per tick. [Transcoder] drops or repeats input frames to
+     * reach it, the way FFmpeg's `fps` filter does.
+     */
     val frameRate: Rational,
     val bitrateBps: Long = 4_000_000L,
     val keyframeIntervalFrames: Int = (frameRate.asDouble * 2).toInt().coerceAtLeast(1),
@@ -123,8 +128,12 @@ public data class AudioEncoderSpec(
  * pushes each frame into the encoder, pulls packets, hands them to the sink's muxer, and
  * flushes when the flow completes.
  *
- * Incoming frame pts are rescaled from the frame's own time-base onto the encoder's. Frames
- * without pts fall back to a frame counter. Output timestamps stay monotonic either way.
+ * Incoming frame pts are rescaled from the frame's own time-base onto the encoder's, which has
+ * one tick per frame at [VideoEncoderSpec.frameRate]. A frame whose pts lands on or before the
+ * tick of the frame before it is refused with [FFmpegException], because moving it later would
+ * slow the video down: feed frames at the encoder's rate, dropping or repeating them first when
+ * the source is faster or slower, as [Transcoder] does. Frames without pts fall back to a frame
+ * counter.
  */
 public expect class VideoEncoder : AutoCloseable {
     /**

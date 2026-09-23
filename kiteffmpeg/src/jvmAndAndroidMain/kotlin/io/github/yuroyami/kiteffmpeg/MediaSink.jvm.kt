@@ -479,11 +479,29 @@ internal class EncoderCore(
             }
             rescaled - basePts
         }
-        if (lastPts != Long.MIN_VALUE && pts <= lastPts) pts = lastPts + stepPastLastPts()
+        if (lastPts != Long.MIN_VALUE && pts <= lastPts) {
+            if (!audio && raw != FrameInfo.NOPTS) refuseSharedTick(pts)
+            pts = lastPts + stepPastLastPts()
+        }
         lastPts = pts
         lastSampleCount = sampleCount
         Internals.frameSetPts(token, pts)
     }
+
+    /**
+     * One tick of a video encoder's time base holds one frame. Moving a second frame to the next
+     * tick is what turned a lower frame rate into slow motion, so a frame that carries its own
+     * timestamp and lands on a tick already taken is refused instead.
+     */
+    private fun refuseSharedTick(pts: Long): Nothing = throw FFmpegException(
+        FFmpegError.InvalidArgument(
+            0,
+            "This video frame lands on tick $pts of the encoder's time base $codecTimeBase, and " +
+                "the frame before it already took tick $lastPts. Moving it later would slow the " +
+                "video down. Drop or repeat frames to the encoder's frame rate first, as " +
+                "Transcoder does, or open the encoder with a higher VideoEncoderSpec.frameRate.",
+        ),
+    )
 
     private fun stepPastLastPts(): Long = if (audio) lastSampleCount.toLong().coerceAtLeast(1L) else 1L
 

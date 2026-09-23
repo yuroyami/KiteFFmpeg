@@ -107,7 +107,7 @@ The encode core is **EAGAIN-correct**: it respects the codec's "I need more inpu
 
 You do not compute output timestamps. The encoder takes each incoming frame's pts (in the frame's own time-base) and rescales it onto the codec time-base. Frames that arrive with no pts at all fall back to a frame counter. Either way the output is **monotonic and zero-based**: the first written frame lands at pts 0 and timestamps only ever increase.
 
-KiteFFmpeg does this the same way `ffmpeg.c` does, and it forces strict monotonicity at the encoder boundary. See the [transcoding guide](transcoding.md) for how trim offsets are rebased to zero on top of this.
+The codec time-base of a video encoder has one tick per frame at `frameRate`, and one tick holds one frame. `drive` throws `FFmpegException` for a frame whose pts lands on or before the tick of the frame before it, because moving that frame to a later tick would slow the video down. Feed frames at the encoder's rate. When the source is faster or slower, drop or repeat frames first. [`Transcoder`](transcoding.md) does this for you. See the [transcoding guide](transcoding.md) for how trim offsets are rebased to zero on top of this.
 
 ## Adding an audio encoder
 

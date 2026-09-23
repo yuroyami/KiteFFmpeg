@@ -27,7 +27,9 @@ public expect object Transcoder {
      * @param output output file path
      * @param spec video encoder spec. Null (with [videoCopy] false) gives audio-only output
      *             and drops any input video. When set but the input has no video stream,
-     *             this throws.
+     *             this throws. The video is written at a constant [VideoEncoderSpec.frameRate]:
+     *             frames are dropped or repeated against the input timeline the way FFmpeg's
+     *             `fps` filter does, so a rate change keeps the duration and never the speed.
      * @param videoFilter filter graph description applied to the video stream. Null passes
      *                    decoded frames straight into the encoder. Requires [spec].
      * @param videoCopy stream-copy the video instead of re-encoding (`-c:v copy`): bit-exact

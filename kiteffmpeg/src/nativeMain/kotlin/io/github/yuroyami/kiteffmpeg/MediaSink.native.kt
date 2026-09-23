@@ -622,8 +622,10 @@ internal class EncoderCore(
      * frame sits at the trim offset). The base offset is SHARED across the sink's streams
      * ([MediaSink.claimBaseMicros]) so the relative A/V offset survives the rebase. Frames
      * with no pts fall back to a synthetic timeline: one tick per frame for video, and for audio
-     * each frame starting where the previous one ended ([stepPastLastPts]). Output is forced
-     * strictly monotonic because both libx264 and muxers reject non-increasing pts.
+     * each frame starting where the previous one ended ([stepPastLastPts]). Output must be
+     * strictly monotonic because both libx264 and muxers reject non-increasing pts: an audio frame
+     * that overlaps the previous one is moved to where that one ended, and a video frame with its
+     * own timestamp on a tick already taken is refused ([refuseSharedTick]).
      */
     private fun restampPts(frame: Frame) {
         val raw = ffkmp_frame_pts(frame.checkedNative)
@@ -644,14 +646,31 @@ internal class EncoderCore(
         // Force strictly increasing output. The step matters: the codec time-base is 1/sample_rate
         // for audio, so a one-TICK bump would collapse a whole 1024-sample AAC frame into a single
         // sample and desync everything after it. Advance by the duration of the frame already
-        // written instead, which is exactly where this one begins.
+        // written instead, which is exactly where this one begins. A video frame with its own
+        // timestamp is not moved at all: see refuseSharedTick.
         if (lastPts != Long.MIN_VALUE && pts <= lastPts) {
+            if (!isAudio && raw != FrameInfo.NOPTS) refuseSharedTick(pts)
             pts = lastPts + stepPastLastPts()
         }
         lastPts = pts
         lastSampleCount = sampleCount
         ffkmp_frame_set_pts(frame.checkedNative, pts)
     }
+
+    /**
+     * One tick of a video encoder's time base holds one frame. Moving a second frame to the next
+     * tick is what turned a lower frame rate into slow motion, so a frame that carries its own
+     * timestamp and lands on a tick already taken is refused instead.
+     */
+    private fun refuseSharedTick(pts: Long): Nothing = throw FFmpegException(
+        FFmpegError.InvalidArgument(
+            0,
+            "This video frame lands on tick $pts of the encoder's time base $codecTimeBase, and " +
+                "the frame before it already took tick $lastPts. Moving it later would slow the " +
+                "video down. Drop or repeat frames to the encoder's frame rate first, as " +
+                "Transcoder does, or open the encoder with a higher VideoEncoderSpec.frameRate.",
+        ),
+    )
 
     /**
      * Where the timeline stands after [lastPts], in codec time-base ticks: the duration of the

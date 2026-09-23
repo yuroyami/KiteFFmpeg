@@ -110,6 +110,8 @@ Rational(30000, 1001)  // 29.97 fps, exact
 
 `Rational` also ships common rates as companion constants: `Rational.Fps24`, `Rational.Fps25`, `Rational.Fps30`, `Rational.Fps60`, `Rational.Fps2997`, `Rational.Fps2398`.
 
+The output video has a constant rate: exactly `frameRate` frames per second. When the input has another rate, or no constant rate at all, frames are dropped or repeated against the input timeline, the way FFmpeg's `fps` filter does. Each output frame shows the latest input frame that starts at or before it, so the duration stays the same. A 60 fps clip encoded at 25 fps keeps its length and loses frames. A 24 fps clip encoded at 60 fps shows each frame two or three times.
+
 The `options` map passes codec-specific settings straight through (`preset`, `crf`, `allow_sw`, and so on). KiteFFmpeg does not validate them. They reach the encoder unchanged.
 
 ### Choosing a codec
@@ -234,7 +236,7 @@ Transcoder.transcode(
 )
 ```
 
-`videoFilter` requires `spec`. A filter that changes the frame rate or sample rate (such as `fps` or `atempo`) is handled correctly: the output time-base from the filter graph is what stamps the frames, and the encoder rescales onto its own codec time-base.
+`videoFilter` requires `spec`. A filter that changes timing or the sample rate (such as `setpts` or `atempo`) is handled correctly: the output time-base from the filter graph is what stamps the frames, and the video is then brought to `frameRate` as described in [Video encoding](#video-encoding).
 
 For the full filter syntax, multi-input composition (overlay, amix), and how to drive filter graphs by hand, see [Filtering](filtering.md).
 

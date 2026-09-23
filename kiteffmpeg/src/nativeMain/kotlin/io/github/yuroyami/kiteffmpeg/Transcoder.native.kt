@@ -94,6 +94,10 @@ public actual object Transcoder {
                 // The vars live at this scope so the finally below owns them either way.
                 var videoGraph: FilterGraph? = null
                 var audioGraph: FilterGraph? = null
+                // The video is written at the spec's constant rate: frames are dropped or repeated
+                // against the input timeline, so a rate change keeps the duration. A decoder's frame
+                // durations hold; a filter's may not.
+                val videoRate = spec?.let { ConstantFrameRate(it.frameRate, durationsHold = videoFilter == null) }
                 try {
                     // Write the header eagerly, like Remuxer does. Without this a source that
                     // yields no frames at all never reaches the drain loop that would trigger it,
@@ -143,12 +147,17 @@ public actual object Transcoder {
                             // MediaSource.startTimeMicros).
                             val trim = TrimWindow(startMicros, endMicros, source.startTimeMicros)
 
+                            // One output frame per tick of the spec's rate, each its own copy.
+                            fun encodeVideoTick(frame: Frame, tick: Long) {
+                                venc!!.core.encode(videoPacket, frame.copyAt(tick, videoRate!!.tickBase))
+                                reportMaybe()
+                            }
+
                             // No trim check here. The trim applies once, to the decoded input
                             // below; a filter that moves time may put its frames past endMicros,
                             // and they still belong to the selection.
                             fun encodeVideo(frame: Frame) {
-                                venc!!.core.encode(videoPacket, frame)
-                                reportMaybe()
+                                frame.use { videoRate!!.push(it, ::encodeVideoTick) }
                             }
                             fun encodeAudio(frame: Frame) {
                                 aenc!!.core.encode(audioPacket, frame)
@@ -297,9 +306,10 @@ public actual object Transcoder {
                                 },
                             )
 
-                            // Drain filter graphs, then flush encoders.
+                            // Drain filter graphs and the held video frame, then flush encoders.
                             videoGraph?.flushInto(::encodeVideo)
                             audioGraph?.flushInto(::encodeAudio)
+                            videoRate?.finish(::encodeVideoTick)
                             venc?.core?.finish(videoPacket)
                             aenc?.core?.finish(audioPacket)
                             reportMaybe(force = true)
@@ -308,6 +318,7 @@ public actual object Transcoder {
                 } finally {
                     videoGraph?.close()
                     audioGraph?.close()
+                    videoRate?.close()
                     venc?.close()
                     aenc?.close()
                 }

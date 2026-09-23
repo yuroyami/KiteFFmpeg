@@ -74,6 +74,10 @@ public actual object Transcoder {
 
                 var videoGraph: FilterGraph? = null
                 var audioGraph: FilterGraph? = null
+                // The video is written at the spec's constant rate: frames are dropped or repeated
+                // against the input timeline, so a rate change keeps the duration. A decoder's frame
+                // durations hold; a filter's may not.
+                val videoRate = spec?.let { ConstantFrameRate(it.frameRate, durationsHold = videoFilter == null) }
                 try {
                     val videoInfo = videoStream?.video
                     if (videoFilter != null && videoInfo != null) {
@@ -142,12 +146,17 @@ public actual object Transcoder {
 
                             val trim = TrimWindow(startMicros, endMicros, source.startTimeMicros)
 
+                            // One output frame per tick of the spec's rate, each its own copy.
+                            fun encodeVideoTick(frame: Frame, tick: Long) {
+                                videoEncoder!!.core.encode(videoPacket, frame.copyAt(tick, videoRate!!.tickBase))
+                                report()
+                            }
+
                             // No trim check here. The trim applies once, to the decoded input
                             // below; a filter that moves time may put its frames past endMicros,
                             // and they still belong to the selection.
                             fun encodeVideo(frame: Frame) {
-                                videoEncoder!!.core.encode(videoPacket, frame)
-                                report()
+                                frame.use { videoRate!!.push(it, ::encodeVideoTick) }
                             }
 
                             fun encodeAudio(frame: Frame) {
@@ -225,6 +234,7 @@ public actual object Transcoder {
 
                             videoGraph?.flushInto(::encodeVideo)
                             audioGraph?.flushInto(::encodeAudio)
+                            videoRate?.finish(::encodeVideoTick)
                             videoEncoder?.core?.finish(videoPacket)
                             audioEncoder?.core?.finish(audioPacket)
                             report(force = true)
@@ -233,6 +243,7 @@ public actual object Transcoder {
                 } finally {
                     videoGraph?.close()
                     audioGraph?.close()
+                    videoRate?.close()
                     videoEncoder?.close()
                     audioEncoder?.close()
                 }

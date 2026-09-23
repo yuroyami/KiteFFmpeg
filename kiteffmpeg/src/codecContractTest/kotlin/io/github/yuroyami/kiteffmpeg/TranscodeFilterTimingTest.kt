@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  *
  * Each video case uses an output rate that matches the filtered rate, so every filtered frame is
  * one output frame and the count is exact. `ffmpeg` with a `trim` filter in front of the same
- * filter is the oracle.
+ * filter, and `fps` at the output rate behind it, is the oracle.
  */
 internal class TranscodeFilterTimingTest {
     private val paths = mutableListOf<String>()
@@ -55,19 +55,17 @@ internal class TranscodeFilterTimingTest {
     }
 
     /**
-     * Asserts [output] holds [expected] frames, and that `ffmpeg` made the same number. The oracle
-     * passes every filtered frame through with its own timestamp, so neither side drops or repeats
-     * a frame to fit a rate.
+     * Asserts [output] shows [expected] input frames, and that `ffmpeg` shows the same ones. The
+     * transcoder writes the spec's constant rate the way the `fps` filter does, so the oracle runs
+     * the same filter followed by `fps` at [rate].
      */
-    private fun assertFrameCount(expected: Int, output: String, input: String, oracleFilter: String) {
-        assertEquals(expected, TranscodeFixtures.decodedFrameIndices(output).size, "frames decoded from the output")
-        MediaOracle.videoFrameCount(output)?.let { assertEquals(expected, it, "frames ffprobe counts in the output") }
+    private fun assertFrames(expected: List<Int>, output: String, input: String, oracleFilter: String, rate: Rational) {
+        assertEquals(expected, TranscodeFixtures.decodedFrameIndices(output), "input frames the output shows")
+        MediaOracle.videoFrameCount(output)?.let { assertEquals(expected.size, it, "frames ffprobe counts in the output") }
         val reference = path("mkv")
-        val oracleArguments = listOf(
-            "-vf", oracleFilter, "-fps_mode", "passthrough", "-enc_time_base", "1/1000", "-c:v", "mpeg4", "-q:v", "2",
-        )
+        val oracleArguments = listOf("-vf", "$oracleFilter,fps=$rate", "-c:v", "mpeg4", "-q:v", "2")
         if (MediaOracle.reference(input, oracleArguments, reference)) {
-            assertEquals(expected, MediaOracle.videoFrameCount(reference), "frames ffmpeg made with $oracleFilter")
+            assertEquals(expected, TranscodeFixtures.decodedFrameIndices(reference), "input frames ffmpeg shows with $oracleFilter")
         }
     }
 
@@ -89,8 +87,9 @@ internal class TranscodeFilterTimingTest {
     @Test
     fun slowingDownKeepsEverySelectedFrame() {
         val input = twoSeconds()
-        val output = transcodeVideo(input, "setpts=2*PTS", Rational(25, 2), endMicros = 1_020_000L)
-        assertFrameCount(26, output, input, "trim=end=1.02,setpts=2*PTS")
+        val rate = Rational(25, 2)
+        val output = transcodeVideo(input, "setpts=2*PTS", rate, endMicros = 1_020_000L)
+        assertFrames((0..25).toList(), output, input, "trim=end=1.02,setpts=2*PTS", rate)
         val times = TranscodeFixtures.decodedFrameTimes(output)
         assertEquals(2_000_000L, times.last() - times.first(), "the last kept frame sits two seconds after the first")
     }
@@ -99,8 +98,9 @@ internal class TranscodeFilterTimingTest {
     @Test
     fun speedingUpKeepsEverySelectedFrame() {
         val input = twoSeconds()
-        val output = transcodeVideo(input, "setpts=0.5*PTS", Rational(50, 1), endMicros = 1_020_000L)
-        assertFrameCount(26, output, input, "trim=end=1.02,setpts=0.5*PTS")
+        val rate = Rational(50, 1)
+        val output = transcodeVideo(input, "setpts=0.5*PTS", rate, endMicros = 1_020_000L)
+        assertFrames((0..25).toList(), output, input, "trim=end=1.02,setpts=0.5*PTS", rate)
         val times = TranscodeFixtures.decodedFrameTimes(output)
         assertEquals(500_000L, times.last() - times.first(), "the last kept frame sits half a second after the first")
     }
@@ -109,8 +109,9 @@ internal class TranscodeFilterTimingTest {
     @Test
     fun aTimestampOffsetKeepsEverySelectedFrame() {
         val input = twoSeconds()
-        val output = transcodeVideo(input, "setpts=PTS+1/TB", Rational(25, 1), endMicros = 1_020_000L)
-        assertFrameCount(26, output, input, "trim=end=1.02,setpts=PTS+1/TB")
+        val rate = Rational(25, 1)
+        val output = transcodeVideo(input, "setpts=PTS+1/TB", rate, endMicros = 1_020_000L)
+        assertFrames((0..25).toList(), output, input, "trim=end=1.02,setpts=PTS+1/TB", rate)
     }
 
     /**
@@ -127,8 +128,7 @@ internal class TranscodeFilterTimingTest {
             startMicros = 500_000L,
             endMicros = 1_500_000L,
         )
-        assertFrameCount(25, output, input, "trim=start=0.5:end=1.5,setpts=2*PTS")
-        assertEquals(13, TranscodeFixtures.decodedFrameIndices(output).first(), "the first kept frame is the one at 520 ms")
+        assertFrames((13..37).toList(), output, input, "trim=start=0.5:end=1.5,setpts=2*PTS", Rational(25, 2))
     }
 
     /**

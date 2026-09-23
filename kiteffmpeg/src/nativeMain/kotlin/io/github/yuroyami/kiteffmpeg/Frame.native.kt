@@ -217,6 +217,17 @@ public actual class Frame internal constructor(
         Frame(cloned, ownsPointer = true, streamIndex = streamIndex, streamType = streamType, streamTimeBase = streamTimeBase)
     }
 
+    /**
+     * An owned copy that presents at [pts], counted in [timeBase], for a frame a constant-rate
+     * output shows at a tick of its own. The pixels are shared, as with [copy].
+     */
+    internal fun copyAt(pts: Long, timeBase: Rational): Frame = withNative {
+        val cloned = ffkmp_frame_clone(nativeFrame)
+            ?: throw FFmpegException(FFmpegError.Internal("av_frame_clone returned NULL"))
+        ffkmp_frame_set_pts(cloned, pts)
+        Frame(cloned, ownsPointer = true, streamIndex = streamIndex, streamType = streamType, streamTimeBase = timeBase)
+    }
+
     @Throws(FFmpegException::class)
     public actual fun downloadFromHardware(): Frame = withNative {
         val downloaded = ffkmp_frame_alloc()

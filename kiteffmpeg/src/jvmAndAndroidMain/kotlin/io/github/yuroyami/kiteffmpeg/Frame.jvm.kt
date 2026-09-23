@@ -84,6 +84,27 @@ public actual class Frame internal constructor(
         )
     }
 
+    /**
+     * An owned copy that presents at [pts], counted in [timeBase], for a frame a constant-rate
+     * output shows at a tick of its own. The pixels are shared, as with [copy].
+     */
+    internal fun copyAt(pts: Long, timeBase: Rational): Frame = locked { open ->
+        val cloned = Internals.frameClone(open)
+        try {
+            Internals.frameSetPts(cloned, pts)
+        } catch (error: Throwable) {
+            Internals.frameFree(cloned)
+            throw error
+        }
+        Frame(
+            token = cloned,
+            ownsToken = true,
+            streamIndex = streamIndex,
+            streamType = streamType,
+            streamTimeBase = timeBase,
+        )
+    }
+
     @Throws(FFmpegException::class)
     public actual fun downloadFromHardware(): Frame = locked { source ->
         val downloaded = Internals.frameAlloc()
