@@ -333,6 +333,89 @@ internal external fun fakeLiveDecoders(module: JsAny): Int
 @JsFun("(m) => m.__frameBalance()")
 internal external fun fakeFrameBalance(module: JsAny): Int
 
+/**
+ * The scripted decoder of [fakeDecodeCodecModule], with stream 0 declared as VIDEO and the frame
+ * accessors that reading a frame's info needs.
+ *
+ * The base decode fake decodes subtitle streams, which declare nothing a frame could contradict,
+ * so the check that compares a stream's declaration with its first decoded frame skips them. This
+ * fake declares 320x180 yuv420p and decodes frames of that shape, until [setFakeDecodedVideoSize]
+ * makes the decoder produce another size. Stream 1 stays a subtitle.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun fakeVideoDecodeCodecModule(): JsAny = installFakeVideoDecodeSurface(fakeDecodeCodecModule())
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        const CODECPAR = 0x700;
+        const cstr = (s) => {
+            const b = new TextEncoder().encode(s);
+            const p = m._malloc(b.length + 1);
+            m.HEAPU8.set(b, p);
+            m.HEAPU8[p + b.length] = 0;
+            return p;
+        };
+
+        // MPEG-4 video, with FFmpeg's real AV_CODEC_ID_MPEG4 and AV_PIX_FMT_YUV420P values.
+        const MPEG4 = 12;
+        const YUV420P = 0;
+        const mpeg4Name = cstr("mpeg4");
+        const otherName = m._ffkmp_codec_id_name(1);
+        const yuv420pName = cstr("yuv420p");
+        m._ffkmp_codecpar_codec_type = (par) => par === CODECPAR ? 0 : 3;
+        m._ffkmp_codecpar_codec_id = (par) => par === CODECPAR ? MPEG4 : 1;
+        m._ffkmp_codec_id_name = (id) => id === MPEG4 ? mpeg4Name : otherName;
+        m._ffkmp_pix_fmt_name = (id) => id === YUV420P ? yuv420pName : 0;
+
+        // What the container declares.
+        m._ffkmp_codecpar_width = () => 320;
+        m._ffkmp_codecpar_height = () => 180;
+        m._ffkmp_codecpar_format = () => YUV420P;
+        m._ffkmp_stream_avg_frame_rate = (s, num, den) => {
+            m.HEAP32[num >> 2] = 25;
+            m.HEAP32[den >> 2] = 1;
+        };
+        m._ffkmp_codecpar_sample_aspect_ratio = (par, num, den) => {
+            m.HEAP32[num >> 2] = 1;
+            m.HEAP32[den >> 2] = 1;
+        };
+        m._ffkmp_codecpar_color_space = () => 1;
+        m._ffkmp_codecpar_color_primaries = () => 1;
+        m._ffkmp_codecpar_color_transfer = () => 1;
+        m._ffkmp_codecpar_color_range = () => 1;
+        m._ffkmp_codecpar_chroma_location = () => 1;
+        m._ffkmp_codecpar_field_order = () => 1;
+
+        // What the decoder produces: the declared shape unless a test says otherwise.
+        let decodedWidth = 320;
+        let decodedHeight = 180;
+        m.__setDecodedVideoSize = (w, h) => { decodedWidth = w; decodedHeight = h; };
+        m._ffkmp_frame_pts = () => 0n;
+        m._ffkmp_frame_duration = () => 0n;
+        m._ffkmp_frame_width = () => decodedWidth;
+        m._ffkmp_frame_height = () => decodedHeight;
+        m._ffkmp_frame_format = () => YUV420P;
+        m._ffkmp_frame_nb_samples = () => 0;
+        m._ffkmp_frame_sample_rate = () => 0;
+        m._ffkmp_frame_channels = () => 0;
+        m._ffkmp_frame_is_keyframe = () => 1;
+        m._ffkmp_frame_is_hardware = () => 0;
+        m._ffkmp_frame_colorspace = () => 1;
+        m._ffkmp_frame_color_primaries = () => 1;
+        m._ffkmp_frame_color_trc = () => 1;
+        m._ffkmp_frame_color_range = () => 1;
+        m._ffkmp_frame_chroma_location = () => 1;
+        return m;
+    }""",
+)
+private external fun installFakeVideoDecodeSurface(module: JsAny): JsAny
+
+/** Makes the video decode fake's frames [width] by [height], whatever the stream declares. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, w, h) => m.__setDecodedVideoSize(w, h)")
+internal external fun setFakeDecodedVideoSize(module: JsAny, width: Int, height: Int)
+
 /** A module missing most of what the backend reads, for the diagnostic `attach` refuses on. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("""() => ({ ccall: () => 0, UTF8ToString: () => null, addFunction: () => 0, removeFunction: () => {} })""")

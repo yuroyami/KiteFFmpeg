@@ -154,12 +154,9 @@ class WebDecodeOwnershipTest {
         // four separate emit sites, and every frame now leaves through one wrapper. This pins that
         // the wrapper did not break the decode and that an honest source reports nothing.
         //
-        // What it does NOT prove, said plainly: that the comparison itself runs here. This fake
-        // decodes SUBTITLE streams, which declare no width and no sample rate, so the recorder
-        // returns before it ever looks at a frame. Proving the web comparison needs a fake that
-        // decodes video, which means a video codec type and the frame accessors to go with it, and
-        // changing this fake's stream type would move a dozen unrelated tests. Native and JVM are
-        // proven by falsification; the web comparison is wired and compiled and not yet exercised.
+        // It does not prove that the comparison runs. This fake decodes SUBTITLE streams, which
+        // declare no width and no sample rate, so the recorder returns before it looks at a frame.
+        // The two video cases below prove the comparison, over a fake that decodes video.
         val module = fakeDecodeCodecModule()
         val source = openSource(module, "gggg")
         try {
@@ -168,10 +165,47 @@ class WebDecodeOwnershipTest {
 
             source.decodeStreams(listOf(stream)).toList().forEach { it.close() }
 
-            // The fake's frames agree with the fake's declared stream, so the honest answer is
-            // still empty. What this proves is that the comparison RAN: the falsification for it
-            // makes divergencesOf always disagree, and this case fails when it does.
+            // Empty because the recorder skips a subtitle stream, not because a comparison
+            // agreed. When divergencesOf always disagrees, this case still passes.
             assertEquals(emptyList(), source.streamDivergences)
+        } finally {
+            source.close()
+        }
+    }
+
+    @Test
+    fun aVideoDecodeThatMatchesItsDeclarationReportsNoDivergence() = runTest {
+        // The stream declares 320x180 yuv420p and every frame is exactly that, so the comparison
+        // runs and finds nothing. When divergencesOf always disagrees, this case fails.
+        val module = fakeVideoDecodeCodecModule()
+        val source = openSource(module, "gggg")
+        try {
+            val stream = source.streams[0]
+            assertEquals(MediaType.Video, stream.type, "the fake must declare video, or the recorder skips it")
+            source.decodeStreams(listOf(stream)).toList().forEach { it.close() }
+            assertEquals(emptyList(), source.streamDivergences)
+        } finally {
+            source.close()
+        }
+    }
+
+    @Test
+    fun aVideoDecodeThatContradictsItsDeclarationIsReported() = runTest {
+        // The container says 320x180 and the decoder produces 640x360, which is the mislabelled
+        // track header this report exists for. Four frames give one entry per field, because
+        // only the first frame of a stream is compared.
+        val module = fakeVideoDecodeCodecModule()
+        setFakeDecodedVideoSize(module, 640, 360)
+        val source = openSource(module, "gggg")
+        try {
+            source.decodeStreams(listOf(source.streams[0])).toList().forEach { it.close() }
+            assertEquals(
+                listOf(
+                    StreamDivergence(0, DivergentField.Width, declared = "320", decoded = "640"),
+                    StreamDivergence(0, DivergentField.Height, declared = "180", decoded = "360"),
+                ),
+                source.streamDivergences,
+            )
         } finally {
             source.close()
         }
