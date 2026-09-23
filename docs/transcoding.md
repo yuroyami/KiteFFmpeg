@@ -257,6 +257,8 @@ Transcoder.transcode(
 
 Output begins at the first frame whose pts is at or past `startMicros`, and demuxing stops once the lead stream passes `endMicros`. **Output timestamps are rebased to zero**, so the clip starts at 0 in its own timeline rather than carrying the original offset.
 
+Both values select a part of the input, and the selection happens before any filter runs. A filter that moves time changes the length of the output, not the selection: with `videoFilter = "setpts=2*PTS"`, trimming the first second of the input gives about two seconds of output. Every frame a filter makes from the selection is encoded.
+
 The trim is frame-exact for re-encoded streams. A stream that is being copied (`audioCopy = true`, or a copied subtitle) starts at the preceding keyframe instead, because copying cannot synthesize an intermediate frame.
 
 !!! note "Lossless trim"

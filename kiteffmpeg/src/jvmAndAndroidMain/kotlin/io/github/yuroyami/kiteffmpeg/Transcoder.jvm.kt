@@ -144,22 +144,15 @@ public actual object Transcoder {
                                 source.toRelativeMicros(frame.info.pts, frame.streamTimeBase)
                             } else Long.MIN_VALUE
 
+                            // No trim check here. The trim applies once, to the decoded input
+                            // below; a filter that moves time may put its frames past endMicros,
+                            // and they still belong to the selection.
                             fun encodeVideo(frame: Frame) {
-                                val micros = timestamp(frame)
-                                if (micros != Long.MIN_VALUE && micros > endMicros) {
-                                    frame.close()
-                                    return
-                                }
                                 videoEncoder!!.core.encode(videoPacket, frame)
                                 report()
                             }
 
                             fun encodeAudio(frame: Frame) {
-                                val micros = timestamp(frame)
-                                if (micros != Long.MIN_VALUE && micros > endMicros) {
-                                    frame.close()
-                                    return
-                                }
                                 audioEncoder!!.core.encode(audioPacket, frame)
                                 if (videoEncoder == null) report()
                             }

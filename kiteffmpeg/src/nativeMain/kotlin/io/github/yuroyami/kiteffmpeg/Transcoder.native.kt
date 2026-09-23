@@ -154,18 +154,14 @@ public actual object Transcoder {
                                     source.toRelativeMicros(frame.info.pts, frame.streamTimeBase)
                                 } else Long.MIN_VALUE  // treat as "always inside the window"
 
-                            // End-bound is re-checked at the encoder door: filter graphs buffer
-                            // frames, so their flush can emit frames past the trim end that the
-                            // demux-side check never saw.
+                            // No trim check here. The trim applies once, to the decoded input
+                            // below; a filter that moves time may put its frames past endMicros,
+                            // and they still belong to the selection.
                             fun encodeVideo(frame: Frame) {
-                                val micros = ptsMicros(frame)
-                                if (micros != Long.MIN_VALUE && micros > endMicros) { frame.close(); return }
                                 venc!!.core.encode(videoPacket, frame)
                                 reportMaybe()
                             }
                             fun encodeAudio(frame: Frame) {
-                                val micros = ptsMicros(frame)
-                                if (micros != Long.MIN_VALUE && micros > endMicros) { frame.close(); return }
                                 aenc!!.core.encode(audioPacket, frame)
                                 if (venc == null) reportMaybe()
                             }
