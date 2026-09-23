@@ -839,9 +839,26 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
          *
          * 12.0 is not a preference. It is `minVersion.macos` from konan.properties for the Kotlin
          * this repository pins, so it is the floor the linker imposes whatever anything else says.
-         * `CompileKiteFFmpegCTask` reads this same constant; raising it means raising konan first.
+         * `CompileKiteFFmpegCTask`, the dav1d and libass chain builds ([macosDeploymentEnv]) and the
+         * macOS JNI link read this same constant; raising it means raising konan first.
          */
         const val MACOS_DEPLOYMENT_TARGET = "12.0"
+
+        /**
+         * The environment that holds a meson or autotools build for [target] to
+         * [MACOS_DEPLOYMENT_TARGET], or an empty map for any target that is not macOS.
+         *
+         * clang and the Apple linker read `MACOSX_DEPLOYMENT_TARGET` whenever no
+         * `-mmacosx-version-min` is given, so one variable reaches the C, C++, assembly and link
+         * steps of every member of a build, including the probes meson and configure run first.
+         * Without it the dav1d and libass chain archives took the floor of the SDK that built them,
+         * measured at `minos 26.0`.
+         */
+        fun macosDeploymentEnv(target: TargetTriple): Map<String, String> = when (target) {
+            TargetTriple.MacosArm64, TargetTriple.MacosX64 ->
+                mapOf("MACOSX_DEPLOYMENT_TARGET" to MACOS_DEPLOYMENT_TARGET)
+            else -> emptyMap()
+        }
 
         /** The FFmpeg tag `vendor/ffmpeg` is expected to be checked out at. */
         const val DEFAULT_SOURCE_REF = "n8.1.2"

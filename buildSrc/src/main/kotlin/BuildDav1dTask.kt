@@ -79,9 +79,12 @@ abstract class BuildDav1dTask : DefaultTask() {
                 "-Denable_tools=false", "-Denable_tests=false", "-Denable_examples=false",
             )
             crossFileFor(target, scratch)?.let { setup += listOf("--cross-file", it.absolutePath) }
-            runIn(source, setup)
-            runIn(build, listOf(ninja))
-            runIn(build, listOf(ninja, "install"))
+            // The macOS floor rides the environment rather than c_args, because a -Dc_args on the
+            // command line would replace the Intel cross file's own c_args and drop its -arch.
+            val env = BuildFFmpegTask.macosDeploymentEnv(target)
+            runIn(source, setup, env)
+            runIn(build, listOf(ninja), env)
+            runIn(build, listOf(ninja, "install"), env)
 
             check(install.resolve("lib/libdav1d.a").isFile) {
                 "meson install produced no lib/libdav1d.a under $install"
@@ -253,9 +256,11 @@ abstract class BuildDav1dTask : DefaultTask() {
             .firstOrNull { it.canExecute() }
             ?.absolutePath
 
-    private fun runIn(workDir: File, command: List<String>) {
+    private fun runIn(workDir: File, command: List<String>, env: Map<String, String>) {
         logger.lifecycle("[KiteFFmpeg dav1d] " + command.joinToString(" "))
-        val proc = ProcessBuilder(command).directory(workDir).redirectErrorStream(true).start()
+        val builder = ProcessBuilder(command).directory(workDir).redirectErrorStream(true)
+        builder.environment().putAll(env)
+        val proc = builder.start()
         proc.inputStream.bufferedReader().useLines { lines -> lines.forEach { logger.lifecycle("  $it") } }
         val code = proc.waitFor()
         check(code == 0) { "Command exited with $code: ${command.joinToString(" ")}" }

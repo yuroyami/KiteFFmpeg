@@ -65,7 +65,10 @@ abstract class BuildAssChainTask : DefaultTask() {
             val install = scratch.resolve("install")
             val pkgconfig = install.resolve("lib/pkgconfig")
             val cross = crossFileFor(target, scratch)
-            val env = mutableMapOf("PKG_CONFIG_LIBDIR" to pkgconfig.absolutePath)
+            // The macOS floor rides the environment, so the meson members and libass' autotools
+            // build both honour it without touching any cross file.
+            val env = mapOf("PKG_CONFIG_LIBDIR" to pkgconfig.absolutePath) +
+                BuildFFmpegTask.macosDeploymentEnv(target)
 
             fun mesonBuild(name: String, options: List<String>) {
                 val source = scratch.resolve("src-$name")

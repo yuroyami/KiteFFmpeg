@@ -963,6 +963,9 @@ run {
     // the fat profile, and the JNI bundle is self-contained again because there are no shared
     // dylib dependencies left to carry.
     val macosJniLinkFlags = listOf(
+        // The floor is passed, never inherited: without it clang takes the SDK's own version, which
+        // measured macOS 26.0 on the library in the 0.2.0 jar. One clang call compiles and links.
+        "-mmacosx-version-min=${BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET}",
         "-lavformat", "-lavcodec", "-lavfilter", "-lavutil", "-lswscale", "-lswresample",
         "-ldav1d",
         "-lz",
