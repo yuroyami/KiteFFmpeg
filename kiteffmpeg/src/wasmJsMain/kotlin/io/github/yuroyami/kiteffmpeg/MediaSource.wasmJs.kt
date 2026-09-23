@@ -11,12 +11,16 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_free
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_from_par
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_open
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_set_low_delay
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_bit_depth
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_bit_rate
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_channels
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_chroma_subsampling
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_codec_id
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_codec_type
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_format
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_height
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_level
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_profile
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_sample_aspect_ratio
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_sample_rate
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_width
@@ -607,10 +611,11 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
             else -> MediaType.Unknown
         }
         val timeBase = readTimeBase(m, native)
+        val codecName = utf8OrNull(m, ffkmp_codec_id_name(m, ffkmp_codecpar_codec_id(m, par))).orEmpty()
         StreamInfo(
             index = ffkmp_stream_index(m, native),
             type = kind,
-            codec = CodecId(utf8OrNull(m, ffkmp_codec_id_name(m, ffkmp_codecpar_codec_id(m, par))).orEmpty()),
+            codec = CodecId(codecName),
             timeBase = timeBase,
             durationMicros = ffkmp_stream_duration_micros(m, native).takeIf { it > 0 },
             bitrateBps = ffkmp_codecpar_bit_rate(m, par).takeIf { it > 0 },
@@ -624,6 +629,7 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                         ffkmp_codecpar_sample_aspect_ratio(m, par, n, d)
                     },
                     color = readParameterColor(m, par),
+                    vp9 = if (codecName == "vp9") readVp9CodecInfo(m, par) else null,
                     fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(m, par)),
                 )
             } else {
@@ -751,6 +757,18 @@ private fun readParameterColor(m: kotlin.js.JsAny, par: Int): ColorInfo {
     )
     return resolveDeclaredColor(declared, ffkmp_codecpar_height(m, par))
 }
+
+/**
+ * The VP9 profile, level, bit depth and chroma subsampling, through the same four generic
+ * accessors the JVM and native backends read. A value FFmpeg does not know stays null.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+private fun readVp9CodecInfo(m: kotlin.js.JsAny, par: Int): Vp9CodecInfo = Vp9CodecInfo(
+    profile = Vp9Profile.fromNumber(ffkmp_codecpar_profile(m, par)),
+    level = Vp9Level.fromCode(ffkmp_codecpar_level(m, par)),
+    bitDepth = Vp9BitDepth.fromBits(ffkmp_codecpar_bit_depth(m, par)),
+    chromaSubsampling = Vp9ChromaSubsampling.fromCode(ffkmp_codecpar_chroma_subsampling(m, par)),
+)
 
 /**
  * The codec's own configuration bytes (SPS/PPS and friends), asked for by size and then copied.

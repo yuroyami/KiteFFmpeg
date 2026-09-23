@@ -382,14 +382,14 @@ internal fun forgetCodecModule() {
 
 /**
  * Adds everything the container MODEL reads: metadata dictionaries, chapters, per-stream tags,
- * start time, extradata, colour, channel layout and the non-AV media types.
+ * start time, extradata, colour, the VP9 fields, channel layout and the non-AV media types.
  *
  * The web backend used to hardcode most of this empty and collapse every non-AV type to `Data`,
  * which is the failure mode this fake exists to catch: plausible emptiness reads exactly like a
  * container that genuinely carries nothing.
  *
- * Stream 0 is VIDEO so the colour and extradata paths apply; stream 1 is an ATTACHMENT, which is
- * one of the two types that used to be erased.
+ * Stream 0 is VP9 VIDEO so the colour, VP9 and extradata paths apply; stream 1 is an ATTACHMENT,
+ * which is one of the two types that used to be erased.
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketReaderCodecModule())
@@ -488,6 +488,25 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         m._ffkmp_codecpar_sample_rate = () => 0;
         m._ffkmp_codecpar_channels = () => 0;
 
+        // The video stream is VP9, so the codec-specific fields have something to read. The ids
+        // are FFmpeg's real AV_CODEC_ID_VP9 and AV_CODEC_ID_H264. __setVideoIsVp9(false) makes the
+        // stream H.264, whose VP9 fields must stay empty although the accessors still answer.
+        const VP9 = 167;
+        const H264 = 27;
+        const vp9Name = cstr("vp9");
+        const h264Name = cstr("h264");
+        const otherName = m._ffkmp_codec_id_name(1);
+        let videoIsVp9 = true;
+        m.__setVideoIsVp9 = (v) => { videoIsVp9 = v; };
+        m._ffkmp_codecpar_codec_id = (par) => par === CODECPAR ? (videoIsVp9 ? VP9 : H264) : 1;
+        m._ffkmp_codec_id_name = (id) => id === VP9 ? vp9Name : id === H264 ? h264Name : otherName;
+        // Profile 2, level 5.1, 10 bits, 4:2:0: the values the C suite checks these accessors
+        // against, and none of them the zero that a missing read would produce.
+        m._ffkmp_codecpar_profile = () => 2;
+        m._ffkmp_codecpar_level = () => 51;
+        m._ffkmp_codecpar_bit_depth = () => 10;
+        m._ffkmp_codecpar_chroma_subsampling = () => 420;
+
         const EXTRA = [1, 2, 3, 4, 5];
         m._ffkmp_codecpar_extradata = (par, buf, size) => {
             if (buf === 0) return EXTRA.length;
@@ -510,3 +529,8 @@ private external fun installFakeModelSurface(module: JsAny): JsAny
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, v) => m.__setColorDeclared(v)")
 internal external fun setFakeColorDeclared(module: JsAny, declared: Boolean)
+
+/** Makes the model fake's video stream VP9, which is the default, or H.264. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, v) => m.__setVideoIsVp9(v)")
+internal external fun setFakeVideoIsVp9(module: JsAny, vp9: Boolean)

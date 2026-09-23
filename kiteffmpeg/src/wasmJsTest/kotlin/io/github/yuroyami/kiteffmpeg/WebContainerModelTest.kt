@@ -7,6 +7,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -174,6 +175,36 @@ class WebContainerModelTest {
             // Not a round number on purpose: a backend that answered a plausible constant instead
             // of reading would have to guess this one.
             assertEquals(3_141_592L, source.bitrateBps)
+        }
+    }
+
+    @Test
+    fun aVp9StreamReportsItsOwnProfileLevelBitDepthAndChroma() {
+        open().use { source ->
+            // The JVM and native backends read these four through generic accessors that the web
+            // binding carries too. The web reader used to leave the whole field null.
+            assertEquals(
+                Vp9CodecInfo(
+                    profile = Vp9Profile.Profile2,
+                    level = Vp9Level.Level5_1,
+                    bitDepth = Vp9BitDepth.Ten,
+                    chromaSubsampling = Vp9ChromaSubsampling.Yuv420,
+                ),
+                source.streams[0].video?.vp9,
+            )
+        }
+    }
+
+    @Test
+    fun aVideoStreamThatIsNotVp9HasNoVp9Fields() {
+        val module = fakeModelCodecModule()
+        useCodecModule(module)
+        // The accessors still answer for an H.264 stream, as FFmpeg's do. Only the codec name
+        // decides whether the answers mean VP9 profile and level.
+        setFakeVideoIsVp9(module, false)
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            val video = assertNotNull(source.streams[0].video, "no video stream")
+            assertNull(video.vp9, "an H.264 stream must not report VP9 fields")
         }
     }
 
