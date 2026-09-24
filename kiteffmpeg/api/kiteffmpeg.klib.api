@@ -247,6 +247,7 @@ final enum class io.github.yuroyami.kiteffmpeg/FieldOrder : kotlin/Enum<io.githu
 }
 
 final enum class io.github.yuroyami.kiteffmpeg/HardwareAccel : kotlin/Enum<io.github.yuroyami.kiteffmpeg/HardwareAccel> { // io.github.yuroyami.kiteffmpeg/HardwareAccel|null[0]
+    enum entry D3d11va // io.github.yuroyami.kiteffmpeg/HardwareAccel.D3d11va|null[0]
     enum entry VideoToolbox // io.github.yuroyami.kiteffmpeg/HardwareAccel.VideoToolbox|null[0]
 
     final val entries // io.github.yuroyami.kiteffmpeg/HardwareAccel.entries|#static{}entries[0]
@@ -1966,7 +1967,7 @@ final object io.github.yuroyami.kiteffmpeg/Remuxer { // io.github.yuroyami.kitef
 }
 
 final object io.github.yuroyami.kiteffmpeg/Transcoder { // io.github.yuroyami.kiteffmpeg/Transcoder|null[0]
-    final suspend fun transcode(kotlin/String, kotlin/String, io.github.yuroyami.kiteffmpeg/VideoEncoderSpec? = ..., kotlin/String? = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/AudioEncoderSpec? = ..., kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Function1<io.github.yuroyami.kiteffmpeg/TranscodeProgress, kotlin/Unit>? = ...) // io.github.yuroyami.kiteffmpeg/Transcoder.transcode|transcode(kotlin.String;kotlin.String;io.github.yuroyami.kiteffmpeg.VideoEncoderSpec?;kotlin.String?;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.AudioEncoderSpec?;kotlin.String?;kotlin.Boolean;kotlin.Boolean;kotlin.Long;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Function1<io.github.yuroyami.kiteffmpeg.TranscodeProgress,kotlin.Unit>?){}[0]
+    final suspend fun transcode(kotlin/String, kotlin/String, io.github.yuroyami.kiteffmpeg/VideoEncoderSpec? = ..., kotlin/String? = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/AudioEncoderSpec? = ..., kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlinx.coroutines/CoroutineDispatcher? = ..., kotlin/Function1<io.github.yuroyami.kiteffmpeg/TranscodeProgress, kotlin/Unit>? = ...) // io.github.yuroyami.kiteffmpeg/Transcoder.transcode|transcode(kotlin.String;kotlin.String;io.github.yuroyami.kiteffmpeg.VideoEncoderSpec?;kotlin.String?;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.AudioEncoderSpec?;kotlin.String?;kotlin.Boolean;kotlin.Boolean;kotlin.Long;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlinx.coroutines.CoroutineDispatcher?;kotlin.Function1<io.github.yuroyami.kiteffmpeg.TranscodeProgress,kotlin.Unit>?){}[0]
 }
 
 final val io.github.yuroyami.kiteffmpeg/durationMicros // io.github.yuroyami.kiteffmpeg/durationMicros|@io.github.yuroyami.kiteffmpeg.Frame{}durationMicros[0]

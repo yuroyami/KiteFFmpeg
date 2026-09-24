@@ -575,6 +575,7 @@ public final class io/github/yuroyami/kiteffmpeg/FrameKt {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/HardwareAccel : java/lang/Enum {
+	public static final field D3d11va Lio/github/yuroyami/kiteffmpeg/HardwareAccel;
 	public static final field VideoToolbox Lio/github/yuroyami/kiteffmpeg/HardwareAccel;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/HardwareAccel;
@@ -925,8 +926,8 @@ public final class io/github/yuroyami/kiteffmpeg/TranscodeProgress {
 
 public final class io/github/yuroyami/kiteffmpeg/Transcoder {
 	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/Transcoder;
-	public final fun transcode (Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun transcode$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun transcode (Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun transcode$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/Versions {
