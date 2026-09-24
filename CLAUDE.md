@@ -33,9 +33,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
   `-Pkiteffmpeg.phoneTargetsOnly=true -Pkiteffmpeg.withDesktopTargets=true -Pkiteffmpeg.jni.linux=true`,
   because a publish regenerates the root module metadata and a host-only publish deletes the
   ios, linux and mingw variants from it.
-- `-Pkiteffmpeg.jni.linux=true` needs a running Docker daemon: it extracts JDK headers from a
-  container, and without it the jar carries no Linux JNI libraries and the Linux JVM tests
-  cannot run.
+- `-Pkiteffmpeg.jni.linux=true` and `-Pkiteffmpeg.jni.windows=true` cross-link the desktop JNI
+  libraries with konan and write the small platform JNI header themselves, so Docker is not
+  needed; a Maven Central publish refuses to run without both switches, and the jar then carries
+  Linux x64, Linux arm64 and Windows x64 libraries beside the macOS one.
 - FFmpeg's configure cannot handle a `#` anywhere in its path, so the build tasks build in the
   system temp directory; Gradle's own `temporaryDir` is inside the project and fails.
 - `--disable-postproc` does not exist in the vendored FFmpeg line and makes configure fail
