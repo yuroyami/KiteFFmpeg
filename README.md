@@ -1,7 +1,7 @@
 # KiteFFmpeg
 
 <p align="center">
-  <img src="art/final/kiteffmpeg-logo.svg" width="180" alt="KiteFFmpeg logo">
+  <img src="art/kiteffmpeg-logo.png" width="180" alt="KiteFFmpeg logo">
 </p>
 
 Video and audio for Kotlin Multiplatform. Open a media file, change it, save it.
