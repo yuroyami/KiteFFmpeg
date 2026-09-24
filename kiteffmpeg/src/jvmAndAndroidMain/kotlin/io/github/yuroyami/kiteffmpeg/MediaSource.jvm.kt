@@ -384,8 +384,9 @@ public actual class MediaSource internal constructor(
 
     public actual fun interrupt() {
         /* Deliberately NOT under the demux lock: the whole point is reaching a context another
-           thread is blocked on. The handle table resolves or refuses a stale token, so this
-           cannot dereference a closed context. */
+           thread is blocked on. The handle table refuses a token that a finished close
+           invalidated, but it takes no lease, so a close running at the same moment could free
+           the context mid-call. That is why the contract forbids calling this during close. */
         Internals.fmtInterrupt(formatToken)
     }
 

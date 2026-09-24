@@ -19,6 +19,16 @@
  * No JNI here, and none is possible: the token is an `int64_t`, which is what `jlong` already is.
  * The three JNI entry points that THROW on a bad token stay in `kj_handles.c` beside their
  * `JNIEnv`.
+ *
+ * RESOLVING TAKES NO LEASE. kj_handle_peek returns the pointer and holds nothing while the caller
+ * uses it, so a close on another thread could free the object mid-call. The table cannot stop that;
+ * the binding does. On the JVM every public wrapper (Frame, Packet, PacketReader, StreamDecoder,
+ * FilterGraph, and the sink with its encoders) holds its own lock across each native call and
+ * across its close, and MediaSource refuses to close while a decode flow or packet reader is open.
+ * JvmHandleCloseRaceTest races a use against a close and fails when such a lock is missing.
+ * MediaSource.interrupt is the one call without the lock, so that it can reach a source another
+ * thread is blocked on; its contract forbids calling it during or after close. The web runtime is
+ * single threaded, so nothing there can close a handle during a call.
  */
 
 #ifndef KC_HANDLES_H
@@ -59,7 +69,8 @@ int64_t kj_handle_put(int kind, void *ptr);
 /** Mints a token whose lifetime is bounded by a live parent's. 0 if the parent is closed or stale. */
 int64_t kj_handle_put_borrowed_raw(int kind, void *ptr, int64_t parent_token);
 
-/** Resolves without closing. NULL when the token is zero, closed, stale or of the wrong kind. */
+/** Resolves without closing, and without a lease (see above). NULL when the token is zero, closed,
+ *  stale or of the wrong kind. */
 void *kj_handle_peek(int64_t token, int kind);
 
 /** Resolves and closes in one step, invalidating every descendant. NULL if it was not live. */
