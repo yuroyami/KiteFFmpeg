@@ -99,7 +99,7 @@ real-media regressions, or anything about a target it did not build. It does cat
 FFmpeg tree baked from a different recipe than the checkout describes.
 
 **Tier 2, roughly 10 to 15 minutes.** Selected by any of: files under `native/` or `buildSrc/`,
-`kiteffmpeg-gradle-plugin/src/`, any `.def` file, any `build.gradle.kts`, any version catalog,
+any `.def` file, any `build.gradle.kts`, any version catalog,
 or any Kotlin under a platform source set. Contents: Tier 1, plus host cinterop (with
 `-Pkiteffmpeg.hostTargetsOnly=true` on a machine with one FFmpeg tree), `apiCheck` (with
 `-Pkiteffmpeg.requireAllTargets=true`, see [Binary compatibility](#binary-compatibility)), the build

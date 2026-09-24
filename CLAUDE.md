@@ -25,10 +25,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
 
 ### Build and toolchain
 
-- `apiCheck`, `apiDump` and every cinterop call need `-Pkiteffmpeg.hostTargetsOnly=true` on a
-  machine with one FFmpeg tree; a bare `apiCheck` compiles all thirteen targets and fails on the
-  target header alone, which looks exactly like a real break, and re-dumping without the flag
-  writes a thirteen-target baseline and turns CI red (it has happened once).
+- `apiCheck` and `apiDump` run with `-Pkiteffmpeg.requireAllTargets=true` and all eleven native
+  trees present, because the dump covers thirteen targets. Dumping with `hostTargetsOnly` writes a
+  three-target dump and CI fails on the target lines alone, which looks exactly like a real break.
+  Cinterop on a machine with one FFmpeg tree still wants `-Pkiteffmpeg.hostTargetsOnly=true`.
 - Publishing for the sibling player needs all three flags together,
   `-Pkiteffmpeg.phoneTargetsOnly=true -Pkiteffmpeg.withDesktopTargets=true -Pkiteffmpeg.jni.linux=true`,
   because a publish regenerates the root module metadata and a host-only publish deletes the
@@ -46,8 +46,6 @@ Each line is something that bit someone. Delete a line when it stops being true.
   `ANDROID_NDK_LATEST_HOME` and two default directories only, never from `sdk.dir` in
   `local.properties`, so an SDK outside the standard paths fails every Android target with
   "Android NDK not found" until the variable is exported.
-- The NDK version is chosen by string sort in three build tasks here, which is right for the
-  NDKs installed today and wrong on a two-digit minor, because `29.10` sorts below `29.2`.
 - A rebaked FFmpeg tree does invalidate its consumers, and an earlier note claimed the
   opposite: the wiring is deliberate, documented beside the cinterop block, and reading a
   second invocation's UP-TO-DATE as evidence of a break is how the wrong claim was made.
@@ -78,10 +76,6 @@ Each line is something that bit someone. Delete a line when it stops being true.
 - CI fetches this repository's own prebuilt static FFmpeg trees, checksum verified. A
   distribution's FFmpeg cannot be linked by Kotlin/Native on a modern Linux, and the common
   third-party builds are shared-only and useless for a static embed.
-- Two `kiteffmpeg-gradle-plugin` functional tests fail on a clean checkout and always have:
-  `kiteffmpegDslConfiguredAfterKotlinBlockIsSeenByTasks` and
-  `missingLicenseChoiceFailsConfigurationWithInstructions`. Ignore them, fix nothing about
-  them, never let them block a gate.
 - `recipeFingerprint` must stay idempotent, because the check fingerprints an
   already-fingerprinted set on the way back out; a non-idempotent token silently drops from the
   expected side and every tree reports stale.
