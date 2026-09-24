@@ -33,9 +33,9 @@ The two things a reader most often needs from it:
   nothing on disk.
 - **JVM, Android and Web.** The Android AAR is real: its own manifest declares
   `minSdkVersion 26` and it carries `libkitecodec_jni.so` for `arm64-v8a`, `armeabi-v7a` and
-  `x86_64`. The
-  published JVM jar carries a **macOS arm64** library and only that one, so a JVM consumer on Linux
-  or Windows still gets the typed unavailable placeholder. `wasmJs` is a real playback backend once
+  `x86_64`. The JVM jar carries a native library for macOS arm64, Linux x64, Linux arm64 and
+  Windows x64; the Linux and Windows ones are link-checked, and no Linux or Windows machine has run
+  them yet. `wasmJs` is a real playback backend once
   you load its wasm module: demux, decode and seek work, while encode, mux and filter are refused.
   `js` is the placeholder, failing with typed `FFmpegError.Unsupported`.
 

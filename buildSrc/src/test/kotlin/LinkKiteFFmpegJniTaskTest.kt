@@ -61,6 +61,95 @@ class LinkKiteFFmpegJniTaskTest {
     }
 
     @Test
+    fun desktopRecipesCoverEveryJvmPlatformTheLoaderNamesBesideMacos() {
+        val recipes = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES
+        assertEquals(listOf("linux-arm64", "linux-x64", "windows-x64"), recipes.map { it.platformDirectory })
+        assertEquals(listOf("linux-arm64", "linux-x64", "mingw-x64"), recipes.map { it.ffmpegDirName })
+        assertEquals(listOf("linux_arm64", "linux_x64", "mingw_x64"), recipes.map { it.konanTargetName })
+        assertEquals(
+            listOf("libkitecodec_jni.so", "libkitecodec_jni.so", "kitecodec_jni.dll"),
+            recipes.map { it.libraryFileName },
+        )
+        assertEquals(
+            listOf("kiteffmpeg.jni.linux", "kiteffmpeg.jni.linux", "kiteffmpeg.jni.windows"),
+            recipes.map { it.switchProperty },
+        )
+        assertEquals(listOf(false, false, true), recipes.map { it.isWindows })
+    }
+
+    @Test
+    fun desktopLinkFlagsNameEveryLibraryTheArchivesNeedAndLinkWindowsStatically() {
+        val (linux, _, windows) = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES
+        val toolchain = listOf("-target", "fake-triple")
+        val ffmpeg = listOf("-lavformat", "-lavcodec", "-lavfilter", "-lavutil", "-lswscale", "-lswresample")
+        assertEquals(
+            toolchain + ffmpeg + "-ldav1d" + listOf("-lz", "-lm", "-ldl", "-lpthread", "-Wl,--no-undefined"),
+            LinkKiteFFmpegJniTask.desktopLinkFlags(linux, toolchain, dav1d = true),
+        )
+        // Every library after -Bstatic comes from its static archive. The MinGW sysroot also
+        // carries DLL import libraries for zlib, iconv and winpthreads, and a DLL importing them
+        // does not load on a machine without MSYS2.
+        assertEquals(
+            toolchain + "-Wl,-Bstatic" + ffmpeg + "-ldav1d" + listOf(
+                "-liconv", "-lz", "-lm", "-lpthread",
+                "-lole32", "-luser32", "-lws2_32", "-lbcrypt",
+                "-static-libgcc",
+            ),
+            LinkKiteFFmpegJniTask.desktopLinkFlags(windows, toolchain, dav1d = true),
+        )
+        assertTrue("-ldav1d" !in LinkKiteFFmpegJniTask.desktopLinkFlags(linux, toolchain, dav1d = false))
+    }
+
+    @Test
+    fun theWrittenPlatformHeaderUsesEachPlatformsOwnTypesAndLeavesExportsToTheLink() {
+        val (linux, _, windows) = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES
+        val unix = LinkKiteFFmpegJniTask.jniPlatformHeader(linux)
+        assertTrue("#define JNIEXPORT __attribute__((visibility(\"default\")))" in unix, unix)
+        assertTrue("#define JNICALL\n" in unix, unix)
+        assertTrue("typedef int jint;" in unix, unix)
+        assertTrue("typedef long jlong;" in unix, unix)
+        assertTrue("typedef signed char jbyte;" in unix, unix)
+
+        val win = LinkKiteFFmpegJniTask.jniPlatformHeader(windows)
+        // Empty, so dllexport cannot export every adapter function past the module-definition file.
+        assertTrue("#define JNIEXPORT\n" in win, win)
+        assertTrue("#define JNICALL __stdcall" in win, win)
+        assertTrue("typedef long jint;" in win, win)
+        assertTrue("typedef long long jlong;" in win, win)
+        assertTrue("typedef signed char jbyte;" in win, win)
+        listOf(unix, win).forEach { header ->
+            assertTrue(header.startsWith("/*") && "#ifndef _JAVASOFT_JNI_MD_H_" in header && header.endsWith("#endif\n"))
+        }
+    }
+
+    @Test
+    fun theWindowsModuleDefinitionExportsJniOnLoadAlone() {
+        val repoRoot = File(checkNotNull(System.getProperty("kiteffmpeg.repo.root")))
+        val definition = repoRoot.resolve("native/kitecodec-jni/exports.def")
+        val entries = definition.readLines().map(String::trim).filter { it.isNotEmpty() && !it.startsWith(";") }
+        assertEquals(listOf("EXPORTS", "JNI_OnLoad"), entries)
+        assertEquals(
+            listOf(definition.absolutePath),
+            LinkKiteFFmpegJniTask.exportControlArguments(
+                LinkKiteFFmpegJniTask.ExportControlKind.PE_MODULE_DEFINITION,
+                definition,
+            ),
+        )
+    }
+
+    @Test
+    fun theJarStagesEveryDesktopRecipeAndARemotePublicationDemandsThem() {
+        val repoRoot = File(checkNotNull(System.getProperty("kiteffmpeg.repo.root")))
+        val source = repoRoot.resolve("kiteffmpeg/build.gradle.kts").readText()
+        assertSourceContains(source, "val desktopJniStages = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES")
+        assertSourceContains(source, "jniPlatformHeader.set(LinkKiteFFmpegJniTask.jniPlatformHeader(recipe))")
+        assertSourceContains(source, "desktopJniStages.forEach { stage -> from(stage.flatMap { it.outputDir }) }")
+        assertSourceContains(source, "exportControlFile.set(jniDir.resolve(\"exports.def\"))")
+        assertSourceContains(source, "LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES.map { it.switchProperty }")
+        assertTrue("ExtractJdkHeadersTask" !in source, "the desktop links must not need a container for JDK headers")
+    }
+
+    @Test
     fun elfAndMachOExportControlsAreContentTrackedAndConsumedByTheLinkRecipe() {
         val root = Files.createTempDirectory("kitecodec-jni-link-input-test").toFile()
         try {

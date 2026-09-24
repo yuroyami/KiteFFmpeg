@@ -7,7 +7,8 @@
 # v-tag no longer publishes anything by itself. The five repository secrets below were set on
 # 2026-08-22, so this workflow IS runnable; publishing from the maintainer's machine remains
 # equally valid (same credentials in ~/.gradle/gradle.properties):
-#   ./gradlew :kiteffmpeg:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+#   ./gradlew :kiteffmpeg:publishAllPublicationsToMavenCentralRepository --no-configuration-cache \
+#     -Pkiteffmpeg.jni.linux=true -Pkiteffmpeg.jni.windows=true
 # Either path leaves the deployment staged as USER_MANAGED on the Central Portal; the final
 # Publish click stays human.
 #
@@ -150,6 +151,20 @@ jobs:
       # workflow's first armed run. One warmup compile provisions everything.
       - name: Warm the Kotlin/Native toolchain
         run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 --stacktrace || true
+      # The JVM jar carries a JNI library for macOS arm64, Linux x64, Linux arm64 and Windows x64.
+      # The last three are cross-linked here with konan's toolchain from the linux-x64, linux-arm64
+      # and mingw-x64 trees fetched above; the two switches turn them on, and the build refuses a
+      # Maven Central publication without them. The jar is read back before anything is uploaded.
+      - name: Link the desktop JNI libraries and check the JVM jar
+        run: |
+          set -euo pipefail
+          ./gradlew :kiteffmpeg:jvmJar -Pkiteffmpeg.jni.linux=true -Pkiteffmpeg.jni.windows=true --stacktrace
+          jar="kiteffmpeg/build/libs/kiteffmpeg-jvm-${{ inputs.version }}.jar"
+          for lib in macos-arm64/libkitecodec_jni.dylib linux-x64/libkitecodec_jni.so \
+                     linux-arm64/libkitecodec_jni.so windows-x64/kitecodec_jni.dll; do
+            unzip -l "${jar}" "kiteffmpeg-native/${lib}" > /dev/null \
+              || { echo "::error::${jar} carries no kiteffmpeg-native/${lib}" >&2; exit 1; }
+          done
       # Uploads to the Central Portal. By default it stops there: the deployment lands as
       # USER_MANAGED and a human presses Publish. With the release input on, the plugin presses it,
       # which is the same click made by the run rather than by a person. Central is immutable
@@ -167,5 +182,6 @@ jobs:
           task=publishToMavenCentral
           if [ "${{ inputs.release }}" = "true" ]; then task=publishAndReleaseToMavenCentral; fi
           ./gradlew ":kiteffmpeg:$task" \
+            -Pkiteffmpeg.jni.linux=true -Pkiteffmpeg.jni.windows=true \
             --no-configuration-cache \
             --stacktrace

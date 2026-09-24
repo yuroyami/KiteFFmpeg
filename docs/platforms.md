@@ -18,10 +18,11 @@ Two points decide whether KiteFFmpeg is usable for you:
   Android AAR declares `minSdkVersion 26` in its own manifest and carries `libkitecodec_jni.so` for
   `arm64-v8a`, `armeabi-v7a` and `x86_64`, with packaging checks and 16 KiB alignment on the two
   64-bit ABIs. `armeabi-v7a` is there for the streaming sticks and budget television boxes, which
-  are 32-bit only. The
-  JVM jar carries `libkitecodec_jni.dylib` for **macOS arm64 and no other host**, so a JVM consumer
-  on Linux or Windows still falls back to `unsupportedMain` and gets readable diagnostics rather
-  than a codec. Android and iOS play real media on real phones as the engine under
+  are 32-bit only. The JVM jar carries `libkitecodec_jni` for macOS arm64, Linux x64, Linux arm64
+  and Windows x64. The Linux and Windows libraries are cross-linked with Kotlin/Native's own
+  toolchain and link-checked; no Linux or Windows machine has run them yet. A JVM on any other
+  platform falls back to `unsupportedMain` and gets readable diagnostics rather than a codec.
+  Android and iOS play real media on real phones as the engine under
   [KitePlayer](https://github.com/yuroyami/KitePlayer); what they lack is an automated device job in
   this repository's CI. `wasmJs` is a real playback backend once its wasm module is loaded, while
   `js` reports no capabilities and rejects every media operation with typed

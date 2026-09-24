@@ -1,0 +1,3 @@
+; The one symbol the Windows JNI library exports. The JVM finds it by name after loading the DLL.
+EXPORTS
+    JNI_OnLoad

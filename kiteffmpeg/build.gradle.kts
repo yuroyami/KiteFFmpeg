@@ -8,8 +8,7 @@ import io.github.yuroyami.kiteffmpeg.buildtools.CheckFFmpegRecipesTask
 import io.github.yuroyami.kiteffmpeg.buildtools.BundleHostJniTask
 import io.github.yuroyami.kiteffmpeg.buildtools.CompareCodecContractTask
 import io.github.yuroyami.kiteffmpeg.buildtools.CompileKiteFFmpegCTask
-import io.github.yuroyami.kiteffmpeg.buildtools.ExtractJdkHeadersTask
-import io.github.yuroyami.kiteffmpeg.buildtools.konanLinuxTools
+import io.github.yuroyami.kiteffmpeg.buildtools.konanJniLinkTools
 import io.github.yuroyami.kiteffmpeg.buildtools.FFmpegLicense
 import io.github.yuroyami.kiteffmpeg.buildtools.FFmpegPaths
 import io.github.yuroyami.kiteffmpeg.buildtools.StaticLinkFlags
@@ -1228,18 +1227,20 @@ run {
 }
 
 /*
- * ── The host JNI library rides the jvm artifact (phase W) ────────────────
+ * ── The desktop JNI libraries ride the jvm artifact (phase W) ────────────────
  *
  * `linkKiteFFmpegJniMacosArm64` was scaffolded as test-only, loaded through the
  * `kiteffmpeg.jni.path` property. A desktop consumer has no such property, so the real JVM
- * variant would still fail at the first `System.loadLibrary`. Staging the dylib into the jvm
+ * variant would still fail at the first `System.loadLibrary`. Staging each library into the jvm
  * resource tree under `kiteffmpeg-native/<os>-<arch>/` is what makes one `implementation()` line
- * enough on a desktop, and it is the layout `JniLibrary.jvm.kt` reads. Linux and Windows twins
- * drop into the same map once their FFmpeg trees exist (W.5); nothing else has to change.
+ * enough on a desktop, and it is the layout `JniLibrary.jvm.kt` reads.
  *
- * Guarded on the vendored tree because the link cannot run without it, and an arm64 Mac because
- * that is the only host whose JNI arm is wired today. Everywhere else the jvm artifact publishes
- * without a bundled library and the loader's own message says how to supply one.
+ * The macOS arm64 library links on an arm64 Mac with a vendored tree. The Linux x64, Linux arm64
+ * and Windows x64 libraries are cross-linked with konan's toolchain on any host, and each operating
+ * system is opt-in, with -Pkiteffmpeg.jni.linux=true and -Pkiteffmpeg.jni.windows=true, because an
+ * ordinary build needs neither. A Maven Central publication must carry all four, so the publish
+ * guard refuses one that could not. Each stage writes into the same resource root under its own
+ * platform directory, so processResources merges them without knowing how many there are.
  */
 run {
     val hostArm = "macos-arm64"
@@ -1247,135 +1248,114 @@ run {
     val osName = System.getProperty("os.name").orEmpty().lowercase()
     val osArch = System.getProperty("os.arch").orEmpty().lowercase()
     val hostIsArm64Mac = "mac" in osName && osArch in setOf("aarch64", "arm64")
-    if (hostIsArm64Mac && hostFfmpegLib.isDirectory) {
-        // The Linux JNI libraries. Opt in with -Pkiteffmpeg.jni.linux=true, because they need
-        // a running Docker daemon for the JDK headers and a cross-built FFmpeg tree, and an
-        // ordinary build must need neither. Each writes into the same resource root under its own
-        // platform directory, so processResources merges them without knowing how many there are.
-        val linuxJniStages = if (
-            providers.gradleProperty("kiteffmpeg.jni.linux").orNull == "true"
+
+    val jniDir = rootDir.resolve("native/kitecodec-jni")
+    val handlesDir = rootDir.resolve("native/kitecodec-handles")
+    val opaqueInclude = rootDir.resolve("native/kitecodec-c/include")
+    val konanDataDirProvider = providers.environmentVariable("KONAN_DATA_DIR")
+        .orElse(providers.systemProperty("user.home").map { home -> "$home/.konan" })
+        .map(::File)
+    // jni.h is the same on every platform, so the building JDK supplies it; the link writes the
+    // platform half, jni_md.h, for the target platform itself.
+    val jniHeaders = javaToolchains
+        .launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+        .map { listOf(it.metadata.installationPath.asFile.resolve("include").absolutePath) }
+    val remotePublish = gradle.startParameter.taskNames.any { name ->
+        name.substringAfterLast(':').startsWith("publish") && "MavenLocal" !in name
+    }
+    if (remotePublish) {
+        val switches = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES.map { it.switchProperty }.distinct()
+        if (switches.any { providers.gradleProperty(it).orNull != "true" } ||
+            !(hostIsArm64Mac && hostFfmpegLib.isDirectory)
         ) {
-            val jniDir = rootDir.resolve("native/kitecodec-jni")
-            val handlesDir = rootDir.resolve("native/kitecodec-handles")
-            val opaqueInclude = rootDir.resolve("native/kitecodec-c/include")
-            val konanDataDirProvider = providers.environmentVariable("KONAN_DATA_DIR")
-                .orElse(providers.systemProperty("user.home").map { home -> "$home/.konan" })
-                .map(::File)
-            listOf(
-                Triple("linux-arm64", "linux_arm64", "linux/arm64"),
-                Triple("linux-x64", "linux_x64", "linux/amd64"),
-            ).mapNotNull { (dirName, konanTarget, containerPlatform) ->
-                val ffmpegRoot = rootDir.resolve("native-libs/lgpl/$dirName")
-                if (!ffmpegRoot.resolve("lib").isDirectory) {
-                    logger.lifecycle(
-                        "[KiteFFmpeg] skipping the $dirName JNI library: no FFmpeg tree at " +
-                            "$ffmpegRoot. Run :kiteffmpeg:buildFFmpegFor${dirName.split("-")
-                                .joinToString("") { part -> part.replaceFirstChar(Char::uppercase) }} first.",
-                    )
-                    return@mapNotNull null
-                }
-                val headers = tasks.register<ExtractJdkHeadersTask>(
-                    "extractJdkHeadersFor${konanTarget.replaceFirstChar(Char::uppercase)}",
-                ) {
-                    image.set("eclipse-temurin:21-jdk")
-                    platform.set(containerPlatform)
-                    outputDir.set(layout.buildDirectory.dir("jdk-headers/$konanTarget"))
-                }
-                val helper = tasks.register<CompileKiteFFmpegCTask>(
-                    "compileKiteFFmpegCFor${konanTarget.replaceFirstChar(Char::uppercase)}Jni",
-                ) {
-                    konanTargetName.set(konanTarget)
-                    sourceDir.set(rootDir.resolve("native/kitecodec-c/src"))
-                    includeDir.set(opaqueInclude)
-                    ffmpegIncludeDirs.set(listOf(ffmpegRoot.resolve("include").absolutePath))
-                    buildDefines.set(
-                        mapOf(
-                            CompileKiteFFmpegCTask.DEFINE_FFMPEG_REF to BuildFFmpegTask.DEFAULT_SOURCE_REF,
-                            CompileKiteFFmpegCTask.DEFINE_FFMPEG_LICENSE to FFmpegLicense.LGPL.dirName,
-                            CompileKiteFFmpegCTask.DEFINE_FFMPEG_DIR to ffmpegRoot.resolve("lib").absolutePath,
-                        ),
-                    )
-                    konanDataDir.fileProvider(konanDataDirProvider)
-                    outputDir.set(layout.buildDirectory.dir("kitecodec-c-jni/$konanTarget"))
-                }
-                val link = tasks.register<LinkKiteFFmpegJniTask>(
-                    "linkKiteFFmpegJni${konanTarget.split("_")
-                        .joinToString("") { part -> part.replaceFirstChar(Char::uppercase) }}",
-                ) {
-                    group = "kiteffmpeg"
-                    description = "Links libkitecodec_jni.so for $dirName."
-                    jniSources.from(fileTree(jniDir) { include("*.c", "*.h", "methods.def") })
-                    jniSources.from(fileTree(handlesDir) { include("*.c", "*.h") })
-                    opaqueIncludeDir.set(opaqueInclude)
-                    dependsOn(helper, headers)
-                    helperArchive.from(
-                        helper.flatMap { it.outputDir.file(CompileKiteFFmpegCTask.ARCHIVE_NAME) },
-                    )
-                    ffmpegLibDir.set(ffmpegRoot.resolve("lib"))
-                    val tools = konanLinuxTools(konanTarget)
-                    compiler.set(tools.clang)
-                    extraIncludeDirs.set(
-                        listOf(
-                            ffmpegRoot.resolve("include").absolutePath,
-                            headers.get().outputDir.get().asFile.absolutePath,
-                            headers.get().outputDir.get().asFile.resolve("linux").absolutePath,
-                        ),
-                    )
-                    libSearchDirs.set(emptyList())
-                    // The libav* archives are NOT optional here, and --no-undefined is what makes
-                    // that enforceable: ELF -shared permits undefined symbols by default, so
-                    // omitting them once produced a 137 KB library that linked happily and could
-                    // only have failed at load. The flag turns that into a link error.
-                    //
-                    // dav1d follows the same tree-presence truth as every other link, and
-                    // comes AFTER the libav* group because ld resolves static archives left to
-                    // right and it is libavcodec that draws on it. It was missing here alone: the
-                    // dav1d surge enabled --enable-libdav1d for the linux trees without adding the
-                    // flag to this one link, so --no-undefined did its job and reported every
-                    // dav1d_* symbol undefined from libdav1d.o. It lives in the same lib/ this
-                    // link already searches, so nothing but the name was ever needed.
-                    val jniDav1d = if (ffmpegRoot.resolve("lib/libdav1d.a").exists()) {
-                        listOf("-ldav1d")
-                    } else {
-                        emptyList()
-                    }
-                    linkFlags.set(
-                        tools.flags + listOf(
-                            "-lavformat", "-lavcodec", "-lavfilter",
-                            "-lavutil", "-lswscale", "-lswresample",
-                        ) + jniDav1d + listOf(
-                            "-lz", "-lm", "-ldl", "-lpthread",
-                            "-Wl,--no-undefined",
-                        ),
-                    )
+            throw GradleException(
+                "[KiteFFmpeg] a Maven Central publication must carry the JNI library of every " +
+                    "desktop JVM platform: publish from an arm64 Mac with the macOS arm64 FFmpeg " +
+                    "tree, and pass ${switches.joinToString(" ") { "-P$it=true" }}.",
+            )
+        }
+    }
+    val desktopJniStages = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES
+        .filter { recipe -> providers.gradleProperty(recipe.switchProperty).orNull == "true" }
+        .mapNotNull { recipe ->
+            val ffmpegRoot = rootDir.resolve("native-libs/lgpl/${recipe.ffmpegDirName}")
+            if (!ffmpegRoot.resolve("lib").isDirectory) {
+                val missing = "the ${recipe.platformDirectory} JNI library needs an FFmpeg tree at " +
+                    "$ffmpegRoot. Run :kiteffmpeg:buildFFmpegFor${recipe.taskSuffix} first."
+                // A publication that silently dropped a platform would ship a jar that fails there.
+                if (remotePublish) throw GradleException("[KiteFFmpeg] $missing")
+                logger.lifecycle("[KiteFFmpeg] skipping $missing")
+                return@mapNotNull null
+            }
+            val helper = tasks.register<CompileKiteFFmpegCTask>("compileKiteFFmpegCForJni${recipe.taskSuffix}") {
+                konanTargetName.set(recipe.konanTargetName)
+                sourceDir.set(rootDir.resolve("native/kitecodec-c/src"))
+                includeDir.set(opaqueInclude)
+                ffmpegIncludeDirs.set(listOf(ffmpegRoot.resolve("include").absolutePath))
+                buildDefines.set(
+                    mapOf(
+                        CompileKiteFFmpegCTask.DEFINE_FFMPEG_REF to BuildFFmpegTask.DEFAULT_SOURCE_REF,
+                        CompileKiteFFmpegCTask.DEFINE_FFMPEG_LICENSE to FFmpegLicense.LGPL.dirName,
+                        CompileKiteFFmpegCTask.DEFINE_FFMPEG_DIR to ffmpegRoot.resolve("lib").absolutePath,
+                    ),
+                )
+                konanDataDir.fileProvider(konanDataDirProvider)
+                outputDir.set(layout.buildDirectory.dir("kitecodec-c-jni/${recipe.konanTargetName}"))
+            }
+            val link = tasks.register<LinkKiteFFmpegJniTask>("linkKiteFFmpegJni${recipe.taskSuffix}") {
+                group = "kiteffmpeg"
+                description = "Links ${recipe.libraryFileName} for ${recipe.platformDirectory}."
+                jniSources.from(fileTree(jniDir) { include("*.c", "*.h", "methods.def") })
+                jniSources.from(fileTree(handlesDir) { include("*.c", "*.h") })
+                opaqueIncludeDir.set(opaqueInclude)
+                dependsOn(helper)
+                helperArchive.from(helper.flatMap { it.outputDir.file(CompileKiteFFmpegCTask.ARCHIVE_NAME) })
+                ffmpegLibDir.set(ffmpegRoot.resolve("lib"))
+                val tools = konanJniLinkTools(recipe.konanTargetName)
+                compiler.set(tools.clang)
+                extraIncludeDirs.set(jniHeaders)
+                jniPlatformHeader.set(LinkKiteFFmpegJniTask.jniPlatformHeader(recipe))
+                libSearchDirs.set(emptyList())
+                // dav1d follows the tree-presence truth, as every other link does. It comes after
+                // the libav* group, because static archives resolve left to right and it is
+                // libavcodec that draws on it.
+                linkFlags.set(
+                    LinkKiteFFmpegJniTask.desktopLinkFlags(
+                        recipe,
+                        tools.flags,
+                        dav1d = ffmpegRoot.resolve("lib/libdav1d.a").exists(),
+                    ),
+                )
+                if (recipe.isWindows) {
+                    exportControlFile.set(jniDir.resolve("exports.def"))
+                    exportControlKind.set(LinkKiteFFmpegJniTask.ExportControlKind.PE_MODULE_DEFINITION)
+                } else {
                     exportControlFile.set(jniDir.resolve("exports.map"))
                     exportControlKind.set(LinkKiteFFmpegJniTask.ExportControlKind.ELF_VERSION_SCRIPT)
-                    outputDirectory.set(layout.buildDirectory.dir("kitecodec-jni/$dirName"))
-                    outputLibrary.set(outputDirectory.file("libkitecodec_jni.so"))
                 }
-                tasks.register<BundleHostJniTask>(
-                    "stage${konanTarget.split("_")
-                        .joinToString("") { part -> part.replaceFirstChar(Char::uppercase) }}JniForJvm",
-                ) {
-                    jniLibrary.set(link.flatMap { it.outputLibrary })
-                    platformDirectory.set(dirName)
-                    outputDir.set(layout.buildDirectory.dir("kiteffmpeg-jvm-resources-$dirName"))
-                }
+                outputDirectory.set(layout.buildDirectory.dir("kitecodec-jni/${recipe.platformDirectory}"))
+                outputLibrary.set(outputDirectory.file(recipe.libraryFileName))
             }
-        } else {
-            emptyList()
+            tasks.register<BundleHostJniTask>("stage${recipe.taskSuffix}JniForJvm") {
+                jniLibrary.set(link.flatMap { it.outputLibrary })
+                platformDirectory.set(recipe.platformDirectory)
+                outputDir.set(layout.buildDirectory.dir("kiteffmpeg-jvm-resources-${recipe.platformDirectory}"))
+            }
         }
 
-        val stageHostJni = tasks.register<BundleHostJniTask>("stageHostJniForJvm") {
+    val stageHostJni = if (hostIsArm64Mac && hostFfmpegLib.isDirectory) {
+        tasks.register<BundleHostJniTask>("stageHostJniForJvm") {
             val link = tasks.named<LinkKiteFFmpegJniTask>("linkKiteFFmpegJniMacosArm64")
             jniLibrary.set(link.flatMap { it.outputLibrary })
             platformDirectory.set(hostArm)
             outputDir.set(layout.buildDirectory.dir("kiteffmpeg-jvm-resources"))
         }
-        tasks.named<ProcessResources>("jvmProcessResources") {
-            from(stageHostJni.flatMap { it.outputDir })
-            linuxJniStages.forEach { stage -> from(stage.flatMap { it.outputDir }) }
-        }
+    } else {
+        null
+    }
+    tasks.named<ProcessResources>("jvmProcessResources") {
+        stageHostJni?.let { stage -> from(stage.flatMap { it.outputDir }) }
+        desktopJniStages.forEach { stage -> from(stage.flatMap { it.outputDir }) }
     }
 
     // The falsifiability arm for the JVM loader, kept in the build so it can be re-run rather than

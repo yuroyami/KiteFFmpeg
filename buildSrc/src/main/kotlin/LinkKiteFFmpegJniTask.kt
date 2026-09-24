@@ -14,6 +14,7 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -151,21 +152,23 @@ abstract class PrepareKiteFFmpegJniHarnessTask @Inject constructor(
  * not read an ELF version script. Both recipes were proved by hand at the S1.c scaffold
  * (2026-08-12) before being encoded here.
  *
- * The output must export exactly `JNI_OnLoad`: `scripts/symbol-audit.sh` asserts it per arm, and
- * the S1.c.1 gate runs an ELF PT_LOAD 0x4000 check beside it for the Android arms.
+ * The ELF and Mach-O outputs must export exactly `JNI_OnLoad`: `scripts/symbol-audit.sh` asserts it
+ * per arm, and the S1.c.1 gate runs an ELF PT_LOAD 0x4000 check beside it for the 64-bit Android
+ * arms. The Windows output exports `JNI_OnLoad` and the C archive's entry points; see
+ * [jniPlatformHeader].
  */
-/** The konan clang and the flags a Linux cross link needs, resolved from the konan tree. */
-class KonanLinuxTools(val clang: String, val flags: List<String>)
+/** The konan clang and the flags a desktop cross link needs, resolved from the konan tree. */
+class KonanJniLinkTools(val clang: String, val flags: List<String>)
 
 /**
- * Cross-link settings for a Linux JNI library, from the SAME konan toolchain
+ * Cross-link settings for a Linux or Windows JNI library, from the SAME konan toolchain
  * Kotlin/Native links with, so the result agrees with everything else this project ships.
  *
- * The glibc floor comes from the konan sysroot, which is 2.25 here. Building inside a
- * modern container instead would pin the floor at that container's glibc and quietly drop
- * older distributions.
+ * The Linux glibc floor comes from the konan sysroot, 2.19 for x64 and 2.25 for arm64. Building
+ * inside a modern container instead would pin the floor at that container's glibc and quietly
+ * drop older distributions. Windows links against konan's MinGW sysroot the same way.
  */
-fun konanLinuxTools(konanTarget: String): KonanLinuxTools {
+fun konanJniLinkTools(konanTarget: String): KonanJniLinkTools {
     val konanRoot = System.getenv("KONAN_DATA_DIR")?.let(::File)
         ?: File(System.getProperty("user.home"), ".konan")
     val dependencies = konanRoot.resolve("dependencies")
@@ -191,7 +194,7 @@ fun konanLinuxTools(konanTarget: String): KonanLinuxTools {
         add("-B${llvmBin.absolutePath}")
         if (runtime != null) { add("-B${runtime.absolutePath}"); add("-L${runtime.absolutePath}") }
     }
-    return KonanLinuxTools(clang.absolutePath, flags)
+    return KonanJniLinkTools(clang.absolutePath, flags)
 }
 
 abstract class LinkKiteFFmpegJniTask @Inject constructor(
@@ -244,6 +247,15 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
     abstract val libSearchDirs: ListProperty<String>
 
     /**
+     * The platform half of `jni.h`, for a link whose platform is not the building JDK's own. It
+     * is written to this task's temporary directory as `jni_md.h` and searched before
+     * [extraIncludeDirs], so the building JDK's `jni.h` picks it up. See [jniPlatformHeader].
+     */
+    @get:Input
+    @get:Optional
+    abstract val jniPlatformHeader: Property<String>
+
+    /**
      * The generated-source root consumed by Android's `jniLibs` source API. It is deliberately
      * one level above the ABI directory, so AGP packages `arm64-v8a/...` and `x86_64/...` rather
      * than flattening either ABI out of the AAR.
@@ -269,6 +281,13 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
         // puts kc_handles.c ahead of kj_*.c, so deriving one include dir from the first source
         // would have hidden kj_internal.h from the files that include it.
         val sourceDirs = sources.map { it.parentFile }.distinct()
+        val platformHeaderDir = jniPlatformHeader.orNull?.let { header ->
+            temporaryDir.resolve("jni-platform").apply {
+                deleteRecursively()
+                mkdirs()
+                resolve("jni_md.h").writeText(header)
+            }
+        }
 
         val args = buildList {
             add(compiler.get())
@@ -279,6 +298,7 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
             add("-Wall"); add("-Wextra"); add("-Werror")
             sourceDirs.forEach { add("-I"); add(it.absolutePath) }
             add("-I"); add(opaqueIncludeDir.get().asFile.absolutePath)
+            platformHeaderDir?.let { add("-I"); add(it.absolutePath) }
             extraIncludeDirs.get().forEach { add("-I"); add(it) }
             sources.forEach { add(it.absolutePath) }
             helperArchive.files.forEach { add(it.absolutePath) }
@@ -297,6 +317,8 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
     enum class ExportControlKind {
         ELF_VERSION_SCRIPT,
         MACHO_EXPORTED_SYMBOLS,
+        /** A Windows module-definition file, which lld reads as an ordinary input. */
+        PE_MODULE_DEFINITION,
     }
 
     data class AndroidAbiRecipe(
@@ -314,6 +336,22 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
          */
         val sixteenKibPages: Boolean,
     )
+
+    /** One desktop JVM platform whose JNI library the jar carries beside the macOS one. */
+    data class DesktopJniRecipe(
+        /** The jar resource directory `JniLibrary.jvm.kt` reads, such as `linux-x64`. */
+        val platformDirectory: String,
+        /** The vendored FFmpeg tree under `native-libs/lgpl/`. */
+        val ffmpegDirName: String,
+        val konanTargetName: String,
+        /** The end of this platform's task names, such as `LinuxX64`. */
+        val taskSuffix: String,
+        val libraryFileName: String,
+        /** The Gradle property that turns this library on. */
+        val switchProperty: String,
+    ) {
+        val isWindows: Boolean get() = konanTargetName == "mingw_x64"
+    }
 
     companion object {
         /**
@@ -371,11 +409,117 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
             emptyList()
         }
 
+        /** The Gradle property that turns on the two Linux JNI libraries. */
+        const val LINUX_SWITCH: String = "kiteffmpeg.jni.linux"
+
+        /** The Gradle property that turns on the Windows JNI library. */
+        const val WINDOWS_SWITCH: String = "kiteffmpeg.jni.windows"
+
+        /**
+         * The JVM platforms besides macOS arm64 whose JNI library the jar carries. Each is
+         * cross-linked with konan's toolchain ([konanJniLinkTools]), which works from any host,
+         * so the publish workflow links all three on its macOS runner.
+         */
+        val DESKTOP_JNI_RECIPES: List<DesktopJniRecipe> = listOf(
+            DesktopJniRecipe(
+                platformDirectory = "linux-arm64",
+                ffmpegDirName = "linux-arm64",
+                konanTargetName = "linux_arm64",
+                taskSuffix = "LinuxArm64",
+                libraryFileName = "libkitecodec_jni.so",
+                switchProperty = LINUX_SWITCH,
+            ),
+            DesktopJniRecipe(
+                platformDirectory = "linux-x64",
+                ffmpegDirName = "linux-x64",
+                konanTargetName = "linux_x64",
+                taskSuffix = "LinuxX64",
+                libraryFileName = "libkitecodec_jni.so",
+                switchProperty = LINUX_SWITCH,
+            ),
+            DesktopJniRecipe(
+                platformDirectory = "windows-x64",
+                ffmpegDirName = "mingw-x64",
+                konanTargetName = "mingw_x64",
+                taskSuffix = "MingwX64",
+                libraryFileName = "kitecodec_jni.dll",
+                switchProperty = WINDOWS_SWITCH,
+            ),
+        )
+
+        /**
+         * The link flags after the objects for a desktop cross link: konan's [toolchainFlags],
+         * FFmpeg's archives, dav1d when the tree bundles it, then what those archives need from
+         * the platform. The platform libraries are the ones the tree's own pkg-config files name.
+         *
+         * On ELF, `--no-undefined` makes a missing archive a link error, because `-shared` would
+         * otherwise leave the symbol for the loader to miss on a user's machine. On Windows,
+         * `-Bstatic` takes every library below from its static archive: the MinGW sysroot also
+         * ships DLL import libraries for zlib, iconv and winpthreads, and a DLL that imports them
+         * does not load on a machine without MSYS2. The Windows system libraries are import stubs
+         * either way.
+         */
+        fun desktopLinkFlags(recipe: DesktopJniRecipe, toolchainFlags: List<String>, dav1d: Boolean): List<String> {
+            val ffmpeg = listOf("-lavformat", "-lavcodec", "-lavfilter", "-lavutil", "-lswscale", "-lswresample") +
+                if (dav1d) listOf("-ldav1d") else emptyList()
+            return if (recipe.isWindows) {
+                toolchainFlags + "-Wl,-Bstatic" + ffmpeg + listOf(
+                    "-liconv", "-lz", "-lm", "-lpthread",
+                    "-lole32", "-luser32", "-lws2_32", "-lbcrypt",
+                    "-static-libgcc",
+                )
+            } else {
+                toolchainFlags + ffmpeg + listOf("-lz", "-lm", "-ldl", "-lpthread", "-Wl,--no-undefined")
+            }
+        }
+
+        /**
+         * `jni_md.h` for [recipe]'s platform: three macros and three typedefs, with the values the
+         * JDK's own header for that platform uses. `jni.h` is identical on every platform and comes
+         * from the building JDK, so a cross link needs no JDK, and no container, for its target.
+         *
+         * On Windows `JNIEXPORT` is empty rather than `__declspec(dllexport)`. The adapter marks
+         * every native method with it, and `dllexport` would export all of them, so the
+         * module-definition file exports `JNI_OnLoad` instead. The DLL still exports the C
+         * archive's own entry points, which that archive marks `dllexport` on Windows. A DLL's
+         * exports cannot collide with another library's on Windows, so this costs nothing, but it
+         * is why only the ELF and Mach-O libraries export exactly `JNI_OnLoad`.
+         */
+        fun jniPlatformHeader(recipe: DesktopJniRecipe): String {
+            val body = if (recipe.isWindows) {
+                """
+                #define JNIEXPORT
+                #define JNIIMPORT __declspec(dllimport)
+                #define JNICALL __stdcall
+                typedef long jint;
+                typedef long long jlong;
+                typedef signed char jbyte;
+                """
+            } else {
+                """
+                #define JNIEXPORT __attribute__((visibility("default")))
+                #define JNIIMPORT __attribute__((visibility("default")))
+                #define JNICALL
+                typedef int jint;
+                #ifdef _LP64
+                typedef long jlong;
+                #else
+                typedef long long jlong;
+                #endif
+                typedef signed char jbyte;
+                """
+            }.trimIndent()
+            return "/* Written by the KiteFFmpeg build for a ${recipe.platformDirectory} JNI link. */\n" +
+                "#ifndef _JAVASOFT_JNI_MD_H_\n#define _JAVASOFT_JNI_MD_H_\n" +
+                body + "\n#endif\n"
+        }
+
         fun exportControlArguments(kind: ExportControlKind, file: File): List<String> = when (kind) {
             ExportControlKind.ELF_VERSION_SCRIPT ->
                 listOf("-Wl,--version-script=${file.absolutePath}")
             ExportControlKind.MACHO_EXPORTED_SYMBOLS ->
                 listOf("-Wl,-exported_symbols_list,${file.absolutePath}")
+            ExportControlKind.PE_MODULE_DEFINITION -> listOf(file.absolutePath)
         }
 
         internal fun assertOutputLibraryInsideDirectory(outputDirectory: File, outputLibrary: File) {

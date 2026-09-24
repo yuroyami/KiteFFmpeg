@@ -154,8 +154,9 @@ job in this repository's CI** (nobody runs a phone farm here), so their evidence
 and app-shipped rather than green-on-every-push. Desktop and Windows are the reverse: CI-verified
 on every push.
 
-One thing to plan around: the JVM jar carries a **macOS arm64** native library and only that one, so
-a JVM app on Linux or Windows resolves the artifact and then gets the typed unavailable placeholder.
+The JVM jar carries a native library for macOS arm64, Linux x64, Linux arm64 and Windows x64. The
+Linux and Windows ones are link-checked, and no Linux or Windows machine has run them yet. A JVM on
+any other platform resolves the artifact and then gets the typed unavailable placeholder.
 Per-target detail is in [Platform support](docs/platforms.md).
 
 `js` is a deliberate placeholder: a build that silently did nothing would be worse than one that
@@ -180,7 +181,7 @@ artifact. A real browser run against a real module has not been recorded yet.
 
 | Not available | What that means for you |
 |---|---|
-| A JVM distribution beyond macOS arm64 | Linux and Windows JVM apps get the typed unavailable placeholder, not a codec. |
+| A JVM distribution beyond macOS arm64, Linux x64, Linux arm64 and Windows x64 | JVM apps on any other platform get the typed unavailable placeholder, not a codec. |
 | Writing or filtering media on the web | Both web targets refuse it. `wasmJs` can read and decode; it cannot produce a file. `js` refuses everything. |
 | Any GPL FFmpeg | There is no GPL build and no way to swap the embedded one. Shipping GPL binaries would make your whole app GPL-3.0, which is not a choice a library should make for you. |
 | `libx264`, `libx265`, `libsvtav1`, `libopus`, `libmp3lame` | No third-party encoder is linked. `mpeg4` is the software video baseline and `aac` the audio one. Decoding is far wider than encoding. |

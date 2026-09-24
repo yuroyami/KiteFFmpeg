@@ -9,9 +9,9 @@ FFmpeg's libav* libraries.
     KiteFFmpeg is on Maven Central: `io.github.yuroyami:kiteffmpeg:0.2.0`, one dependency line,
     with FFmpeg embedded inside the artifacts. The Android AAR is real, declares `minSdkVersion 26`
     and carries `arm64-v8a`, `armeabi-v7a` and `x86_64` JNI libraries. The JVM jar carries a
-    **macOS arm64** library and only that one, so a JVM consumer on Linux or Windows gets the typed unavailable
-    placeholder instead of a codec. `wasmJs` is a real playback backend once you load its wasm
-    module; `js` is a placeholder that makes dependency resolution predictable and performs no
+    native library for macOS arm64, Linux x64, Linux arm64 and Windows x64; the Linux and Windows
+    ones are link-checked and have not run yet. `wasmJs` is a real playback backend once you load
+    its wasm module; `js` is a placeholder that makes dependency resolution predictable and performs no
     media work.
     The consumer script, release status and per-target evidence are in the
     [README](https://github.com/yuroyami/KiteFFmpeg#where-it-runs).

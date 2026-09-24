@@ -44,9 +44,9 @@ abstract class BundleHostJniTask : DefaultTask() {
     }
 
     /**
-     * Mach-O only. An ELF library built here links FFmpeg statically and needs nothing but the
-     * platform's own libc, so there is no dependency to bundle, no load command to rewrite and no
-     * signature to repair. Doing the Mach-O dance on it would just fail.
+     * Mach-O only. An ELF or Windows library built here links FFmpeg statically and needs nothing
+     * but the platform's own system libraries, so there is no dependency to bundle, no load command
+     * to rewrite and no signature to repair. Doing the Mach-O dance on it would just fail.
      */
     private val isMachO: Boolean
         get() = platformDirectory.get().startsWith("macos")
