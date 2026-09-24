@@ -670,7 +670,22 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * the link agree by construction. What zlib buys is matroska and mov compressed headers; bzlib
      * and lzma buy only rarely used matroska compression.
      */
-    private fun portableDesktopArgs(target: TargetTriple): List<String> = listOf("--enable-zlib")
+    private fun portableDesktopArgs(target: TargetTriple): List<String> = listOf("--enable-zlib") +
+        if (target == TargetTriple.MingwX64) windowsHwaccelDecodeArgs() else emptyList()
+
+    /**
+     * Direct3D 11 hardware DECODE on Windows, which `HardwareAccel.D3d11va` attaches.
+     *
+     * `--enable-d3d11va` is requested rather than left to autodetect, so a Windows build that lost
+     * it fails at configure instead of shipping without it. The hwaccel class compiles whole, so
+     * the list is a PIN, like the VideoToolbox one. It names the d3d11va2 hwaccels because those
+     * allocate their own surfaces from the attached device. AV1 is not among them: its hwaccel
+     * needs `DXVA_PicParams_AV1`, and the MinGW headers of konan's sysroot predate it.
+     */
+    private fun windowsHwaccelDecodeArgs(): List<String> = listOf(
+        "--enable-d3d11va",
+        "--enable-hwaccel=h264_d3d11va2,hevc_d3d11va2,vp9_d3d11va2,mpeg2_d3d11va2,vc1_d3d11va2,wmv3_d3d11va2",
+    )
 
     /** Mobile Apple playback profile: shared software codecs plus SDK zlib, and no desktop stack. */
     private fun mobileAppleArgs(target: TargetTriple, sdkPath: (String) -> String): List<String> {

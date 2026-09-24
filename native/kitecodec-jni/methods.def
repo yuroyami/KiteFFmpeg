@@ -164,6 +164,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxFromPar",  "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxOpen",     "(JJ)I",                  kj_codecctx_open)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxSetOpt",   "(JLjava/lang/String;Ljava/lang/String;)I", kj_codecctx_set_opt)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxUseVideoToolbox","(J)I",             kj_codecctx_use_videotoolbox)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxUseD3d11va","(J)I",                  kj_codecctx_use_d3d11va)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxSendPacket","(JJ)I",                 kj_codecctx_send_packet)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxReceiveFrame","(JJ)I",               kj_codecctx_receive_frame)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxFlush",    "(J)V",                   kj_codecctx_flush)

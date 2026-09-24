@@ -641,11 +641,15 @@ KC_API int ffkmp_frame_is_hardware(kc_frame *f);
  * device context between alloc and open (the pre-open window) and installs the format
  * negotiation that prefers hardware output and falls back to the default negotiation when the
  * offer is withdrawn. A build without VideoToolbox answers AVERROR(ENOSYS) at attach time,
- * FFmpeg's own capability answer. ffkmp_frame_hw_download copies a hardware frame's pixels and
+ * from FFmpeg's own list of the device types it carries. ffkmp_frame_hw_download copies a hardware frame's pixels and
  * presentation properties into a blank allocated dst and leaves dst blank on failure; a
  * software src is refused, because reaching the download on one means the caller's bookkeeping
  * is wrong. */
 KC_API int ffkmp_codecctx_use_videotoolbox(kc_codec_ctx *c);
+/* ffkmp_codecctx_use_d3d11va is the Windows twin: a Direct3D 11 device attached the same way,
+ * preferring the hardware frame format the d3d11va2 hwaccels produce. Every build but Windows
+ * answers AVERROR(ENOSYS). */
+KC_API int ffkmp_codecctx_use_d3d11va(kc_codec_ctx *c);
 KC_API int ffkmp_frame_hw_download(kc_frame *src, kc_frame *dst);
 
 #endif /* KITECODEC_HELPERS_H */

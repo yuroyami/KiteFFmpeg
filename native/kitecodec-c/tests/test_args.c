@@ -4,12 +4,13 @@
  * NULL pointer reach FFmpeg or an immediate dereference. Each invalid call runs in a child so
  * the unguarded reproduction records its signal without killing the driver. Pass one row id as
  * argv[1] to reproduce a single vector; the gate invokes the binary without an id and runs all
- * thirty-one cases (sixteen S1.a.7 refusals, four S4.b arms, four S2.a arms, the controls).
+ * thirty-three cases.
  *
- * The final eight cases are load-bearing controls. Six prevent the new refusals from
+ * The final nine cases are load-bearing controls. Six prevent the new refusals from
  * rejecting positions whose existing contracts deliberately use NULL: the default audio filter,
  * graph EOF, mux flush, output-format inference, a context-retained codec and pathless output
- * allocation with an explicit format; the seventh pins selected-codec identity and its NULL rule.
+ * allocation with an explicit format; the seventh pins selected-codec identity and its NULL rule,
+ * and the last two pin the VideoToolbox and D3D11VA device attaches.
  */
 
 #include "harness.h"
@@ -161,6 +162,11 @@ static int invalid_fmt_read_frame(void)
 static int invalid_codecctx_use_videotoolbox(void)
 {
     return ffkmp_codecctx_use_videotoolbox(NULL);
+}
+
+static int invalid_codecctx_use_d3d11va(void)
+{
+    return ffkmp_codecctx_use_d3d11va(NULL);
 }
 
 static int invalid_frame_hw_download(void)
@@ -437,6 +443,7 @@ static const invalid_case invalid_cases[] = {
     { "invalid_fmt_chapter_get", "ffkmp_fmt_chapter_get refuses NULL arguments", invalid_fmt_chapter_get },
     { "invalid_fmt_read_frame", "ffkmp_fmt_read_frame refuses NULL arguments", invalid_fmt_read_frame },
     { "invalid_codecctx_use_videotoolbox", "ffkmp_codecctx_use_videotoolbox refuses a NULL context", invalid_codecctx_use_videotoolbox },
+    { "invalid_codecctx_use_d3d11va", "ffkmp_codecctx_use_d3d11va refuses a NULL context", invalid_codecctx_use_d3d11va },
     { "invalid_frame_hw_download", "ffkmp_frame_hw_download refuses NULL frames", invalid_frame_hw_download },
     { "invalid_frame_hw_download_software_src", "ffkmp_frame_hw_download refuses a software source", invalid_frame_hw_download_software_src },
     { "invalid_fmt_alloc_output2", "ffkmp_fmt_alloc_output2 refuses a NULL output", invalid_fmt_alloc_output2 },
@@ -473,6 +480,26 @@ static void control_codecctx_use_videotoolbox(void)
     kc_detail("rc=%d", rc);
 }
 
+static void control_codecctx_use_d3d11va(void)
+{
+    /* No build these host suites link carries D3D11VA, which is Windows only, so the attach must
+       answer FFmpeg's ENOSYS, the typed refusal the Kotlin side forwards, and leave the context
+       untouched: it is freed unopened, twice attached and never leaked. */
+    const kc_codec *codec = ffkmp_find_decoder_by_name("h264");
+    kc_codec_ctx *context;
+    int rc;
+
+    KC_NOT_NULL(codec);
+    context = ffkmp_codecctx_alloc(codec);
+    KC_NOT_NULL(context);
+    rc = ffkmp_codecctx_use_d3d11va(context);
+    KC_EQ_INT(rc, -ENOSYS);
+    rc = ffkmp_codecctx_use_d3d11va(context);
+    KC_EQ_INT(rc, -ENOSYS);
+    ffkmp_codecctx_free(context);
+    kc_detail("rc=%d", rc);
+}
+
 static const control_case control_cases[] = {
     { "control_audio_description_null", "audio graph accepts a NULL description as anull", control_audio_description_null },
     { "control_graph_send_null_frame", "graph send accepts a NULL frame as EOF", control_graph_send_null_frame },
@@ -482,6 +509,7 @@ static const control_case control_cases[] = {
     { "control_fmt_alloc_output2_null_path", "output allocation accepts a NULL path with an explicit format", control_fmt_alloc_output2_null_path },
     { "control_codec_id", "codec id is null-safe and identifies selected pcm_s16le", control_codec_id },
     { "control_codecctx_use_videotoolbox", "the VideoToolbox attach succeeds pre-open and replaces on repeat", control_codecctx_use_videotoolbox },
+    { "control_codecctx_use_d3d11va", "the D3D11VA attach answers ENOSYS on a build without it", control_codecctx_use_d3d11va },
 };
 
 static int selected(const char *focus, const char *id)

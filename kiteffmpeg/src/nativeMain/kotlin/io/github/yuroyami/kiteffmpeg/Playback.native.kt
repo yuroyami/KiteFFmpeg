@@ -13,6 +13,7 @@ import ffmpeg.ffkmp_codecctx_receive_frame
 import ffmpeg.ffkmp_codecctx_send_packet
 import ffmpeg.ffkmp_codecctx_set_low_delay
 import ffmpeg.ffkmp_codecctx_set_opt
+import ffmpeg.ffkmp_codecctx_use_d3d11va
 import ffmpeg.ffkmp_codecctx_use_videotoolbox
 import ffmpeg.ffkmp_codecctx_set_threads
 import ffmpeg.ffkmp_codec_id
@@ -530,13 +531,12 @@ public actual class StreamDecoder internal constructor(
                     check0(ffkmp_codecctx_set_opt(codecCtx, key, value), "av_opt_set ('$key')")
                 }
                 // Window 3 (S2.a): the HWACCEL attach, in the same pre-open moment. A build
-                // without the framework answers ENOSYS here, the typed capability refusal.
+                // without the device type answers ENOSYS here, the typed capability refusal.
                 when (hardware) {
                     HardwareAccel.VideoToolbox ->
                         check0(ffkmp_codecctx_use_videotoolbox(codecCtx), "videotoolbox device attach")
-                    HardwareAccel.D3d11va -> throw FFmpegException(
-                        FFmpegError.Unsupported(0, "D3D11VA decoding is declared but not wired to a device yet"),
-                    )
+                    HardwareAccel.D3d11va ->
+                        check0(ffkmp_codecctx_use_d3d11va(codecCtx), "d3d11va device attach")
                     null -> Unit
                 }
                 check0(ffkmp_codecctx_open(codecCtx, codec), "avcodec_open2")

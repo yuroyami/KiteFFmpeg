@@ -147,6 +147,7 @@ internal object Internals {
     private external fun nativeCodecCtxOpen(context: Long, codec: Long): Int
     private external fun nativeCodecCtxSetOpt(context: Long, key: String, value: String?): Int
     private external fun nativeCodecCtxUseVideoToolbox(context: Long): Int
+    private external fun nativeCodecCtxUseD3d11va(context: Long): Int
     private external fun nativeCodecCtxSendPacket(context: Long, packet: Long): Int
     private external fun nativeCodecCtxReceiveFrame(context: Long, frame: Long): Int
     private external fun nativeCodecCtxFlush(context: Long)
@@ -417,6 +418,7 @@ internal object Internals {
     internal fun codecCtxOpen(context: Long, codec: Long) = checked { nativeCodecCtxOpen(context, codec) }
     internal fun codecCtxSetOpt(context: Long, key: String, value: String?) = checked { nativeCodecCtxSetOpt(context, key, value) }
     internal fun codecCtxUseVideoToolbox(context: Long) = checked { nativeCodecCtxUseVideoToolbox(context) }
+    internal fun codecCtxUseD3d11va(context: Long) = checked { nativeCodecCtxUseD3d11va(context) }
     internal fun codecCtxSendPacket(context: Long, packet: Long) = checked { nativeCodecCtxSendPacket(context, packet) }
     internal fun codecCtxReceiveFrame(context: Long, frame: Long) = checked { nativeCodecCtxReceiveFrame(context, frame) }
     internal fun codecCtxFlush(context: Long) = checked { nativeCodecCtxFlush(context) }

@@ -364,10 +364,16 @@ class BuildFFmpegTaskTest {
         // threads with w32threads. The pthreads request from sharedCoreArgs is withdrawn here,
         // since configure takes the last word. zlib it DOES have, at the msys2 package root rather
         // than under the triple directory, which is what made a first reading call it absent.
-        // The fake has no runtime dir, which also pins the branch with no -B/-L pair.
+        // The fake has no runtime dir, which also pins the branch with no -B/-L pair. Windows also
+        // requests Direct3D 11 decoding, so a build that lost it fails at configure, and pins the
+        // six d3d11va2 hwaccels HardwareAccel.D3d11va reaches.
         assertEquals(
             expectedSharedCoreArguments() + expectedKonanCrossArguments(
-                leading = listOf("--enable-zlib"),
+                leading = listOf(
+                    "--enable-zlib",
+                    "--enable-d3d11va",
+                    "--enable-hwaccel=h264_d3d11va2,hevc_d3d11va2,vp9_d3d11va2,mpeg2_d3d11va2,vc1_d3d11va2,wmv3_d3d11va2",
+                ),
                 arch = "x86_64",
                 targetOs = "mingw32",
                 cc = "/fake/llvm/bin/clang -target x86_64-w64-mingw32 " +

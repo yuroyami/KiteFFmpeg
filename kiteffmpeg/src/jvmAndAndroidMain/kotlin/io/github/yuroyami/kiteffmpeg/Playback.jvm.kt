@@ -274,15 +274,14 @@ public actual class StreamDecoder internal constructor(
                     options?.compile()?.forEach { (key, value) ->
                         check0(Internals.codecCtxSetOpt(context, key, value), "av_opt_set ('$key')")
                     }
-                    // Window 3 (S2.a): the HWACCEL attach, in the same pre-open moment. On macOS
-                    // JVM this works, because the C archive links VideoToolbox there; elsewhere
-                    // FFmpeg answers ENOSYS and the refusal is typed, never silent.
+                    // Window 3 (S2.a): the HWACCEL attach, in the same pre-open moment. VideoToolbox
+                    // works on macOS and D3D11VA on Windows, where the C archive carries each;
+                    // elsewhere the attach answers ENOSYS and the refusal is typed, never silent.
                     when (hardware) {
                         HardwareAccel.VideoToolbox ->
                             check0(Internals.codecCtxUseVideoToolbox(context), "videotoolbox device attach")
-                        HardwareAccel.D3d11va -> throw FFmpegException(
-                            FFmpegError.Unsupported(0, "D3D11VA decoding is declared but not wired to a device yet"),
-                        )
+                        HardwareAccel.D3d11va ->
+                            check0(Internals.codecCtxUseD3d11va(context), "d3d11va device attach")
                         null -> Unit
                     }
                     check0(Internals.codecCtxOpen(context, codec), "avcodec_open2")

@@ -117,6 +117,9 @@ internal external fun ffkmp_codecctx_send_packet(module: JsAny, a0: Int, a1: Int
 @JsFun("(m, a0, a1, a2) => m._ffkmp_codecctx_set_opt(a0, a1, a2)")
 internal external fun ffkmp_codecctx_set_opt(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_codecctx_use_d3d11va(a0)")
+internal external fun ffkmp_codecctx_use_d3d11va(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_codecctx_use_videotoolbox(a0)")
 internal external fun ffkmp_codecctx_use_videotoolbox(module: JsAny, a0: Int): Int
 

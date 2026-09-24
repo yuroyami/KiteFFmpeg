@@ -94,7 +94,7 @@ Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywher
 |---|---|---|---|---|
 | **Video encode** | `mpeg4`, `mjpeg`, `png`, `h264_videotoolbox`, `hevc_videotoolbox` | `mpeg4`, `mjpeg`, `png` | `mpeg4`, `mjpeg`, `png` | `mpeg4`, `mjpeg`, `png`, `h264_mediacodec`, `hevc_mediacodec` |
 | **Audio encode** | `aac`, `flac`, `pcm_s16le`/`s24le`/`f32le` | `flac`, `pcm_*` | `flac`, `pcm_*` | `aac`, `flac`, `pcm_*` |
-| **Decode** | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder | every native FFmpeg decoder + MediaCodec h264/hevc |
+| **Decode** | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; on Windows, the D3D11VA hwaccel behind h264/hevc/vp9/mpeg2/vc1/wmv3 | every native FFmpeg decoder + MediaCodec h264/hevc |
 | **Demux** | every native FFmpeg demuxer | same | same | same |
 | **Mux (write)** | mp4/mov, matroska/webm (including `.mka`), mpegts, mp3, wav, flac, ogg/opus, image2 | same | same | same |
 | **Protocols** | `file`, `fd`, `pipe`, `data`, `http`, `tcp` | same | same | same |
