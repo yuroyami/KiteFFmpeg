@@ -930,16 +930,17 @@ mavenPublishing {
 /*
  * ── The JNI adapter link tasks (S1.c.1 step 6) ──────────────────────────────────────────────
  *
- * Scaffolded from a hand-proved link on this machine. Three arms:
+ * Scaffolded from a hand-proved link on this machine. The arms:
  *
  *   linkKiteFFmpegJniMacosArm64   test-only dylib jvmTest loads via the kiteffmpeg.jni.path
  *                                system property. Links the vendored macOS LGPL FFmpeg plus the
  *                                Homebrew SvtAv1Enc/graphite2 the vendored archives reference,
  *                                exactly as the hand proof measured, and exports only JNI_OnLoad
  *                                through -exported_symbols_list (Mach-O has no version script).
- *   linkKiteFFmpegJniAndroidArm64 / linkKiteFFmpegJniAndroidX64
- *                                the AAR's jniLibs inputs. NDK r29 clang, 16 KiB page flags and
- *                                the ELF version script per the S1.c.1 recipe. They require the
+ *   linkKiteFFmpegJniAndroidArm64 / linkKiteFFmpegJniAndroidArm32 / linkKiteFFmpegJniAndroidX64
+ *                                the AAR's jniLibs inputs, one per LinkKiteFFmpegJniTask
+ *                                ANDROID_ABI_RECIPES entry. NDK r29 clang, the ELF version script,
+ *                                and 16 KiB page flags on the two 64-bit ABIs. They require the
  *                                Android FFmpeg trees the producer tasks vendor first.
  */
 run {
@@ -1023,7 +1024,7 @@ run {
         outputLibrary.set(outputDirectory.file("libkitecodec_jni.dylib"))
     }
 
-    // The two Android arms, exactly the S1.c.1 step 6 recipe. ANDROID_NDK_HOME is read at
+    // The Android arms, exactly the S1.c.1 step 6 recipe. ANDROID_NDK_HOME is read at
     // configuration from the environment the S1.c commands pin; a missing NDK or FFmpeg tree
     // fails the arm at execution with the producer task named in the message.
     val ndkHome = providers.environmentVariable("ANDROID_NDK_HOME")

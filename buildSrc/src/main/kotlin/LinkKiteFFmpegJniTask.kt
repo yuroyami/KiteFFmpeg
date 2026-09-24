@@ -143,12 +143,13 @@ abstract class PrepareKiteFFmpegJniHarnessTask @Inject constructor(
  * Compiles the `native/kitecodec-jni` adapter and links ONE shared JNI library against the opaque
  * helper archive and a static FFmpeg tree (S1.c.1 step 6).
  *
- * Three registrations exist (kiteffmpeg/build.gradle.kts): the test-only macOS dylib that
- * jvmTest loads through the `kiteffmpeg.jni.path` system property, and the two Android arms whose
- * outputs are the exact `jniLibs` inputs of the AAR. The Android arms use the NDK's clang with the
- * 16 KiB page flags and the version script; the macOS arm uses the system clang with an
- * `-exported_symbols_list`, because a Mach-O link does not read an ELF version script. Both
- * recipes were proved by hand at the S1.c scaffold (2026-08-12) before being encoded here.
+ * The registrations (kiteffmpeg/build.gradle.kts) are the test-only macOS dylib that jvmTest
+ * loads through the `kiteffmpeg.jni.path` system property, and one Android arm per
+ * [ANDROID_ABI_RECIPES] entry, whose outputs are the exact `jniLibs` inputs of the AAR. The Android
+ * arms use the NDK's clang with the version script, and the 64-bit ones add the 16 KiB page flags;
+ * the macOS arm uses the system clang with an `-exported_symbols_list`, because a Mach-O link does
+ * not read an ELF version script. Both recipes were proved by hand at the S1.c scaffold
+ * (2026-08-12) before being encoded here.
  *
  * The output must export exactly `JNI_OnLoad`: `scripts/symbol-audit.sh` asserts it per arm, and
  * the S1.c.1 gate runs an ELF PT_LOAD 0x4000 check beside it for the Android arms.
@@ -306,12 +307,20 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
         val ndkTarget: String,
         val abiDirectory: String,
         val outputRelativePath: String,
+        /**
+         * Whether the library is aligned to 16 KiB pages. Android requires that of 64-bit
+         * libraries only. A 32-bit ARM device runs 4 KiB pages, so that library keeps the
+         * linker's own 4 KiB alignment rather than paying the padding for nothing.
+         */
+        val sixteenKibPages: Boolean,
     )
 
     companion object {
         /**
-         * The two S1.c Android arms. The ordinary Android KMP target does not register an
-         * `androidNative*` target, so each recipe names its own dedicated opaque-helper producer.
+         * The Android arms, one per ABI the AAR carries. The ordinary Android KMP target does not
+         * register an `androidNative*` target, so each recipe names its own dedicated
+         * opaque-helper producer. `armeabi-v7a` is here for the streaming sticks and budget
+         * television boxes, which are 32-bit only.
          */
         val ANDROID_ABI_RECIPES: List<AndroidAbiRecipe> = listOf(
             AndroidAbiRecipe(
@@ -322,6 +331,17 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
                 ndkTarget = "aarch64-linux-android24",
                 abiDirectory = "arm64-v8a",
                 outputRelativePath = "kitecodec-jni/android-arm64/arm64-v8a/libkitecodec_jni.so",
+                sixteenKibPages = true,
+            ),
+            AndroidAbiRecipe(
+                linkTaskName = "linkKiteFFmpegJniAndroidArm32",
+                helperTaskName = "compileKiteFFmpegCForJniAndroidArm32",
+                ffmpegDirName = "android-arm32",
+                konanTargetName = "android_arm32",
+                ndkTarget = "armv7a-linux-androideabi24",
+                abiDirectory = "armeabi-v7a",
+                outputRelativePath = "kitecodec-jni/android-arm32/armeabi-v7a/libkitecodec_jni.so",
+                sixteenKibPages = false,
             ),
             AndroidAbiRecipe(
                 linkTaskName = "linkKiteFFmpegJniAndroidX64",
@@ -331,6 +351,7 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
                 ndkTarget = "x86_64-linux-android24",
                 abiDirectory = "x86_64",
                 outputRelativePath = "kitecodec-jni/android-x64/x86_64/libkitecodec_jni.so",
+                sixteenKibPages = true,
             ),
         )
 
@@ -344,8 +365,11 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
             "-lmediandk", "-landroid", "-llog", "-lz", "-ldl", "-lm",
             "-Wl,-z,defs", "-Wl,-z,noexecstack", "-Wl,-z,relro", "-Wl,-z,now",
             "-Wl,--gc-sections", "-Wl,--exclude-libs,ALL",
-            "-Wl,-z,max-page-size=16384", "-Wl,-z,common-page-size=16384",
-        )
+        ) + if (recipe.sixteenKibPages) {
+            listOf("-Wl,-z,max-page-size=16384", "-Wl,-z,common-page-size=16384")
+        } else {
+            emptyList()
+        }
 
         fun exportControlArguments(kind: ExportControlKind, file: File): List<String> = when (kind) {
             ExportControlKind.ELF_VERSION_SCRIPT ->

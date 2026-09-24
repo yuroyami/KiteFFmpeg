@@ -31,8 +31,9 @@ The two things a reader most often needs from it:
   FFmpeg embedded inside the artifacts. There is no Gradle plugin any more and no FFmpeg download
   step: the plugin was deleted and FFmpeg moved inside the published klibs, so a consumer needs
   nothing on disk.
-- **JVM, Android and Web.** The published Android AAR is real: its own manifest declares
-  `minSdkVersion 26` and it carries `libkitecodec_jni.so` for `arm64-v8a` and `x86_64`. The
+- **JVM, Android and Web.** The Android AAR is real: its own manifest declares
+  `minSdkVersion 26` and it carries `libkitecodec_jni.so` for `arm64-v8a`, `armeabi-v7a` and
+  `x86_64`. The
   published JVM jar carries a **macOS arm64** library and only that one, so a JVM consumer on Linux
   or Windows still gets the typed unavailable placeholder. `wasmJs` is a real playback backend once
   you load its wasm module: demux, decode and seek work, while encode, mux and filter are refused.

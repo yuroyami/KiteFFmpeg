@@ -10,9 +10,13 @@ class JniPackagingModelTest {
     fun generatedRootsAreAboveAbiDirectories() {
         val roots = mapOf(
             "android-arm64" to "arm64-v8a/libkitecodec_jni.so",
+            "android-arm32" to "armeabi-v7a/libkitecodec_jni.so",
             "android-x64" to "x86_64/libkitecodec_jni.so",
         )
-        assertEquals(setOf("arm64-v8a", "x86_64"), roots.values.map { it.substringBefore('/') }.toSet())
+        assertEquals(
+            setOf("arm64-v8a", "armeabi-v7a", "x86_64"),
+            roots.values.map { it.substringBefore('/') }.toSet(),
+        )
         assertTrue(roots.values.all { it.endsWith("/libkitecodec_jni.so") })
     }
 

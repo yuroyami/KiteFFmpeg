@@ -142,7 +142,7 @@ player, stay with the API above.
 |---|---|
 | **Plays real media** | `macosArm64`, `iosArm64`, `iosSimulatorArm64`, the Android AAR (`minSdk 26`, `arm64-v8a` and `x86_64`), `linuxX64`, `linuxArm64`, `mingwX64` |
 | **Plays media, once you supply the wasm module** | `wasmJs`. Reading and decoding work, including seeking. Writing files (encode, mux) and filtering are refused by design |
-| **Builds, nothing has run** | `macosX64`, `iosX64`, and the `androidNative*` targets, which are for Kotlin/Native on Android and are not what a normal Android app uses |
+| **Builds, nothing has run** | `macosX64`, `iosX64`, the Android AAR's 32-bit `armeabi-v7a` library, and the `androidNative*` targets, which are for Kotlin/Native on Android and are not what a normal Android app uses |
 | **Placeholder** | `js`. The code compiles and you can ask it what it supports (nothing), but every media call throws `FFmpegError.Unsupported` |
 
 All of these publish at 0.2.0.

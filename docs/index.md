@@ -65,9 +65,10 @@ checkout, where you build FFmpeg yourself.
     ./gradlew :kiteffmpeg:linuxX64Test
     ```
 
-JVM and Android are published artifacts, not source-only actuals. The Android AAR on Maven Central
-declares `minSdkVersion 26` in its own manifest and carries `libkitecodec_jni.so` for `arm64-v8a`
-and `x86_64` with 16 KiB ELF/app packaging. The JVM jar carries a **macOS arm64** library and only
+JVM and Android are published artifacts, not source-only actuals. The Android AAR declares
+`minSdkVersion 26` in its own manifest and carries `libkitecodec_jni.so` for `arm64-v8a`,
+`armeabi-v7a` and `x86_64`, with 16 KiB ELF/app packaging on the two 64-bit ABIs. The JVM jar
+carries a **macOS arm64** library and only
 that one, so a JVM consumer on Linux or Windows gets the typed unavailable placeholder rather than a
 codec. Android and iOS play real media on real phones as the engine under
 [KitePlayer](https://github.com/yuroyami/KitePlayer); what they lack is an automated device job in

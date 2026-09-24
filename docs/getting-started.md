@@ -8,8 +8,8 @@ FFmpeg's libav* libraries.
 
     KiteFFmpeg is on Maven Central: `io.github.yuroyami:kiteffmpeg:0.2.0`, one dependency line,
     with FFmpeg embedded inside the artifacts. The Android AAR is real, declares `minSdkVersion 26`
-    and carries `arm64-v8a` and `x86_64` JNI libraries. The JVM jar carries a **macOS arm64**
-    library and only that one, so a JVM consumer on Linux or Windows gets the typed unavailable
+    and carries `arm64-v8a`, `armeabi-v7a` and `x86_64` JNI libraries. The JVM jar carries a
+    **macOS arm64** library and only that one, so a JVM consumer on Linux or Windows gets the typed unavailable
     placeholder instead of a codec. `wasmJs` is a real playback backend once you load its wasm
     module; `js` is a placeholder that makes dependency resolution predictable and performs no
     media work.
@@ -60,7 +60,8 @@ KiteFFmpeg links against FFmpeg's libav* libraries. You need them present before
 
     Android uses a separate LGPL-only FFmpeg profile with FFmpeg's MediaCodec wrappers. The
     Kotlin/Native flow cross-compiles that profile before building a klib. The regular Android
-    source model uses the same profile through JNI, packages only `arm64-v8a` and `x86_64`, and
+    source model uses the same profile through JNI, packages only `arm64-v8a`, `armeabi-v7a` and
+    `x86_64`, and
     reaches a platform codec only through an FFmpeg name such as `h264_mediacodec`. The current
     proof stops at source, host tests, link and packaging; it is not a public install or playback
     result. See [Platform support](platforms.md) for both target models.

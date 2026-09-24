@@ -100,8 +100,9 @@ with an explanatory error.
 
 These are separate target models. `buildFFmpegForAndroid*` plus
 `compileKotlinAndroidNative*` produces Kotlin/Native klibs. The regular Android KMP source model
-uses a dynamically registered JNI bridge, is `minSdk 26`, and packages only `arm64-v8a` and
-`x86_64` inputs with 16 KiB ELF/app-packaging checks. Its local proof scope is
+uses a dynamically registered JNI bridge, is `minSdk 26`, and packages only `arm64-v8a`,
+`armeabi-v7a` and `x86_64` inputs, with 16 KiB ELF/app-packaging checks on the two 64-bit ABIs.
+Its local proof scope is
 `-Pkiteffmpeg.phoneTargetsOnly=true` and needs both `ANDROID_SDK_ROOT` and `ANDROID_NDK_HOME` plus
 the complete local FFmpeg trees.
 

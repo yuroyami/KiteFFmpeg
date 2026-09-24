@@ -15,8 +15,10 @@ Two points decide whether KiteFFmpeg is usable for you:
 
 - Kotlin/Native implementations live in `nativeMain`; the Android implementation and the JVM one
   compile the JNI sources from `jvmAndAndroidMain`. **Both are published and both are real.** The
-  Android AAR on Maven Central declares `minSdkVersion 26` in its own manifest and carries
-  `libkitecodec_jni.so` for `arm64-v8a` and `x86_64` with 16 KiB alignment and packaging checks. The
+  Android AAR declares `minSdkVersion 26` in its own manifest and carries `libkitecodec_jni.so` for
+  `arm64-v8a`, `armeabi-v7a` and `x86_64`, with packaging checks and 16 KiB alignment on the two
+  64-bit ABIs. `armeabi-v7a` is there for the streaming sticks and budget television boxes, which
+  are 32-bit only. The
   JVM jar carries `libkitecodec_jni.dylib` for **macOS arm64 and no other host**, so a JVM consumer
   on Linux or Windows still falls back to `unsupportedMain` and gets readable diagnostics rather
   than a codec. Android and iOS play real media on real phones as the engine under
@@ -198,17 +200,18 @@ It is deliberately different from the desktop one:
     `JavaVM`. The low-level API can then request an exact FFmpeg decoder name, for example
     `source.openDecoder(stream, decoder = CodecId("h264_mediacodec"))`, and verifies that decoder
     against the stream before open. This is not a direct platform-codec call. The present evidence
-    is source, host tests, two JNI link arms and packaging checks; it does not qualify device
+    is source, host tests, three JNI link arms and packaging checks; it does not qualify device
     playback or a hardware encoder.
 
 !!! note "Two Android target models"
     The `compileKotlinAndroidNative*` flow above produces Kotlin/Native `.klib` files. Separately,
     `-Pkiteffmpeg.phoneTargetsOnly=true` narrows a LOCAL build to the Android KMP target and the
     three Apple targets. It is a build-scope selector, refused by remote publication; it is not what
-    decides whether an artifact exists. The published AAR carries exactly `arm64-v8a` and `x86_64`
-    JNI libraries at `minSdk 26`. Both arms are link- and package-checked with 16 KiB constraints;
-    x86_64 has no runtime qualification. `js` remains a typed placeholder in every scope; `wasmJs`
-    does not, and carries a real playback backend.
+    decides whether an artifact exists. The AAR carries exactly `arm64-v8a`, `armeabi-v7a` and
+    `x86_64` JNI libraries at `minSdk 26`. All three arms are link- and package-checked, and the two
+    64-bit ones with 16 KiB constraints; `armeabi-v7a` and `x86_64` have no runtime qualification.
+    `js` remains a typed placeholder in every scope; `wasmJs` does not, and carries a real playback
+    backend.
 
 ## Licensing
 

@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 class LinkKiteFFmpegJniTaskTest {
 
     @Test
-    fun bothAndroidAbiRecipesPinTheirDedicatedHelperProvidersAndExactLinkFlags() {
+    fun everyAndroidAbiRecipePinsItsDedicatedHelperProviderAndExactLinkFlags() {
         val arm64 = LinkKiteFFmpegJniTask.AndroidAbiRecipe(
             linkTaskName = "linkKiteFFmpegJniAndroidArm64",
             helperTaskName = "compileKiteFFmpegCForJniAndroidArm64",
@@ -20,6 +20,18 @@ class LinkKiteFFmpegJniTaskTest {
             ndkTarget = "aarch64-linux-android24",
             abiDirectory = "arm64-v8a",
             outputRelativePath = "kitecodec-jni/android-arm64/arm64-v8a/libkitecodec_jni.so",
+            sixteenKibPages = true,
+        )
+        // The streaming sticks and budget television boxes are 32-bit ARM only.
+        val arm32 = LinkKiteFFmpegJniTask.AndroidAbiRecipe(
+            linkTaskName = "linkKiteFFmpegJniAndroidArm32",
+            helperTaskName = "compileKiteFFmpegCForJniAndroidArm32",
+            ffmpegDirName = "android-arm32",
+            konanTargetName = "android_arm32",
+            ndkTarget = "armv7a-linux-androideabi24",
+            abiDirectory = "armeabi-v7a",
+            outputRelativePath = "kitecodec-jni/android-arm32/armeabi-v7a/libkitecodec_jni.so",
+            sixteenKibPages = false,
         )
         val x64 = LinkKiteFFmpegJniTask.AndroidAbiRecipe(
             linkTaskName = "linkKiteFFmpegJniAndroidX64",
@@ -29,11 +41,23 @@ class LinkKiteFFmpegJniTaskTest {
             ndkTarget = "x86_64-linux-android24",
             abiDirectory = "x86_64",
             outputRelativePath = "kitecodec-jni/android-x64/x86_64/libkitecodec_jni.so",
+            sixteenKibPages = true,
         )
 
-        assertEquals(listOf(arm64, x64), LinkKiteFFmpegJniTask.ANDROID_ABI_RECIPES)
-        assertEquals(expectedAndroidLinkFlags("aarch64-linux-android24"), LinkKiteFFmpegJniTask.androidLinkFlags(arm64))
-        assertEquals(expectedAndroidLinkFlags("x86_64-linux-android24"), LinkKiteFFmpegJniTask.androidLinkFlags(x64))
+        assertEquals(listOf(arm64, arm32, x64), LinkKiteFFmpegJniTask.ANDROID_ABI_RECIPES)
+        assertEquals(
+            expectedAndroidLinkFlags("aarch64-linux-android24", sixteenKibPages = true),
+            LinkKiteFFmpegJniTask.androidLinkFlags(arm64),
+        )
+        // 16 KiB pages are Android's rule for 64-bit libraries only.
+        assertEquals(
+            expectedAndroidLinkFlags("armv7a-linux-androideabi24", sixteenKibPages = false),
+            LinkKiteFFmpegJniTask.androidLinkFlags(arm32),
+        )
+        assertEquals(
+            expectedAndroidLinkFlags("x86_64-linux-android24", sixteenKibPages = true),
+            LinkKiteFFmpegJniTask.androidLinkFlags(x64),
+        )
     }
 
     @Test
@@ -179,7 +203,7 @@ class LinkKiteFFmpegJniTaskTest {
         val macLinkRegistration = sourceSection(
             source,
             "tasks.register<LinkKiteFFmpegJniTask>(\n        \"linkKiteFFmpegJniMacosArm64\",",
-            "// The two Android arms, exactly the S1.c.1 step 6 recipe.",
+            "// The Android arms, exactly the S1.c.1 step 6 recipe.",
         )
         val androidLinkRegistrations = source.substring(
             sourceMarker(
@@ -280,14 +304,17 @@ class LinkKiteFFmpegJniTaskTest {
         assertFailsWith<AssertionError> { assertFourFieldRecord(corrupted) }
     }
 
-    private fun expectedAndroidLinkFlags(ndkTarget: String): List<String> = listOf(
+    private fun expectedAndroidLinkFlags(ndkTarget: String, sixteenKibPages: Boolean): List<String> = listOf(
         "--target=$ndkTarget",
         "-lavformat", "-lavcodec", "-lavfilter", "-lavutil", "-lswscale", "-lswresample",
         "-lmediandk", "-landroid", "-llog", "-lz", "-ldl", "-lm",
         "-Wl,-z,defs", "-Wl,-z,noexecstack", "-Wl,-z,relro", "-Wl,-z,now",
         "-Wl,--gc-sections", "-Wl,--exclude-libs,ALL",
-        "-Wl,-z,max-page-size=16384", "-Wl,-z,common-page-size=16384",
-    )
+    ) + if (sixteenKibPages) {
+        listOf("-Wl,-z,max-page-size=16384", "-Wl,-z,common-page-size=16384")
+    } else {
+        emptyList()
+    }
 
     private fun newLinkTask(
         project: org.gradle.api.Project,
