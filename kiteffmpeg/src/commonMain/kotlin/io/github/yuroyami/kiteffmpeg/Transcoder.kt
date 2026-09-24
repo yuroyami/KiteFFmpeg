@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.CoroutineDispatcher
+
 /** Progress snapshot delivered during [Transcoder.transcode]. */
 public data class TranscodeProgress(
     /** Video frames encoded so far (0 for audio-only transcodes). */
@@ -22,6 +24,13 @@ public expect object Transcoder {
 
     /**
      * Run a transcode end-to-end. Suspends until done.
+     *
+     * The work runs on [dispatcher], not on the caller's dispatcher: every step is a blocking
+     * call into FFmpeg, and running them on a UI thread would freeze it until the whole file is
+     * written. Cancelling the caller stops the work within one packet of the input, and this
+     * function throws [kotlinx.coroutines.CancellationException] only after every decoder,
+     * encoder, filter graph and file the work opened is closed. A read that blocks inside FFmpeg,
+     * such as a stalled network input, is not interrupted; it ends when the read returns.
      *
      * @param input  input file path
      * @param output output file path
@@ -61,8 +70,15 @@ public expect object Transcoder {
      *                  or shorter than the selection, and every frame the filter makes from the
      *                  selection is encoded.
      * @param metadata container tags written into the output header (`title`, `artist`, …)
-     * @param onProgress invoked every ~30 encoded video frames (or ~100 audio frames when
-     *                   audio-only) with a [TranscodeProgress]
+     * @param dispatcher where the blocking work runs. Null runs it on `Dispatchers.IO`, the pool
+     *                   for blocking calls. Pass your own to choose the threads, for example
+     *                   `Dispatchers.IO.limitedParallelism(2)` to cap how many transcodes run
+     *                   at once.
+     * @param onProgress invoked about every 30 encoded video frames (or 100 audio frames when
+     *                   audio-only) with a [TranscodeProgress], in the caller's own coroutine
+     *                   context and never on [dispatcher], so a UI caller may update its views
+     *                   from it. A caller that is busy when a report arrives gets only the newest
+     *                   one, and the last report arrives before this function returns.
      */
     public suspend fun transcode(
         input: String,
@@ -77,6 +93,7 @@ public expect object Transcoder {
         startMicros: Long = 0L,
         endMicros: Long = Long.MAX_VALUE,
         metadata: Map<String, String> = emptyMap(),
+        dispatcher: CoroutineDispatcher? = null,
         onProgress: ((TranscodeProgress) -> Unit)? = null,
     )
 }

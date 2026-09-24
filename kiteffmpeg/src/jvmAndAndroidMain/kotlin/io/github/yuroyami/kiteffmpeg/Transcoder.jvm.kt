@@ -1,5 +1,8 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+
 public actual object Transcoder {
     public actual suspend fun transcode(
         input: String,
@@ -14,6 +17,7 @@ public actual object Transcoder {
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
         onProgress: ((TranscodeProgress) -> Unit)?,
     ) {
         Internals.requireCompatible()
@@ -30,6 +34,30 @@ public actual object Transcoder {
         require(startMicros >= 0L && endMicros > startMicros) {
             "Invalid trim window [$startMicros, $endMicros]"
         }
+        runTranscode(dispatcher ?: Dispatchers.IO, onProgress) { publish ->
+            transcodeHere(
+                input, output, spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy,
+                subtitleCopy, startMicros, endMicros, metadata, publish,
+            )
+        }
+    }
+
+    /** The whole transcode, on the calling thread, handing its progress reports to [publish]. */
+    private suspend fun transcodeHere(
+        input: String,
+        output: String,
+        spec: VideoEncoderSpec?,
+        videoFilter: String?,
+        videoCopy: Boolean,
+        audioSpec: AudioEncoderSpec?,
+        audioFilter: String?,
+        audioCopy: Boolean,
+        subtitleCopy: Boolean,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        publish: ((TranscodeProgress) -> Unit)?,
+    ) {
         refuseSameFile(input, output)
 
         MediaSource.open(input).use { source ->
@@ -127,13 +155,13 @@ public actual object Transcoder {
                             }
 
                             fun report(force: Boolean = false) {
-                                if (onProgress == null) return
+                                if (publish == null) return
                                 sinceReport += 1L
                                 if (!force && sinceReport < progressEvery) return
                                 sinceReport = 0L
                                 val micros = primaryCore?.outputMicros
                                     ?: (copiedMicros - startMicros).coerceAtLeast(0L)
-                                onProgress(
+                                publish(
                                     TranscodeProgress(
                                         videoEncoder?.core?.framesEncoded ?: 0L,
                                         micros,
