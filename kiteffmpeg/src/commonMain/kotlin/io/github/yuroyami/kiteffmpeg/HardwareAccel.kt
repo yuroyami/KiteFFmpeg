@@ -18,4 +18,13 @@ package io.github.yuroyami.kiteffmpeg
 public enum class HardwareAccel {
     /** Apple VideoToolbox, attached as a device context behind `h264`/`hevc`. */
     VideoToolbox,
+
+    /**
+     * Direct3D 11 video acceleration on Windows, attached as a device context behind the ordinary
+     * `h264`, `hevc`, `vp9`, `mpeg2video`, `vc1` and `wmv3` decoders. Only the Windows builds
+     * carry it, which are the `mingwX64` target and the JVM on Windows; on any other platform the
+     * request fails typed at open. Its frames stay in GPU memory ([FrameInfo.isHardware]) until
+     * [Frame.downloadFromHardware] copies them into main memory.
+     */
+    D3d11va,
 }

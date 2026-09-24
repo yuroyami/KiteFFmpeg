@@ -534,6 +534,9 @@ public actual class StreamDecoder internal constructor(
                 when (hardware) {
                     HardwareAccel.VideoToolbox ->
                         check0(ffkmp_codecctx_use_videotoolbox(codecCtx), "videotoolbox device attach")
+                    HardwareAccel.D3d11va -> throw FFmpegException(
+                        FFmpegError.Unsupported(0, "D3D11VA decoding is declared but not wired to a device yet"),
+                    )
                     null -> Unit
                 }
                 check0(ffkmp_codecctx_open(codecCtx, codec), "avcodec_open2")

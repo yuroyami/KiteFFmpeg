@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -106,6 +107,26 @@ class HwaccelContractTest {
                     println("hwaccel contract arm: $hardwareFrames hardware frames, $downloaded downloads OK")
                 }
             }
+        }
+    }
+
+    /**
+     * D3D11VA exists only in the Windows builds. Everywhere else a request for it must fail typed
+     * at open, never hand back a decoder that quietly decodes in software.
+     */
+    @Test
+    fun d3d11vaIsRefusedTypedAtOpenByABuildWithoutIt() {
+        if ("--enable-d3d11va" in FFmpeg.buildConfiguration) {
+            println("d3d11va contract arm degraded: this build carries D3D11VA")
+            return
+        }
+        val path = materializeContractMedia(ContractMedia.bytes, ContractMedia.sha256)
+        MediaSource.open(path).use { src ->
+            val stream = src.primaryVideo ?: error("the contract clip has no video stream")
+            val refusal = assertFailsWith<FFmpegException> {
+                src.openDecoder(stream, hardware = HardwareAccel.D3d11va).close()
+            }
+            println("d3d11va contract arm: refused at open with ${refusal.error::class.simpleName}")
         }
     }
 }
