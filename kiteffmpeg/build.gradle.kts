@@ -142,7 +142,7 @@ kotlin {
      *       run as if kiteffmpeg.requireAllTargets=true, so a publication can never silently
      *       drop a target.
      * Exceptions: publishToMavenLocal also accepts -Pkiteffmpeg.hostTargetsOnly=true (the CI
-     * consumer-e2e smoke path), the arm64-Mac applePhoneTargetsOnly scope or the S1.c
+     * consumer-e2e smoke path), the arm64-Mac applePhoneTargetsOnly scope or the
      * phoneTargetsOnly superset. Remote publishes never accept an experimental scope.
      * Checked against gradle.startParameter.taskNames, which is simple and configuration-cache safe.
      */
@@ -468,16 +468,14 @@ kotlin {
          * cinterop embeds the archive, so it has to exist first, AND the archive has to be a
          * declared input of the cinterop task.
          *
-         * The dependency alone is not enough, and the plan's section 15.0 said otherwise on the
-         * strength of a different prototype. Measured here at B1.3, in a checkout with no copied
-         * Gradle state: editing only a helper source re-executes the C compile and writes a
+         * The dependency alone is not enough. Measured in a checkout with no copied Gradle state: editing only a helper source re-executes the C compile and writes a
          * new archive, and `cinteropFfmpegMacosArm64` then reports UP-TO-DATE and keeps the STALE
          * archive inside the klib, with or without the configuration cache. Gradle says why under
          * `--info`: "Caching disabled for task ':kiteffmpeg:cinteropFfmpegMacosArm64' because:
          * CInterop task uses custom Up-To-Date check for content of headers instead of Gradle
          * mechanisms." That check covers the def file and the headers, not a library the def merely
          * names. A clean build and CI were always correct; local incremental development was not,
-         * and every sub-phase from B1.4 onward edits C bodies.
+         * and most changes edit C bodies.
          *
          * `inputs.files` on the archive fixes it: an input change makes a task out of date no
          * matter what its own predicate says. The missing-archive direction never needed this,
@@ -541,8 +539,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
         val commonMain = getByName("commonMain")
-        // Encode, mux and filter are refused on BOTH web targets: S6 is "it plays on
-        // the web", and every one of those classes is hand-written work with a strong platform
+        // Encode, mux and filter are refused on BOTH web targets: the web target plays media,
+        // and every one of those classes is hand-written work with a strong platform
         // alternative. One copy of each refusal, shared, rather than two that drift.
         val webRefusedMain = maybeCreate("webRefusedMain").apply {
             dependsOn(commonMain)
@@ -683,7 +681,7 @@ fun registerBuildFFmpeg(triple: TargetTriple, flavour: FFmpegLicense) = register
         target = triple
         license = flavour
         sourceRef = BuildFFmpegTask.DEFAULT_SOURCE_REF
-        // Committed source patches, applied to the scratch copy before configure (window 2c).
+        // Committed source patches, applied to the scratch copy before configure.
         sourcePatches.from(fileTree(rootDir.resolve("native/patches/ffmpeg")) { include("*.patch") })
         // Release builds must produce a tree that links on a machine with none of these installed.
         requireSelfContained.set(
@@ -889,10 +887,10 @@ TargetTriple.entries.forEach { triple ->
  * 1. Distributing a GPL-flavoured binary makes the consumer's whole application GPL-3.0. That is
  *    a decision no library should make on a user's behalf by default, and publishing it as a
  *    Release asset is exactly making it on their behalf.
- * 2. Register row P0-14: `portableDesktopArgs()` IGNORES the licence argument, so
+ * 2. `portableDesktopArgs()` IGNORES the licence argument, so
  *    `buildFFmpegForLinuxX64Gpl` and its two siblings produced trees containing no GPL code at
  *    all and wrote them into a directory named `gpl`. Private, that is a curiosity. Published,
- *    it is a false public statement about licensing. Deleting the tasks deletes the row.
+ *    it is a false public statement about licensing. Deleting the tasks removes the problem.
  */
 
 tasks.register("buildFFmpegForAll") {
@@ -981,7 +979,7 @@ mavenPublishing {
 }
 
 /*
- * ── The JNI adapter link tasks (S1.c.1 step 6) ──────────────────────────────────────────────
+ * ── The JNI adapter link tasks ──────────────────────────────────────────────────────────────
  *
  * Scaffolded from a hand-proved link on this machine. The arms:
  *
@@ -1077,8 +1075,8 @@ run {
         outputLibrary.set(outputDirectory.file("libkitecodec_jni.dylib"))
     }
 
-    // The Android arms, exactly the S1.c.1 step 6 recipe. ANDROID_NDK_HOME is read at
-    // configuration from the environment the S1.c commands pin; a missing NDK or FFmpeg tree
+    // The Android arms, exactly the Android link recipe. ANDROID_NDK_HOME is read at
+    // configuration from the environment; a missing NDK or FFmpeg tree
     // fails the arm at execution with the producer task named in the message.
     val ndkHome = providers.environmentVariable("ANDROID_NDK_HOME")
         .orElse("/Users/macbook/WORKSTATION/AndroidSDK/ndk/29.0.14206865")

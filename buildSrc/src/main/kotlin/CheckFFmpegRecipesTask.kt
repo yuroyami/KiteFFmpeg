@@ -33,14 +33,14 @@ data class FFmpegRecipeExpectation(
  * apart with no gate red anywhere. Measured on 2026-08-19: `av1_videotoolbox` was pinned into the
  * Apple hwaccel list and every Apple tree on the proving machine still lacked it a day later, which
  * made AV1 hardware decode impossible for reasons no check could report. The evidence was already
- * on disk the whole time; every bake since B1 stamps its exact configure line into
+ * on disk the whole time; every bake stamps its exact configure line into
  * [BuildFFmpegTask.CONFIGURE_EVIDENCE_RELATIVE_PATH]. Nobody was reading it.
  *
  * `-Pkiteffmpeg.ffmpeg.autoBake=true` is the automatic answer to the same problem: it makes the
  * compile tasks depend on the bake, so Gradle re-bakes exactly when its inputs moved. This task is
  * for builds that do NOT opt into that, where a red light beats a silent lie.
  *
- * A tree with no stamp is SKIPPED rather than failed: stamps arrived in B1, and refusing an older
+ * A tree with no stamp is SKIPPED rather than failed: stamps arrived later, and refusing an older
  * tree would say "your recipe changed" when the truth is "this tree predates the evidence".
  */
 abstract class CheckFFmpegRecipesTask : DefaultTask() {

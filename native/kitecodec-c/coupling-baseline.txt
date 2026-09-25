@@ -1,9 +1,7 @@
-# The post-S1.a.8 Kotlin to FFmpeg coupling baseline of kiteffmpeg.
+# The Kotlin to FFmpeg coupling baseline of kiteffmpeg.
 #
-# The opaque migration changes what the two ratchets mean. Before S1.a.8, direct FFmpeg imports
-# stood at 246 and ffmpeg_typed_crossings combined 273 ffkmp_ mentions with 14 direct libav calls
-# for 287 total. The reduced cinterop now exposes only KiteFFmpeg-owned declarations, so the durable
-# boundary is stricter and simpler:
+# The cinterop exposes only KiteFFmpeg-owned declarations, so the boundary the two ratchets hold is
+# strict and simple:
 #
 #   cinterop_import_lines counts imports from ffmpeg whose symbol does not begin ffkmp_, kc_ or
 #   KC_. These are direct FFmpeg imports, and the ceiling is zero.
@@ -19,9 +17,8 @@
 # comments, including comments inside ordinary and raw ${...} template expressions. Quoted content,
 # nested templates, chars and backtick identifiers remain in their correct lexical contexts.
 #
-# These numbers are ceilings, never targets. Lowering one is a normal commit. Raising one requires
-# the old and new value, the reason and the exact source sites in KPKMP.md's Execution log, following
-# section 9's ratchet move table.
+# These numbers are ceilings, never targets. Lowering one is a normal commit. Raising one needs the
+# old and new value, the reason and the exact source sites in the commit message.
 
 cinterop_import_lines 0
 ffmpeg_typed_crossings 0

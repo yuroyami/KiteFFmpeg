@@ -146,7 +146,7 @@ public actual class MediaSource internal constructor(
     public actual val chapters: List<Chapter> = emptyList(),
     public actual val unusedOpenOptions: List<String> = emptyList(),
     /**
-     * Non-null exactly for custom-io opens (M1): close then uses ffkmp_fmt_close_input_io,
+     * Non-null exactly for custom-io opens: close then uses ffkmp_fmt_close_input_io,
      * and this runs AFTER it to dispose the StableRef and close the caller's byte source.
      */
     private val ioCleanup: (() -> Unit)? = null,
@@ -593,7 +593,7 @@ public actual class MediaSource internal constructor(
      * Canonicalizes a caller-supplied [StreamInfo] against this source's own table. StreamInfo is
      * a public data class and therefore forgeable: stream zero of another source has a valid index
      * here but foreign timing and type metadata, and accepting it would interpret this source's
-     * packets with another file's time base (audit KiteFFmpeg P1-8). Structural equality against
+     * packets with another file's time base. Structural equality against
      * the entry this source itself published is the check.
      */
     private fun requireOwnStream(supplied: StreamInfo) {
@@ -760,7 +760,7 @@ internal fun openMediaSource(
     val openRc = if (options.isEmpty() && interrupt == null) {
         ffkmp_fmt_open_input(ctxVar.ptr, path)
     } else {
-        // KD-4: pairs applied between allocation and open; the unconsumed remainder comes back
+        // Pairs applied between allocation and open; the unconsumed remainder comes back
         // as an OWNED dictionary this block walks and frees before anything can throw past it.
         memScoped {
             val keys = allocArray<CPointerVar<ByteVar>>(options.size)
@@ -944,8 +944,7 @@ internal fun openMediaSourceIo(
         if (rc < 0) {
             // The FULL cleanup, not just the reference: ownership of the byte source transfers to
             // this function the moment the adapter is built, so an open that fails still owes the
-            // caller a close. Disposing the StableRef alone left the source open for ever
-            // (audit P1-01).
+            // caller a close. Disposing the StableRef alone left the source open for ever.
             cleanup()
             // The byte source's own exception is the cause, because FFmpeg only saw an error code.
             throw FFmpegException(avError(rc), state.takeFailure())
@@ -969,7 +968,7 @@ internal fun openMediaSourceIo(
     return assembleMediaSource(ctx, unusedKeys, ioCleanup = cleanup, ioState = state)
 }
 
-/** KD-5: the chapter table, bounds already in microseconds from the C side. */
+/** The chapter table, bounds already in microseconds from the C side. */
 private fun readChapters(ctx: CPointer<kc_fmt_ctx>): List<Chapter> {
     val count = ffkmp_fmt_chapter_count(ctx)
     if (count <= 0) return emptyList()

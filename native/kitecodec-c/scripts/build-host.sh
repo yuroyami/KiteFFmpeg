@@ -11,7 +11,7 @@
 # Usage:  ./scripts/build-host.sh <variant>
 #         variant is one of: plain asan tsan
 #
-# Variants, per plan section 15.3. ASan and TSan are mutually exclusive, which is why there
+# Variants. ASan and TSan are mutually exclusive, which is why there
 # are three of them rather than one:
 #
 #   plain  -O2, no runtime instrumentation. The compile-fidelity and correctness variant.
@@ -19,7 +19,7 @@
 #          the variant that carries the leak evidence (LeakSanitizer is not supported on
 #          macOS arm64).
 #   asan   -fsanitize=address,undefined -fno-omit-frame-pointer -O1. Catches the
-#          out-of-bounds class that the identity gate of B1.6 prevents.
+#          out-of-bounds class that the identity gate prevents.
 #   tsan   -fsanitize=thread -O1. Keeps the threaded cases honest.
 #
 # Environment:
@@ -178,13 +178,11 @@ compile() {
         "$@" -c "$source" -o "$object"
 }
 
-# 1. The extracted helper layer, one translation unit per subsystem since B1.4. Every unit
-#    includes the generated header, so this compile is the proof that every emitted declaration
-#    matches its definition. -Werror makes a mismatch a hard failure rather than a warning
+# 1. The helper layer, one translation unit per subsystem. Every unit includes the public header,
+#    so this compile is the proof that every declaration matches its definition. -Werror makes a mismatch a hard failure rather than a warning
 #    nobody reads.
 #
-#    Separate compilation is also the mechanical proof of the internal-locality property that
-#    plan section 15.2 B1.4 step 1 asks for. The four trailing-underscore helpers are `static`.
+#    Separate compilation is also the mechanical proof that internal helpers stay local. The four trailing-underscore helpers are `static`.
 #    Calling one from another unit would be an implicit declaration there, and defining one in a
 #    unit that never calls it would be an unused function, and under -Wall -Wextra -Werror both
 #    are hard errors. So a green build here says the four are in the same unit as their callers;

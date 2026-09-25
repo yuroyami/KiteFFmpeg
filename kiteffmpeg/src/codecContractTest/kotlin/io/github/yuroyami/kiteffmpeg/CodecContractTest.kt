@@ -178,8 +178,7 @@ internal class CodecContractTest {
         val source = MediaSource.open(sourcePath)
         val video = assertNotNull(source.primaryVideo)
         val sourceBaseline = contractLiveHandleCount()
-        // A forged StreamInfo is now refused by canonicalization BEFORE any decoder opens
-        // (audit P1-8): the refusal is a typed argument error, and nothing was allocated to leak.
+        // A forged StreamInfo is now refused by canonicalization BEFORE any decoder opens: the refusal is a typed argument error, and nothing was allocated to leak.
         assertFailsWith<IllegalArgumentException> {
             runBlocking {
                 source.decodeStreams(
@@ -506,7 +505,7 @@ internal class CodecContractTest {
      * `MuxFaults` seam supplies the failure this path cannot otherwise have.
      *
      * The assertion is deliberately about the SINK and not about the throw. Anyone can make a
-     * function throw; what P1-10 fixed is that the sink must not still look usable afterwards.
+     * function throw; what the poison fixed is that the sink must not still look usable afterwards.
      */
     private fun exercisePoisonedCopyStreamDeclaration(input: String, transcript: CodecContractTranscript) {
         val poisonedOutput = outputPath("mkv")

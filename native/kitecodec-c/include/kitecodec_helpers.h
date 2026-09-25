@@ -1,12 +1,4 @@
-/* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
- * kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
- * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
- * with all eleven digests is recorded in that commit, and the proof
- * script itself is retired because an anchor no revision can replace forbids every future edit.
- * Edit this file like any other C file. Its shape is held by the C suites in every variant, the
- * sanitizers, symbol-audit.sh and the export baseline, not by an extraction proof.
- *
- * Declarations for the exported FFmpeg helper layer. */
+/* Declarations for the exported FFmpeg helper layer. */
 
 #ifndef KITECODEC_HELPERS_H
 #define KITECODEC_HELPERS_H
@@ -168,9 +160,8 @@ KC_API void      ffkmp_packet_rescale_ts(kc_packet *p, int sn, int sd, int dn, i
  * compressed payload as the input (av_packet_ref), so it is O(1) over the payload size. The two
  * packets close independently, in either order, each with ffkmp_packet_free. A NULL input is
  * refused with NULL. Allocation or ref failure frees everything this call created and returns
- * NULL. S1.c.1 adds this for the retained-GOP fallback and Packet.copy(); the typed outcome model
- * for packets remains later work, and this wrapper exists because the JVM bridge needs an owned
- * clone it can hand across the boundary. */
+ * NULL. It backs Packet.copy(), and the JVM bridge needs an owned clone it can hand across the
+ * boundary. */
 KC_API kc_packet* ffkmp_packet_clone(const kc_packet *packet);
 
 /* kc_codec_par */
@@ -520,8 +511,8 @@ KC_API int  ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path,
  */
 KC_API void ffkmp_dict_free(kc_dict **dict);
 
-/* M1, the custom AVIO bridge: demuxing whose BYTES come from the
- * caller instead of a path. This is the door KiteTorrent, HTTP clients with their own auth,
+/* The custom AVIO bridge: demuxing whose BYTES come from the
+ * caller instead of a path. This is the door torrent clients, HTTP clients with their own auth,
  * encrypted stores and caches walk through.
  *
  * read_fn contract: fill buf with at most len bytes and return how many (> 0). It must BLOCK
@@ -604,7 +595,7 @@ KC_API int ffkmp_fmt_free_output_io(kc_fmt_ctx **ctx);
  * the JNI adapter recovers its callback state here before the free. */
 KC_API void *ffkmp_fmt_output_io_opaque(kc_fmt_ctx *ctx);
 
-/* KD-5. The chapter table. count answers AVERROR(EINVAL) on NULL; get writes the chapter's id
+/* The chapter table. count answers AVERROR(EINVAL) on NULL; get writes the chapter's id
  * and its bounds rescaled to microseconds, refusing NULL outputs and out-of-range indices.
  * The metadata accessor returns a borrowed dictionary owned by the context (NULL on any bad
  * argument), for the standing ffkmp_dict_get iteration; the caller frees nothing.
@@ -622,7 +613,7 @@ KC_API int  ffkmp_fmt_find_stream_info(kc_fmt_ctx *c);
 
 /* Arguments. A NULL context is refused with AVERROR(EINVAL). stream_index -1 means any
  * stream; 0 to nb_streams-1 seeks in that stream's time base; every other value is refused
- * with AVERROR(EINVAL) instead of indexing streams[] out of range (interlude guard, I-12).
+ * with AVERROR(EINVAL) instead of indexing streams[] out of range.
  */
 KC_API int  ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t micros);
 
@@ -646,15 +637,14 @@ KC_API kc_dict* ffkmp_fmt_metadata(kc_fmt_ctx *c);
  */
 KC_API int  ffkmp_fmt_alloc_output2(kc_fmt_ctx **out, const char *path, const char *format);
 
-/* The container's own bit rate estimate in bits per second, or 0 when it has none. Resurrected for
-   plan item K2: the always-null containerBitrate stat is what it is for. */
+/* The container's own bit rate estimate in bits per second, or 0 when it has none. */
 KC_API int64_t ffkmp_fmt_bit_rate(const kc_fmt_ctx *ctx);
 
 /* Ownership. The option system copies key and value, so neither string is retained and both
  * may be freed immediately. A NULL context is refused with AVERROR(EINVAL), and so is a NULL
- * key, which used to crash inside the option lookup (interlude guard, I-12). A NULL value is
- * passed through and av_opt_set itself answers AVERROR(EINVAL) without crashing, measured at
- * the interlude for a flags option and an int option alike.
+ * key, which used to crash inside the option lookup. A NULL value is passed through and
+ * av_opt_set itself answers AVERROR(EINVAL) without crashing, measured for a flags option and an
+ * int option alike.
  */
 KC_API int  ffkmp_fmt_set_opt(kc_fmt_ctx *c, const char *k, const char *v);
 
@@ -877,7 +867,7 @@ KC_API int ffkmp_frame_plane_height(kc_frame *f, int p);
 KC_API void* ffkmp_frame_hw_surface(kc_frame *f);
 KC_API int ffkmp_frame_is_hardware(kc_frame *f);
 
-/* Hardware decode, KiteFFmpeg window 3 (S2.a). VideoToolbox is an hwaccel behind the ordinary
+/* Hardware decode. VideoToolbox is an hwaccel behind the ordinary
  * decoders, so there is no decoder name to select: ffkmp_codecctx_use_videotoolbox attaches a
  * device context between alloc and open (the pre-open window) and installs the format
  * negotiation that prefers hardware output and falls back to the default negotiation when the

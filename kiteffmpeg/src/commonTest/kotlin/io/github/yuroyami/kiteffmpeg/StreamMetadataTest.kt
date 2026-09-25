@@ -42,7 +42,7 @@ class StreamMetadataTest {
 }
 
 /**
- * P1-32. A stream description carrying an extradata record used to compare by array REFERENCE, so
+ * A stream description carrying an extradata record used to compare by array REFERENCE, so
  * two probes of the same file disagreed about whether they had described the same stream.
  */
 class StreamInfoEqualityTest {
@@ -81,7 +81,7 @@ class StreamInfoEqualityTest {
     }
 }
 
-/** P1-25. The undeclared-colour guess, at the sizes where one rule cannot serve every file. */
+/** The undeclared-colour guess, at the sizes where one rule cannot serve every file. */
 class ColorGuessTest {
 
     @Test

@@ -1,4 +1,4 @@
-/* The version script of libkitecodec_jni (S1.c.1 step 6). Exactly one exported symbol: the whole
+/* The version script of libkitecodec_jni. Exactly one exported symbol: the whole
  * Kotlin-to-C wiring is dynamic registration from methods.def, so no Java_*, kc_*, ffkmp_* or
  * av_* name may be visible. scripts/symbol-audit.sh asserts this on every built arm. */
 {

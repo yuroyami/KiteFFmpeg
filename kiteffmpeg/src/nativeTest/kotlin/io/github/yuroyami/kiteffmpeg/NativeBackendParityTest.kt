@@ -48,7 +48,7 @@ class NativeBackendParityTest {
     }
 
     /**
-     * P1-04. A missing encoder is a condition a caller handles: fall back to software, pick another
+     * A missing encoder is a condition a caller handles: fall back to software, pick another
      * codec, tell the user which build they installed. The JVM has thrown a catchable
      * [FFmpegError.EncoderNotFound] since the same commit that was supposed to convert both; Native
      * still threw the untyped [FFmpegError.Internal], so `when (error)` fell to the else branch and
@@ -90,7 +90,7 @@ class NativeBackendParityTest {
     }
 
     /**
-     * P0-07 inside Native. `withPlanes` read the pointer through `checkedNative`, whose own KDoc
+     * `withPlanes` on native read the pointer through `checkedNative`, whose own KDoc
      * says it is not a lease: the pointer escapes the lock the instant it is returned, so the plane
      * addresses handed to the caller's block were only ever checked, never held. A concurrent close
      * during the block frees the AVFrame under those addresses, which is the render path.

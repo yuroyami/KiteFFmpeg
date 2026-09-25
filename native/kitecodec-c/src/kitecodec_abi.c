@@ -50,8 +50,7 @@
 #define KC_BUILD_FFMPEG_DIR "unknown"
 #endif
 
-/* The diagnostic bypass. Opt in only, exact value only, and never quiet: see plan section 15.6
- * question 3, whose three conditions this file implements literally. An empty value, "true", "yes" or
+/* The diagnostic bypass. Opt in only, exact value only, and never quiet. An empty value, "true", "yes" or
  * "0" do NOT enable it, because a bypass that fires on anything truthy is a bypass somebody enables
  * by accident. */
 #define KC_BYPASS_ENV "KITECODEC_FFMPEG_ABI_BYPASS"
@@ -140,8 +139,7 @@ static void kc_append_name(char *dst, size_t capacity, const char *name)
 /* The warning the diagnostic bypass prints, exactly once per process because its only caller runs
  * inside the pthread_once body.
  *
- * It names the exact mismatch, the expected identity and the found identity, which is condition 2 of
- * plan section 15.6 question 3. stderr and not stdout, and one fputs of one pre-formatted buffer
+ * It names the exact mismatch, the expected identity and the found identity. stderr and not stdout, and one fputs of one pre-formatted buffer
  * rather than a sequence of prints, so a concurrent writer cannot interleave inside the message.
  *
  * This is the ONLY place the C layer writes to a stream. scripts/symbol-audit.sh asserts that, both
@@ -359,7 +357,7 @@ KC_API const char *kc_ffmpeg_configuration(void)
     return configuration != NULL ? configuration : "";
 }
 
-/* S1.c.1. The JavaVM handoff for the JNI bridge. The Android arm includes libavcodec/jni.h only
+/* The JavaVM handoff for the JNI bridge. The Android arm includes libavcodec/jni.h only
  * inside this guard, so a host FFmpeg built without --enable-jni still links this archive. */
 #ifdef __ANDROID__
 #include <libavcodec/jni.h>

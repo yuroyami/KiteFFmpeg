@@ -1,15 +1,14 @@
-# The deleted helper surface, register item B1-08, single source of truth since the interlude
-# (I-14): this list used to live in three files (this check's script, verify-lift.sh and the
-# extractor's DELETED table) with no way to resurrect a name; the other two copies are retired.
+# The deleted helper surface: exported helpers that nothing called and that were deleted, one
+# single list for scripts/check-deleted-surface.sh.
 #
 # One name per line, then one status:
 #   deleted                  scripts/check-deleted-surface.sh holds the name dead: any use of it,
 #                            anywhere in either repository, in any file type, fails the gate.
-#   resurrected-in-<item>    the named plan item deliberately brought it back; the check skips it.
+#   resurrected-in-<reason>  a change deliberately brought it back, named by an issue number or a
+#                            few words; the check skips it.
 #
-# THE MOVE (also in KPKMP.md section 9's ratchet move table): to resurrect a name, change its
-# status to resurrected-in-<item> in the SAME commit that reintroduces the helper, and write one
-# Execution log sentence naming the item and the reason. Nothing else. Deleting a line, adding a
+# To resurrect a name, change its status to resurrected-in-<reason> in the SAME commit that
+# reintroduces the helper, and say why in the commit message. Nothing else. Deleting a line, adding a
 # name, or a malformed status fails the check's integrity pass, so the file cannot drift quietly.
 ffkmp_averror_einval deleted
 ffkmp_nopts_value deleted
@@ -20,7 +19,7 @@ ffkmp_packet_flags deleted
 ffkmp_codecpar_video_delay deleted
 ffkmp_codecctx_sample_fmt deleted
 ffkmp_codec_name resurrected-in-33
-ffkmp_fmt_bit_rate resurrected-in-K2
+ffkmp_fmt_bit_rate resurrected-in-container-bit-rate
 ffkmp_fmt_alloc_output deleted
 ffkmp_stream_duration deleted
 ffkmp_stream_nb_frames deleted

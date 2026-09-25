@@ -20,8 +20,7 @@ import javax.inject.Inject
  * toolchains, the third-party bundling) is inapplicable here, and an enum entry would force each of
  * them to grow a branch that can never run.
  *
- * The configure shape comes from the S6 web spike, which built it five ways and measured the result
- * (`docs/spikes/2026-08-17-web-spike.md` in KitePlayer). Three corrections are folded in here and
+ * The configure shape comes from a web spike that built it five ways and measured the result. Three corrections are folded in here and
  * are worth naming, because each one costs an hour to rediscover:
  *  - `--disable-postproc` does NOT exist on n8.0 and configure fails on it.
  *  - `--disable-asm` silently disables SIMD too, so the SIMD variant must not pass it.

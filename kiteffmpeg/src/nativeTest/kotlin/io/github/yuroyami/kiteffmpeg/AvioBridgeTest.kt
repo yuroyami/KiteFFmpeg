@@ -16,7 +16,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The custom AVIO bridge (M1) proved end to end: a real mp4 is
+ * The custom AVIO bridge proved end to end: a real mp4 is
  * synthesized through the encode pipeline, read back ENTIRELY through a [MediaByteSource]
  * over its in-memory bytes, and the demux/decode results must match the path open's. The
  * call counters prove the bytes actually flowed through the Kotlin callbacks rather than

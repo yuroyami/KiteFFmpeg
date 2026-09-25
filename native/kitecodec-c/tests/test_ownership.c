@@ -1,23 +1,19 @@
-/* Ownership and lifetime suite for the extracted FFmpeg helper layer.
+/* Ownership and lifetime suite for the FFmpeg helper layer.
  *
  * The allocation interposer is the local leak instrument, because LeakSanitizer is
- * unsupported on macOS arm64, and the per-call SwsContext inside
- * ffkmp_frame_convert_pixfmt is kept as B2's caching baseline, so this suite asserts what the
- * helper does today rather than what it ought to do).
+ * unsupported on macOS arm64.
  *
  * What "ownership helper" means here, stated so the coverage claim is checkable. An exported
  * helper belongs in this suite when its body reaches a libav function that allocates a heap
  * object, frees one, or moves a reference. Applied mechanically to the nine src/helpers_*.c units
  * that selects 39 of the 157 exported helpers, listed below by section, and every one of them is
- * called by a case here. Plan section 15.2 says 29 and never enumerates them; 39 is a superset
- * of any 29 that reading could pick, so the plan's requirement is met either way, and the
- * difference is recorded in the run report rather than silently resolved. The two internal
+ * called by a case here. The two internal
  * helpers ffkmp_graph_finish_ and ffkmp_graph_finish_multi_ also allocate
  * (avfilter_inout_alloc, av_strdup); they are static and unreachable by name, so they are
  * covered through the four graph builders that call them.
  *
- * The set was 43 until B1.4, which deleted four of them as dead exported surface: frame_ref,
- * frame_make_writable, packet_ref and fmt_alloc_output, none of which any Kotlin file imported
+ * Four of them were deleted as dead exported surface: frame_ref, frame_make_writable,
+ * packet_ref and fmt_alloc_output, none of which any Kotlin file imported
  * when the deleted surface went. Their cases went with them, except that container inference from the
  * path extension moved to ffkmp_fmt_alloc_output2, which takes the same path with a NULL format.
  *
@@ -33,8 +29,7 @@
  *   Graphs  (7)  graph_build_video, graph_build_audio, graph_build_video_multi,
  *                graph_build_audio_multi, graph_free, graph_send, graph_receive
  *
- * The three whose pairing rule is not the obvious one each have their own case, as plan section
- * 15.2 requires:
+ * The three whose pairing rule is not the obvious one each have their own case:
  *
  *   ffkmp_fmt_new_stream        allocates and the parent AVFormatContext owns the result. The
  *                               blocks are still live when the helper returns, and they go away
@@ -335,10 +330,9 @@ static void case_frame_convert_pixfmt_is_caller_owned(int measure)
     KC_NOT_NULL(ffkmp_frame_plane(dst, 0));
     OWN_LIVE_POSITIVE(measure, &before, "returned");
     ffkmp_frame_free(dst);
-    /* Freeing the frame alone brings the window back to zero. That is the assertion that the
-     * per-call SwsContext was freed inside the helper: if it were retained, this would be
-     * positive and no caller could ever release it. B2 will cache the context, and this row is
-     * the baseline it has to match. */
+    /* Freeing the frame alone brings the window back to zero. The helper keeps one SwsContext
+     * per thread, and the warm-up pass built it for this geometry, so the measured call retains
+     * nothing new: a context allocated per call and never freed would show here. */
     OWN_LIVE_EXACTLY(measure, &before, 0, "after_free");
     ffkmp_frame_free(src);
 }
@@ -439,7 +433,7 @@ static void case_packet_move_ref_transfers_payload(int measure)
     ffkmp_packet_free(src);
 }
 
-/* S1.c.1. The clone the JVM bridge hands across the boundary. Metadata equality, shared payload
+/* The clone the JVM bridge hands across the boundary. Metadata equality, shared payload
  * (the O(1) property), and independent close in BOTH orders, because the bridge cannot promise
  * which side dies first. */
 static void case_packet_clone(int measure)
@@ -670,8 +664,7 @@ static void case_fmt_find_stream_info(int measure)
     OWN_LIVE_EXACTLY(measure, &before, 0, "net");
 }
 
-/* Interlude item I-12. The two argument guards the retired byte-equality proof was blocking.
- * Before the guards, both of these were reproduced as signal 11 through the public surface. */
+/* Two argument guards. Before them, both of these were reproduced as signal 11 through the public surface. */
 static void case_fmt_set_opt_refuses_a_null_key(int measure)
 {
     kc_alloc_counts before;
@@ -729,7 +722,7 @@ static void case_fmt_close_input_tolerates_nothing_to_close(int measure)
 }
 
 /* Container inference from the path extension. This case used to drive ffkmp_fmt_alloc_output,
- * which B1.4 deleted as dead exported surface. The inference path itself is
+ * which was deleted as dead exported surface. The inference path itself is
  * not dead: ffkmp_fmt_alloc_output2 takes it whenever its format argument is NULL or empty, which
  * is exactly what the deleted helper did with no argument at all. So the case keeps its coverage
  * and moves to the surviving helper rather than being dropped with it. */

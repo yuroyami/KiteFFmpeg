@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The custom AVIO bridge over the JNI adapter (M1): same proof as the native AvioBridgeTest,
+ * The custom AVIO bridge over the JNI adapter: same proof as the native AvioBridgeTest,
  * through the JVM path this time, so the upcall trampolines in kj_format.c are what carry the
  * bytes. The counters prove the callbacks ran; the closed flag proves ownership.
  */

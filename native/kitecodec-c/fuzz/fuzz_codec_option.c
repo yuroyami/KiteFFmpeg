@@ -1,6 +1,6 @@
 /* Fuzz target: ffkmp_codecctx_set_opt, through av_opt_set.
  *
- * Entry point, and why this one. Plan sub-phase B1.5 step 1 chose it because the key and the value
+ * Entry point, and why this one. It was chosen because the key and the value
  * are both caller-controlled text and both go to a parser: av_opt_set looks the key up in the
  * option table and then parses the value ACCORDING TO THE OPTION'S TYPE. So one string decides
  * which parser the other string is fed to, and AV_OPT_SEARCH_CHILDREN widens the table to the
@@ -22,7 +22,7 @@
  * on every input, which costs nothing and would catch a reordering of the guard.
  *
  * The context is never opened. avcodec_open2 on a fuzzed option set would spend the whole budget
- * inside a decoder rather than in the option parser, and decoding fuzzed bitstreams is B8's remit.
+ * inside a decoder rather than in the option parser, and decoding fuzzed bitstreams is another target's job.
  */
 
 #include "kc_fuzz.h"

@@ -1,10 +1,9 @@
 /* Arithmetic and by-value-struct helpers: the macro crossings, the 128 bit rescales, the
  * AVRational out parameters and AV_CEIL_RSHIFT plane heights.
  *
- * Plan section 15.2 B1.2 asks this suite to cover "the ten macro, 128 bit and by-value-struct
- * helpers with the D9 overflow vectors", and section 15.3 adds "AV_CEIL_RSHIFT plane heights for
- * subsampled formats". The set was enumerated here rather than taken on trust, and it measures 15
- * helpers, not ten. The count is recorded on the suite's first case so a reader sees it without
+ * The suite covers the macro, 128 bit and by-value-struct helpers with the rescale overflow
+ * vectors, and AV_CEIL_RSHIFT plane heights for subsampled formats. The set was enumerated here
+ * rather than taken on trust. The count is recorded on the suite's first case so a reader sees it without
  * reading this comment:
  *
  *   2 macro crossings          ffkmp_averror_eagain, ffkmp_averror_eof
@@ -26,8 +25,8 @@
  * re-deriving this set should search for `int \*[a-z]+` instead. That miss is the reason the count
  * here is 13 and not the 12 a narrower search reports.
  *
- * The count was 15 until B1.4 deleted ffkmp_averror_einval and ffkmp_nopts_value as dead exported
- * surface, along with 13 other helpers no Kotlin file imported. The two
+ * ffkmp_averror_einval and ffkmp_nopts_value were deleted as dead exported surface, along with 13
+ * other helpers no Kotlin file imported. The two
  * cases that asserted their values went with them; every other use of them in this file was
  * incidental, a convenient source of an error code or of a timestamp sentinel, and those uses now
  * spell the libav macro the deleted helper wrapped.
@@ -37,7 +36,7 @@
  * measurement is what the case asserts. Two expectations are deliberately rebuilt from arithmetic
  * rather than named: the AVERROR_EOF tag, because a case asserting AVERROR_EOF == AVERROR_EOF
  * proves nothing about the value crossing a function boundary, and the overflowing product that
- * the D9 defect used to compute, because the point of that case is what the wrong arithmetic
+ * the rescale overflow used to compute, because the point of that case is what the wrong arithmetic
  * produced.
  *
  * What this suite does not do. It does not exercise ffkmp_fmt_seek_micros past its NULL guard: the
@@ -66,7 +65,7 @@
 /* FFmpeg spells its own error tags FFERRTAG(a,b,c,d) == -(int)MKTAG(a,b,c,d), and MKTAG packs the
  * four bytes little end first with the last byte taken as unsigned. Recomputing that here is the
  * only way to assert the value rather than the macro name, and it is the same arithmetic Errors.kt
- * reimplements in Kotlin (plan section 15.5, deferral 3), so a drift between the two shows up as a
+ * reimplements in Kotlin, so a drift between the two shows up as a
  * failure of this case rather than as a wrong error tag in a consumer. */
 static int recomputed_errtag(char a, char b, char c, char d)
 {
@@ -103,7 +102,7 @@ static void case_macro_crossings(void)
     kc_detail("eagain=%d eof=%d", ffkmp_averror_eagain(), ffkmp_averror_eof());
 }
 
-/* ---- ffkmp_rescale_q, the helper D9's whole fix rests on ---- */
+/* ---- ffkmp_rescale_q, the helper the rescale overflow fix rests on ---- */
 
 static void case_rescale_q_vectors(void)
 {
@@ -113,12 +112,12 @@ static void case_rescale_q_vectors(void)
         int sn, sd, dn, dd;
         int64_t expected;
     };
-    /* The first two rows are D9's own test line: a timestamp of 10^13 in a time base of 1/10^9,
+    /* The first two rows are the overflow's own test line: a timestamp of 10^13 in a time base of 1/10^9,
      * converted to microseconds. 10^13 nanoseconds is 10^4 seconds, so 10^10 microseconds. */
     struct row rows[] = {
-        { "D9: 1e13 ticks at 1/1e9 to us",   10000000000000LL,  1, 1000000000, 1, 1000000,
+        { "overflow: 1e13 ticks at 1/1e9 to us", 10000000000000LL,  1, 1000000000, 1, 1000000,
           10000000000LL },
-        { "D9 negated: -1e13 at 1/1e9",     -10000000000000LL,  1, 1000000000, 1, 1000000,
+        { "overflow negated: -1e13 at 1/1e9", -10000000000000LL,  1, 1000000000, 1, 1000000,
           -10000000000LL },
         { "zero stays zero",                                0,  1, 1000000000, 1, 1000000, 0 },
         { "90 kHz: 90000 ticks is one second",          90000LL,  1, 90000, 1, 1000000, 1000000LL },
@@ -199,7 +198,7 @@ static void case_rescale_q_beats_the_naive_multiply(void)
     KC_CHECKF(got != AV_NOPTS_VALUE,
               "AV_NOPTS_VALUE survived the rescale as itself, which would make the guard optional");
     kc_note("a caller that forgets to test for AV_NOPTS_VALUE gets a plausible timestamp, not an");
-    kc_note("error, which is why the D9 fix returns null on NOPTS before calling this helper");
+    kc_note("error, which is why the overflow fix returns null on NOPTS before calling this helper");
     kc_detail("nopts rescaled to %lld", (long long)got);
 }
 
@@ -368,7 +367,7 @@ static void case_frame_sample_aspect_ratio(void)
     ffkmp_frame_free(f);
 }
 
-/* ---- The stream family, and the D9 vector applied to a real helper ---- */
+/* ---- The stream family, and the overflow vector applied to a real helper ---- */
 
 static void case_stream_helpers(void)
 {
@@ -391,7 +390,7 @@ static void case_stream_helpers(void)
     KC_EQ_INT(n, 1);
     KC_EQ_INT(d, 1000000000);
 
-    kc_case("stream_duration_micros: D9's 1e13 ticks at 1/1e9 is 1e10 us");
+    kc_case("stream_duration_micros: 1e13 ticks at 1/1e9 is 1e10 us");
     st->duration = 10000000000000LL;
     KC_EQ_I64(ffkmp_stream_duration_micros(st), 10000000000LL);
     kc_detail("micros=%lld", (long long)ffkmp_stream_duration_micros(st));

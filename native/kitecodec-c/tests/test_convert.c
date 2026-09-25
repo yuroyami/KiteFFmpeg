@@ -1,9 +1,8 @@
 /* ffkmp_frame_convert_pixfmt, the only swscale use in the whole helper layer.
  *
- * The helper builds and destroys an SwsContext on every call. B2 owns caching
- * that context; B1 changes nothing about it and writes the baseline B2's caching has to match. So
- * every case here asserts the behaviour as it is today, not as it should become, and the numbers
- * are measured rather than chosen.
+ * The helper keeps one SwsContext per thread and rebuilds it only when the geometry or the formats
+ * change. Every case here asserts the behaviour as it is, and the numbers are measured rather than
+ * chosen.
  *
  * The baseline has four parts.
  *

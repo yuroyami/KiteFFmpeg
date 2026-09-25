@@ -14,13 +14,9 @@
 # hundreds of meaningless lines. The numbers have no Kotlin meaning, so every line mentioning
 # `knifunptr_` is dropped before the comparison.
 #
-# What the historical B1.3 lift looked like. A helper that cinterop saw as `static inline` got a
-# bridge stub and carried only the `CCall(id = ...)` annotation. A helper that cinterop saw as an
-# ordinary external function additionally carried
-# `@kotlinx/cinterop/internal/CCall.Direct(name = "_<symbol>")`, which is the mechanical proof that
-# the call now goes straight to a real symbol instead of through a generated stub. So the B1.3 lift
-# shows up here as one added `CCall.Direct` line per lifted helper, with no declaration removed and
-# no signature touched.
+# A helper cinterop binds as an ordinary external function carries
+# `@kotlinx/cinterop/internal/CCall.Direct(name = "_<symbol>")`: the call goes straight to the real
+# symbol instead of through a generated stub.
 #
 # Usage:
 #   ./scripts/klib-metadata-diff.sh                    compare the current klib with the baseline
@@ -29,57 +25,21 @@
 #   ./scripts/klib-metadata-diff.sh --update            rewrite the baseline from the current klib
 #   ./scripts/klib-metadata-diff.sh --target macosArm64 pick another Kotlin/Native target directory
 #
-# Every mode, including `--update`, first enforces the post-S1.a.8 opaque boundary: none of the six
-# libav version constants may survive, and every direct binding must begin `_ffkmp_` or `_kc_`.
+# Every mode, including `--update`, first enforces the opaque boundary: none of the six libav
+# version constants may survive, and every direct binding must begin `_ffkmp_` or `_kc_`.
 #
-# `--update` is how a sub-phase that deliberately changes the cinterop surface re-baselines after
-# its own differential has been read and accepted. It is a normal commit, exactly like lowering a
-# coupling-ratchet number, and the commit message says which declarations moved.
+# `--update` re-baselines after a change that deliberately moves the cinterop surface, once its
+# differential has been read and accepted. It is a normal commit, and the commit message says which
+# declarations moved.
 #
 # Exit status: 0 when the klib matches the baseline, 2 on a usage error, 1 when the klib or the
-# tooling is missing, 1 when the opaque-boundary invariant fails, and 1 when anything differs,
-# WITH OR WITHOUT `--check`. The two forms agree
-# since the interlude: the bare form used to exit 0 on a real mismatch, and the plan's own
-# gate blocks invoked it bare in three places, so a red differential could scroll past a green
-# exit. The bare form still prints the full differential as its output (that is what it is for,
-# in the sub-phase that deliberately changes the surface); it just no longer calls a mismatch
-# success. `--check` remains the documented gate spelling. `--update` exits 0 after rewriting.
+# tooling is missing, 1 when the opaque-boundary invariant fails, and 1 when anything differs, WITH
+# OR WITHOUT `--check`. The bare form prints the full differential and never calls a mismatch
+# success. `--check` is the documented gate spelling. `--update` exits 0 after rewriting.
 #
-# What B1.3 measured with this script, recorded so the numbers can be checked later. The pre-lift
-# dump, taken at the parent of the lift commit, was 18684 filtered lines,
-# sha256 0995efd057266fdbc133556a76c0d461028b89dbbbe04a14068a6109c1c9245c. Against it the post-lift
-# dump (18844 lines) showed 172 added direct bindings, every one of them an ffkmp_ helper, zero
-# added declarations, zero removed direct bindings, and 4 removed declarations: ffkmp_graph_finish_,
-# ffkmp_graph_finish_multi_, ffkmp_codec_pix_fmts_ and ffkmp_ch_layout_mask_, the four internal
-# helpers that stayed `static` and were never declared in the extracted header. To reproduce it,
-# restore the def from the lift's parent commit, rebuild the cinterop, and run this script: it then
-# reports the mirror image of those numbers.
-#
-# What B1.4 measured against that baseline, recorded the same way. The pre-B1.4 dump was 18844
-# lines, sha256 a142ee53312e2700ec3fef8d431940daa9505f50646bf30afa2f8d114f748c27; the post-B1.4 dump
-# is 18784 lines, sha256 361e94272da47423678c58c78fb19d9aee6ee932c74ec4a779a9271629284517. The
-# differential was zero declarations added, 15 declarations removed, zero direct bindings added, 15
-# direct bindings removed, and zero other changed lines added. The 15 are the dead exported helpers
-# of the deleted helper surface, and the 30 removed "other" lines are those 15 declarations plus the
-# `@kotlinx/cinterop/ExperimentalForeignApi` line each one carried. Nothing else moved: the 80
-# structural lines realigned on each side are the per-fragment boilerplate this file already
-# explains, and they cancel.
-#
-# What B1.6 measured against that baseline, and the correction it forced on this script. The pre-B1.6
-# dump was 18784 lines, sha256 361e94272da47423678c58c78fb19d9aee6ee932c74ec4a779a9271629284517; the
-# post-B1.6 dump is 19024 lines, sha256 5e90ff81806aec7e3b9087a50316a78c5045c6bb8dccda081030d01c69a6986c.
-# The differential was 57 declarations added and 0 LOST, 6 direct bindings added (all six kc_ functions
-# of native/kitecodec-c/include/kitecodec_abi.h, none of them an ffkmp_ helper), zero direct bindings
-# removed, 177 other lines added and 4 removed. The 57 are kc_ffmpeg_report and its Companion, the six
-# kc_ functions, the four kc_status/kc_verdict typealiases, and the report's own fields and constants.
-#
-# The correction, which is the part worth keeping. The line diff also reported 2 DECLARATIONS REMOVED,
-# and reading that as a removal would have been wrong: they were `typealias AVAudioServiceType` and
-# `AVAudioServiceTypeVar`, which the inserted kc_ typealiases pushed from line 7595 to 7714, and both
-# appeared in the ADDED list as well. A line diff reports a moved block as a deletion plus an insertion.
-# Proved by set difference: not one line of the B1.4 baseline is absent from the B1.6 one. So this script
-# now reports DECLARATIONS LOST, GAINED and RELOCATED as set differences beside the diff-derived counts,
-# and LOST is the number an acceptance condition for a purely additive sub-phase should read. It was 0.
+# A line diff reports a moved block as a deletion plus an insertion, so the script also reports
+# DECLARATIONS LOST, GAINED and RELOCATED as set differences. LOST is the number to read for a
+# change that only adds surface: it must be 0.
 #
 # Environment:
 #   KC_KLIB_TOOL   path to the Kotlin/Native `klib` tool, overriding the version-derived default
@@ -148,8 +108,8 @@ trap 'rm -rf "$WORK"' EXIT
 # Every line mentioning a knifunptr id is dropped, per the note at the top of this file.
 "$KLIB_TOOL" dump-metadata "$KLIB_DIR" | grep -v 'knifunptr_' > "$WORK/current.txt"
 
-# S1.a.8 deliberately removed every FFmpeg header from ffmpeg.def. The cinterop metadata must now
-# contain only KiteFFmpeg-owned bindings: seeing any one of the former version constants proves a
+# ffmpeg.def includes no FFmpeg header, so the cinterop metadata must contain only
+# KiteFFmpeg-owned bindings: seeing any one of the former version constants proves a
 # raw FFmpeg header leaked back in, and seeing any other direct-binding prefix proves a raw C entry
 # point crossed the boundary. This runs before the --update branch so no write mode can bless a
 # forbidden dump. It is target-independent and therefore applies to every --target value.
@@ -256,7 +216,7 @@ declaration_names() {
         "$1" | sort
 }
 
-# The direct-binding annotation, which is the substance of the B1.3 lift.
+# The direct-binding annotation.
 direct_names() {
     sed -n 's/^.*CCall\.Direct(name = "\([^"]*\)").*$/\1/p' "$1" | sort
 }
@@ -289,16 +249,13 @@ report "DIRECT BINDINGS REMOVED" "$WORK/direct_removed.txt"
 
 # The three sets above are derived from a LINE diff, and a line diff reports a block that MOVED as a
 # deletion in one place and an insertion in another. So a declaration can appear in both lists while
-# nothing about the surface changed, which measured at B1.6: inserting the kc_ typealiases pushed
-# `typealias AVAudioServiceType` and `AVAudioServiceTypeVar` from line 7595 to 7714, and both were
-# reported removed AND added. Reading "declarations removed 2" there would have been wrong.
+# nothing about the surface changed.
 #
 # So the three sets below are the answer a compatibility question actually wants, and they are set
 # differences rather than diff hunks:
 #
 #   LOST       a name the baseline had and the current dump does not. This is the only one that can
-#              break a consumer, and the only one the acceptance condition of a purely additive
-#              sub-phase is allowed to see at zero.
+#              break a consumer, and a change that only adds surface must see it at zero.
 #   GAINED     a name the current dump has and the baseline did not.
 #   RELOCATED  a name in both, whose line the diff moved. Always benign.
 sort -u "$WORK/decl_added.txt"   > "$WORK/decl_added_set.txt"
@@ -371,18 +328,8 @@ if [ "$DIRECT_ADDED" != "$DIRECT_ADDED_FFKMP" ]; then
     echo "note: $((DIRECT_ADDED - DIRECT_ADDED_FFKMP)) added direct binding(s) are not ffkmp_ helpers."
 fi
 
-# ────────────────────────────────────────────────────────────────────────────────────────────────
-# RETIRED AT S1.a.8: the interlude I-07 two-bakings probe used to compare
-# LIBAVUTIL_VERSION_INT parsed into cinterop metadata with the embedded archive's frozen identity
-# report. It caught a real stale C compile while both halves of the klib independently processed
-# the same FFmpeg headers, and that historical result remains valid evidence. S1.a.8 removed the
-# second processing entirely: ffmpeg.def now parses no FFmpeg header, the six LIB*_VERSION_INT
-# constants must be absent by the invariant above, and the compiled archive's identity gate is the
-# one intentional FFmpeg-header baking. Keeping the old link probe would require the raw metadata
-# leak this phase exists to forbid, so there is deliberately no host-only replacement here.
-
-# A mismatch is a failure in BOTH forms since the interlude: the bare form exiting 0 on a
-# real difference was measured to let the gate read green while the report above said red.
+# A mismatch is a failure in BOTH forms: a bare form exiting 0 on a real difference would let a
+# gate read green while the report above said red.
 if [ -s "$WORK/diff.txt" ]; then
     echo
     echo "klib-metadata-diff.sh: the cinterop metadata does not match $BASELINE." >&2

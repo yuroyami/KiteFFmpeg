@@ -52,7 +52,7 @@ public expect class Packet : AutoCloseable {
     public fun copy(): Packet
 
     /**
-     * The packet's compressed payload, copied (S4.c). For TEXT subtitle streams this is the cue
+     * The packet's compressed payload, copied. For TEXT subtitle streams this is the cue
      * body itself, which is why a subtitle decoder can be pure Kotlin. A copy per call: subtitle
      * packets are tiny and rare; never call this per video packet.
      */

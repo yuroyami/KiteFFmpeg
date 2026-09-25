@@ -11,7 +11,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Executable specification for the post-S1.a.8 boundary. The committed-tree case pins the zero
+ * Executable specification for the opaque boundary. The committed-tree case pins the zero
  * ceilings. Small fixtures then prove that each forbidden raw shape fails independently while the
  * owned opaque surface remains free to grow.
  */

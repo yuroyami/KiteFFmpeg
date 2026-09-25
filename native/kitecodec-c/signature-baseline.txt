@@ -1,4 +1,4 @@
-# The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
+# The normalized public C declaration baseline of KiteFFmpeg.
 #
 # abi-version 3.10
 #

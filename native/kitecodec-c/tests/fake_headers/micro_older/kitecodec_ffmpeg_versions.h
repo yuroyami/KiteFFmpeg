@@ -3,7 +3,7 @@
  * The one case that is reported and never rejected. A micro bump inside one minor is a bug fix release
  * by FFmpeg's own versioning rules, so a runtime with a lower micro is missing fixes and not missing
  * declarations or fields. Rejecting it would refuse to start against a runtime that is fine, which is
- * exactly the false positive plan section 15.4 warns is our outage inside a consumer's product.
+ * exactly the false positive that becomes an outage inside a consumer's product.
  * Policy: verdict recorded, status accepting.
  *
  * On the proving machine today that is header 62.3.101 against runtime 62.3.100.

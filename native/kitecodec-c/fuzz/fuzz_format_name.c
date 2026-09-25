@@ -1,6 +1,6 @@
 /* Fuzz target: ffkmp_pix_fmt_from_name and ffkmp_sample_fmt_from_name.
  *
- * Entry points, and why these. Plan sub-phase B1.5 step 1 named them together because they are one
+ * Entry points, and why these. They are named together because they are one
  * surface: a caller-supplied name goes to a libav lookup that walks a table of descriptors and
  * compares strings, and the answer is an enum the rest of the library then trusts. They are the
  * smallest of the six targets and they cover the shape the other five do not have, a name that is

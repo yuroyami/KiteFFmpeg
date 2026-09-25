@@ -152,7 +152,7 @@ done:
     return token;
 }
 
-/* KD-5 (S4.b window): the chapter table. */
+/* The chapter table. */
 JNIEXPORT jint JNICALL kj_fmt_chapter_count(JNIEnv *env, jclass cls, jlong token)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);

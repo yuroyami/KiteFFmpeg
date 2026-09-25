@@ -1,7 +1,7 @@
 /* Argument-boundary cases for the exported helper layer.
  *
- * S1.a.7 adds one leading refusal to each of sixteen helpers that currently lets a required
- * NULL pointer reach FFmpeg or an immediate dereference. Each invalid call runs in a child so
+ * Sixteen helpers each have one leading refusal, because each used to let a required NULL
+ * pointer reach FFmpeg or an immediate dereference. Each invalid call runs in a child so
  * the unguarded reproduction records its signal without killing the driver. Pass one row id as
  * argv[1] to reproduce a single vector; the gate invokes the binary without an id and runs all
  * thirty-three cases.

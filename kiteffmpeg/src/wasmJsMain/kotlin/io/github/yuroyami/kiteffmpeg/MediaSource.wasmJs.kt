@@ -274,8 +274,7 @@ public actual class MediaSource internal constructor(
         try {
             // One try owning both, because openPacketReader takes the cursor lease and can throw.
             // It used to sit BETWEEN the catch that unwound the decoders and the try that owns
-            // their cleanup, so a throw there leaked every codec context just built, which is the
-            // exact defect P0-05 was opened to fix.
+            // their cleanup, so a throw there leaked every codec context just built.
             streams.forEach { decoders[it.index] = openDecoder(it, corruptData = corruptData) }
             val live = openPacketReader(streams).also { reader = it }
             while (true) {
@@ -332,8 +331,8 @@ public actual class MediaSource internal constructor(
             ?: throw FFmpegException(FFmpegError.Internal("this media has no video stream to extract from"))
         // Back off to a safe earlier point and decode forward. A seek lands on a keyframe at or
         // before the target, so the first frame that comes out of it is the KEYFRAME, not the frame
-        // asked for: returning it answered a sparse-keyframe file with a picture seconds early
-        // (audit P0-04). Backward, so the target is never overshot before the walk begins.
+        // asked for: returning it answered a sparse-keyframe file with a picture seconds early.
+        // Backward, so the target is never overshot before the walk begins.
         val landing = (atMicros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L)
         openPacketReader(listOf(target)).use { it.seek(landing, SeekDirection.Backward, null) }
         // Both opened INSIDE the try. They used to sit outside it, so a throwing openDecoder left
@@ -580,7 +579,7 @@ public actual class MediaSource internal constructor(
             // The unused-option dictionary FFmpeg hands back, as its own out-slot. The binding
             // used to pass a null pointer here and then guess the answer from the key array, which
             // the C side never writes to, so every option was reported unused on every open
-            // (audit S-W1). Ask for the dictionary and read it instead.
+            // Ask for the dictionary and read it instead.
             val unusedSlot = wasmAlloc(m, 4)
             writeInt32(m, unusedSlot, 0)
             val opts = CStringArrays.of(m, options)

@@ -14,8 +14,7 @@ import java.nio.file.Files
 /**
  * Cross-compiles the libass rendering chain (fribidi, freetype, harfbuzz, libass) as static
  * libraries for one [target] and installs them into `native-libs/deps/<target>/ass-chain/`
- * (pulled forward by owner order 2026-08-16). The chain is OPTIONAL by
- * decision D-7: nothing here enters a default artifact; the `kiteplayer-libass` module and the
+ * The chain is OPTIONAL by decision: nothing here enters a default artifact; the `kiteplayer-libass` module and the
  * plugin's libass toggle are its only consumers.
  *
  * Fontconfig and libunibreak are deliberately absent from this first chain: libass renders

@@ -6,16 +6,16 @@
 #         variant is one of: plain asan tsan, and the mode `interpose` runs the plain binaries
 #         with KC_REQUIRE_ALLOC_ACCOUNTING=1, so a build in which the allocation interposer is
 #         not effective FAILS instead of recording every ownership property as partial
-#         (interlude item I-08; the mechanism is kiteplayer-rt's, ported, and the two harnesses
-#         are a pair: a fix to either lands in both)
-#         suite names are the file stems, for example test_buffers. With none given, ALL EIGHT
+#         (the mechanism is kiteplayer-rt's, ported, and the two harnesses are a pair: a fix to
+#         either lands in both)
+#         suite names are the file stems, for example test_buffers. With none given, ALL of them
 #         run, which is what a gate does. CI passes no suite name for exactly that reason.
 #
 # Build first: ./scripts/build-host.sh <variant>. This script never builds, so a gate cannot
 # accidentally pass on a stale binary that was never recompiled.
 #
 # Each suite returns non-zero on its first failing case and prints one line per case, which is
-# the contract in plan section 15.3. This runner does not stop at the first failing suite: it
+# the harness contract. This runner does not stop at the first failing suite: it
 # runs all of them and then exits non-zero, because when three suites break at once the useful
 # output is all three.
 #

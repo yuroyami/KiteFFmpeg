@@ -368,7 +368,7 @@ public actual class Frame internal constructor(
             requireCompatibleFFmpeg()
             require(width > 0 && height > 0) { "Invalid dimensions ${width}x$height" }
             // Before the pin: addressOf(0) on an empty array throws its own index error, which is
-            // not the short-buffer diagnostic this factory promises (audit KiteFFmpeg P1-15).
+            // not the short-buffer diagnostic this factory promises.
             require(bytes.isNotEmpty()) {
                 "bytes is empty; a ${width}x$height ${pixelFormat.name} frame needs its packed planes"
             }

@@ -39,8 +39,8 @@ class EmptySinkContractTest {
 
     /**
      * A stream WAS declared and no frame ever reached it. Unlike the case above there is something
-     * to describe, so the header is written on demand at close and the trailer follows it (audit
-     * P1-5): the sink owes a real container or an explicit failure, never a missing file.
+     * to describe, so the header is written on demand at close and the trailer follows it: the
+     * sink owes a real container or an explicit failure, never a missing file.
      *
      * ### What this deliberately does NOT assert, and why
      *

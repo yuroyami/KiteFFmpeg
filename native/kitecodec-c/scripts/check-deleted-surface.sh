@@ -10,8 +10,8 @@
 # Why it must run with kiteffmpeg/src/nativeInterop/cinterop/archived/ already deleted. That
 # directory held six def files that no build file referenced and that redefined the same helper
 # names. A grep run while it still existed reported a definition for almost every deleted name and
-# would have masked a real reference behind duplicate noise. Plan section 15.2 B1.4 step 3 puts the
-# deletion first for exactly that reason, and this script fails outright if the directory is back.
+# would have masked a real reference behind duplicate noise, which is why this script fails outright
+# if the directory is back.
 #
 # What counts as a reference, stated exactly so the check is not fuzzy. Three questions:
 #
@@ -26,9 +26,8 @@
 #      reference cannot arrive disguised as a comment.
 #
 # The exclusions are --exclude-dir and never a `| grep -v build/` pipe. The pipe filters the OUTPUT
-# LINE, so it silently drops a real hit whose own text happens to contain the word, which is the
-# mistake plan section 9 records against the em dash scan: three real em dashes hid behind lines
-# that mentioned "vendor/ffmpeg" and "build/install". `.claude/worktrees` holds gitignored scratch
+# LINE, so it silently drops a real hit whose own text happens to contain the word: three real em
+# dashes once hid behind lines that mentioned "vendor/ffmpeg" and "build/install". `.claude/worktrees` holds gitignored scratch
 # checkouts of this same repository at older commits, where every deleted helper is still present
 # and correct, so it is excluded as a directory too.
 #
@@ -47,12 +46,9 @@ ROOT="$(cd "$HERE/.." && pwd)"
 REPO="$(cd "$ROOT/../.." && pwd)"
 OTHER="$(cd "$REPO/../KitePlayer" 2>/dev/null && pwd || true)"
 
-# The names live in ONE committed data file since the interlude: deleted-surface.txt,
-# beside this script's parent directory. Before that they were hardcoded in three places (here,
-# verify-lift.sh and the extractor's DELETED table) with no move procedure, so resurrecting a
-# name for a real need had no legal path. Now a resurrection is one status change in that file
-# plus one Execution log sentence, and this script keeps its full power over every name still
-# marked deleted. The file's own integrity is check 4 below.
+# The names live in ONE committed data file: deleted-surface.txt, beside this script's parent
+# directory. A resurrection is one status change in that file, explained in the commit message, and
+# this script keeps its full power over every name still marked deleted. The file's own integrity is check 4 below.
 SURFACE_FILE="$ROOT/deleted-surface.txt"
 DELETED=""
 RESURRECTED=""

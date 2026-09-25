@@ -10,7 +10,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The two cases plan section 15.2 B1.3 names for [CompileKiteFFmpegCTask]: a correct object archives,
+ * The two core cases for [CompileKiteFFmpegCTask]: a correct object archives,
  * and an object of the wrong architecture fails with a message naming both architectures and the
  * target. A third case covers the output-directory guard, because that guard is the other half of
  * the architecture guard and is as easy to break as it is to state.
@@ -75,7 +75,7 @@ class CompileKiteFFmpegCTaskTest {
     }
 
     /**
-     * The producer-side guard is a guard only if the task action CALLS it. The interlude
+     * The producer-side guard is a guard only if the task action CALLS it. A review
      * measured that replacing the verifyObjectArchitecture call site with a comment left this
      * whole suite green at 4 tests, because every case drove the predicate directly. This case
      * runs the real compile() with a describeFile that lies about the produced object, and the
@@ -113,7 +113,7 @@ class CompileKiteFFmpegCTaskTest {
 
     @Test
     fun aStaleObjectFromAPreviousRunIsCleared() {
-        // Interlude: the clearing line in compile() had no test, so deleting it kept the
+        // The clearing line in compile() had no test, so deleting it kept the
         // suite green. A renamed or removed source must not leave its old object behind, where
         // the CI archive listing and any obj/-globbing tool would read it as current.
         val fixture = fixture()
@@ -142,7 +142,7 @@ class CompileKiteFFmpegCTaskTest {
 
     @Test
     fun theLlvmPackageResolverFallsBackNumericallyAndSaysSo() {
-        // Copied across from CompileKiteRtTaskTest at the interlude so the two near-twin
+        // Copied across from CompileKiteRtTaskTest so the two near-twin
         // tasks are covered identically. Numbers, not text: llvm-9 must not sort above llvm-21,
         // and essentials-97 must beat essentials-79 within the same LLVM version.
         val root = createTempDirectory()
@@ -171,7 +171,7 @@ class CompileKiteFFmpegCTaskTest {
 
     @Test
     fun aWindowsShapedDependenciesTreeResolvesTheExeNames() {
-        // Interlude item I-20. A Windows konan package ships clang.exe and llvm-ar.exe, and the
+        // A Windows konan package ships clang.exe and llvm-ar.exe, and the
         // review measured File("bin/clang").canExecute() false against a Windows shaped tree, so
         // every candidate was rejected and the windows-x64 CI job could not pass. Resolution now
         // tries the bare name and then the .exe name.
@@ -188,7 +188,7 @@ class CompileKiteFFmpegCTaskTest {
 
     @Test
     fun theAndroidToolchainPackageIsNamedAfterTheBuildHost() {
-        // Interlude item I-20. The sysroot path hardcoded the osx infix, and on an Ubuntu runner
+        // The sysroot path hardcoded the osx infix, and on an Ubuntu runner
         // the osx package never exists, so the C compile threw before cinterop and the three
         // android CI jobs could not pass. The infix now follows the host, the way konan's own
         // konan.properties names the packages.
@@ -213,13 +213,13 @@ class CompileKiteFFmpegCTaskTest {
 
     @Test
     fun theFFmpegVersionHeadersAreTrackedByContent() {
-        // Interlude item I-07. The path STRINGS in ffmpegIncludeDirs survive a brew upgrade that
+        // The path STRINGS in ffmpegIncludeDirs survive a brew upgrade that
         // rewrites every file under them, which was measured to leave this task UP-TO-DATE while
         // cinterop regenerated, so the two bakings inside one klib disagreed at byte level. The
         // version headers are therefore declared as content-tracked input files; this case pins
         // the declaration so it cannot be dropped quietly. The out-of-dateness itself was proved
-        // against the real build in both directions at the interlude (UP-TO-DATE, content change,
-        // EXECUTED, restore, EXECUTED, UP-TO-DATE) and is recorded in the I.4 Execution log entry.
+        // against the real build in both directions (UP-TO-DATE, content change, EXECUTED, restore,
+        // EXECUTED, UP-TO-DATE).
         val fixture = fixture()
         val versionHeader = fixture.includeDir.resolve("libavutil/version.h")
         versionHeader.parentFile.mkdirs()

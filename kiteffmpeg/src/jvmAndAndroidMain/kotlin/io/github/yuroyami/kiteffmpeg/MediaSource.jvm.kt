@@ -15,7 +15,7 @@ public actual class MediaSource internal constructor(
     public actual val startTimeMicros: Long,
     public actual val chapters: List<Chapter> = emptyList(),
     public actual val unusedOpenOptions: List<String> = emptyList(),
-    /** Non-null exactly for custom-io opens (M1): close then routes through the io close. */
+    /** Non-null exactly for custom-io opens: close then routes through the io close. */
     private val jniIo: JniByteIo? = null,
 ) : AutoCloseable {
     private val stateLock = Any()
@@ -370,7 +370,7 @@ public actual class MediaSource internal constructor(
 
     /**
      * Canonicalizes a caller-supplied [StreamInfo] against this source's own table; StreamInfo is
-     * a public data class and therefore forgeable (audit KiteFFmpeg P1-8). Same rule as native.
+     * a public data class and therefore forgeable. Same rule as native.
      */
     private fun requireOwnStream(supplied: StreamInfo) {
         val own = streams.firstOrNull { it.index == supplied.index }
@@ -544,7 +544,7 @@ private fun openMediaSource(
     }
 }
 
-/** M1: the custom AVIO open. The JNI bridge holds global refs to [JniByteIo] until the paired
+/** The custom AVIO open. The JNI bridge holds global refs to [JniByteIo] until the paired
  *  close, so the adapter object outlives any Kotlin-side reference by construction. */
 private fun openMediaSourceIo(
     io: MediaByteSource,
@@ -594,7 +594,7 @@ private fun openMediaSourceIo(
     }
 }
 
-/** KD-5: the chapter table, bounds already in microseconds from the C side. */
+/** The chapter table, bounds already in microseconds from the C side. */
 private fun readChapters(format: Long): List<Chapter> {
     val count = Internals.fmtChapterCount(format)
     if (count <= 0) return emptyList()

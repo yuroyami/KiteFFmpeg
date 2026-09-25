@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 /**
- * A hardware acceleration a decoder can be opened with (KiteFFmpeg window 3).
+ * A hardware acceleration a decoder can be opened with.
  *
  * This is deliberately NOT the same seam as naming a decoder. FFmpeg has two hardware shapes:
  * decoders that ARE the hardware path under their own name (`h264_mediacodec`), selected through

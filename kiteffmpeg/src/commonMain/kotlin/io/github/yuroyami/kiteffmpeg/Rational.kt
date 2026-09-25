@@ -41,7 +41,7 @@ public class Rational private constructor(public val num: Int, public val den: I
      *
      * `-Int.MIN_VALUE` is `Int.MIN_VALUE` again in 32-bit arithmetic, so negating a rational whose
      * numerator sat at the floor used to return the SAME rational and call it the opposite sign
-     * (audit P1-29). Widening first makes that case a value that does not fit, which [of] refuses
+     * Widening first makes that case a value that does not fit, which [of] refuses
      * out loud rather than answering wrongly.
      *
      * @throws ArithmeticException when the negated numerator does not fit 32 bits
@@ -114,7 +114,7 @@ public class Rational private constructor(public val num: Int, public val den: I
          *
          * The old behaviour halved both components until they fit and coerced a denominator that
          * reached zero back to one, which silently turned 50000/1 * 50000/1 into 1250000000/1
-         * (audit KiteFFmpeg P1-9). A rational that cannot hold the exact value now throws, the
+         * A rational that cannot hold the exact value now throws, the
          * same decision `times(scalar)` already made, and the message points at the 128-bit
          * av_rescale_q path that exists for exactly this.
          *

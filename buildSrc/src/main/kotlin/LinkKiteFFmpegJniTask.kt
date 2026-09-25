@@ -142,18 +142,17 @@ abstract class PrepareKiteFFmpegJniHarnessTask @Inject constructor(
 
 /**
  * Compiles the `native/kitecodec-jni` adapter and links ONE shared JNI library against the opaque
- * helper archive and a static FFmpeg tree (S1.c.1 step 6).
+ * helper archive and a static FFmpeg tree.
  *
  * The registrations (kiteffmpeg/build.gradle.kts) are the test-only macOS dylib that jvmTest
  * loads through the `kiteffmpeg.jni.path` system property, and one Android arm per
  * [ANDROID_ABI_RECIPES] entry, whose outputs are the exact `jniLibs` inputs of the AAR. The Android
  * arms use the NDK's clang with the version script, and the 64-bit ones add the 16 KiB page flags;
  * the macOS arm uses the system clang with an `-exported_symbols_list`, because a Mach-O link does
- * not read an ELF version script. Both recipes were proved by hand at the S1.c scaffold
- * (2026-08-12) before being encoded here.
+ * not read an ELF version script. Both recipes were proved by hand before being encoded here.
  *
  * The ELF and Mach-O outputs must export exactly `JNI_OnLoad`: `scripts/symbol-audit.sh` asserts it
- * per arm, and the S1.c.1 gate runs an ELF PT_LOAD 0x4000 check beside it for the 64-bit Android
+ * per arm, and an ELF PT_LOAD 0x4000 check runs beside it for the 64-bit Android
  * arms. The Windows output exports `JNI_OnLoad` and the C archive's entry points; see
  * [jniPlatformHeader].
  */
@@ -393,9 +392,9 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
             ),
         )
 
-        /** The exact S1.c.1 Android link recipe after the objects and opaque helper archive.
+        /** The exact Android link recipe after the objects and opaque helper archive.
          *  [dav1d] follows the tree-presence truth: true exactly when the vendored tree
-         *  bundles libdav1d.a (the D-7 switch), which libavcodec then draws symbols from. */
+         *  bundles libdav1d.a, which libavcodec then draws symbols from. */
         fun androidLinkFlags(recipe: AndroidAbiRecipe, dav1d: Boolean = false): List<String> = listOf(
             "--target=${recipe.ndkTarget}",
             "-lavformat", "-lavcodec", "-lavfilter", "-lavutil", "-lswscale", "-lswresample",

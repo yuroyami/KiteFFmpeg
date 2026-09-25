@@ -207,7 +207,7 @@ class BuildFFmpegTaskTest {
         )
 
         // VideoToolbox DECODE is on for every Apple target, simulator
-        // included. The hwaccel line is a PIN: it keeps the two hwaccels D-2 needs even if the
+        // included. The hwaccel line is a PIN: it keeps the two hwaccels hardware decode needs even if the
         // wide class policy ever changes.
         //
         // Two more things this golden pins, both added when the parity audit found them missing:
@@ -503,7 +503,7 @@ class BuildFFmpegTaskTest {
         // macOS joined the same portable Apple profile as iOS (2026-08-22), so ALL five Apple
         // triples share one link set: zlib plus the media frameworks. AudioToolbox is named
         // because every Apple profile requests --enable-audiotoolbox, so the static archives
-        // hold undefined references into it exactly as they do into VideoToolbox since S2.a.
+        // hold undefined references into it exactly as they do into VideoToolbox.
         listOf(
             TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64, TargetTriple.IosX64,
             TargetTriple.MacosArm64, TargetTriple.MacosX64,

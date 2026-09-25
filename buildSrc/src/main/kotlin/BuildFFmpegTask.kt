@@ -484,15 +484,15 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     ) + appleHwaccelDecodeArgs()
 
     /**
-     * VideoToolbox hardware DECODE (KiteFFmpeg window 3). Unlike MediaCodec
+     * VideoToolbox hardware DECODE. Unlike MediaCodec
      * there is no named decoder to enable: VideoToolbox decode is an hwaccel behind the ordinary
      * `h264`/`hevc` decoders. Since the 17.4.9 wide profile the hwaccel class compiles whole, so
-     * this list is a PIN rather than the sole source: it guarantees the two hwaccels the player's
-     * D-2 route depends on exist even if the class policy above ever changes. Decode is enabled
+     * this list is a PIN rather than the sole source: it guarantees the two hwaccels a player's
+     * hardware route depends on exist even if the class policy above ever changes. Decode is enabled
      * for EVERY Apple target including the simulator (decode works there on Apple silicon; it is
      * encode that does not), and a runtime refusal on any particular machine is FFmpeg's own
-     * typed answer through `ffkmp_codecctx_use_videotoolbox`, which D-2's measured fallback
-     * treats as one more fallback cause.
+     * typed answer through `ffkmp_codecctx_use_videotoolbox`, which a player's fallback treats
+     * as one more fallback cause.
      */
     private fun appleHwaccelDecodeArgs(): List<String> = listOf(
         "--enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox",

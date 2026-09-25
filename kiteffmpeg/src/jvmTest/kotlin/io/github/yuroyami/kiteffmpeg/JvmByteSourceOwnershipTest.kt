@@ -12,7 +12,7 @@ import kotlin.test.assertFailsWith
 class JvmByteSourceOwnershipTest {
 
     /**
-     * P1-01 on the JNI path. The open itself sat outside the scope that owns the source, so a throw
+     * On the JNI path, the open itself sat outside the scope that owns the source, so a throw
      * from it left the caller's source open for ever.
      */
     @Test

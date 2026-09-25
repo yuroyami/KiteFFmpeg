@@ -9,10 +9,10 @@ import kotlinx.atomicfu.atomic
  *
  * `MediaSink.addCopyStream` POISONS the sink when a step after `avformat_new_stream` throws, because
  * FFmpeg cannot take a stream back: the format context already holds a half-configured stream, and
- * without the poison the sink kept looking usable while the next call wrote against it (audit
- * P1-10). That fix was correct and UNPROVABLE. The only steps left inside the guarded block are a
- * codec-parameter copy and a time-base write, and no caller can make either fail. The one lever that
- * existed, forging a `StreamInfo`, was deliberately removed when P1-11 closed.
+ * without the poison the sink kept looking usable while the next call wrote against it. That fix
+ * was correct and UNPROVABLE. The only steps left inside the guarded block are a codec-parameter
+ * copy and a time-base write, and no caller can make either fail. The one lever that existed,
+ * forging a `StreamInfo`, was deliberately removed when stream identity became checked.
  *
  * A fix whose evidence cannot exist is not done, by this project's own law. So rather than argue the
  * poison is right, this makes it falsifiable.

@@ -8,15 +8,15 @@ import io.github.yuroyami.kiteffmpeg.PixelFormat
 import io.github.yuroyami.kiteffmpeg.Rational
 
 /**
- * The typed filter DSL (KD-1): a compilation layer onto the description STRINGS the
+ * The typed filter DSL: a compilation layer onto the description STRINGS the
  * existing `FilterGraph.buildVideo`/`buildAudio` already take. Nothing here crosses into C; the
- * laws that bind it:
+ * rules that bind it:
  *
- * - Values, not magic (law 4): every construct is a plain data class first, and [FilterChain.compile]
+ * - Values, not magic: every construct is a plain data class first, and [FilterChain.compile]
  *   is a pure function whose output is inspectable, printable and golden-tested.
- * - Curated core plus escape hatch, never a mirror (law 2): the typed set below is the register's
- *   few dozen; [Raw] carries any chain the typed set lacks, verbatim.
- * - Capability-honest (law 6): [FilterChain.requireAvailable] asks [FFmpeg.hasFilter] for every
+ * - Curated core plus escape hatch, never a mirror: the typed set below covers the few dozen
+ *   filters most chains use; [Raw] carries any chain the typed set lacks, verbatim.
+ * - Capability-honest: [FilterChain.requireAvailable] asks [FFmpeg.hasFilter] for every
  *   typed step and fails TYPED naming the missing filter; it never silently no-ops. [Raw] steps
  *   are the caller's own claim and are exempt, which their KDoc says.
  */
@@ -214,7 +214,7 @@ public data class Loudnorm(
 }
 
 /**
- * The escape hatch (law 2): any chain fragment the typed set lacks, joined verbatim. Capability
+ * The escape hatch: any chain fragment the typed set lacks, joined verbatim. Capability
  * checks cannot see inside it; the caller owns that claim.
  */
 public data class Raw(val fragment: String) : FilterStep {
@@ -282,7 +282,7 @@ public data class FilterChain(val steps: List<FilterStep>) {
     }
 }
 
-// --- Builder sugar (law 4: sugar over constructors, never the other way) -----------------------
+// --- Builder sugar (sugar over constructors, never the other way) -----------------------
 
 public class VideoFilterBuilder internal constructor() {
     private val steps = mutableListOf<FilterStep>()

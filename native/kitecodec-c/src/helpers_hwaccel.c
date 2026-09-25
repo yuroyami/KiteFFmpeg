@@ -1,4 +1,4 @@
-/* The hardware decode funnels of KiteFFmpeg window 3 (S2.a).
+/* The hardware decode funnels.
  *
  * VideoToolbox and D3D11VA are HWACCELs behind FFmpeg's ordinary `h264`/`hevc` decoders, not
  * named decoders the way `h264_mediacodec` is. That difference decides this file's shape: there
@@ -22,7 +22,7 @@
    mid-stream when the hardware refuses a profile or a resolution change, or from the start for a
    codec the device has no hwaccel for, the default negotiation takes over and decoding continues
    in software; the Kotlin side notices the downgrade on the frames themselves
-   (ffkmp_frame_is_hardware turns false), which is what D-2's fallback reporting reads. */
+   (ffkmp_frame_is_hardware turns false), which is what a player's fallback report reads. */
 static enum AVPixelFormat ffkmp_pick_format_(
         AVCodecContext *ctx, const enum AVPixelFormat *formats, enum AVPixelFormat wanted) {
     const enum AVPixelFormat *candidate;
@@ -91,7 +91,7 @@ KC_API int ffkmp_codecctx_use_d3d11va(AVCodecContext *c) {
     return ffkmp_attach_device_(c, AV_HWDEVICE_TYPE_D3D11VA, ffkmp_pick_d3d11_format_);
 }
 
-/* The measured software download of D-2's fallback path. Copies a hardware frame's pixels into
+/* The software download a fallback path pays for. Copies a hardware frame's pixels into
    dst, which must be a blank allocated frame, and carries the presentation properties (pts,
    colour, rotation side data) with them, because a downloaded frame that forgot its timestamp
    would be worse than no frame. dst is left blank again when the copy fails, so ownership stays

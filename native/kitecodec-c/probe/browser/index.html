@@ -54,7 +54,7 @@ try {
   // ---- Audio: decode, then resample through a filter graph to the one format Web Audio takes.
   // The graph is deliberate rather than reading planes raw: it guarantees planar float at a fixed
   // rate whatever the source was, which is what a player must do, and it exercises the avfilter
-  // build that step X-02 had to add back.
+  // build the web profile had to add back.
   let ai = -1, apar = 0;
   for (let i = 0; i < n; i++) {
     const p = M._ffkmp_stream_codecpar(M._ffkmp_fmt_stream(ctx, i));

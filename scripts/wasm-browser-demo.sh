@@ -2,7 +2,7 @@
 # Builds and serves the browser playback proof.
 #
 # Decodes a real clip with FFmpeg in wasm and draws it to a 2d canvas with putImageData. This is
-# the path S6-D6 correction 2 named: the converted RGBA already lives in emscripten linear memory,
+# the path a web measurement picked: the converted RGBA already lives in emscripten linear memory,
 # which IS a JS-visible ArrayBuffer, so the frame never crosses the Kotlin heap the web probe measured
 # at 107 to 153 ms per frame.
 #

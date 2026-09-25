@@ -2,7 +2,7 @@
 #
 # Replay the committed fuzz corpus through every fuzz target, under ASan and UBSan.
 #
-# This is the LOCAL gate for plan sub-phase B1.5, and it is not a fuzz run. Say it plainly, because
+# This is the LOCAL fuzz gate, and it is not a fuzz run. Say it plainly, because
 # the difference decides what the result is worth. Coverage-guided fuzzing cannot happen on this
 # machine at all: -fsanitize=fuzzer needs libclang_rt.fuzzer_osx.a, which is absent from Apple
 # clang 17 and from konan's LLVM 21, and Homebrew LLVM is not installed.
@@ -135,23 +135,23 @@ export TSAN_OPTIONS="halt_on_error=1:second_deadlock_stack=1"
 
 # ── The generated corpus, and why part of the corpus is not committed ─────────────────────────
 #
-# Plan sub-phase B1.5 step 2 names the D27 vectors as seeds: descriptions of length 0, 2047, 2048,
+# The seeds include the description overflow vectors: descriptions of length 0, 2047, 2048,
 # 4096 and 1048576. The first four are committed under fuzz/corpus/filter_audio. The 1048576 one is
 # generated here instead, for two measured reasons rather than for tidiness:
 #
-#   1. Plan section 15.3 requires the corpus to be "small and textual". One megabyte of padding in
-#      a repository whose whole committed corpus is 38077 bytes would be 27 times everything else,
-#      and the plan asks for two of them, single input and multi input.
+#   1. The committed corpus stays small and textual. One megabyte of padding in a repository whose
+#      whole committed corpus is 38077 bytes would be 27 times everything else, and there would be
+#      two of them, single input and multi input.
 #   2. libFuzzer derives -max_len from the largest seed when the flag is absent, and generating
 #      inputs up to a megabyte would spend the five minute budget on length instead of on shape.
 #      run-fuzz.sh passes an explicit -max_len for this reason and the CI job cannot use the seed
 #      anyway.
 #
 # So the vector is a real file, replayed through the same driver over the same code path, and it
-# lands under build/ where it is gitignored. The length is the plan's number, not a rounded one.
+# lands under build/ where it is gitignored. The length is exact, not rounded.
 #
 # It is generated for filter_audio ONLY, and that is a measured decision rather than a shortcut.
-# D27 is a defect in the two AUDIO builders by name: they are the ones that compose the description
+# The description overflow was a defect in the two AUDIO builders by name: they are the ones that compose the description
 # into char full_desc[2048], so a 1048576 byte description is refused by the first length check in
 # microseconds and the vector costs nothing. The video builders have no composition buffer and no
 # length limit of any kind, so the same input goes whole to avfilter_graph_parse_ptr, and under
@@ -159,7 +159,7 @@ export TSAN_OPTIONS="halt_on_error=1:second_deadlock_stack=1"
 # finish: measured at over 120 seconds against 0.25 seconds with that one option off, because every
 # string operation the parser makes over a 1 MB buffer becomes a validated pass over the whole
 # buffer. That cost is the interceptor's, not the library's, and putting it in a gate that runs
-# after every sub-phase would buy nothing and cost minutes. The observation itself is recorded in
+# after every change would buy nothing and cost minutes. The observation itself is recorded in
 # fuzz/README.md, because "the video builder applies no length limit at all" is worth knowing.
 generate_corpus() {
     local target="$1"
@@ -223,20 +223,16 @@ build_shared() {
 
 # ── prove_power: the deliberate defects ──────────────────────────────────────────────────────
 #
-# Plan sub-phase B1.5's tests say: plant one deliberate defect, prove the harness catches it, then
-# remove it in the same change. This function is that requirement turned into something repeatable,
-# which is strictly more than the plan asked for and costs the same.
+# The rule for a harness: plant one deliberate defect, prove the harness catches it, then remove it
+# in the same change. This function makes that rule repeatable.
 #
-# The defects are planted in COPIES of the helper sources under build/, never in the repository. Two
-# reasons: B1.4 established the pattern (its suites were proved load bearing by mutation against
-# copies in a scratch directory), and B1.5 does not own src/helpers_filter.c, so mutating the file
-# in place is not available to it. The consequence is that the defect is never in any commit at all,
-# which is a stronger version of "removed in the same change" than the plan asked for.
+# The defects are planted in COPIES of the helper sources under build/, never in the repository, the
+# same way the C suites were proved load bearing. So the defect is never in any commit at all.
 #
 # Two defects, one for each kind of input.
 #
-# The string path. One deletion: the running-length check that D27 installed after the ",aformat="
-# append in ffkmp_graph_build_audio. That is the exact defect D27 records, at the exact site. With
+# The string path. One deletion: the running-length check the description overflow fix installed
+# after the ",aformat=" append in ffkmp_graph_build_audio. That is the exact overflow, at the exact site. With
 # it gone, a 2047 byte description plus pinned output leaves the running total at 2056, so the next
 # append addresses full_desc + 2056 in a char[2048] and its size argument wraps. The corpus already
 # has that input: fuzz/corpus/filter_audio/d27_len_2047, and the target runs the pinned matrix on

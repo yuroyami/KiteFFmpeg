@@ -280,7 +280,7 @@ public actual class PacketReader internal constructor(
         val min = notEarlierThan?.let { source.toAbsoluteMicros(it) } ?: Long.MIN_VALUE
         // Any documents "the nearest indexed frame, whether or not it is a keyframe", which may
         // sit AFTER the target; capping max at the target made a closer later frame unreachable
-        // and quietly turned Any into Backward-without-keyframes (audit KiteFFmpeg P1-13).
+        // and quietly turned Any into Backward-without-keyframes.
         val max = when (direction) {
             SeekDirection.Backward -> target
             SeekDirection.Forward, SeekDirection.Any -> Long.MAX_VALUE
@@ -524,12 +524,12 @@ public actual class StreamDecoder internal constructor(
                 // delay for audio keeps the decoder from holding frames a player is waiting for.
                 ffkmp_codecctx_set_threads(codecCtx, threadCount, if (stream.type == MediaType.Video) 1 else 0)
                 ffkmp_codecctx_set_low_delay(codecCtx, if (lowDelay) 1 else 0)
-                // KD-2: typed options through the existing av_opt_set funnel,
+                // Typed options through the existing av_opt_set funnel,
                 // between context creation and open, exactly where FFmpeg wants them.
                 options?.compile()?.forEach { (key, value) ->
                     check0(ffkmp_codecctx_set_opt(codecCtx, key, value), "av_opt_set ('$key')")
                 }
-                // Window 3 (S2.a): the HWACCEL attach, in the same pre-open moment. A build
+                // The hardware decoder attach, in the same pre-open moment. A build
                 // without the device type answers ENOSYS here, the typed capability refusal.
                 when (hardware) {
                     HardwareAccel.VideoToolbox ->
@@ -586,8 +586,8 @@ public fun <R> Frame.withPlanes(
     }
     // The LEASE, not a check. checkedNative re-ran the open check but let the pointer escape the
     // lock immediately, so the plane addresses below were handed to the caller's block with nothing
-    // holding the AVFrame alive: a concurrent close freed it under the block, on the render path
-    // (audit P0-07). withNative holds the frame's lock for the whole call, block included, so a
+    // holding the AVFrame alive: a concurrent close freed it under the block, on the render path.
+    // withNative holds the frame's lock for the whole call, block included, so a
     // close waits for the reader instead of racing it.
     return withNative { native ->
         val count = ffkmp_frame_plane_count(native)

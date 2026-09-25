@@ -1,4 +1,4 @@
-/* SEC-4: the JNI identity report accumulated with `off += snprintf(...)` and no bound at all.
+/* The JNI identity report once accumulated with `off += snprintf(...)` and no bound at all.
  *
  * snprintf returns the length it WOULD have written. Once `off` passes the buffer size,
  * `buf + off` leaves the array and `sizeof buf - (size_t)off` wraps to a huge `size_t`, so the

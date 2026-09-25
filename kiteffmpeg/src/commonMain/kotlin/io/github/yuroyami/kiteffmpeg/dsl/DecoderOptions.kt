@@ -1,8 +1,8 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
 /**
- * Typed decoder options (KD-2), applied through the EXISTING `av_opt_set` funnel
- * between codec-context creation and open. Control plane only (law 1): these configure an open,
+ * Typed decoder options, applied through the EXISTING `av_opt_set` funnel
+ * between codec-context creation and open. Control plane only: these configure an open,
  * never a per-frame call. [compile] is the pure, golden-tested mapping to option pairs; a wrong
  * key in [options] reproduces the funnel's measured EINVAL path rather than being filtered here.
  */
@@ -15,7 +15,7 @@ public data class DecoderOptions(
     val errorDetection: Set<ErrorDetection> = emptySet(),
     /** Frame versus slice threading, beyond the existing thread COUNT parameter. */
     val threadType: DecoderThreadType? = null,
-    /** The escape hatch (law 2): raw `av_opt_set` pairs for anything the typed set lacks. */
+    /** The escape hatch: raw `av_opt_set` pairs for anything the typed set lacks. */
     val options: Map<String, String> = emptyMap(),
 ) {
     /** The exact option pairs, in a stable order: typed knobs first, escape hatch after. */

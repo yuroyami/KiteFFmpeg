@@ -16,7 +16,7 @@ import java.io.File
 /**
  * The zero ceiling on direct FFmpeg coupling in kiteffmpeg's Kotlin.
  *
- * S1.a.8 removes FFmpeg's headers from the cinterop definition. Kotlin may import and call the
+ * The cinterop definition includes no FFmpeg header. Kotlin may import and call the
  * KiteFFmpeg-owned `ffkmp_`, `kc_` and `KC_` surface, but it may neither import a raw FFmpeg name,
  * call libav directly nor name an FFmpeg struct type. The two ratcheted counts therefore mean:
  *
@@ -62,8 +62,7 @@ abstract class CheckCinteropCouplingTask : DefaultTask() {
 
     /**
      * The C of the FFmpeg helper layer: the headers under `native/kitecodec-c/include` and the
-     * sources under `native/kitecodec-c/src`. It supplies the FFmpeg struct type names that the
-     * def body used to supply before B1.3 moved the C.
+     * sources under `native/kitecodec-c/src`. It supplies the FFmpeg struct type names.
      */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)

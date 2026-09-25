@@ -167,7 +167,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D8. Opening a reader marks the streams it did not select AVDISCARD_ALL, which is what makes
+     * Opening a reader marks the streams it did not select AVDISCARD_ALL, which is what makes
      * reading cheap on a file with many tracks. Those flags live on the demuxer, not on the reader,
      * so a close that did not restore them left the source permanently unable to see those streams:
      * libavformat skipped their packets, the batch decode API returned almost nothing, and no error
@@ -210,7 +210,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D9. The microsecond helpers convert through `av_rescale_q`, which uses a 128 bit
+     * The microsecond helpers convert through `av_rescale_q`, which uses a 128 bit
      * intermediate. The naive form, `ticks * 1_000_000 * num / den` in Long arithmetic, overflows
      * on a fine time base: this test's value is a nanosecond timescale about two and a half hours
      * in, which every player reaches on a long recording.
@@ -242,7 +242,7 @@ class PlayerSurfaceTest {
         }
     }
 
-    /** D9. Absence stays absence: no timestamp and no duration read as null, never as zero. */
+    /** Absence stays absence: no timestamp and no duration read as null, never as zero. */
     @Test
     fun microsecondHelpersReportAbsenceAsNull() {
         Packet(ffkmp_packet_alloc() ?: error("av_packet_alloc returned NULL"), Rational(1, 90_000)).use {
@@ -257,7 +257,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D9. Packet DTS used to be handed out as raw ticks wrapped in a microsecond type, with no
+     * Packet DTS used to be handed out as raw ticks wrapped in a microsecond type, with no
      * rescale at all. On the 90 kHz timescale of every transport stream that is wrong by a factor
      * of about eleven.
      */
@@ -307,7 +307,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D17. `receive()` returns null both when the decoder wants more input and when the stream is
+     * `receive()` returns null both when the decoder wants more input and when the stream is
      * over, and a player must tell them apart: treating the first as the second cuts the tail off
      * every file, and treating the second as the first spins forever.
      */
@@ -354,7 +354,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D18. A reader owns the demuxer cursor. Seeking the source behind its back moved the cursor
+     * A reader owns the demuxer cursor. Seeking the source behind its back moved the cursor
      * while the reader's caller believed it was reading forward, and nothing told that caller the
      * packets afterwards came from somewhere else.
      */
@@ -377,7 +377,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D30. Six channels are 5.1 with side surrounds or 5.1 with back surrounds. A downmix keyed on
+     * Six channels are 5.1 with side surrounds or 5.1 with back surrounds. A downmix keyed on
      * the count alone sends surround content to the wrong speakers, so the layout has to survive
      * the trip from the container to the caller.
      */
@@ -408,7 +408,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D31. `withPlanes` reports a row count per plane, computed from the frame's format read as a
+     * `withPlanes` reports a row count per plane, computed from the frame's format read as a
      * pixel format. An audio frame's format is a SAMPLE format, so the same ordinal named an
      * unrelated pixel format and the heights were nonsense the caller could not detect.
      */
@@ -440,7 +440,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D32. Seekability was asserted rather than read. It is a property of the input: a file can
+     * Seekability was asserted rather than read. It is a property of the input: a file can
      * seek, and a pipe carrying the very same bytes cannot, because its bytes only move forward.
      */
     @Test
@@ -465,7 +465,7 @@ class PlayerSurfaceTest {
     }
 
     /**
-     * D35. A closed packet's `AVPacket` is freed. Reading a property off it, or offering it to a
+     * A closed packet's `AVPacket` is freed. Reading a property off it, or offering it to a
      * decoder, used to dereference that memory and return or decode whatever the allocator had put
      * there since, which is the kind of bug that reproduces once a week and never in a test.
      */

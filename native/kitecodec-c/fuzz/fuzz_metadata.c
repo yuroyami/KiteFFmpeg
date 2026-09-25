@@ -1,6 +1,6 @@
 /* Fuzz target: ffkmp_fmt_set_metadata, through av_dict_set.
  *
- * Entry point, and why this one. Plan sub-phase B1.5 step 1. av_dict_set is a different parser from
+ * Entry point, and why this one. av_dict_set is a different parser from
  * av_opt_set and a different hazard. It does not look the key up in a table: it stores the key and
  * the value in a growing AVDictionary, which means every input mutates state that the next input
  * sees, and the dictionary itself is what does the string handling. Three properties are worth

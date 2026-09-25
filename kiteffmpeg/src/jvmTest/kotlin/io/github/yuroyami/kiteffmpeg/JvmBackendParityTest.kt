@@ -57,7 +57,7 @@ class JvmBackendParityTest {
     }
 
     /**
-     * P1-11. `StreamInfo` is a public data class and therefore forgeable, so every entry point
+     * `StreamInfo` is a public data class and therefore forgeable, so every entry point
      * taking one has to canonicalize it against the source that is supposed to own it. Native does
      * this in `codecparOf`; the JVM's `withCodecParameters` did not, so `addCopyStream` accepted a
      * stream belonging to a DIFFERENT file and wrote this file's codec parameters under the other
@@ -90,7 +90,7 @@ class JvmBackendParityTest {
     }
 
     /**
-     * P0-08. An audio encoder handed a video frame used to reach FFmpeg on the JVM, where the
+     * An audio encoder handed a video frame used to reach FFmpeg on the JVM, where the
      * picture bytes were read as samples: a wrong answer rather than a refusal. Native guards this
      * in its own `encode`, and the row was logged done on the strength of that half.
      */

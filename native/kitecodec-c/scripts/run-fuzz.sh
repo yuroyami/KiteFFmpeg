@@ -27,11 +27,11 @@
 #
 # Environment:
 #   KC_CC             compiler to use. Default /usr/bin/clang here, clang-18 or similar in CI.
-#   KC_FUZZ_SECONDS   wall clock budget per target, default 300, which is the plan's five minutes.
+#   KC_FUZZ_SECONDS   wall clock budget per target, default 300, five minutes.
 #   KC_FUZZ_JOBS      parallel libFuzzer workers per target, default 1. CI uses 1 so the five
 #                     minutes is five minutes of one process and the budget means what it says.
 #   KC_FUZZ_MAX_LEN   maximum generated input length, default 8192. Explicit on purpose: with no
-#                     flag libFuzzer derives it from the largest seed, and the D27 length vectors
+#                     flag libFuzzer derives it from the largest seed, and the description overflow vectors
 #                     would push it to 4096 or beyond and spend the budget on padding.
 #   KC_FFMPEG_PREFIX  when set, FFmpeg flags come from it instead of pkg-config
 #   KC_ARTIFACT_DIR   where crash, timeout and out-of-memory artifacts are written.

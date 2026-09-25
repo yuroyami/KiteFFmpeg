@@ -1,9 +1,9 @@
 #!/bin/sh
-# Symbol audit of one built libkitecodec_jni (S1.c.1 steps 7 and 8). Usage:
+# Symbol audit of one built libkitecodec_jni. Usage:
 #   symbol-audit.sh <shared-library> [nm-binary]
 # Asserts the dynamic defined-symbol set is exactly JNI_OnLoad (after platform decoration) and
-# never Java_*, kc_*, ffkmp_* or av_*. The ELF PT_LOAD 16 KiB check lives in the S1.c.1 gate
-# beside this script because it needs llvm-readelf, which is NDK-supplied and target-specific.
+# never Java_*, kc_*, ffkmp_* or av_*. The ELF PT_LOAD 16 KiB check lives in the Android link task
+# instead, because it needs llvm-readelf, which is NDK-supplied and target-specific.
 set -u
 LIB="${1:?usage: symbol-audit.sh <shared-library> [nm]}"
 NM="${2:-nm}"

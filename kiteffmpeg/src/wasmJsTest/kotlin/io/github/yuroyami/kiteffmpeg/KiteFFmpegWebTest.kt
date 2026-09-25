@@ -16,8 +16,8 @@ import kotlin.test.fail
  * The module adoption contract, which had no test on any target.
  *
  * `KiteFFmpegWeb` owns FFmpeg's global codec registry and this backend's handle table, so who is
- * allowed to attach what, and how often, is a correctness rule rather than a convenience. Audit row
- * P1-35 was closed against this file with no test that could fail if it regressed.
+ * allowed to attach what, and how often, is a correctness rule rather than a convenience. A fix to
+ * this file once landed with no test that could fail if it regressed.
  */
 class KiteFFmpegWebTest {
 

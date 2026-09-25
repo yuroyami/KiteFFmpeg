@@ -83,9 +83,8 @@ tasks.register<CheckCinteropCouplingTask>("checkCinteropCoupling") {
     description = "Fails when kiteffmpeg's coupling to FFmpeg's C types grew past its baseline."
     sourceDir.set(layout.projectDirectory.dir("kiteffmpeg/src"))
     baselineFile.set(layout.projectDirectory.file("native/kitecodec-c/coupling-baseline.txt"))
-    // Count four needs the C of the helper layer. Before B1.3 that was the def body; from B1.3 it is
-    // this tree, and reading both is what keeps the count identical across the move. The file tree
-    // rather than two fixed names, because B1.4 splits the single .c into nine.
+    // Count four needs the C of the helper layer, which is this tree. A file tree rather than fixed
+    // names, because the layer is split into one translation unit per subsystem.
     cDeclarationFiles.from(
         fileTree(layout.projectDirectory.dir("native/kitecodec-c")) {
             include("include/**/*.h", "src/**/*.c")

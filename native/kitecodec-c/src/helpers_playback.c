@@ -1,12 +1,4 @@
-/* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
- * kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
- * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
- * with all eleven digests is recorded in that commit, and the proof
- * script itself is retired because an anchor no revision can replace forbids every future edit.
- * Edit this file like any other C file. Its shape is held by the C suites in every variant, the
- * sanitizers, symbol-audit.sh and the export baseline, not by an extraction proof.
- *
- * The playback part of the FFmpeg helper layer: the def's 'Playback additions' section(s). */
+/* The playback part of the FFmpeg helper layer: the calls a player needs beyond decoding. */
 
 #include "kitecodec_helpers.h"
 

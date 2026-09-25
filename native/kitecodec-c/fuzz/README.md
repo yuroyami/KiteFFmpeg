@@ -38,7 +38,7 @@ So the local gate replays a committed corpus. It discovers nothing. It refuses t
 | Target | Entry points | Why it is a fuzz target |
 |---|---|---|
 | `fuzz_filter_video.c` | `ffkmp_graph_build_video`, `ffkmp_graph_build_video_multi` | The description goes to `avfilter_graph_parse_ptr` unvalidated, straight from the public Kotlin `FilterGraph` API. |
-| `fuzz_filter_audio.c` | `ffkmp_graph_build_audio`, `ffkmp_graph_build_audio_multi` | The same, plus the D27 site: these two COMPOSE the description into a fixed `char full_desc[2048]` with repeated `n += snprintf(...)`. |
+| `fuzz_filter_audio.c` | `ffkmp_graph_build_audio`, `ffkmp_graph_build_audio_multi` | The same, plus the site of the description overflow they once had: these two COMPOSE the description into a fixed `char full_desc[2048]` with repeated `n += snprintf(...)`. |
 | `fuzz_codec_option.c` | `ffkmp_codecctx_set_opt` | `av_opt_set` picks a value parser by looking the key up, so one caller string decides how the other is parsed. |
 | `fuzz_format_option.c` | `ffkmp_fmt_set_opt` | The same, over the muxer's private option table, which is a different set of parsers. |
 | `fuzz_metadata.c` | `ffkmp_fmt_set_metadata` | `av_dict_set` stores rather than looks up: growth, replacement and the NULL-value delete path. |
@@ -85,7 +85,7 @@ targets under ASan and UBSan takes about 10 seconds on this machine, the compile
 | Directory | Files | What is in it |
 |---|---|---|
 | `corpus/filter_video/` | 19 | Valid chains taken from `FFmpegNativeTest` and `FilterGraphDrainTest` (`scale=160:90,format=yuv420p`, `null`, `[in0][in1]overlay=W-w-10:H-h-10[out]`), a three input `hstack`, unknown filters, unbalanced labels, an embedded NUL, an empty input, and the 2047, 2048 and 4096 byte length vectors once plain and once behind `[in0]`. |
-| `corpus/filter_audio/` | 16 | The same shape for audio (`volume=0.5`, `anull`, `aformat=...`, `[in0][in1]amix=inputs=2:duration=longest[out]`), plus the six committed D27 length vectors. |
+| `corpus/filter_audio/` | 16 | The same shape for audio (`volume=0.5`, `anull`, `aformat=...`, `[in0][in1]amix=inputs=2:duration=longest[out]`), plus the six committed description overflow length vectors. |
 | `corpus/codec_option/` | 19 | Option keys whose values reach different parsers: `threads`, `b` with a `128k` suffix, `time_base` as a rational, `pixel_format`, `ch_layout`, `video_size`, a `+global_header` flag set, a private `preset`. Plus embedded NULs in key and in value, `:` and `=` separators inside both, an empty key, an empty value, no value at all, an unknown key, a 24 digit number and INT64_MIN. |
 | `corpus/format_option/` | 15 | Muxer options: `movflags` with flag lists, `brand`, `frag_duration`, `avoid_negative_ts` as a named constant, and the same NUL, separator and emptiness edges. |
 | `corpus/metadata/` | 14 | Metadata keys and values, including one that collides with the tag the target pre-sets, invalid UTF-8 in a key, multibyte UTF-8 in a value, and the no-newline seeds that reach `av_dict_set`'s delete path. |
@@ -99,14 +99,14 @@ targets under ASan and UBSan takes about 10 seconds on this machine, the compile
 test picture for three frames and a sine tone, encoded with bit-exact flags. Each `corrupt_*` seed is
 one of those files with bytes changed at fixed offsets, so it can be made again.
 
-**The D27 length vectors.** Plan step 2 names descriptions of length 0, 2047, 2048, 4096 and
-1048576. The first four are committed for both filter targets, once plain and once with an `[in0]`
+**The description overflow length vectors.** The seeds include descriptions of length 0, 2047, 2048,
+4096 and 1048576. The first four are committed for both filter targets, once plain and once with an `[in0]`
 prefix, so single-input and multi-input builders both see them. Length 0 is `edge_empty`.
 
 The 1048576 vector is **generated** into `build/<variant>/fuzz/generated/filter_audio/` by
 `scripts/replay-corpus.sh`, and it is replayed through the same driver over the same code path. Two
 measured reasons rather than tidiness: one megabyte of padding would be 27 times the whole rest of
-the corpus and the plan asks for two of them, against a requirement that says small; and libFuzzer
+the corpus and there would be two of them, against a corpus that must stay small; and libFuzzer
 derives `-max_len` from the largest seed when the flag is absent, so a megabyte seed would spend the
 five minute budget on length rather than on shape. `run-fuzz.sh` passes an explicit `-max_len` for
 the same reason.
@@ -115,7 +115,7 @@ It is generated for `filter_audio` only, and the asymmetry is worth reading rath
 
 ## The video builders apply no length limit at all
 
-D27 is a defect in the two **audio** builders by name, because they are the ones that compose the
+The description overflow was a defect in the two **audio** builders by name, because they are the ones that compose the
 description into `char full_desc[2048]`. A 1048576 byte description is refused by their first length
 check in microseconds, so the vector is free there.
 
@@ -137,7 +137,7 @@ What IS worth recording is the property underneath it: **an unbounded caller str
 avfilter parser through `ffkmp_graph_build_video` and `ffkmp_graph_build_video_multi` with no length
 policy anywhere in KiteFFmpeg.** Nothing here says that is wrong. It says it is unbounded, that the
 audio path is bounded and the video path is not, and that a length or time policy for
-caller-supplied filter text is B8's, alongside the resource classification that container fuzzing
+caller-supplied filter text belongs with the resource classification that container fuzzing
 needs anyway. The committed video corpus therefore stops at 4096 bytes, which is half of
 `run-fuzz.sh`'s `-max_len` and replays in 1.0 second for the whole 19 file directory, and the gate
 stays fast.
@@ -170,15 +170,14 @@ failure paths (`avfilter_graph_alloc` returning NULL, `avfilter_inout_alloc` ret
 filter registry to fail, and provoking those needs fault injection rather than a different string.
 Three of the missing branches in `ffkmp_graph_finish_` are the same shape.
 
-The other helper units read near zero and that is correct rather than a gap. At B1.5, these six
-targets existed for the six string entry points and `tests/test_*.c` covered the other 151 helpers
-in that historical 157-helper surface. ABI 1.1 later added twelve compatible, dormant functions;
-the B1.5 coverage measurement predates them and makes no claim that the fuzz corpus reaches them.
-Pointing a fuzz target at a getter would add coverage numbers and no evidence.
+The other helper units read near zero and that is correct rather than a gap: the fuzz targets
+exist for the entry points that parse caller strings or bytes, and `tests/test_*.c` covers the
+other helpers. The coverage measurement predates the helpers added since, and makes no claim that
+the fuzz corpus reaches them. Pointing a fuzz target at a getter would add coverage numbers and no
+evidence.
 
 Reproducing it is a one-off measurement and deliberately not a committed script: nothing in the gate
-depends on a coverage number, and a coverage script that nobody runs is worse than none. The
-invocation is in the Execution log entry for B1.5.
+depends on a coverage number, and a coverage script that nobody runs is worse than none.
 
 ### What the byte corpora reach
 
@@ -313,33 +312,17 @@ that drives parser error paths on purpose would otherwise bury the one line per 
 5. Never let a target keep state between calls. libFuzzer saves one file per finding, and a crash
    that needs two inputs in sequence cannot be reproduced from one file.
 
-## One measurement recorded here rather than fixed here
+## The NULL key guard
 
-`ffkmp_fmt_set_opt` does not guard a NULL key, and its two siblings do:
+`ffkmp_fmt_set_opt` once passed a NULL key on to `av_opt_set`, which walks the option table with
+`strcmp(o->name, name)` and never tests `name`. Under `-fsanitize=address,undefined` that was a
+SEGV in `strcmp`, called from `av_opt_find2`. All three option helpers now refuse a NULL key the
+same way:
 
 ```
 ffkmp_codecctx_set_opt   if (!c || !key) return AVERROR(EINVAL);   src/helpers_codec.c
 ffkmp_fmt_set_metadata   if (!c || !key) return AVERROR(EINVAL);   src/helpers_format.c
-ffkmp_fmt_set_opt        if (!c)        return AVERROR(EINVAL);    src/helpers_format.c
+ffkmp_fmt_set_opt        if (!c || !k)   return AVERROR(EINVAL);   src/helpers_format.c
 ```
 
-A NULL key therefore reaches `av_opt_set`, which walks the option table with
-`strcmp(o->name, name)` and never tests `name`. Measured on this machine against FFmpeg 8.0
-(libavutil 60.8.100), a five line program under `-fsanitize=address,undefined`:
-
-```
-AddressSanitizer: SEGV on unknown address 0x000000000000
-The signal is caused by a READ memory access
-    #0 strcmp
-    #1 av_opt_find2
-```
-
-It is not reachable from KiteFFmpeg's own Kotlin today: `MediaSink` passes the keys of a
-`Map<String, String>`, which cannot hold a null key. It becomes reachable the moment any other C
-consumer calls the exported symbol, which is what `KC_API` now makes possible.
-
-`fuzz_format_option.c` deliberately does **not** pass a NULL key, and the reason is in that file's
-header: a target that crashes on every input is a monument to a known defect rather than a search
-for unknown ones. The fix is one `|| !key` in `src/helpers_format.c`, which B1.5 does not own. When
-it lands, the assertion to add next to the context allocation is one line, and that line is written
-out in the target's file header.
+`fuzz_format_option.c` asserts that refusal on every input.

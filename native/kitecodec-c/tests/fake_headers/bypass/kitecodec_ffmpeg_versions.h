@@ -6,8 +6,8 @@
  * copy while the variable is unset and asserts the rejection stands; the bypass cases set the variable
  * and then touch THIS copy for the first time.
  *
- * Plan section 15.4 under B1.6 requires exactly that pair of assertions: the escape hatch must be
- * proved not to exist as a silent default, and proved to exist when set.
+ * That pair of assertions is the point: the escape hatch must be proved not to exist as a silent
+ * default, and proved to exist when set.
  */
 
 #ifndef KC_FAKE_BYPASS_H

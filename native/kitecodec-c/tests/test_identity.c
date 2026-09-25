@@ -1,9 +1,8 @@
 /* The FFmpeg header versus runtime identity gate, one case per verdict.
  *
- * The FFmpeg identity gate. A gate that
- * has never fired is level 8 evidence in the terms of plan section 2, which is to say it is a sentence
- * in a document. This suite is what makes it level 2: a deterministic differential on the exact
- * contract, with a doctored expectation on one side and the real runtime on the other.
+ * A gate that has never fired is a sentence in a document. This suite is a deterministic
+ * differential on the exact contract instead, with a doctored expectation on one side and the real
+ * runtime on the other.
  *
  * HERMETIC. It needs no second FFmpeg install and no network. src/kitecodec_abi.c is compiled several
  * more times, once per shim include tree under tests/fake_headers/, and each shim renames that copy's
@@ -83,8 +82,8 @@ static int count_verdicts(const kc_ffmpeg_report *report, int verdict)
 
 /* Runs `call` with stderr captured into a buffer, and returns what it wrote.
  *
- * The bypass warning is required by plan section 15.6 question 3 to name the exact mismatch with both
- * identities and to appear once per process. Asserting that from the outside means reading what was
+ * The bypass warning must name the exact mismatch with both identities and appear once per
+ * process. Asserting that from the outside means reading what was
  * actually written, not trusting that a call site exists. stderr is unbuffered, so a plain fd swap is
  * enough and no fflush dance is needed before the redirect. */
 static void capture_stderr(int (*call)(void), int *out_status, char *buffer, size_t capacity)
@@ -144,7 +143,7 @@ int main(void)
      * Case 1. avutil header major one below the runtime's: hard reject, no override.
      *
      * Runs FIRST and with KITECODEC_FFMPEG_ABI_BYPASS unset, which is also the assertion that the
-     * escape hatch is not a silent default (plan section 15.4 under B1.6).
+     * escape hatch is not a silent default.
      * ---------------------------------------------------------------------------------------- */
     kc_case("major mismatch rejects, and the bypass is not a silent default");
     KC_CHECKF(getenv(KC_BYPASS_ENV) == NULL, "%s must be unset when this suite starts", KC_BYPASS_ENV);
@@ -171,7 +170,7 @@ int main(void)
         strlen(report.provisioning), sizeof report.provisioning);
     kc_detail("provisioning sentence %zu of %zu bytes",
               strlen(report.provisioning), sizeof report.provisioning);
-    /* Extended at the interlude: the line above only proves THIS machine's sentence fits,
+    /* The line above only proves THIS machine's sentence fits,
      * and at KC_TEXT_SENTENCE 1024 the worst case did not: with the build defines compiled at
      * their declared capacities the sentence measured 1011 bytes while the two runtime-supplied
      * fields were still 101 bytes below their own caps, so a long av_version_info() plus a long
@@ -249,7 +248,7 @@ int main(void)
 
     /* ----------------------------------------------------------------------------------------
      * Case 4. The true build. This is the case that would fail if the gate were too strict, which
-     * is the failure mode plan section 15.4 says would make a false rejection our outage.
+     * is the failure mode that would turn a false rejection into an outage for a consumer.
      * ---------------------------------------------------------------------------------------- */
     kc_case("the real build accepts, with all six verdicts ok");
     status = kc_init();
@@ -346,7 +345,7 @@ int main(void)
     kc_detail("no crash, status unchanged");
 
     /* ----------------------------------------------------------------------------------------
-     * The diagnostic bypass. Three conditions from plan section 15.6 question 3, each asserted:
+     * The diagnostic bypass. Three conditions, each asserted:
      * opt-in only (case 1 above, with the variable unset), a warning naming the exact mismatch and
      * both identities exactly once per process, and the use recorded in the report.
      *
@@ -391,7 +390,7 @@ int main(void)
 
     KC_EQ_INT(unsetenv(KC_BYPASS_ENV), 0);
 
-    /* S1.c.1. The production object is a host build, while the doctored byte-identical copies take
+    /* The production object is a host build, while the doctored byte-identical copies take
      * the Android arm. That gives this one suite both halves without adding a test branch to the
      * shipped source. The sentinel is a stack address; no arm may dereference it. */
     kc_case("kc_jvm_attach refuses NULL with KC_JVM_BAD_ARGUMENT");

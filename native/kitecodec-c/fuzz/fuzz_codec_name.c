@@ -1,6 +1,6 @@
 /* Fuzz target: ffkmp_find_encoder_by_name, ffkmp_find_decoder_by_name and ffkmp_filter_exists.
  *
- * Entry points, and why these. They are the three name lookups left without a target after B1.5.
+ * Entry points, and why these. They are the three name lookups the other targets leave out.
  * fuzz_format_name covers the pixel and sample format tables; these three walk libav's codec and
  * filter registries instead, and each is PUBLIC through a one-line Kotlin function that hands the
  * caller's string straight down: FFmpeg.hasEncoder, FFmpeg.hasDecoder and FFmpeg.hasFilter. Each

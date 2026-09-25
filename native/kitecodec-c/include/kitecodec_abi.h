@@ -1,23 +1,21 @@
 /* The KiteFFmpeg C ABI: the FFmpeg header versus runtime identity gate.
  *
- * The FFmpeg identity gate, which the plan calls the highest value
- * clause in B1. What it prevents was demonstrated live rather than argued: older FFmpeg headers
+ * The FFmpeg identity gate. What it prevents was demonstrated live rather than argued: older FFmpeg headers
  * against a newer runtime link cleanly, every symbol resolves, and 38 measured struct field offsets
  * are wrong. 48 of the helpers in kitecodec_helpers.h read or write through one of them, so the
  * process reads wrong values and then dies inside av_frame_free, with AddressSanitizer naming a
  * four byte read 36 bytes past a 416 byte region. In the nondeterministic case it is silent.
  *
  * OPAQUE FROM BIRTH. This header includes no FFmpeg header and names no FFmpeg type. That is a
- * deliberate property and not an accident of what it happens to need: S1.a.8 grew the opaque
- * surface across the handle and helper headers, so these three headers are now the complete
- * cinterop boundary. The report is flat plain data with fixed char arrays and no pointers, because
+ * deliberate property and not an accident of what it happens to need: the handle and helper
+ * headers are opaque too, so these three headers are the complete cinterop boundary. The report is flat plain data with fixed char arrays and no pointers, because
  * cinterop binds our own struct with real offsets and Kotlin reads it with one nativeHeap.alloc plus
  * plain field reads.
  *
  * NO TWO-DIMENSIONAL ARRAYS ANYWHERE IN THE REPORT. cinterop flattens `char names[6][16]` into a
  * single byte array, so `names[i]` would be byte i and not row i, which is a wrong reading that
  * compiles. The per-library names therefore arrive through kc_ffmpeg_library_name(), one accessor
- * returning a `const char *` per index, which is the form plan section 15.2 B1.6 step 1 decides on.
+ * returning a `const char *` per index.
  *
  * WHY THIS NEEDS A REAL LIBRARY. kc_init is guarded by pthread_once. A function-local static inside
  * a `static inline` function in a def file would give one flag per translation unit, so the gate
@@ -28,9 +26,8 @@
  * these macros came from one set of headers. The archive is now the sole FFmpeg-header baking, and
  * the compile task keeps its six version-header inputs content-tracked. cinterop parses no FFmpeg
  * header; its metadata gate instead proves that all six former LIB version constants are absent and
- * that every direct binding belongs to the `_ffkmp_` or `_kc_` boundary. The interlude's historical
- * two-bakings comparison caught a stale archive before this reduction, but there is deliberately no
- * second header baking to compare now. Nothing can recover the archive's header version after the
+ * that every direct binding belongs to the `_ffkmp_` or `_kc_` boundary. There is deliberately no
+ * second header baking to compare against. Nothing can recover the archive's header version after the
  * fact, which is why freezing it at compile time remains the only correct construction.
  */
 
@@ -67,8 +64,8 @@
  * directory thirty characters longer than this one would have truncated the actionable half of the
  * sentence away, and the actionable half is the entire point of it. The bound is arithmetic over the
  * five embedded fields at their declared capacities (ref 31, dir 511, flavour 31, runtime version 63,
- * runtime licence 63) plus the fixed text: 1024 was 12 bytes short of that worst case, measured at the
- * interlude by compiling with the build defines at capacity, where the sentence came out 1011
+ * runtime licence 63) plus the fixed text: 1024 was 12 bytes short of that worst case, measured by
+ * compiling with the build defines at capacity, where the sentence came out 1011
  * bytes with two runtime fields still 101 bytes below their own caps. 1152 clears the worst case with
  * margin. tests/test_identity.c asserts the arithmetic bound, not just this machine's instance, so the
  * capacity cannot go back to being tight without a test failing on every machine. */
@@ -76,7 +73,7 @@
 
 /* The overall outcome of the gate. Negative means reject; kc_init() returns exactly this value.
  *
- * Policy, decided in plan section 15.2 B1.6 step 3 and not to be reopened here:
+ * Policy, decided once and not to be reopened here:
  *  - major must be EXACTLY equal, hard reject, no override, because 38 field offsets were measured
  *    to move across a major and FFmpeg's own doc/developer.texi permits reordering struct contents
  *    at a major bump;
@@ -156,7 +153,7 @@ typedef struct kc_ffmpeg_report {
     /* What the runtime answers. `runtime_license` is the contradiction check: the build declares
      * FFmpegLicense.LGPL while the linked Homebrew runtime returns "GPL version 3 or later", so both
      * strings ride in every rejection and every diagnostic dump and the contradiction is visible
-     * instead of latent. Resolving it is B7's, not this gate's. */
+     * instead of latent. Resolving it belongs to the build, not to this gate. */
     char runtime_version_info[KC_TEXT_NAME];
     char runtime_license[KC_TEXT_NAME];
 
@@ -195,8 +192,7 @@ extern "C" {
  * downgraded to KC_STATUS_OK, a warning naming the exact mismatch with both identities is written to
  * stderr exactly once, and kc_ffmpeg_report::bypassed records what the verdict would have been. The
  * bypass is opt-in, never the default, and never quiet. It exists because an unbypassable gate turns
- * one false rejection into an outage inside a consumer's product that the consumer cannot patch; see
- * plan section 15.4 under B1.6 and section 15.6 question 3.
+ * one false rejection into an outage inside a consumer's product that the consumer cannot patch.
  */
 KC_API int kc_init(void);
 
@@ -229,7 +225,7 @@ KC_API const char *kc_verdict_name(int verdict);
  * pointer is into libavcodec's own static storage and lives for the life of the process. */
 KC_API const char *kc_ffmpeg_configuration(void);
 
-/* The outcomes of kc_jvm_attach. S1.c.1 adds this pair so a JVM consumer (the JNI bridge) can hand
+/* The outcomes of kc_jvm_attach. This pair lets a JVM consumer (the JNI bridge) hand
  * FFmpeg the JavaVM it needs for its own MediaCodec JNI calls. Kept beside the identity surface
  * because attaching a VM is a process-identity act, not a media operation. */
 enum kc_jvm_status {

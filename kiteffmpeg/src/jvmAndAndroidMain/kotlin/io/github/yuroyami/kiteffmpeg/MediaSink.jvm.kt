@@ -186,8 +186,8 @@ public actual class MediaSink internal constructor(
                 // fmtNewStream above already put a stream into the format context, and FFmpeg offers
                 // no way to take one back. Releasing the borrowed reference does not undo that, so
                 // without the poison the sink kept looking usable while its muxer held a stream that
-                // was never configured. newStreamFor has poisoned since P1-10; this path, which
-                // mutates exactly the same way, was left out.
+                // was never configured. newStreamFor already poisoned; this path, which mutates
+                // exactly the same way, was left out.
                 poison(error)
             } finally {
                 if (outputParameters != 0L) {

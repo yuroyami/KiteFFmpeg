@@ -1,4 +1,4 @@
-/* Dynamic registration from the single manifest (S1.c.1 step 4).
+/* Dynamic registration from the single manifest.
  *
  * methods.def is included twice through the KJ_METHOD X-macro: once to forward-declare every C
  * function, once to build one JNINativeMethod table per bridge class. Today every row names one
@@ -8,7 +8,7 @@
  * JNI_OnLoad registers and returns JNI_VERSION_1_6. It deliberately does NOT call kc_init and
  * does NOT call kc_jvm_attach: the Kotlin leaf loader does both AFTER load so an identity
  * rejection arrives as a typed, inspectable Kotlin exception instead of an uninspectable
- * UnsatisfiedLinkError from inside library load (S1.c.2 step 5 records this reasoning).
+ * UnsatisfiedLinkError from inside library load.
  */
 
 #include "kj_internal.h"

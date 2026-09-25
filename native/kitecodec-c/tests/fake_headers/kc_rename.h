@@ -1,7 +1,7 @@
 /* Give one doctored copy of the identity gate its own private set of exported names.
  *
  * tests/test_identity.c needs several copies of src/kitecodec_abi.c in ONE binary, each compiled
- * against a different shim include tree, so that the five verdicts of plan section 15.2 B1.6 can be
+ * against a different shim include tree, so that the gate's five verdicts can be
  * asserted side by side in one table driven suite. Every copy would otherwise define kc_init and
  * its six siblings, and the link would fail on duplicate symbols.
  *
@@ -25,7 +25,7 @@
 #error "define KC_CASE to the symbol prefix for this doctored copy before including kc_rename.h"
 #endif
 
-/* S1.c.1 makes the same five doctored copies exercise the Android-only attach arm as well. FFmpeg's
+/* The same five doctored copies exercise the Android-only attach arm as well. FFmpeg's
  * jni.h is declaration-only and host-safe; tests/test_identity.c interposes the named setter. The
  * production helper object does not include this test header and remains a normal host build. */
 #ifndef __ANDROID__

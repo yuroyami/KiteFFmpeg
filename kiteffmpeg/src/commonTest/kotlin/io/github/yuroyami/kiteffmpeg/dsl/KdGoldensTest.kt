@@ -13,13 +13,13 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
- * KD-8: every KD compilation golden in one host suite. These pin EXACT strings,
- * including escaping and ordering, because law 5 makes compilation a pure function and law 4
- * makes its output the thing a bug report carries.
+ * Every compilation golden of the typed DSLs in one host suite. These pin EXACT strings,
+ * including escaping and ordering, because compilation is a pure function and its output is the
+ * thing a bug report carries.
  */
 class KdGoldensTest {
 
-    // --- KD-1, the filter DSL -------------------------------------------------------------
+    // --- The filter DSL -------------------------------------------------------------
 
     @Test
     fun videoChainCompilesEveryTypedStepExactly() {
@@ -113,7 +113,7 @@ class KdGoldensTest {
         assertFailsWith<IllegalArgumentException> { FilterChain(emptyList()) }
     }
 
-    // --- KD-2, decoder options ------------------------------------------------------------
+    // --- Decoder options ------------------------------------------------------------
 
     @Test
     fun decoderOptionsCompileInStableOrderTypedFirst() {
@@ -149,7 +149,7 @@ class KdGoldensTest {
         assertEquals(emptyList(), DecoderOptions().compile())
     }
 
-    // --- KD-3, encoder tuning -------------------------------------------------------------
+    // --- Encoder tuning -------------------------------------------------------------
 
     private fun videoSpec(
         options: Map<String, String> = emptyMap(),

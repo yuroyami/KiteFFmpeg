@@ -1,4 +1,4 @@
-/* The two accessors K2 added: a codec parameter set's field order, and a container's bit rate.
+/* Two accessors: a codec parameter set's field order, and a container's bit rate.
  *
  * Why a C suite for two one-line readers. The field order one is not a read, it is a MAPPING: five
  * AVFieldOrder values collapse onto four codes, because TT and TB both present the top field first

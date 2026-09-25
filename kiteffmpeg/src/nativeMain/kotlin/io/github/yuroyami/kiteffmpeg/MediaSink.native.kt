@@ -215,8 +215,8 @@ public actual class MediaSink internal constructor(
             ?: throw FFmpegException(FFmpegError.Internal("avformat_new_stream returned NULL"))
         // From here the format context HAS a new stream in it and FFmpeg cannot take one back, so
         // every failure below leaves a half-configured stream in the muxer. Without the poison the
-        // sink still looked usable and the next call wrote against it. newStreamFor has poisoned
-        // since P1-10; this path mutates identically and was left out.
+        // sink still looked usable and the next call wrote against it. newStreamFor already
+        // poisoned; this path mutates identically and was left out.
         try {
             // The only way to reach the poison below from a test. Inert unless a
             // test armed it, and self-disarming, so production always takes the false branch.
@@ -434,7 +434,7 @@ public actual class MediaSink internal constructor(
                 // Flush BEFORE freeing the contexts. Encoders buffer (libx264's lookahead holds
                 // tens of frames); freeing without an EOF drain silently truncates the tail. The
                 // FIRST flush error is retained and thrown after cleanup: tail frames lost while
-                // close reports success was the audit's P1-6, and one encoder failing is not a
+                // close reports success was a real defect, and one encoder failing is not a
                 // reason to skip draining the others or the trailer for what did land.
                 if (encoderCores.isNotEmpty()) {
                     withPacket { packet ->
@@ -615,7 +615,7 @@ internal class EncoderCore(
     /**
      * Where the output timeline currently ENDS, in microseconds. 0 until the first frame.
      * The last frame's own extent is included: measuring only its start left successful work
-     * finishing below 100 percent (audit KiteFFmpeg P1-14).
+     * finishing below 100 percent.
      */
     val outputMicros: Long
         get() = if (lastPts == Long.MIN_VALUE) 0

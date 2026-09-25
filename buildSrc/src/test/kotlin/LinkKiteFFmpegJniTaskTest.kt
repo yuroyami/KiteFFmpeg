@@ -292,7 +292,7 @@ class LinkKiteFFmpegJniTaskTest {
         val macLinkRegistration = sourceSection(
             source,
             "tasks.register<LinkKiteFFmpegJniTask>(\n        \"linkKiteFFmpegJniMacosArm64\",",
-            "// The Android arms, exactly the S1.c.1 step 6 recipe.",
+            "// The Android arms, exactly the Android link recipe.",
         )
         val androidLinkRegistrations = source.substring(
             sourceMarker(

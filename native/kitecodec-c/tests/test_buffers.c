@@ -1,32 +1,24 @@
-/* Fixed buffer and copy bound suite for the extracted FFmpeg helper layer. Closes register
- * the fixed buffers.
+/* Fixed buffer and copy bound suite for the FFmpeg helper layer.
  *
- * What the plan asks for, and what is actually here.
+ * Every fixed-size buffer the helpers write into, twelve declarations in all:
  *
- * The item names "nine fixed stack buffers" and lists twelve def line numbers: 37, 506, 558,
- * 663, 708, 553, 704, 623, 669, 712, 578, 723. Measured in the def body, those are
- * twelve buffer declarations across ten declaration lines, because two lines declare two
- * buffers each. Nine is the count you get by treating the four args[512] sites as one; twelve
- * is the count of declarations. This suite covers all twelve, so it closes the item on either
- * reading, and the run report records the difference rather than quietly picking one.
+ *   buf[256]         ffkmp_strerror
+ *   args[512]        ffkmp_graph_build_video
+ *   args[512]        ffkmp_graph_build_audio
+ *   args[512]        ffkmp_graph_build_video_multi
+ *   args[512]        ffkmp_graph_build_audio_multi
+ *   layout_str[128]  ffkmp_graph_build_audio
+ *   lay_str[128]     ffkmp_graph_build_audio_multi
+ *   name[16]         ffkmp_graph_finish_multi_
+ *   name[16]         ffkmp_graph_build_video_multi
+ *   name[16]         ffkmp_graph_build_audio_multi
+ *   full_desc[2048]  ffkmp_graph_build_audio
+ *   full_desc[2048]  ffkmp_graph_build_audio_multi
  *
- *   buf[256]         def  37   src 14   ffkmp_strerror
- *   args[512]        def 506   src 483  ffkmp_graph_build_video
- *   args[512]        def 558   src 535  ffkmp_graph_build_audio
- *   args[512]        def 663   src 640  ffkmp_graph_build_video_multi
- *   args[512]        def 708   src 685  ffkmp_graph_build_audio_multi
- *   layout_str[128]  def 553   src 530  ffkmp_graph_build_audio
- *   lay_str[128]     def 704   src 681  ffkmp_graph_build_audio_multi
- *   name[16]         def 623   src 600  ffkmp_graph_finish_multi_
- *   name[16]         def 669   src 640  ffkmp_graph_build_video_multi
- *   name[16]         def 712   src 685  ffkmp_graph_build_audio_multi
- *   full_desc[2048]  def 578   src 555  ffkmp_graph_build_audio
- *   full_desc[2048]  def 723   src 700  ffkmp_graph_build_audio_multi
- *
- * The two full_desc sites are the ones whose overflow was fixed in Horizon A phase A0 under
- * defect D27, so a case that passes trivially there proves nothing. Those two get real limit
- * and limit-plus-one rows driven through the public `description` parameter, described case by
- * case below with what each row would catch.
+ * The two full_desc sites are the ones whose overflow was fixed, the description overflow, so a
+ * case that passes trivially there proves nothing. Those two get real limit and limit-plus-one
+ * rows driven through the public `description` parameter, described case by case below with what
+ * each row would catch.
  *
  * The other ten cannot be driven to their limit through the signatures they sit behind, and
  * saying so with a measurement is stronger than pretending otherwise. The widest input each
@@ -52,18 +44,18 @@
  * exact size, never a stack array with room to spare, so under asan a single byte past the end
  * is a heap-buffer-overflow with a name and a line number rather than a silent pass.
  *
- *   ffkmp_frame_copy_to_buffer    def 116   src  93
- *   ffkmp_samples_copy_to_buffer  def 130   src 107
- *   ffkmp_frame_fill_video        def 148   src 125
- *   ffkmp_frame_fill_audio        def 163   src 140
+ *   ffkmp_frame_copy_to_buffer
+ *   ffkmp_samples_copy_to_buffer
+ *   ffkmp_frame_fill_video
+ *   ffkmp_frame_fill_audio
  *
- * ABI 2.5 adds ffkmp_codecpar_extradata as another bounded copy surface. Its cases cover the
+ * ffkmp_codecpar_extradata is another bounded copy surface. Its cases cover the
  * sizing call, exact and partial copies with canaries, empty data, NULL parameters and negative
  * sizes. The negative-size row supplies only one destination byte, so a missing signed guard is
  * visible to ASan rather than becoming a huge memcpy.
  *
- * Plan section 15.0 records that the bound inside ffkmp_frame_copy_to_buffer already exists and
- * is simply unexercised, so those rows are evidence, not repair.
+ * The bound inside ffkmp_frame_copy_to_buffer already existed and was simply unexercised, so
+ * those rows are evidence, not repair.
  *
  * Variants. This suite makes no allocation claims, so it says the same thing in all three
  * variants. plain is the correctness run, asan is where the out-of-bounds class becomes
@@ -563,7 +555,7 @@ static void case_fill_audio_refuses_more_channels_than_planes(void)
     ffkmp_frame_free(f);
 }
 
-/* ---- buf[256], src 14, ffkmp_strerror ---- */
+/* ---- buf[256], ffkmp_strerror ---- */
 
 static void case_strerror_fits_its_buffer(void)
 {
@@ -621,7 +613,7 @@ static void case_strerror_widest_message_bound(void)
     kc_detail("widest=%d limit=255", widest);
 }
 
-/* ---- args[512], src 483 and 640, the two video builders ---- */
+/* ---- args[512], the two video builders ---- */
 
 static const char *longest_pix_fmt_name(int *out_len)
 {
@@ -643,7 +635,7 @@ static void case_video_args_bound(void)
 {
     int name_len = 0;
     const char *widest_name = longest_pix_fmt_name(&name_len);
-    /* The same format string src 484 and src 641 use, at the widest value every conversion can
+    /* The same format string the two video builders use, at the widest value every conversion can
      * take: eight ints at INT_MIN or INT_MAX and the longest pixel format name this build
      * knows. What this row would catch is a format string that grows a field, or an FFmpeg that
      * adds a longer format name, either of which would start truncating the buffer filter's
@@ -696,9 +688,9 @@ static void case_video_multi_args_at_the_widest_inputs(void)
     AVFilterContext *sink = NULL;
     const int extremes[2] = { INT_MIN, INT_MAX };
     const int fmts[2] = { 999999, AV_PIX_FMT_YUV420P };
-    /* src 641 renders the same string per input from parallel arrays. Feeding it INT_MIN and
-     * INT_MAX in the same call covers both signs of every field, and an unknown format in the
-     * first slot is refused outright since P1-22. Refusal is the expected answer; the row exists
+    /* ffkmp_graph_build_video_multi renders the same string per input from parallel arrays.
+     * Feeding it INT_MIN and INT_MAX in the same call covers both signs of every field, and an
+     * unknown format in the first slot is refused outright. Refusal is the expected answer; the row exists
      * so the widest render happens under the sanitizers. */
     KC_CHECKF(ffkmp_graph_build_video_multi(&graph, srcs, &sink, "[in0][in1]overlay=0:0[out]", 2,
                                             extremes, extremes, fmts, extremes, extremes,
@@ -711,7 +703,7 @@ static void case_video_multi_args_at_the_widest_inputs(void)
               "zero inputs were accepted");
     KC_NULL(graph);
 
-    /* P1-22: everything else VALID, one unknown pixel format. The multi input builder used to
+    /* Everything else VALID, one unknown pixel format. The multi input builder used to
      * substitute yuv420p here, which builds the graph for a layout the caller's frames are not in
      * and misreads every plane. The single input builder has always refused; this is the same
      * answer, and the row above cannot see it because INT_MIN dimensions refuse on their own. */
@@ -745,7 +737,7 @@ static void case_audio_args_and_layout_bound(void)
         rc = av_channel_layout_describe(&layout, described, sizeof(described));
         av_channel_layout_uninit(&layout);
         KC_CHECKF(rc > 0, "av_channel_layout_describe failed for %d channels", channels);
-        /* layout_str at src 530 and lay_str at src 681 are both 128 bytes and both hold this
+        /* layout_str in the single and lay_str in the multi audio builder are both 128 bytes and both hold this
          * string. What this row would catch: a default layout whose description grows past 127
          * bytes. The helpers check only that describe returned a non-negative value, not that
          * the value fits, so a longer description would be truncated silently and the filter
@@ -764,7 +756,7 @@ static void case_audio_args_and_layout_bound(void)
             longest_sample_name = (int)strlen(name);
     }
     {
-        /* The same format string src 536 and src 686 use, at the widest inputs: every int at an
+        /* The same format string the two audio builders use, at the widest inputs: every int at an
          * extreme, the longest sample format name, and the longest layout description measured
          * above. */
         int rendered = snprintf(NULL, 0,
@@ -816,7 +808,7 @@ static void case_audio_multi_args_at_the_widest_inputs(void)
     const int channels[2] = { 64, 63 };
     const int tb_nums[2] = { INT_MIN, INT_MAX };
     const int tb_dens[2] = { INT_MAX, INT_MIN };
-    /* The same widest render through src 681 and src 686, from parallel arrays, with two
+    /* The same widest render through the multi audio builder, from parallel arrays, with two
      * different layouts so both the native mask path and the unspecified order path are
      * described in one call. */
     KC_CHECKF(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, "[in0][in1]amix=inputs=2[out]",
@@ -831,7 +823,7 @@ static void case_audio_multi_args_at_the_widest_inputs(void)
     KC_NULL(graph);
 }
 
-/* ---- name[16], src 600, 640 and 685 ---- */
+/* ---- name[16], the multi graph finisher and the two multi builders ---- */
 
 static void case_pad_name_bound(void)
 {
@@ -878,7 +870,7 @@ static void case_pad_names_across_the_two_digit_boundary(void)
     }
     snprintf(description + at, sizeof(description) - (size_t)at, "mix=inputs=11[out]");
     /* Eleven inputs, so the pad names cross from one digit to two and "in10" is rendered by
-     * both src 640 and src 600. The graph is expected to build: if a name were truncated, the
+     * both ffkmp_graph_build_video_multi and ffkmp_graph_finish_multi_. The graph is expected to build: if a name were truncated, the
      * label the description asks for would not exist and the parse would fail. That makes this
      * row a real check on the naming rather than on the buffer size alone. */
     KC_EQ_INT(ffkmp_graph_build_video_multi(&graph, srcs, &sink, description, 11,
@@ -892,9 +884,9 @@ static void case_pad_names_across_the_two_digit_boundary(void)
     kc_detail("inputs=11 description=%zu bytes", kc_strlen(description));
 }
 
-/* ---- full_desc[2048], src 555 and src 700, the D27 sites ----
+/* ---- full_desc[2048], the two audio builders ----
  *
- * These two are the buffers A0 fixed, so every row below states the failure mode it detects
+ * These two are the buffers the description overflow fix bounded, so every row below states the failure mode it detects
  * rather than only the value it asserts. The discipline under test is the one the source
  * comment describes: snprintf returns the length it WOULD have written, so the running total
  * has to be checked against the buffer after every append and before the next one computes
@@ -993,7 +985,7 @@ static void case_full_desc_trips_the_first_append_with_more_pending(void)
     AVFilterGraph *graph = NULL;
     AVFilterContext *src = NULL;
     AVFilterContext *sink = NULL;
-    /* This is the D27 case itself, and the reason A0 exists.
+    /* This is the description overflow case itself.
      *
      * The description is 2045 characters, so it fits. The first append then asks for
      * ",aformat=", nine characters, into the three bytes that remain: snprintf writes two
@@ -1058,7 +1050,7 @@ static void case_multi_full_desc_exact_fit_without_pins(void)
     const int tb_nums[1] = { 1 };
     const int tb_dens[1] = { 48000 };
     char *description = chain_of_length(2047, "[in0]", "atrim=start=00");
-    /* Same property as the single input exact fit row, through src 700 instead of src 555. */
+    /* Same property as the single input exact fit row, through the multi builder instead. */
     KC_EQ_INT(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                             rates, fmts, channels, tb_nums, tb_dens,
                                             -1, -1, 0, NULL, 0), 0);
@@ -1126,7 +1118,7 @@ static void case_multi_full_desc_trips_an_append_with_more_pending(void)
     const int channels[1] = { 2 };
     const int tb_nums[1] = { 1 };
     const int tb_dens[1] = { 48000 };
-    /* The D27 case through src 700: 2045 characters fit, then ",aformat=" trips the total nine
+    /* The description overflow case through the multi builder: 2045 characters fit, then ",aformat=" trips the total nine
      * bytes past the array with three appends still pending. Same wrapped size_t, same
      * stack-buffer-overflow if the running check is ever removed from this copy of the logic.
      * Both copies need their own row, because the discipline is duplicated rather than shared. */
@@ -1223,12 +1215,12 @@ static const buffer_case cases[] = {
     { "full_desc[2048] one byte over, no pins",            case_full_desc_one_byte_over_without_pins },
     { "full_desc[2048] exact fit with all three pins",     case_full_desc_exact_fit_with_all_three_pins },
     { "full_desc[2048] one byte over with all three pins", case_full_desc_one_byte_over_with_all_three_pins },
-    { "full_desc[2048] trips the first append, D27",       case_full_desc_trips_the_first_append_with_more_pending },
+    { "full_desc[2048] trips the first append",            case_full_desc_trips_the_first_append_with_more_pending },
     { "full_desc[2048] empty description falls back",      case_full_desc_empty_description_falls_back },
     { "multi full_desc[2048] exact fit, no pins",          case_multi_full_desc_exact_fit_without_pins },
     { "multi full_desc[2048] one byte over, no pins",      case_multi_full_desc_one_byte_over_without_pins },
     { "multi full_desc[2048] exact fit with all three pins", case_multi_full_desc_exact_fit_with_all_three_pins },
-    { "multi full_desc[2048] trips an append, D27",        case_multi_full_desc_trips_an_append_with_more_pending },
+    { "multi full_desc[2048] trips an append",             case_multi_full_desc_trips_an_append_with_more_pending },
     { "multi full_desc[2048] explicit out label skips the pins", case_multi_full_desc_with_an_explicit_out_label_skips_the_pins },
     { "copy_bytes copies exactly n and refuses the rest",     case_copy_bytes_copies_exactly_n },
 };

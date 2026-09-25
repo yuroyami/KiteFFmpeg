@@ -1,4 +1,4 @@
-# The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09).
+# The exported symbol baseline of the KiteFFmpeg C archive.
 #
 # abi-version 3.10
 #

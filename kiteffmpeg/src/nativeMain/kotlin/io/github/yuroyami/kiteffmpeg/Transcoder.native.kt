@@ -74,8 +74,8 @@ public actual object Transcoder {
 
             // The stream whose timestamps drive the end-of-trim stop: video when present, else
             // audio, else the first copied subtitle. Subtitles were left out entirely, so asking
-            // for subtitleCopy on its own failed here even though it is a perfectly good output
-            // (audit P1-15): extracting the subtitles from a film is exactly that request.
+            // for subtitleCopy on its own failed here even though it is a perfectly good output:
+            // extracting the subtitles from a film is exactly that request.
             val leadStream = videoStream ?: audioStream ?: subtitleStreams.firstOrNull()
                 ?: throw FFmpegException(
                     FFmpegError.Internal("Input has none of the requested streams"),

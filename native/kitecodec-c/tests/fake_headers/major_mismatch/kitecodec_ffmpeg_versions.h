@@ -12,7 +12,7 @@
  *
  * The real major is captured into an enum constant first rather than written as a literal, so the case
  * keeps meaning "one major behind" when FFmpeg moves. On the proving machine today that is header 59
- * against runtime 60, the exact pair plan section 15.2 B1.6 names.
+ * against runtime 60.
  */
 
 #ifndef KC_FAKE_MAJOR_MISMATCH_H

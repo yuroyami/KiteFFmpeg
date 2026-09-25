@@ -1,10 +1,10 @@
 /* Fuzz target: the two video filter-graph builders, through avfilter_graph_parse_ptr.
  *
- * Entry points, and why these. Plan sub-phase B1.5 step 1 chose the four graph builders because
+ * Entry points, and why these. The four graph builders were chosen because
  * each hands caller-controlled text straight to a parser:
  *
- *   ffkmp_graph_build_video        src/helpers_filter.c, def line 483 in the pre-lift numbering
- *   ffkmp_graph_build_video_multi  src/helpers_filter.c, def line 638 in the pre-lift numbering
+ *   ffkmp_graph_build_video        src/helpers_filter.c
+ *   ffkmp_graph_build_video_multi  src/helpers_filter.c
  *
  * Both reach avfilter_graph_parse_ptr with the caller's description. The description arrives from
  * the public Kotlin FilterGraph API with no validation anywhere in between, so it is the widest
@@ -21,8 +21,8 @@
  * The parameters are small and fixed on purpose. Fuzzing them too would spend the budget on
  * arithmetic in a snprintf whose format string this target does not control, and would let a
  * description like scale=60000:60000 turn an out-of-memory into a reported finding that is a
- * resource question rather than a memory-safety one. Dimensions and rationals are B8's, together
- * with the container bytes.
+ * resource question rather than a memory-safety one. Dimensions and rationals belong to another
+ * target, together with the container bytes.
  *
  * What a finding here would look like: a stack write past `char args[512]`, a read past the
  * description's heap block, or a leaked graph on a failure path. The builders promise that every

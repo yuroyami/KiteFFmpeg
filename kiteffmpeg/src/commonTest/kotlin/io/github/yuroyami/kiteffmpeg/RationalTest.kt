@@ -111,7 +111,7 @@ class RationalEdgeCaseTest {
     }
 
     /**
-     * P1-29. The floors, which 32-bit and 64-bit negation both map onto themselves. Every case
+     * The floors, which 32-bit and 64-bit negation both map onto themselves. Every case
      * below used to return a wrong answer silently rather than refuse.
      */
     @Test

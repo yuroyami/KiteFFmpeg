@@ -1,23 +1,23 @@
 /* Fuzz target: the two audio filter-graph builders, through avfilter_graph_parse_ptr.
  *
- * Entry points, and why these. Plan sub-phase B1.5 step 1:
+ * Entry points, and why these:
  *
- *   ffkmp_graph_build_audio        src/helpers_filter.c, def line 483 in the pre-lift numbering
- *   ffkmp_graph_build_audio_multi  src/helpers_filter.c, def line 638 in the pre-lift numbering
+ *   ffkmp_graph_build_audio        src/helpers_filter.c
+ *   ffkmp_graph_build_audio_multi  src/helpers_filter.c
  *
- * This is the higher value of the two graph targets, and the reason is defect D27. The audio
+ * This is the higher value of the two graph targets, and the reason is the description overflow. The audio
  * builders do not hand the description to the parser directly. They COMPOSE it, appending
  * `,aformat=sample_fmts=...:sample_rates=...:channel_layouts=...` into a fixed `char
  * full_desc[2048]` with repeated `n += snprintf(full_desc + n, sizeof(full_desc) - n, ...)`.
  * snprintf returns the length it WOULD have written, so once the running total passes the array
- * the next destination pointer leaves it and the next size argument wraps to a huge size_t. D27
+ * the next destination pointer leaves it and the next size argument wraps to a huge size_t. The fix
  * installed a length check after EVERY append; this target is what keeps them installed.
  *
  * The whole input is the description. The matrix run over every input is four builds, chosen so
  * that both composition sites and both of their branches are reached each time:
  *
  *   single input, pins off   the description goes to the parser whole
- *   single input, pins on    the four-append composition path, which is D27's site
+ *   single input, pins on    the four-append composition path, where the overflow was
  *   multi input, pins off    the "in%d" label loop with two sources
  *   multi input, pins on     the same composition, behind the strstr("[out]") test that decides
  *                            whether the multi builder appends at all

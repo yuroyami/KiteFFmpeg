@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 /**
- * One container chapter (KD-5), bounds in microseconds on the same ABSOLUTE
+ * One container chapter, bounds in microseconds on the same ABSOLUTE
  * timeline every other timestamp KiteFFmpeg reports uses (subtract
  * [MediaSource.startTimeMicros] to move onto the relative timeline seeks accept).
  */
@@ -16,7 +16,7 @@ public data class Chapter(
 }
 
 /**
- * The container-level facts in one value (KD-5): what a player's media screen shows before any
+ * The container-level facts in one value: what a player's media screen shows before any
  * stream is selected. Assembled from the source's own members, so it can never disagree with
  * them.
  */

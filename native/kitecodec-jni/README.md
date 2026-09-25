@@ -29,7 +29,7 @@ Built by `:kiteffmpeg:linkKiteFFmpegJni{MacosArm64,AndroidArm64,AndroidX64}`. Th
 is test-only (jvmTest loads it through the `kiteffmpeg.jni.path` system property); the two Android
 arms are the AAR's `jniLibs` inputs, linked with 16 KiB page alignment.
 
-Source status: the S1.c.2 bridge surface is implemented. The manifest covers the full common/JVM
+The manifest covers the full common/JVM
 playback, frame, filter, encoder and mux composition surface. Streams, codec parameters,
 dictionaries, dictionary entries
 and filter contexts are borrowed child tokens; parent close invalidates the complete descendant

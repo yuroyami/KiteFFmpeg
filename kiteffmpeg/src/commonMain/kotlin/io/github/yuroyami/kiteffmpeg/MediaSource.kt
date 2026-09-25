@@ -14,13 +14,13 @@ public expect class MediaSource : AutoCloseable {
     public val formatName: String
     public val metadata: Map<String, String>
 
-    /** The container's chapter table (KD-5). Empty when the container declares none. */
+    /** The container's chapter table. Empty when the container declares none. */
     public val chapters: List<Chapter>
 
     /**
-     * The pre-open option keys FFmpeg did NOT consume on this open (KD-4). Always empty for the
-     * plain [open]; a non-empty list after an options open is a caller mistake worth reading
-     * back, and the S4 diagnostics dump prints it.
+     * The pre-open option keys FFmpeg did NOT consume on this open. Always empty for the plain
+     * [open]; a non-empty list after an options open is a caller mistake worth reading back and
+     * logging.
      */
     public val unusedOpenOptions: List<String>
 

@@ -1,13 +1,13 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
 /**
- * The one escaping function every typed filter argument passes through (KD-1).
+ * The one escaping function every typed filter argument passes through.
  *
  * FFmpeg's filter description syntax gives `\`, `'`, `:`, `,`, `;`, `[`, `]` and `=` structural
  * meaning. A value containing any of them (or whitespace, which the parser trims) is escaped the
  * way FFmpeg's own docs prescribe: backslash-escape `\` and `'`, then wrap the whole value in
  * single quotes. A plain value passes through untouched so the compiled strings stay readable,
- * which law 4 (values, not magic) cares about: the compiled description is what a bug report
+ * which the values-not-magic rule cares about: the compiled description is what a bug report
  * carries.
  */
 public fun escapeFilterValue(value: String): String {

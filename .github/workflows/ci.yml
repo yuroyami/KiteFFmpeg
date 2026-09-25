@@ -100,7 +100,7 @@ jobs:
             kotlin-js-
       # THE VENDORED TREE, not Homebrew. This job used to `brew install ffmpeg` and then assert the
       # installed libavutil was exactly 60.8.100, because klib-metadata-baseline.txt freezes 24
-      # FFmpeg version constants down to their micro values (interlude I-15). That assert did its
+      # FFmpeg version constants down to their micro values. That assert did its
       # job and then became the problem: Homebrew moved to 60.26.102 and this job went red, and it
       # would have gone red again on every future bump, because a pin against a moving formula is a
       # calendar, not a gate. Homebrew has no formula pinned to one release (ffmpeg@8 is an alias of
@@ -175,7 +175,7 @@ jobs:
       # such as -Pkiteffmpeg.hostTargetsOnly=true, presents three targets and fails on the dump's
       # target lines alone. Re-dump with the same flag:
       #   ./gradlew :kiteffmpeg:apiDump -Pkiteffmpeg.requireAllTargets=true
-      # check-deleted-surface.sh joined this step at the interlude: it needs no build
+      # check-deleted-surface.sh runs in this step: it needs no build
       # output, only the tree, and it holds the fifteen deleted ffkmp_ names dead in both
       # repositories. Here it can only scan this one; KitePlayer got its own CI on 2026-08-24 and
       # this script is not in it yet.
@@ -243,8 +243,8 @@ jobs:
 
   ffmpeg-identity-gate:
     # ---------------------------------------------------------------------------------------------
-    # Added by B1.6. Deliberately its own job and not steps inside macos-arm64, so that this block
-    # can be moved, reordered or merged without touching anything another sub-phase wrote.
+    # Deliberately its own job and not steps inside macos-arm64, so that this block can be moved,
+    # reordered or merged without touching another job.
     # ---------------------------------------------------------------------------------------------
     name: Host C suites and the FFmpeg identity gate
     runs-on: macos-latest

@@ -57,7 +57,7 @@ JNIEXPORT jboolean JNICALL kj_frame_is_keyframe(JNIEnv *env, jclass cls, jlong t
     return (f && ffkmp_frame_is_keyframe(f)) ? JNI_TRUE : JNI_FALSE;
 }
 
-/* The safe copied-plane surface S1.c.3's JVM SoftwareConverter is built on: one exact copy of
+/* The safe copied-plane surface a JVM software converter is built on: one exact copy of
  * the frame's tightly packed planes as a byte array. Video frames size through
  * ffkmp_image_get_buffer_size at align 1 (tightly packed is the documented Frame.kt layout);
  * audio frames size through ffkmp_samples_get_buffer_size. */

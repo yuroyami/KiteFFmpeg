@@ -86,7 +86,7 @@ class FFmpegIdentityTest {
     /**
      * The build declares one FFmpeg licence flavour and the linked runtime answers
      * with another; on this machine that is `lgpl` against "GPL version 3 or later". The gate does not
-     * resolve the contradiction, which is B7's, but it must always make it visible, so both fields have
+     * resolve the contradiction, which is the build's to fix, but it must always make it visible, so both fields have
      * to be populated in every report.
      */
     @Test

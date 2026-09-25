@@ -115,7 +115,7 @@ class BuildFFmpegRefsTest {
      * This is the one case in the file that is not a fixture, and it earns that: it is the assertion
      * that the readers point at files that exist and find the pin in each of them. A reader that
      * silently returned null would make the whole check pass vacuously, which is a failure mode two
-     * separate bugs in this sub-phase already demonstrated.
+     * separate bugs already demonstrated.
      */
     @Test
     fun theRepositorysOwnSitesAreReadableAndAgree() {

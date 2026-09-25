@@ -49,11 +49,10 @@ public expect class Frame : AutoCloseable {
     public fun copy(): Frame
 
     /**
-     * The measured software download of a hardware frame (window 3, S2.a): copies the pixels out
-     * of GPU memory into a new ordinary frame and carries the presentation properties (pts,
-     * colour, rotation side data) with them. This is D-2's fallback path made explicit: a
-     * renderer that cannot take the hardware surface calls this once per frame and pays the copy
-     * knowingly, which is exactly what `HardwareWithDownload` reports upstream.
+     * The software download of a hardware frame: copies the pixels out of GPU memory into a new
+     * ordinary frame and carries the presentation properties (pts, colour, rotation side data)
+     * with them. It is the fallback made explicit: a renderer that cannot take the hardware
+     * surface calls this once per frame and pays the copy knowingly, and can report that it did.
      *
      * The source frame is untouched and both frames are closed independently. A frame that is
      * not hardware ([FrameInfo.isHardware] false) is refused rather than copied, because reaching

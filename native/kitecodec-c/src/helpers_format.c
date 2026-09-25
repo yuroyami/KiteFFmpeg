@@ -1,12 +1,4 @@
-/* Ordinary maintained source since the interlude. Lifted at B1.3 from the def body of
- * kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def as it stood at revision 5364329, and
- * proved byte for byte faithful to it one last time at 2b4287f; the full verify-lift.sh output
- * with all eleven digests is recorded in that commit, and the proof
- * script itself is retired because an anchor no revision can replace forbids every future edit.
- * Edit this file like any other C file. Its shape is held by the C suites in every variant, the
- * sanitizers, symbol-audit.sh and the export baseline, not by an extraction proof.
- *
- * The format part of the FFmpeg helper layer: the def's 'AVFormatContext (input + output)' section(s). */
+/* The format part of the FFmpeg helper layer: AVFormatContext, input and output. */
 
 #include "kitecodec_helpers.h"
 
@@ -111,11 +103,10 @@ KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
     *ctx = NULL;
     av_free(cell);
 }
-/* KD-4: true pre-open options. The pairs are applied between allocation and open,
- * which is the only moment probesize, fflags and format forcing can act. Keys FFmpeg does not
- * consume stay in the dictionary afterwards; that remainder is handed to the caller through
- * *unused (owned; release with ffkmp_dict_free), because a silently ignored option is a
- * debugging session (law 4) and the S4 diagnostics echo names every unused key. */
+/* True pre-open options. The pairs are applied between allocation and open, which is the
+ * only moment probesize, fflags and format forcing can act. Keys FFmpeg does not consume stay
+ * in the dictionary afterwards; that remainder is handed to the caller through *unused (owned;
+ * release with ffkmp_dict_free), because a silently ignored option is a debugging session. */
 KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
                                  const char *const *keys, const char *const *values,
                                  int n, AVDictionary **unused, kc_interrupt *interrupt) {
@@ -155,7 +146,7 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
 KC_API void ffkmp_dict_free(AVDictionary **dict) {
     if (dict) av_dict_free(dict);
 }
-/* KD-5: the chapter table, unexposed until now. Times are rescaled onto
+/* The chapter table. Times are rescaled onto
  * microseconds here, because every timestamp this ABI hands over speaks AV_TIME_BASE. */
 KC_API int ffkmp_fmt_chapter_count(const AVFormatContext *ctx) {
     return ctx ? (int)ctx->nb_chapters : AVERROR(EINVAL);
@@ -181,7 +172,7 @@ KC_API int  ffkmp_fmt_find_stream_info(AVFormatContext *c) {
 KC_API int  ffkmp_fmt_seek_micros(AVFormatContext *ctx, int stream_index, int64_t micros) {
     if (kc_ctx_interrupted(ctx)) return AVERROR_EXIT;
     if (!ctx) return AVERROR(EINVAL);
-    /* Interlude guard: an index at or past nb_streams used to index ctx->streams[]
+    /* An index at or past nb_streams used to index ctx->streams[]
      * unchecked, reproduced as signal 11 through this exported entry point. -1 keeps its
      * documented meaning, any stream; every other out of range index is refused. */
     if (stream_index < -1 || (stream_index >= 0 && (unsigned)stream_index >= ctx->nb_streams)) return AVERROR(EINVAL);
@@ -231,7 +222,7 @@ KC_API int64_t ffkmp_fmt_bit_rate(const AVFormatContext *ctx) {
 }
 /* Muxer private options (movflags, …): AV_OPT_SEARCH_CHILDREN reaches oformat priv_data. */
 KC_API int  ffkmp_fmt_set_opt(AVFormatContext *c, const char *k, const char *v) {
-    /* Interlude guard: a NULL key used to reach av_opt_set's name comparison and crash,
+    /* A NULL key used to reach av_opt_set's name comparison and crash,
      * reproduced as signal 11 through this exported entry point. Refused like a NULL context. */
     if (!c || !k) return AVERROR(EINVAL);
     return av_opt_set(c, k, v, AV_OPT_SEARCH_CHILDREN);
@@ -318,7 +309,7 @@ KC_API int ffkmp_fmt_add_chapter(AVFormatContext *ctx, int64_t id, int64_t start
     return 0;
 }
 
-/* ════════════ Custom AVIO (M1) ════════════ */
+/* ════════════ Custom AVIO ════════════ */
 
 /* The bridge the AVIOContext's opaque points at. The magic pins provenance so the paired
    close can refuse to free state it did not create. */

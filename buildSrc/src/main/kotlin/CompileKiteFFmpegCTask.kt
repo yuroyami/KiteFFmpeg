@@ -26,7 +26,7 @@ import javax.inject.Inject
  * through the `staticLibraries = libkitecodec.a` line of `ffmpeg.def` plus a `-libraryPath`
  * pointing here.
  *
- * **Why this task exists at all.** Until B1.3 the FFmpeg helper layer was 949 lines of
+ * **Why this task exists at all.** The FFmpeg helper layer used to be 949 lines of
  * `static inline` C inside `ffmpeg.def`. Text in a def file has no translation unit, so it had no
  * object file, no sanitizer run, no coverage and no test other than whatever Kotlin happened to
  * call. Compiling it here gives it all of those and gives the helpers real
@@ -93,7 +93,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
      * [ffmpegIncludeDirs] above is deliberately a plain `@Input` over the path STRINGS, because
      * hashing an entire FFmpeg include tree per target per build would be the wrong trade; but a
      * path string does not change when `brew upgrade ffmpeg` rewrites what it points at, and that
-     * gap was measured at byte level (interlude item I-07): editing LIBAVUTIL_VERSION_MICRO inside
+     * gap was measured at byte level: editing LIBAVUTIL_VERSION_MICRO inside
      * the tree left this task UP-TO-DATE while cinterop re-executed, and the archive kept its old
      * frozen expectation, one byte different from a forced recompile's truth. These files are what
      * the frozen `LIB*_VERSION_INT` macros and the identity report actually read, so their content
@@ -255,7 +255,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
 
     /**
      * `file -b <path>`, which is how the architecture of an object or an archive is read.
-     * Protected and open since the interlude, for exactly one caller: the call-site test.
+     * Protected and open for exactly one caller: the call-site test.
      * The review measured that deleting the verifyObjectArchitecture call from [compile] left the
      * whole suite green, because every case exercised the predicate directly and none proved the
      * task action invokes it. A test subclass overrides this to describe a wrong architecture,
@@ -411,8 +411,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
          * from `target-sysroot-*-android_ndk`, whose `--sysroot` fails with
          * `'stdlib.h' file not found`.
          *
-         * Compiling is level 7 evidence in the terms of plan section 2 and says nothing about
-         * behaviour on any of these targets.
+         * Compiling says nothing about behaviour on any of these targets.
          */
         fun specFor(konanTargetName: String): CTargetSpec = when (konanTargetName) {
             // One floor for the whole product, defined in BuildFFmpegTask. These read it
@@ -465,8 +464,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
          * instead fails with `'stdlib.h' file not found`.
          */
         /**
-         * Resolves a konan LLVM tool by its bare name and then by its `.exe` name (interlude item
-         * I-20): a Windows konan package ships `clang.exe`, so `File("bin/clang").canExecute()`
+         * Resolves a konan LLVM tool by its bare name and then by its `.exe` name: a Windows konan package ships `clang.exe`, so `File("bin/clang").canExecute()`
          * is false there and every candidate used to be rejected. Null when neither exists.
          */
         internal fun resolveTool(binDir: File, name: String): File? =
@@ -476,8 +474,8 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
          * The konan HOST infix, the word konan itself uses to name per-host dependency packages:
          * the authoritative konan.properties reads `targetToolchain.linux_x64-android_arm64 =
          * target-toolchain-2-linux-android_ndk` and `targetToolchain.mingw_x64-... =
-         * target-toolchain-2-windows-...` beside the osx one. Hardcoding `osx` here was interlude
-         * item I-20: on an Ubuntu or Windows runner the osx package never exists, so the C compile
+         * target-toolchain-2-windows-...` beside the osx one. Hardcoding `osx` here broke the
+         * build: on an Ubuntu or Windows runner the osx package never exists, so the C compile
          * threw before cinterop and four CI jobs could not pass. Parameterised on the os.name so a
          * test can drive every host shape from one machine.
          */
@@ -538,7 +536,7 @@ abstract class CompileKiteFFmpegCTask @Inject constructor(
                     "${objectFile.absolutePath} is '$fileOutput', expected $expected.\n" +
                     "Archiving it would embed a wrong-architecture library in the klib, which " +
                     "cinterop accepts without complaint and which then fails at the consumer's " +
-                    "final link with `ld: archive member '/' not a mach-o file` (register item " +
+                    "final link with `ld: archive member '/' not a mach-o file`. " +
                     "Check the triple and the sysroot in CompileKiteFFmpegCTask.specFor.",
             )
         }

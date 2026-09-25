@@ -212,7 +212,7 @@ class PipelineRoundTripTest {
     }
 
     /**
-     * P1-14. A duplicated stream index is refused before the output container is touched. It used
+     * A duplicated stream index is refused before the output container is touched. It used
      * to be caught only by the demuxer, which sees the mapping after a stream has been created in
      * the sink for every entry, so the caller got a half built file and then the refusal.
      */
@@ -229,7 +229,7 @@ class PipelineRoundTripTest {
     }
 
     /**
-     * P1-11. A StreamInfo is a public data class, so one from another file has a perfectly valid
+     * A StreamInfo is a public data class, so one from another file has a perfectly valid
      * index here. The copy path used to accept it and describe THIS file's packets with the other
      * file's time base and metadata; every other entry point already refused it.
      */
@@ -252,7 +252,7 @@ class PipelineRoundTripTest {
     }
 
     /**
-     * P1-03. A packet routed to the wrong decoder used to reach FFmpeg, come back as INVALIDDATA,
+     * A packet routed to the wrong decoder used to reach FFmpeg, come back as INVALIDDATA,
      * and be swallowed as consumed, so the input vanished and nothing said why.
      */
     @OptIn(KiteFFmpegLowLevelApi::class)
@@ -284,14 +284,14 @@ class PipelineRoundTripTest {
     }
 
     /**
-     * P0-08. The encoder reached into a frame's raw pointer instead of the checked accessor its own
+     * The encoder reached into a frame's raw pointer instead of the checked accessor its own
      * contract demands, so a CLOSED frame's freed AVFrame reached FFmpeg. The media-type guard is
      * the other half: a video frame handed to an audio encoder was read as samples, not refused.
      *
      * The sink used to be closed inside a runCatching here, on the claim that a sink which declared
      * streams and wrote no packets fails its own close. It does not, and measuring it on 2026-08-30
      * is what removed the swallow: close succeeds and writes a header and a trailer, which is what
-     * the P1-5 fix was for. Swallowing it meant a real close failure in these two tests could never
+     * the empty-sink fix was for. Swallowing it meant a real close failure in these two tests could never
      * be seen. `EmptySinkContractTest` now pins that behaviour directly.
      */
     @Test

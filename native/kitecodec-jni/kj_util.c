@@ -1,4 +1,4 @@
-/* JNI string, array and exception conversion (S1.c.1 step 5). This is the ONLY unit that may
+/* JNI string, array and exception conversion. This is the ONLY unit that may
  * construct JVM objects or throw; category units call these and return. Both exception classes
  * are Kotlin classes owned by the bridge (see methods.def's header block): keeping their binary
  * names in one place here and in the consumer keep rule is what lets R8 shrink everything else. */

@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 /**
- * The JNI face of one [MediaByteSource] (M1, the custom AVIO bridge). The C side holds a
+ * The JNI face of one [MediaByteSource], through the custom AVIO bridge. The C side holds a
  * global ref to this object and calls [read] and [seek] BY NAME through cached jmethodIDs,
  * from whatever thread drives the demuxer. The names and signatures are pinned in
  * native/kitecodec-jni/kj_format.c and the consumer keep rules; renaming either side alone

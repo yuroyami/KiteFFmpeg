@@ -2,7 +2,7 @@
 #
 # Audit the symbol table of the compiled FFmpeg helper archive.
 #
-# This is a test, not documentation: plan section 15.3 lists it beside the sanitizer runs, and it
+# This is a test, not documentation: it runs beside the sanitizer runs, and it
 # is the only instrument that checks what the archive PROMISES rather than what it does. Its symbol
 # questions come from object code; its final declaration-shape question comes from the public
 # headers that define the source and cinterop contract:
@@ -13,12 +13,10 @@
 #      an `objc_msgSend` or a `dispatch_` would mean C that looked portable has quietly become
 #      Apple-only.
 #   2. What does it export? Exactly the names in exported-symbols-baseline.txt, which check 6
-#      compares one for one. That file is the authority and it carries the current count; this
-#      header used to restate the number and the running total of which window added what, and
-#      both had drifted (it claimed 195 while the baseline held 199, and the windows it added up
-#      came to 185). A count in two places is a count that will disagree with itself.
-#      That set is a compatibility promise, which is the whole reason B1.4 deleted the 15 helpers
-#      no Kotlin file imported. Check 8 ties it to KITECODEC_C_ABI_MAJOR/MINOR, so the promise
+#      compares one for one. That file is the authority and it carries the current count; a count
+#      in two places is a count that will disagree with itself.
+#      That set is a compatibility promise, which is why the helpers no Kotlin file imported were
+#      deleted. Check 8 ties it to KITECODEC_C_ABI_MAJOR/MINOR, so the promise
 #      cannot grow while kc_abi_version() reports the same number.
 #   3. What does it keep to itself? The four trailing-underscore helpers, which are `static` and
 #      must never appear as external symbols.
@@ -154,9 +152,7 @@ abi_is_newer_than() {
 
 # The allowlist of undefined symbols that are not libav or libsw.
 #
-# Re-measured at B1.4 rather than taken from the plan, which lists memcpy, memset, snprintf, strlen
-# and strerror. The measurement on this machine, against the macos_arm64 archive built by konan's
-# clang 21.1.6, is different in both directions and the measurement wins:
+# Measured against the macos_arm64 archive built by konan's clang, not guessed from the source:
 #
 #   _memcpy _snprintf _strstr   the three C library calls the helper bodies actually make, and each
 #                               one is in the source rather than compiler-generated: memcpy at
@@ -175,19 +171,17 @@ abi_is_newer_than() {
 #                               ABSENCE would mean the thread-affine buffer stopped being thread
 #                               local. Mach-O only; an ELF build resolves TLS differently.
 #
-# Seven more arrived with B1.6's identity gate, src/kitecodec_abi.c, and each was measured rather than
+# Seven more come from the identity gate, src/kitecodec_abi.c, and each was measured rather than
 # assumed. All of them are in that one unit and nowhere else, which check 5 asserts at source level:
 #
 #   _pthread_once             the gate's once-only guard. Its ABSENCE would mean the gate had become a
-#                             per-translation-unit flag, which is the exact construction plan section
-#                             15.2 B1.6 step 3 rejects and the reason the gate needs external linkage.
+#                             per-translation-unit flag, which is why the gate needs external linkage.
 #   _getenv                   reads KITECODEC_FFMPEG_ABI_BYPASS. The only environment read in the
 #                             library, and the only way the diagnostic bypass can be turned on.
 #   _fputs                    writes the bypass warning.
 #   ___stderrp                the stream it writes to. These two are the ONE place the C layer writes
-#                             anything, and they exist because plan section 15.6 question 3 makes the
-#                             bypass warning mandatory: an escape hatch nobody can hear is the silently
-#                             bypassed gate the owner ruled out. `printf` stays forbidden by check 2.
+#                             anything, and they exist because the bypass warning is mandatory: an
+#                             escape hatch nobody can hear is a silently bypassed gate. `printf` stays forbidden by check 2.
 #   _strcmp                   compares the six *_configuration() strings and the bypass value.
 #   _strlen                   bounds every copy into the report's fixed char arrays.
 #   ___memcpy_chk             clang's bounds-checked memcpy, emitted for the report copies at -O2 from
@@ -261,7 +255,7 @@ while read -r symbol; do
     [ -n "$symbol" ] || continue
     # The libav and libsw entry points. `_swscale_*` and `_swresample_*` are the library-level
     # queries (swscale_version, swscale_configuration and their siblings); the helper layer only ever
-    # called `_sws_*` and `_swr_*`, so B1.6's identity gate is what made those two prefixes appear.
+    # called `_sws_*` and `_swr_*`, so the identity gate is what made those two prefixes appear.
     # `_avsubtitle_free` is libavcodec's own subtitle release, under a prefix of its own.
     case "$symbol" in
         _av_*|_avcodec_*|_avformat_*|_avfilter_*|_avutil_*|_avio_*|_avsubtitle_*) continue ;;
@@ -350,7 +344,7 @@ echo
 # 4. The internals are not external.
 # ---------------------------------------------------------------------------------------------
 # Three outcomes are possible for a `static` helper and only one of them is a failure. Measured on
-# the macos_arm64 archive at B1.4: ffkmp_graph_finish_ and ffkmp_graph_finish_multi_ are emitted as
+# the macos_arm64 archive: ffkmp_graph_finish_ and ffkmp_graph_finish_multi_ are emitted as
 # non-external symbols, and ffkmp_codec_pix_fmts_ and ffkmp_ch_layout_mask_ are absent entirely,
 # because at -O2 clang inlined both into their only callers and had no reason to keep a symbol. An
 # absent static helper is therefore correct rather than suspicious. What must never happen is the
@@ -373,8 +367,8 @@ echo
 # ---------------------------------------------------------------------------------------------
 # 5. Only the identity gate may write to a stream.
 #
-# Check 2 forbids printf outright, and check 1 allowlists _fputs and ___stderrp because plan section
-# 15.6 question 3 makes the diagnostic bypass warning mandatory. An allowlist alone would let any
+# Check 2 forbids printf outright, and check 1 allowlists _fputs and ___stderrp because the
+# diagnostic bypass warning is mandatory. An allowlist alone would let any
 # future unit start printing under cover of that entry, so the permission is pinned to one file here.
 # Source level rather than symbol level on purpose: nm cannot say which unit an archive-wide undefined
 # symbol came from without per-member bookkeeping, and the source is the thing a reviewer reads.
@@ -384,8 +378,8 @@ PRINTING_UNITS="$(grep -l -E '\b(stderr|stdout|fputs|fputc|fwrite|puts|vfprintf|
 if [ "$PRINTING_UNITS" = "kitecodec_abi.c" ]; then
     echo "  ok: kitecodec_abi.c and nothing else, which is the identity gate's bypass warning"
 elif [ -z "$PRINTING_UNITS" ]; then
-    fail "no unit mentions a stream at all; the diagnostic bypass warning that plan section 15.6"
-    echo "        question 3 requires has gone missing, so a bypassed gate would now be silent."
+    fail "no unit mentions a stream at all; the mandatory diagnostic bypass warning has gone"
+    echo "        missing, so a bypassed gate would now be silent."
 else
     fail "these units mention a stream, and only kitecodec_abi.c may:"
     echo "$PRINTING_UNITS" | sed 's/^/          /'
@@ -393,12 +387,11 @@ fi
 echo
 
 # ---------------------------------------------------------------------------------------------
-# 6. The exported set equals the COMMITTED baseline (interlude item I-09).
+# 6. The exported set equals the COMMITTED baseline.
 #
 # Check 3 is a header-against-archive consistency check and not a baseline: declaring a new
-# KC_API function beside its neighbours makes the new export "expected", which was measured at
-# the interlude with a probe export that sailed through every check while nm confirmed the new
-# symbol. This check is the baseline check 3 was mistaken for. The move procedure is in the
+# KC_API function beside its neighbours makes the new export "expected", which was measured with
+# a probe export that sailed through every check while nm confirmed the new symbol. This check is the baseline check 3 was mistaken for. The move procedure is in the
 # file's own header; there is no second copy of it. Regenerate deliberately with
 #   ./scripts/symbol-audit.sh --write-baseline
 # in the same commit as the export change, and name every added or removed symbol in the
@@ -424,7 +417,7 @@ if [ "$WRITE_BASELINE" = 1 ]; then
         exit "$status"
     fi
     {
-        echo "# The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09)."
+        echo "# The exported symbol baseline of the KiteFFmpeg C archive."
         echo "#"
         echo "$ABI_STAMP_PREFIX $ABI_VERSION"
         echo "#"
@@ -466,7 +459,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------------------------
-# 7. The normalized public declaration set equals the COMMITTED signature baseline (S1.a.8).
+# 7. The normalized public declaration set equals the COMMITTED signature baseline.
 #
 # The export-name baseline in check 6 cannot detect a changed parameter type or an opaque alias
 # silently retargeted to another C tag. This check records declaration SHAPES from all three public
@@ -620,7 +613,7 @@ if [ "$WRITE_SIGNATURE_BASELINE" = 1 ]; then
         echo "        changed SHAPE is a major bump; one that was added compatibly is a minor one."
     else
         {
-            echo "# The normalized public C declaration baseline of KiteFFmpeg (S1.a.8)."
+            echo "# The normalized public C declaration baseline of KiteFFmpeg."
             echo "#"
             echo "$ABI_STAMP_PREFIX $ABI_VERSION"
             echo "#"
