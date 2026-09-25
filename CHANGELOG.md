@@ -8,9 +8,84 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+FFmpeg 9.0.2, subtitle decoding, output into your own bytes, libswresample, and one filter graph
+for every backend. The breaking changes come first.
+
+### Breaking
+
+- **`CodecId` names a format only.** Encoders and decoders have their own types, `EncoderId` and
+  `DecoderId`, and `FFmpeg.codecOf`, `FFmpeg.encodersFor` and `FFmpeg.decodersFor` map between
+  them. `VideoEncoderSpec.encoder` and `AudioEncoderSpec.encoder` take an `EncoderId`, and
+  `MediaSource.openDecoder` takes a `DecoderId`. The implementation constants on `CodecId` are gone.
+- **`FilterGraph.feedInput` and `flushInput` return a `FeedResult`**: `Ready`, or
+  `NeedsInput(index)` when a graph with several inputs waits for one of them.
+- **Feeding a flushed filter input throws `IllegalStateException`.** A graph that `process()` spent
+  names that reason on every later call.
+- **NVENC refuses `crf`.** NVENC has no such option (its option is `cq`); it used to pass silently.
+- **The C ABI is 3.10** (0.2.0 shipped 2.7). This matters only to code that calls the C helpers
+  directly.
+
+### Added
+
+- **FFmpeg 9.0.2.** Every prebuilt FFmpeg tree is built from it (was 8.1.2).
+- **Subtitle decoding.** `MediaSource.openSubtitleDecoder(stream)` decodes Blu-ray, DVB and DVD
+  image subtitles to premultiplied RGBA `SubtitleImage`s with their position and canvas size, and
+  text subtitles to their ASS events.
+- **Output into your own bytes.** `MediaSink.open(sink, format)` takes a `MediaByteSink`. A sink that
+  cannot seek takes streamable containers such as fragmented MP4; a container that must seek refuses
+  it and names the option to set. The sink's own exception is the cause of the error it causes.
+- **libswresample.** `Resampler(input, output)` converts rate, channel layout and sample format
+  between two `AudioSpec`s. `AudioEncoder.drive` now converts a frame's sample format and channels on
+  its own, and its rate too for codecs that take any chunk size.
+- **What a build contains.** `FFmpeg.components(kind)` lists the decoders, encoders, demuxers,
+  muxers, filters, protocols and bitstream filters the linked FFmpeg has.
+- **Typed demuxer options**, `DemuxOptions`, for the open-time options callers need most. The two
+  MP3 keys that break seeking, `usetoc` and `fastseek`, are refused.
+- **Audio track choice by language.** `TrackSelector` picks by the caller's languages, then by the
+  default flag, and never auto-picks descriptive audio or commentary. `Disposition` gains
+  `descriptions` and `comment`.
+- **An open you can interrupt.** Pass an `OpenInterrupt` to `MediaSource.open` and call `interrupt()`
+  from another thread to stop an open that waits on a stalled input.
+- **Codec profile** on `StreamInfo.codecProfile`, so a player can tell AAC LC from HE-AAC.
+- **The web codec module ships.** `kite.mjs` and `kite.wasm`, with their licence texts, travel as
+  the `web` zip of the `wasmJs` artifact. The README says how to serve them.
+
+### Changed
+
+- **An encode keeps colour, HDR metadata, pixel shape and channel layout.** `Transcoder` copies what
+  the first encoded frame declares into a spec that leaves them null, and writes HDR10 mastering
+  display and content light level metadata (`HdrMetadata`, `MasteringDisplay`, `ContentLightLevel`).
+- **A remux keeps stream tags, disposition and chapters.** `MediaSink.setChapters` writes chapters.
+- **The transcoder's filter graphs follow one rule on every backend**: built from the stream's
+  declared shape, and rebuilt when a frame's size, pixel format, pixel shape, rate, sample format or
+  channel layout differs.
+- **Filter callbacks run outside the graph lock**, so a callback may call back into its graph,
+  `close()` included.
+- **A remux runs on `Dispatchers.IO`**, or on the dispatcher you pass, not on the caller's thread.
+- **Frame and packet bytes copy in one step.** On Kotlin/Native a 1080p `copyPlanesToByteArray` went
+  from about half a second to about 0.3 ms in a debug build. On the JVM reading a frame copies once
+  instead of twice, and `Frame.ofVideo` and `Frame.ofAudio` copy once instead of three times.
+
+### Fixed
+
+- AAC files written here no longer play the encoder's priming samples at the start.
+- Re-encoding 5.1 audio with side surrounds, which is what AC-3 decodes to, no longer fails with
+  "Invalid argument", and neither does a trim that cuts inside such a block.
+- A stream that switches from stereo to 5.1 midway no longer fails to transcode on the JVM, and pixels
+  that change shape midway are no longer filtered as square on either backend.
+- Every web playback ended with an I/O error at the end of the file instead of ending the stream.
+- An all-zero display matrix reports an upright rotation on every architecture.
+- A closed packet, reader, decoder or source throws `IllegalStateException` on the web too.
+- A byte source's exception is the cause of the resulting error on the native backends too.
+- On the JVM, every handle close scanned the whole handle table while a filter graph was open.
+
 ### Internal
 
 - The build uses the Android Gradle plugin 9.4.0 (was 9.2.1) and Gradle 9.7.1 (was 9.6.0), the same versions as KitePlayer.
+- CI runs the JVM tests, and the JNI build fails when a registered C function's signature differs
+  from its descriptor.
+- Comments and docs no longer cite internal plan codes, and the C layer README describes the layer as
+  it is.
 
 ## [0.2.0] - 2026-09-04
 
