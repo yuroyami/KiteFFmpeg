@@ -38,8 +38,11 @@ public actual class Packet internal constructor(
     private val base: Rational,
 ) : AutoCloseable {
 
-    private fun alive(): Int =
-        if (pointer != 0) pointer else throw FFmpegException(FFmpegError.Internal("this packet is closed"))
+    /** A closed packet throws IllegalStateException, with the message the other backends use. */
+    private fun alive(): Int {
+        check(pointer != 0) { "Packet is closed" }
+        return pointer
+    }
 
     public actual val timeBase: Rational get() = base
     public actual val streamIndex: Int get() = ffkmp_packet_stream_index(requireModule(), alive())
@@ -100,7 +103,7 @@ public actual class PacketReader internal constructor(
     private var closed = false
 
     public actual fun read(): Packet? {
-        if (closed) throw FFmpegException(FFmpegError.Internal("this packet reader is closed"))
+        check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
         val m = requireModule()
         val eof = ffkmp_averror_eof(m)
@@ -125,6 +128,7 @@ public actual class PacketReader internal constructor(
     }
 
     public actual fun seek(micros: Long, direction: SeekDirection, notEarlierThan: Long?) {
+        check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
         val m = requireModule()
         val flags = when (direction) {
@@ -148,7 +152,7 @@ public actual class PacketReader internal constructor(
     }
 
     public actual fun reselect(streams: List<StreamInfo>) {
-        if (closed) throw FFmpegException(FFmpegError.Internal("this packet reader is closed"))
+        check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
         val next = canonicalPacketSelection(source.streams, streams)
         val previous = wanted
@@ -196,7 +200,7 @@ public actual class StreamDecoder internal constructor(
     private val frame: Int = ffkmp_frame_alloc(requireModule())
 
     private fun alive() {
-        if (closed) throw FFmpegException(FFmpegError.Internal("this decoder is closed"))
+        check(!closed) { "StreamDecoder is closed" }
         lifetime.check("decoder")
     }
 
@@ -209,8 +213,8 @@ public actual class StreamDecoder internal constructor(
         val pointer = if (packet == null) {
             0
         } else {
-            packet.pointer.takeIf { it != 0 }
-                ?: throw FFmpegException(FFmpegError.Internal("this packet is closed"))
+            check(packet.pointer != 0) { "Packet is closed" }
+            packet.pointer
         }
         // After the liveness check, because reading the index of a closed packet is the worse
         // failure of the two and deserves its own message.
@@ -293,14 +297,11 @@ internal class SourceLifetime {
         isOpen = false
     }
 
+    /** Throws IllegalStateException, like every other use of a closed object on every backend. */
     fun check(what: String) {
-        if (!isOpen) {
-            throw FFmpegException(
-                FFmpegError.Internal(
-                    "this $what outlived the MediaSource it came from. The container was closed, " +
-                        "so its context is freed and using it would read released memory.",
-                ),
-            )
+        check(isOpen) {
+            "this $what outlived the MediaSource it came from. The container was closed, " +
+                "so its context is freed and using it would read released memory."
         }
     }
 }

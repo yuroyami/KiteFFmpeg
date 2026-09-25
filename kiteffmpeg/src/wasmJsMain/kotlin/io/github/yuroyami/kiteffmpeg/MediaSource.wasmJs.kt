@@ -95,8 +95,11 @@ public actual class MediaSource internal constructor(
     /** Cleared on close, checked by every reader and decoder that borrows this container. */
     private val lifetime = SourceLifetime()
 
-    private fun alive(): Int =
-        if (!closed) context else throw FFmpegException(FFmpegError.Internal("this media source is closed"))
+    /** A closed source throws IllegalStateException, with the message the other backends use. */
+    private fun alive(): Int {
+        check(!closed) { "MediaSource is closed" }
+        return context
+    }
 
     public actual val streams: List<StreamInfo> by lazy { readStreams(requireModule(), alive()) }
 
