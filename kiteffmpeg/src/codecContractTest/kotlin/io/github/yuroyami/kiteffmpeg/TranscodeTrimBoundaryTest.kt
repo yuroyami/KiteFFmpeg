@@ -120,6 +120,26 @@ internal class TranscodeTrimBoundaryTest {
         assertSampleCount(1_920L, output, input, "atrim=start=0.03:end=0.07", "pcm_s16le")
     }
 
+    /**
+     * AC-3 decodes six channels as 5.1 with side surrounds, which is not FFmpeg's default layout
+     * for six channels. A cut inside a decoded block keeps the block's own layout: 30 ms to 70 ms
+     * is 1920 samples, written as 5.1 with side surrounds again.
+     */
+    @Test
+    fun aCutInsideASurroundBlockKeepsItsLayout() {
+        val input = path("ac3")
+        val tone = listOf(
+            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=1",
+            "-af", "pan=5.1(side)|FL=c0|FR=c0|FC=c0|LFE=c0|SL=c0|SR=c0", "-c:a", "ac3",
+        )
+        if (!MediaOracle.generate(tone, input)) return
+        val output = path("wav")
+        trimAudio(input, output, TranscodeFixtures.pcmSpec(RATE, 6), startMicros = 30_000L, endMicros = 70_000L)
+        assertSampleCount(1_920L, output, input, "atrim=start=0.03:end=0.07", "pcm_s16le")
+        val layout = MediaSource.open(output).use { it.streams.single().audio?.channelLayoutMask }
+        assertEquals(0x60FL, layout, "the output keeps 5.1 with side surrounds")
+    }
+
     /** 0 to 1 s of 25 fps video is 25 frames; the frame that starts at 1 s is not in it. */
     @Test
     fun aVideoFrameThatStartsAtTheTrimEndIsNotKept() {

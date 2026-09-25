@@ -116,42 +116,22 @@ public actual object Transcoder {
                 } else null
                 val subtitleCopies = subtitles.associate { it.index to sink.addCopyStream(source, it) }
 
-                var videoGraph: FilterGraph? = null
-                var audioGraph: FilterGraph? = null
+                // Built from what each stream declares and rebuilt whenever a frame's shape differs
+                // (see ShapedGraph). The vars live at this scope so the finally below owns them.
+                var videoGraph: ShapedGraph<VideoShape>? = null
+                var audioGraph: ShapedGraph<AudioShape>? = null
                 // The video is written at the spec's constant rate: frames are dropped or repeated
                 // against the input timeline, so a rate change keeps the duration. A decoder's frame
                 // durations hold; a filter's may not.
                 val videoRate = spec?.let { ConstantFrameRate(it.frameRate, durationsHold = videoFilter == null) }
                 try {
-                    val videoInfo = videoStream?.video
-                    if (videoFilter != null && videoInfo != null) {
-                        videoGraph = FilterGraph.buildVideo(
-                            videoFilter,
-                            videoInfo.width,
-                            videoInfo.height,
-                            videoInfo.pixelFormat,
-                            videoStream.timeBase,
-                            videoInfo.frameRate,
-                            videoInfo.sampleAspectRatio,
-                        )
+                    if (videoFilter != null && videoStream != null) {
+                        videoGraph = transcodeVideoGraph(videoFilter, videoStream)
                     }
-                    val audioInfo = audioStream?.audio
-                    if (audioEncoder != null && audioStream != null && audioInfo != null) {
-                        audioGraph = FilterGraph.buildAudio(
-                            audioFilter ?: "anull",
-                            audioInfo.sampleRate,
-                            audioInfo.sampleFormat,
-                            audioInfo.channels,
-                            audioStream.timeBase,
-                            audioEncoder.sampleRate,
-                            audioEncoder.sampleFormat,
-                            audioEncoder.channels,
-                            // The stream's own layout in, the encoder's exact layout out.
-                            channelLayoutMask = audioInfo.channelLayoutMask,
-                            outputChannelLayoutMask = audioEncoder.channelLayoutMask,
-                        ).also { graph ->
-                            if (audioEncoder.frameSize > 0) graph.setOutputFrameSize(audioEncoder.frameSize)
-                        }
+                    if (audioEncoder != null && audioStream != null) {
+                        // Re-encoded audio always runs through a graph: it converts to what the
+                        // encoder negotiated and chunks the output to the codec's frame size.
+                        audioGraph = transcodeAudioGraph(audioFilter, audioStream, audioEncoder)
                     }
 
                     sink.ensureHeaderWritten()
@@ -213,7 +193,7 @@ public actual object Transcoder {
 
                             val decode = listOfNotNull(
                                 videoStream?.takeIf { videoEncoder != null },
-                                audioStream?.takeIf { audioGraph != null },
+                                audioStream?.takeIf { audioEncoder != null },
                             )
                             val copy = listOfNotNull(
                                 videoStream?.takeIf { videoCopyStream != null },
@@ -232,14 +212,16 @@ public actual object Transcoder {
                                         }
                                         frame.streamIndex == videoStream?.index -> when {
                                             trim.startsBeforeStart(frame) -> frame.close()
-                                            else -> videoGraph?.feedFrame(frame, ::encodeVideo) ?: encodeVideo(frame)
+                                            else -> videoGraph?.feed(frame, ::encodeVideo) ?: encodeVideo(frame)
                                         }
                                         frame.streamIndex == audioStream?.index -> {
                                             // Cut to the sample: a block that straddles a bound
-                                            // keeps the part inside it.
+                                            // keeps the part inside it. The decoded block picks
+                                            // the graph (see ShapedGraph.feed).
+                                            val decoded = frame.info
                                             val kept = trim.keptAudio(frame)
                                             if (kept !== frame) frame.close()
-                                            if (kept != null) audioGraph!!.feedFrame(kept, ::encodeAudio)
+                                            if (kept != null) audioGraph!!.feed(kept, ::encodeAudio, shapeFrom = decoded)
                                         }
                                         else -> frame.close()
                                     }
@@ -279,8 +261,8 @@ public actual object Transcoder {
                                 },
                             )
 
-                            videoGraph?.flushInto(::encodeVideo)
-                            audioGraph?.flushInto(::encodeAudio)
+                            videoGraph?.flush(::encodeVideo)
+                            audioGraph?.flush(::encodeAudio)
                             videoRate?.finish(::encodeVideoTick)
                             videoEncoder?.core?.finish(videoPacket)
                             audioEncoder?.core?.finish(audioPacket)

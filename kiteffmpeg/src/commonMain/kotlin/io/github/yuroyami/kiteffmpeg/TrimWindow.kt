@@ -68,7 +68,8 @@ internal class TrimWindow(
     /**
      * Samples [from] up to [until] of [frame] as a new owned frame, its timestamp moved to the first
      * kept sample. FFmpeg's `atrim` makes the cut, so planar and interleaved data and every sample
-     * type are cut the same way.
+     * type are cut the same way. The cut keeps the frame's own channel layout: a graph built for
+     * FFmpeg's default layout refuses 5.1 with side surrounds, which is what AC-3 decodes to.
      */
     private fun cutSamples(frame: Frame, info: FrameInfo, from: Int, until: Int): Frame =
         FilterGraph.buildAudio(
@@ -77,6 +78,7 @@ internal class TrimWindow(
             sampleFormat = info.sampleFormat,
             channels = info.channelCount,
             timeBase = info.timeBase,
+            channelLayoutMask = info.channelLayoutMask,
         ).use { graph ->
             var kept: Frame? = null
             val keep: (Frame) -> Unit = { output ->
