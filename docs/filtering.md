@@ -130,6 +130,8 @@ MediaSource.open("input.mp4").use { src ->
 
 `process` owns the lifecycle. It closes each input frame after the graph consumes it, and it closes the graph itself when the returned flow terminates. You do not call `close()` on a graph you drove with `process`.
 
+`process` is one shot. A second call, or a `feedInput` after it, fails with `IllegalStateException` and a message that names the graph as spent. Build a new graph for another stream.
+
 !!! warning "Frame ownership"
     Frames emitted by `process` are owned by the collector. They stay valid until you `close()` them, so buffering operators are safe. Close each one when done (see [frame ownership](decoding.md#frame-ownership)).
 
@@ -213,6 +215,24 @@ graph.feedInput(1, logoFrame) { composited ->
 ```
 
 `feedInput` closes the frame you pass in. The graph keeps its own reference, so you must not touch that frame afterward. Output frames passed to the `onOutput` callback are valid **only for the duration of the callback**. Use [`Frame.copy`](decoding.md#frame-ownership) to keep one.
+
+### Which input to feed next
+
+`feedInput` and `flushInput` return a `FeedResult`. It says how many frames the call produced, and what the graph needs next:
+
+- `Ready`: the graph can take more on any input. A graph with one input always answers this.
+- `NeedsInput(index)`: the graph cannot produce more until input `index` gets a frame or a flush. `overlay` and `amix` wait for every input, so feeding one input alone only queues frames.
+
+Read the next frame from the source the graph names:
+
+```kotlin
+when (val result = graph.feedInput(0, mainFrame) { encode(it) }) {
+    is FeedResult.NeedsInput -> println("read the next frame for input ${result.index}")
+    is FeedResult.Ready -> println("${result.produced} frames came out")
+}
+```
+
+A frame that an input cannot take yet stays with the graph. It goes in first on the next call for the same input. An input that you flushed takes no more frames: a later `feedInput` for it fails with `IllegalStateException`.
 
 ### Flushing
 

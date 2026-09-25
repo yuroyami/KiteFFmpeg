@@ -264,5 +264,6 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphBuildAudioMulti
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphFree",        "(J)V",                    kj_graph_free)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphSend",        "(JJ)I",                   kj_graph_send)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphReceive",     "(JJ)I",                   kj_graph_receive)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphFailedRequests", "(J)I",                kj_graph_failed_requests)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphSetFrameSize", "(JI)V",                  kj_graph_set_frame_size)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphTimeBase",    "(J)J",                    kj_graph_time_base)

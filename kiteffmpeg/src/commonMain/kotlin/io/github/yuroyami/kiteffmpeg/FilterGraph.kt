@@ -36,7 +36,7 @@ public sealed interface FeedResult {
     /** How many frames the call handed to its callback. */
     public val produced: Int
 
-    /** The graph can take more on any input. */
+    /** The graph can take more on any input. A graph with one input always answers this. */
     public data class Ready(override val produced: Int) : FeedResult
 
     /**
@@ -51,6 +51,8 @@ public sealed interface FeedResult {
  * A compiled `libavfilter` graph. Build with [FilterGraph.buildVideo] / [FilterGraph.buildAudio]
  * (single input) or [buildVideoMulti] / [buildAudioMulti] (N inputs: overlay, amix, …).
  * Feed frames through [process] (single input) or [feedInput] (any input). Close it when done.
+ * [feedInput] and [flushInput] answer with a [FeedResult], which names the input a graph with several
+ * inputs waits for.
  *
  * A graph is single-shot: once EOF has been flushed through it, it cannot accept more frames.
  * [process] closes the graph itself when its returned flow terminates; push-style users call
@@ -79,6 +81,15 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
      */
     private var operations = 0
 
+    /**
+     * Per input, what it would not take yet, oldest first: frames, and a null for its flush. All of
+     * it goes in before anything newer for the same input.
+     */
+    private val waiting = Array(backend.inputCount) { ArrayDeque<Frame?>() }
+
+    /** Inputs whose flush was asked for. They take no more frames. */
+    private val flushed = BooleanArray(backend.inputCount)
+
     /** Number of buffersrc inputs this graph was built with. */
     public val inputCount: Int get() = backend.inputCount
 
@@ -86,7 +97,7 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     public val outputTimeBase: Rational get() = backend.outputTimeBase
 
     private inline fun <R> operation(block: () -> R): R = synchronized(lock) {
-        check(!closed) { "FilterGraph is closed" }
+        check(!closed) { closedMessage() }
         operations++
         try {
             block()
@@ -97,11 +108,11 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     }
 
     private fun requireUnspent() {
-        check(!spent) {
-            "This FilterGraph is spent: process() took it to the end of its stream, and a graph " +
-                "that has seen its end cannot take more. Build a new graph."
-        }
+        check(!spent) { SPENT_MESSAGE }
     }
+
+    /** Why a closed graph refuses: [process] closes the graph it spends, and that is the reason to name. */
+    private fun closedMessage(): String = if (spent) SPENT_MESSAGE else "FilterGraph is closed"
 
     /**
      * Fixed-size sample chunking for the buffersink (audio graphs only). Encoders such as AAC
@@ -122,16 +133,22 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
      * [close] included; frames it has not seen yet stay valid, because each is its own reference.
      *
      * @return how many frames came out, and whether the graph now waits for a particular input
+     * @throws IllegalStateException when input [index] was flushed
      */
     @Throws(FFmpegException::class)
     public fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): FeedResult {
         val outputs = ArrayList<Frame>()
-        try {
+        val result = try {
             operation {
                 requireUnspent()
                 requireInput(index)
-                sendUntilAccepted(index, eofIsDone = false, outputs) { backend.send(index, frame) }
+                check(!flushed[index]) { "Input $index is flushed and takes no more frames." }
+                // Anything the input would not take earlier goes first; a refused frame waits too.
+                if (!sendWaiting(index, outputs) || !offer(index, outputs) { backend.send(index, frame) }) {
+                    waiting[index].addLast(frame.copy())
+                }
                 drain(outputs)
+                resultOf(outputs.size)
             }
         } catch (failure: Throwable) {
             outputs.forEach(Frame::close)
@@ -140,7 +157,7 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
             frame.close()
         }
         deliver(outputs, onOutput)
-        return FeedResult.Ready(outputs.size)
+        return result
     }
 
     /**
@@ -155,20 +172,25 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     @Throws(FFmpegException::class)
     public fun flushInput(index: Int, onOutput: (Frame) -> Unit): FeedResult {
         val outputs = ArrayList<Frame>()
-        try {
+        val result = try {
             operation {
                 requireUnspent()
                 requireInput(index)
-                // A pad already at EOF is done, not broken, so a second flush is a no-op.
-                sendUntilAccepted(index, eofIsDone = true, outputs) { backend.send(index, null) }
+                // A second flush of the same input adds nothing.
+                if (!flushed[index]) {
+                    flushed[index] = true
+                    waiting[index].addLast(null)
+                }
+                sendWaiting(index, outputs)
                 drain(outputs)
+                resultOf(outputs.size)
             }
         } catch (failure: Throwable) {
             outputs.forEach(Frame::close)
             throw failure
         }
         deliver(outputs, onOutput)
-        return FeedResult.Ready(outputs.size)
+        return result
     }
 
     private fun requireInput(index: Int) {
@@ -178,41 +200,64 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     }
 
     /**
-     * Repeat [send] until the graph accepts it, draining the sink into [outputs] between attempts.
+     * Makes one send to input [index], and makes it again each time the graph makes room by
+     * producing output into [outputs]. False when the input would not take it and the graph
+     * produced nothing: a graph with several inputs then waits for another one, and [resultOf]
+     * names it. A graph with one input has no other input to wait for, so that is an error.
      *
-     * EAGAIN from a buffersrc means the pad did not consume what it was given, so the SAME send
-     * must be retried; dropping it would silently lose a frame. What the retry may not do is run
-     * forever: in a multi-input graph an empty sink often means the filter is waiting on the OTHER
-     * pad, as `overlay` and `amix` do, so draining frees nothing. Two attempts in a row that
-     * produce no output stop with a typed error naming that condition instead of spinning.
-     *
-     * [send] is a parameter so the starvation branch can be driven in a test: the FFmpeg this binds
-     * to answers a buffersrc write with 0 or a hard error and never with EAGAIN.
+     * [send] is a parameter so a test can drive the refusal: the FFmpeg this binds to answers a
+     * buffer source write with 0 or a hard error and never with EAGAIN.
      */
-    internal fun sendUntilAccepted(index: Int, eofIsDone: Boolean, outputs: MutableList<Frame>, send: () -> Int) {
-        var starvedAttempts = 0
+    internal fun offer(index: Int, outputs: MutableList<Frame>, send: () -> Int): Boolean {
         while (true) {
             val rc = send()
-            if (rc >= 0) return
-            if (eofIsDone && backend.isEof(rc)) return
+            if (rc >= 0) return true
             if (!backend.isAgain(rc)) throw FFmpegException(backend.error(rc))
-            if (drain(outputs)) {
-                starvedAttempts = 0
-            } else if (++starvedAttempts >= MAX_STARVED_ATTEMPTS) {
-                throw FFmpegException(FFmpegError.InvalidArgument(0, starvedInputMessage(index)))
-            }
+            if (drain(outputs)) continue
+            if (backend.inputCount > 1) return false
+            throw FFmpegException(
+                FFmpegError.Internal(
+                    "Filter graph input $index would not take a frame and produced nothing. The graph " +
+                        "has no other input to wait for, so it can never take this frame.",
+                ),
+            )
         }
     }
 
-    private fun starvedInputMessage(index: Int): String = if (backend.inputCount > 1) {
-        "Filter graph input $index would not take a frame and the sink produced nothing, twice in a " +
-            "row. This graph has ${backend.inputCount} inputs, and a multi-input filter such as overlay " +
-            "or amix emits nothing until every input has frames, so feeding input $index alone starves " +
-            "it: it can neither accept more here nor produce anything. Feed every input, and flush " +
-            "the ones whose source has ended."
-    } else {
-        "Filter graph input $index would not take a frame and the sink produced nothing, twice in a " +
-            "row, so the frame can never be consumed and retrying would not end."
+    /** Sends what input [index] would not take earlier, oldest first. False when something still waits. */
+    private fun sendWaiting(index: Int, outputs: MutableList<Frame>): Boolean {
+        val queue = waiting[index]
+        while (queue.isNotEmpty()) {
+            val next = queue.first()
+            val taken = if (next != null) {
+                offer(index, outputs) { backend.send(index, next) }
+            } else {
+                // An input already at its end is done, not broken.
+                offer(index, outputs) { backend.send(index, null).let { rc -> if (backend.isEof(rc)) 0 else rc } }
+            }
+            if (!taken) return false
+            queue.removeFirst()?.close()
+        }
+        return true
+    }
+
+    /**
+     * [produced], and the input the graph now waits for: the one it asked most often for a frame
+     * it did not have, which is how FFmpeg's own command line chose its next input. A graph with
+     * one input has nothing to choose between.
+     */
+    private fun resultOf(produced: Int): FeedResult {
+        if (backend.inputCount < 2) return FeedResult.Ready(produced)
+        var wanted = -1
+        var most = 0
+        for (i in 0 until backend.inputCount) {
+            val requests = backend.failedRequests(i)
+            if (requests > most) {
+                most = requests
+                wanted = i
+            }
+        }
+        return if (wanted < 0) FeedResult.Ready(produced) else FeedResult.NeedsInput(wanted, produced)
     }
 
     /** Moves every frame the sink has ready into [outputs]; true when at least one came out. */
@@ -262,8 +307,8 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
      */
     public fun process(input: Flow<Frame>): Flow<Frame> {
         synchronized(lock) {
-            check(!closed) { "FilterGraph is closed" }
             requireUnspent()
+            check(!closed) { "FilterGraph is closed" }
             check(backend.inputCount == 1) { "process() drives single-input graphs; use feedInput for multi-input" }
             spent = true
         }
@@ -272,7 +317,7 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
             // deadlock waiting for a dispatcher. The ledger is what keeps a concurrent close from
             // freeing the graph mid-collection; the free waits for the finally below.
             synchronized(lock) {
-                check(!closed) { "FilterGraph is closed" }
+                check(!closed) { closedMessage() }
                 operations++
             }
             try {
@@ -280,7 +325,8 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
                     val outputs = ArrayList<Frame>()
                     try {
                         synchronized(lock) {
-                            sendUntilAccepted(0, eofIsDone = false, outputs) { backend.send(0, frame) }
+                            // One input: offer takes the frame or throws.
+                            offer(0, outputs) { backend.send(0, frame) }
                             drain(outputs)
                         }
                     } catch (failure: Throwable) {
@@ -294,7 +340,7 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
                 val outputs = ArrayList<Frame>()
                 try {
                     synchronized(lock) {
-                        sendUntilAccepted(0, eofIsDone = true, outputs) { backend.send(0, null) }
+                        offer(0, outputs) { backend.send(0, null).let { rc -> if (backend.isEof(rc)) 0 else rc } }
                         drain(outputs)
                     }
                 } catch (failure: Throwable) {
@@ -341,6 +387,10 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     private fun freeNow() {
         if (freed) return
         freed = true
+        for (queue in waiting) {
+            queue.forEach { it?.close() }
+            queue.clear()
+        }
         backend.free()
     }
 
@@ -448,8 +498,8 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     }
 }
 
-/** Consecutive send attempts that drain nothing before an input is declared starved. */
-private const val MAX_STARVED_ATTEMPTS = 2
+private const val SPENT_MESSAGE = "This FilterGraph is spent: process() took it to the end of its stream, and " +
+    "a graph that has seen its end cannot take more. Build a new graph."
 
 /**
  * The native half of a [FilterGraph], one per backend: the graph's own calls and nothing that
@@ -465,6 +515,9 @@ internal interface FilterBackend {
 
     /** The next output as a frame the caller owns, or null when the sink has nothing more for now or ever. */
     fun receive(): Frame?
+
+    /** How often the graph asked input [index] for a frame it did not have, since its last frame. */
+    fun failedRequests(index: Int): Int
 
     fun isAgain(rc: Int): Boolean
     fun isEof(rc: Int): Boolean

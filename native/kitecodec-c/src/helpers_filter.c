@@ -19,6 +19,8 @@
 #include <libavutil/pixdesc.h>
 #include <libavutil/samplefmt.h>
 
+#include <limits.h>
+
 /* ════════════ Filter graphs (single-input video / audio) ════════════ */
 
 KC_API int ffkmp_filter_exists(const char *name) {
@@ -439,6 +441,14 @@ KC_API int  ffkmp_graph_send(AVFilterContext *src, AVFrame *frame) {
 }
 KC_API int  ffkmp_graph_receive(AVFilterContext *sink, AVFrame *frame) {
     return (sink && frame) ? av_buffersink_get_frame(sink, frame) : AVERROR(EINVAL);
+}
+/* How often the graph asked this source for a frame it did not have, since the last frame it
+   was given. After a receive that produced nothing, the source with the highest count is the
+   input the graph waits for, which is how FFmpeg's own command line chose its next input. */
+KC_API int ffkmp_graph_failed_requests(AVFilterContext *src) {
+    if (!src) return 0;
+    unsigned n = av_buffersrc_get_nb_failed_requests(src);
+    return n > INT_MAX ? INT_MAX : (int)n;
 }
 /* Fixed-frame-size pull: AAC & friends require exactly frame_size samples per encode call.
    Setting this makes the buffersink chunk its output accordingly (last frame may be short). */

@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.7
+# abi-version 3.8
 #
-# Exact scope: 232 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 233 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 255 records.
+# records are sorted without deduplication. There must be exactly 256 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -134,6 +134,7 @@ KC_API int ffkmp_graph_build_audio( kc_filter_graph **out_graph, kc_filter_ctx *
 KC_API int ffkmp_graph_build_audio_multi( kc_filter_graph **out_graph, kc_filter_ctx **out_srcs, kc_filter_ctx **out_sink, const char *description, int n, const int *sample_rates, const int *sample_fmts, const int *channels, const int *tb_nums, const int *tb_dens, int out_sample_fmt, int out_sample_rate, int out_channels, const int64_t *layout_masks, int64_t out_layout_mask );
 KC_API int ffkmp_graph_build_video( kc_filter_graph **out_graph, kc_filter_ctx **out_src, kc_filter_ctx **out_sink, const char *description, int width, int height, int pix_fmt, int tb_num, int tb_den, int fr_num, int fr_den, int sar_num, int sar_den );
 KC_API int ffkmp_graph_build_video_multi( kc_filter_graph **out_graph, kc_filter_ctx **out_srcs, kc_filter_ctx **out_sink, const char *description, int n, const int *widths, const int *heights, const int *pix_fmts, const int *tb_nums, const int *tb_dens, const int *fr_nums, const int *fr_dens, const int *sar_nums, const int *sar_dens );
+KC_API int ffkmp_graph_failed_requests(kc_filter_ctx *src);
 KC_API int ffkmp_graph_receive(kc_filter_ctx *sink, kc_frame *frame);
 KC_API int ffkmp_graph_send(kc_filter_ctx *src, kc_frame *frame);
 KC_API int ffkmp_image_get_buffer_size(int fmt, int w, int h, int align);

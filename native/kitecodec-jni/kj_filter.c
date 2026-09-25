@@ -226,6 +226,13 @@ JNIEXPORT jint JNICALL kj_graph_receive(JNIEnv *env, jclass cls, jlong sink_toke
     return frame ? (jint)ffkmp_graph_receive(sink, frame) : -1;
 }
 
+JNIEXPORT jint JNICALL kj_graph_failed_requests(JNIEnv *env, jclass cls, jlong source_token)
+{
+    kc_filter_ctx *source = (kc_filter_ctx *)kj_handle_get(env, source_token, KJ_KIND_FILTER_CTX);
+    (void)cls;
+    return source != NULL ? (jint)ffkmp_graph_failed_requests(source) : 0;
+}
+
 JNIEXPORT void JNICALL kj_graph_set_frame_size(JNIEnv *env, jclass cls, jlong sink_token, jint size)
 {
     kc_filter_ctx *sink = (kc_filter_ctx *)kj_handle_get(env, sink_token, KJ_KIND_FILTER_CTX);

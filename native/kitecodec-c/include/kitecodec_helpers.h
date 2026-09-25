@@ -811,6 +811,12 @@ KC_API int  ffkmp_graph_send(kc_filter_ctx *src, kc_frame *frame);
  * AVERROR(EINVAL).
  */
 KC_API int  ffkmp_graph_receive(kc_filter_ctx *sink, kc_frame *frame);
+
+/* How often the graph asked the source for a frame it did not have since its last frame. After
+ * a receive that produced nothing, the source with the highest count is the input the graph
+ * waits for. 0 for a NULL source.
+ */
+KC_API int  ffkmp_graph_failed_requests(kc_filter_ctx *src);
 KC_API void ffkmp_buffersink_set_frame_size(kc_filter_ctx *sink, unsigned n);
 KC_API void ffkmp_buffersink_time_base(kc_filter_ctx *sink, int *n, int *d);
 

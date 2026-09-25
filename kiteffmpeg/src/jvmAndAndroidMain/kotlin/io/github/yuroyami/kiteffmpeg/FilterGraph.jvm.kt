@@ -40,6 +40,8 @@ internal class JvmFilterBackend(
         }
     }
 
+    override fun failedRequests(index: Int): Int = Internals.graphFailedRequests(sources[index])
+
     override fun isAgain(rc: Int): Boolean = rc == Internals.errorEagain
     override fun isEof(rc: Int): Boolean = rc == Internals.errorEof
     override fun error(rc: Int): FFmpegError = avError(rc)

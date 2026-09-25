@@ -215,6 +215,55 @@ static void case_an_audio_graph_takes_the_frames_own_layout(void)
     ffkmp_frame_free(side);
 }
 
+/* One mono fltp frame of silence, 1024 samples at 48 kHz, at `pts`. */
+static kc_frame *mono_frame(int64_t pts)
+{
+    AVFrame *f = av_frame_alloc();
+    KC_NOT_NULL(f);
+    f->nb_samples = 1024;
+    f->sample_rate = 48000;
+    f->format = AV_SAMPLE_FMT_FLTP;
+    f->pts = pts;
+    av_channel_layout_default(&f->ch_layout, 1);
+    KC_EQ_INT(av_frame_get_buffer(f, 0), 0);
+    memset(f->data[0], 0, (size_t)f->nb_samples * sizeof(float));
+    return f;
+}
+
+static void case_a_waiting_graph_names_the_input_it_waits_for(void)
+{
+    kc_filter_graph *graph = NULL;
+    kc_filter_ctx *srcs[2] = { NULL, NULL }, *sink = NULL;
+    int rates[2] = { 48000, 48000 }, fmts[2] = { AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_FLTP };
+    int chans[2] = { 1, 1 }, tbn[2] = { 1, 1 }, tbd[2] = { 48000, 48000 };
+    kc_frame *frame = NULL;
+    AVFrame *out = av_frame_alloc();
+
+    kc_case("amix fed on input 0 alone produces nothing and counts its requests against input 1");
+    KC_NOT_NULL(out);
+    KC_EQ_INT(ffkmp_graph_failed_requests(NULL), 0);
+    KC_EQ_INT(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, "[in0][in1]amix=inputs=2[out]", 2,
+                                            rates, fmts, chans, tbn, tbd, -1, 0, 0, NULL, 0), 0);
+    for (int i = 0; i < 3; i++) {
+        frame = mono_frame(i * 1024);
+        KC_EQ_INT(ffkmp_graph_send(srcs[0], frame), 0);
+        ffkmp_frame_free(frame);
+        KC_EQ_INT(ffkmp_graph_receive(sink, out), AVERROR(EAGAIN));
+    }
+    KC_EQ_INT(ffkmp_graph_failed_requests(srcs[0]), 0);
+    KC_CHECK(ffkmp_graph_failed_requests(srcs[1]) > 0);
+
+    kc_case("a frame on the input the graph waited for resets its count and releases output");
+    frame = mono_frame(0);
+    KC_EQ_INT(ffkmp_graph_send(srcs[1], frame), 0);
+    ffkmp_frame_free(frame);
+    KC_EQ_INT(ffkmp_graph_failed_requests(srcs[1]), 0);
+    KC_EQ_INT(ffkmp_graph_receive(sink, out), 0);
+    av_frame_unref(out);
+    ffkmp_graph_free(&graph);
+    av_frame_free(&out);
+}
+
 int main(void)
 {
     kc_suite_begin("test_filter");
@@ -223,6 +272,7 @@ int main(void)
     case_out_label_is_a_label_not_a_substring();
     case_audio_fill_matches_its_reading_twin();
     case_an_audio_graph_takes_the_frames_own_layout();
+    case_a_waiting_graph_names_the_input_it_waits_for();
 
     return kc_suite_end();
 }

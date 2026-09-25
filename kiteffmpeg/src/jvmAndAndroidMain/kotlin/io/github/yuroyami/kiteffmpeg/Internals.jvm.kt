@@ -263,6 +263,7 @@ internal object Internals {
     private external fun nativeGraphFree(token: Long)
     private external fun nativeGraphSend(source: Long, frame: Long): Int
     private external fun nativeGraphReceive(sink: Long, frame: Long): Int
+    private external fun nativeGraphFailedRequests(source: Long): Int
     private external fun nativeGraphSetFrameSize(sink: Long, size: Int)
     private external fun nativeGraphTimeBase(sink: Long): Long
 
@@ -584,6 +585,7 @@ internal object Internals {
     internal fun graphFree(token: Long) = checked { nativeGraphFree(token) }
     internal fun graphSend(source: Long, frame: Long) = checked { nativeGraphSend(source, frame) }
     internal fun graphReceive(sink: Long, frame: Long) = checked { nativeGraphReceive(sink, frame) }
+    internal fun graphFailedRequests(source: Long) = checked { nativeGraphFailedRequests(source) }
     internal fun graphSetFrameSize(sink: Long, size: Int) = checked { nativeGraphSetFrameSize(sink, size) }
     internal fun graphTimeBase(sink: Long) = unpackRational(checked { nativeGraphTimeBase(sink) })
 

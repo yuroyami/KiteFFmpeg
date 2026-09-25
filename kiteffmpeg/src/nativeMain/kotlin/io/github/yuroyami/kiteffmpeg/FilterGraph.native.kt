@@ -7,6 +7,7 @@ import ffmpeg.ffkmp_graph_build_audio
 import ffmpeg.ffkmp_graph_build_audio_multi
 import ffmpeg.ffkmp_graph_build_video
 import ffmpeg.ffkmp_graph_build_video_multi
+import ffmpeg.ffkmp_graph_failed_requests
 import ffmpeg.ffkmp_graph_free
 import ffmpeg.ffkmp_graph_receive
 import ffmpeg.ffkmp_graph_send
@@ -72,6 +73,8 @@ internal class NativeFilterBackend(
             view.close()
         }
     }
+
+    override fun failedRequests(index: Int): Int = ffkmp_graph_failed_requests(srcs[index])
 
     override fun isAgain(rc: Int): Boolean = rc == FFErrors.EAGAIN
     override fun isEof(rc: Int): Boolean = rc == FFErrors.EOF

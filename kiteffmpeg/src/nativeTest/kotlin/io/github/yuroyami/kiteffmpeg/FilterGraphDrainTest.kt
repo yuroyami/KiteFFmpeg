@@ -3,13 +3,15 @@ package io.github.yuroyami.kiteffmpeg
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
  * The push-style filter API, around the single frame the buffersink lands its output in. Two rules
- * are covered: that frame is released after every callback, and a send that the graph cannot make
- * progress on ends with an error rather than being retried forever.
+ * are covered: that frame is released after every callback, and a send the graph cannot take is
+ * never retried forever. A graph with two inputs reports the input it waits for, and a graph with
+ * one input fails.
  */
 class FilterGraphDrainTest {
 
@@ -104,50 +106,44 @@ class FilterGraphDrainTest {
 
     /**
      * A two-input graph fed on one pad only: `amix` holds its output until every input has samples,
-     * so each feed has to return with nothing produced instead of waiting for a frame that is not
-     * coming. Flushing the starved input is what releases the mix.
+     * so each feed returns at once, with nothing produced and the other input named. Flushing that
+     * input is what releases the mix.
      */
     @Test
     fun aTwoInputGraphFedOnOnePadStaysBoundedAndFinishesOnFlush() {
         var outputs = 0
         mixGraph().use { graph ->
-            repeat(4) { i -> graph.feedInput(0, fltpSilence(1024, i)) { outputs++ } }
+            repeat(4) { i ->
+                assertEquals(FeedResult.NeedsInput(1, 0), graph.feedInput(0, fltpSilence(1024, i)) { outputs++ })
+            }
             assertEquals(0, outputs, "amix cannot emit anything before its second input has samples")
 
             graph.flushInput(1) { outputs++ }
             graph.flushInput(0) { outputs++ }
-            assertTrue(outputs > 0, "flushing the starved input must release the mixed frames")
+            assertTrue(outputs > 0, "flushing the waiting input must release the mixed frames")
         }
     }
 
     /**
-     * The retry rule itself. EAGAIN from a buffersrc means the frame was not consumed, so the same
-     * send is retried after a drain; in a multi-input graph the drain can free nothing because the
-     * filter is waiting on the OTHER pad, and the retry would then never end. Two attempts with no
-     * output stop with a typed error that says so.
+     * The refusal rule. EAGAIN from a buffer source means the frame was not taken, so the send is
+     * made again after a drain that produced output. With no output, a graph with two inputs waits
+     * for the other one, which the feed reports, and a graph with one input can never take the
+     * frame, which is an error instead of a retry that never ends.
      *
-     * The send is injected: the FFmpeg this binds to answers a buffersrc write with 0 or a hard
-     * error and never with EAGAIN, so the branch is unreachable through [FilterGraph.feedInput],
-     * while still being the loop that has to terminate.
+     * The send is injected: the FFmpeg this binds to answers a buffer source write with 0 or a hard
+     * error and never with EAGAIN, so the branch is unreachable through [FilterGraph.feedInput].
      */
     @Test
-    fun aStarvedInputFailsWithATypedErrorInsteadOfRetryingForever() {
-        var outputs = 0
+    fun aRefusedSendWaitsInATwoInputGraphAndFailsInASingleInputOne() {
+        val drained = mutableListOf<Frame>()
         mixGraph().use { graph ->
-            graph.feedInput(0, fltpSilence(1024, 0)) { outputs++ }
-
-            val drained = mutableListOf<Frame>()
-            val ex = assertFailsWith<FFmpegException> {
-                graph.sendUntilAccepted(index = 1, eofIsDone = false, outputs = drained) {
-                    FFErrors.EAGAIN
-                }
-            }
-            outputs += drained.size
-            assertIs<FFmpegError.InvalidArgument>(ex.error)
-            val message = ex.message ?: ""
-            assertTrue("input 1" in message, "the error does not name the starved input: $message")
-            assertTrue("amix" in message, "the error does not name the multi-input condition: $message")
-            assertEquals(0, outputs, "a graph starved on one pad cannot have produced output")
+            assertFalse(graph.offer(index = 1, outputs = drained) { FFErrors.EAGAIN }, "a two-input graph waits")
         }
+        passthroughGraph().use { graph ->
+            val ex = assertFailsWith<FFmpegException> { graph.offer(index = 0, outputs = drained) { FFErrors.EAGAIN } }
+            assertIs<FFmpegError.Internal>(ex.error)
+            assertTrue("input 0" in ex.message.orEmpty(), "the error names the input: ${ex.message}")
+        }
+        assertEquals(0, drained.size, "a graph that refused cannot have produced output")
     }
 }
