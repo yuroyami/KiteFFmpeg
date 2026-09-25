@@ -380,6 +380,10 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    @KiteFFmpegLowLevelApi
+    @Throws(FFmpegException::class)
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = throw notWired()
+
     public actual fun interrupt() {
         /* Deliberately NOT under the demux lock: the whole point is reaching a context another
            thread is blocked on. The handle table refuses a token that a finished close

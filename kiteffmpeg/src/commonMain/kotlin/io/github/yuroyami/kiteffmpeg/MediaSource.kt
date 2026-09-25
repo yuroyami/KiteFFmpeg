@@ -180,6 +180,17 @@ public expect class MediaSource : AutoCloseable {
     ): StreamDecoder
 
     /**
+     * Opens a decoder for the subtitle [stream]: Blu-ray (PGS), DVB and DVD images, and the text
+     * formats this build of FFmpeg decodes.
+     *
+     * @throws IllegalArgumentException when [stream] is not a subtitle stream of this source
+     * @throws FFmpegException with [FFmpegError.DecoderNotFound] when this build has no decoder for it
+     */
+    @KiteFFmpegLowLevelApi
+    @Throws(FFmpegException::class)
+    public fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder
+
+    /**
      * Requests that every current and future blocking call on this source return with a typed
      * [FFmpegError.Interrupted] failure.
      *

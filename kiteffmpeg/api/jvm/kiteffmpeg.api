@@ -814,6 +814,7 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSource : java/lang/AutoClo
 	public final fun openDecoder-0N1Q0X8 (Lio/github/yuroyami/kiteffmpeg/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;Lio/github/yuroyami/kiteffmpeg/HardwareAccel;Lio/github/yuroyami/kiteffmpeg/CorruptData;)Lio/github/yuroyami/kiteffmpeg/StreamDecoder;
 	public static synthetic fun openDecoder-0N1Q0X8$default (Lio/github/yuroyami/kiteffmpeg/MediaSource;Lio/github/yuroyami/kiteffmpeg/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;Lio/github/yuroyami/kiteffmpeg/HardwareAccel;Lio/github/yuroyami/kiteffmpeg/CorruptData;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/StreamDecoder;
 	public final fun openPacketReader (Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/PacketReader;
+	public final fun openSubtitleDecoder (Lio/github/yuroyami/kiteffmpeg/StreamInfo;)Lio/github/yuroyami/kiteffmpeg/SubtitleDecoder;
 	public final fun seekMicros (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setCorruptData (Lio/github/yuroyami/kiteffmpeg/CorruptData;)V
 }
@@ -1055,6 +1056,47 @@ public final class io/github/yuroyami/kiteffmpeg/StreamInfo {
 	public final fun getTitle ()Ljava/lang/String;
 	public final fun getType ()Lio/github/yuroyami/kiteffmpeg/MediaType;
 	public final fun getVideo ()Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Subtitle {
+	public fun <init> (Ljava/lang/Long;Ljava/lang/Long;IILjava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/Long;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/Long;Ljava/lang/Long;IILjava/util/List;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/Subtitle;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/Subtitle;Ljava/lang/Long;Ljava/lang/Long;IILjava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Subtitle;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanvasHeight ()I
+	public final fun getCanvasWidth ()I
+	public final fun getEndMicros ()Ljava/lang/Long;
+	public final fun getImages ()Ljava/util/List;
+	public final fun getStartMicros ()Ljava/lang/Long;
+	public final fun getTexts ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SubtitleDecoder : java/lang/AutoCloseable {
+	public fun close ()V
+	public final fun decode (Lio/github/yuroyami/kiteffmpeg/Packet;)Lio/github/yuroyami/kiteffmpeg/Subtitle;
+	public final fun flush ()V
+	public final fun getStream ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SubtitleImage {
+	public fun <init> (IIII[BZ)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getForced ()Z
+	public final fun getHeight ()I
+	public final fun getRgba ()[B
+	public final fun getWidth ()I
+	public final fun getX ()I
+	public final fun getY ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

@@ -507,6 +507,9 @@ public actual class MediaSource internal constructor(
         return StreamDecoder(ctx, stream, lifetime, corruptData)
     }
 
+    @KiteFFmpegLowLevelApi
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = throw notWired()
+
     public actual fun interrupt() {
         /* Single-threaded runtime: nothing can be blocked while this runs, so the flag only
            makes later calls fail fast, which is still the honest half of the contract. */

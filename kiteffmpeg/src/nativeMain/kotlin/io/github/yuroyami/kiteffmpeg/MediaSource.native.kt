@@ -603,6 +603,10 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    @KiteFFmpegLowLevelApi
+    @Throws(FFmpegException::class)
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = throw notWired()
+
     public actual fun interrupt() {
         /* Deliberately NOT under stateLock: the whole point is reaching a context another thread
            is blocked on. The contract forbids calling this concurrently with or after close, so

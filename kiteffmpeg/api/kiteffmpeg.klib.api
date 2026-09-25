@@ -1552,6 +1552,7 @@ final class io.github.yuroyami.kiteffmpeg/MediaSource : kotlin/AutoCloseable { /
     final fun interrupt() // io.github.yuroyami.kiteffmpeg/MediaSource.interrupt|interrupt(){}[0]
     final fun openDecoder(io.github.yuroyami.kiteffmpeg/StreamInfo, kotlin/Int = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/CodecId? = ..., io.github.yuroyami.kiteffmpeg.dsl/DecoderOptions? = ..., io.github.yuroyami.kiteffmpeg/HardwareAccel? = ..., io.github.yuroyami.kiteffmpeg/CorruptData = ...): io.github.yuroyami.kiteffmpeg/StreamDecoder // io.github.yuroyami.kiteffmpeg/MediaSource.openDecoder|openDecoder(io.github.yuroyami.kiteffmpeg.StreamInfo;kotlin.Int;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.CodecId?;io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions?;io.github.yuroyami.kiteffmpeg.HardwareAccel?;io.github.yuroyami.kiteffmpeg.CorruptData){}[0]
     final fun openPacketReader(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>): io.github.yuroyami.kiteffmpeg/PacketReader // io.github.yuroyami.kiteffmpeg/MediaSource.openPacketReader|openPacketReader(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
+    final fun openSubtitleDecoder(io.github.yuroyami.kiteffmpeg/StreamInfo): io.github.yuroyami.kiteffmpeg/SubtitleDecoder // io.github.yuroyami.kiteffmpeg/MediaSource.openSubtitleDecoder|openSubtitleDecoder(io.github.yuroyami.kiteffmpeg.StreamInfo){}[0]
     final suspend fun extractFrame(kotlin/Long, io.github.yuroyami.kiteffmpeg/StreamInfo? = ...): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/MediaSource.extractFrame|extractFrame(kotlin.Long;io.github.yuroyami.kiteffmpeg.StreamInfo?){}[0]
     final suspend fun seekMicros(kotlin/Long) // io.github.yuroyami.kiteffmpeg/MediaSource.seekMicros|seekMicros(kotlin.Long){}[0]
 
@@ -1760,6 +1761,64 @@ final class io.github.yuroyami.kiteffmpeg/StreamInfo { // io.github.yuroyami.kit
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/StreamInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/StreamInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamInfo.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/Subtitle { // io.github.yuroyami.kiteffmpeg/Subtitle|null[0]
+    constructor <init>(kotlin/Long?, kotlin/Long?, kotlin/Int, kotlin/Int, kotlin.collections/List<io.github.yuroyami.kiteffmpeg/SubtitleImage>, kotlin.collections/List<kotlin/String>) // io.github.yuroyami.kiteffmpeg/Subtitle.<init>|<init>(kotlin.Long?;kotlin.Long?;kotlin.Int;kotlin.Int;kotlin.collections.List<io.github.yuroyami.kiteffmpeg.SubtitleImage>;kotlin.collections.List<kotlin.String>){}[0]
+
+    final val canvasHeight // io.github.yuroyami.kiteffmpeg/Subtitle.canvasHeight|{}canvasHeight[0]
+        final fun <get-canvasHeight>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Subtitle.canvasHeight.<get-canvasHeight>|<get-canvasHeight>(){}[0]
+    final val canvasWidth // io.github.yuroyami.kiteffmpeg/Subtitle.canvasWidth|{}canvasWidth[0]
+        final fun <get-canvasWidth>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Subtitle.canvasWidth.<get-canvasWidth>|<get-canvasWidth>(){}[0]
+    final val endMicros // io.github.yuroyami.kiteffmpeg/Subtitle.endMicros|{}endMicros[0]
+        final fun <get-endMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/Subtitle.endMicros.<get-endMicros>|<get-endMicros>(){}[0]
+    final val images // io.github.yuroyami.kiteffmpeg/Subtitle.images|{}images[0]
+        final fun <get-images>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/SubtitleImage> // io.github.yuroyami.kiteffmpeg/Subtitle.images.<get-images>|<get-images>(){}[0]
+    final val startMicros // io.github.yuroyami.kiteffmpeg/Subtitle.startMicros|{}startMicros[0]
+        final fun <get-startMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/Subtitle.startMicros.<get-startMicros>|<get-startMicros>(){}[0]
+    final val texts // io.github.yuroyami.kiteffmpeg/Subtitle.texts|{}texts[0]
+        final fun <get-texts>(): kotlin.collections/List<kotlin/String> // io.github.yuroyami.kiteffmpeg/Subtitle.texts.<get-texts>|<get-texts>(){}[0]
+
+    final fun component1(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/Subtitle.component1|component1(){}[0]
+    final fun component2(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/Subtitle.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Subtitle.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Subtitle.component4|component4(){}[0]
+    final fun component5(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/SubtitleImage> // io.github.yuroyami.kiteffmpeg/Subtitle.component5|component5(){}[0]
+    final fun component6(): kotlin.collections/List<kotlin/String> // io.github.yuroyami.kiteffmpeg/Subtitle.component6|component6(){}[0]
+    final fun copy(kotlin/Long? = ..., kotlin/Long? = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin.collections/List<io.github.yuroyami.kiteffmpeg/SubtitleImage> = ..., kotlin.collections/List<kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/Subtitle // io.github.yuroyami.kiteffmpeg/Subtitle.copy|copy(kotlin.Long?;kotlin.Long?;kotlin.Int;kotlin.Int;kotlin.collections.List<io.github.yuroyami.kiteffmpeg.SubtitleImage>;kotlin.collections.List<kotlin.String>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Subtitle.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Subtitle.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/Subtitle.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/SubtitleDecoder : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/SubtitleDecoder|null[0]
+    final val stream // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.stream|{}stream[0]
+        final fun <get-stream>(): io.github.yuroyami.kiteffmpeg/StreamInfo // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.stream.<get-stream>|<get-stream>(){}[0]
+
+    final fun close() // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.close|close(){}[0]
+    final fun decode(io.github.yuroyami.kiteffmpeg/Packet): io.github.yuroyami.kiteffmpeg/Subtitle? // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.decode|decode(io.github.yuroyami.kiteffmpeg.Packet){}[0]
+    final fun flush() // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.flush|flush(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/SubtitleImage { // io.github.yuroyami.kiteffmpeg/SubtitleImage|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/ByteArray, kotlin/Boolean) // io.github.yuroyami.kiteffmpeg/SubtitleImage.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.ByteArray;kotlin.Boolean){}[0]
+
+    final val forced // io.github.yuroyami.kiteffmpeg/SubtitleImage.forced|{}forced[0]
+        final fun <get-forced>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SubtitleImage.forced.<get-forced>|<get-forced>(){}[0]
+    final val height // io.github.yuroyami.kiteffmpeg/SubtitleImage.height|{}height[0]
+        final fun <get-height>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SubtitleImage.height.<get-height>|<get-height>(){}[0]
+    final val rgba // io.github.yuroyami.kiteffmpeg/SubtitleImage.rgba|{}rgba[0]
+        final fun <get-rgba>(): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/SubtitleImage.rgba.<get-rgba>|<get-rgba>(){}[0]
+    final val width // io.github.yuroyami.kiteffmpeg/SubtitleImage.width|{}width[0]
+        final fun <get-width>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SubtitleImage.width.<get-width>|<get-width>(){}[0]
+    final val x // io.github.yuroyami.kiteffmpeg/SubtitleImage.x|{}x[0]
+        final fun <get-x>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SubtitleImage.x.<get-x>|<get-x>(){}[0]
+    final val y // io.github.yuroyami.kiteffmpeg/SubtitleImage.y|{}y[0]
+        final fun <get-y>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SubtitleImage.y.<get-y>|<get-y>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SubtitleImage.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SubtitleImage.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SubtitleImage.toString|toString(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/TrackSelector { // io.github.yuroyami.kiteffmpeg/TrackSelector|null[0]
