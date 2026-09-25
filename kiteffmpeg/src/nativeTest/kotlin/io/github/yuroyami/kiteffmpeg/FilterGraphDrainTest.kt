@@ -136,11 +136,13 @@ class FilterGraphDrainTest {
         mixGraph().use { graph ->
             graph.feedInput(0, fltpSilence(1024, 0)) { outputs++ }
 
+            val drained = mutableListOf<Frame>()
             val ex = assertFailsWith<FFmpegException> {
-                graph.sendUntilAccepted(index = 1, eofIsDone = false, onOutput = { outputs++ }) {
+                graph.sendUntilAccepted(index = 1, eofIsDone = false, outputs = drained) {
                     FFErrors.EAGAIN
                 }
             }
+            outputs += drained.size
             assertIs<FFmpegError.InvalidArgument>(ex.error)
             val message = ex.message ?: ""
             assertTrue("input 1" in message, "the error does not name the starved input: $message")
