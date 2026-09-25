@@ -208,7 +208,15 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
-        nodejs()
+        nodejs {
+            testTask {
+                // Mocha's per-test default is 2000 ms, the same ceiling timeouts.js raises for the
+                // browser. The real bound stays each test's own timeout.
+                useMocha { timeout = "20s" }
+                // RealCodecModuleTest loads this module when linkKiteFFmpegWasmModule has built it.
+                environment("KITEFFMPEG_WEB_MODULE", layout.buildDirectory.file("kite-web/kite.mjs").get().asFile.absolutePath)
+            }
+        }
     }
 
     if (withAndroid) {

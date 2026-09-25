@@ -184,7 +184,8 @@ must travel with them:
 To build the two files yourself, run `./gradlew :kiteffmpeg:kiteffmpegWebZip` (needs emscripten).
 Only the single-threaded build ships: the threaded one hangs on import on a page without
 cross-origin isolation. Most web tests run against a scripted fake module, which proves the
-binding reads the right fields and nothing about a built module.
+binding reads the right fields; `RealCodecModuleTest` decodes a real clip with the linked module
+under Node when the module has been built.
 
 ## What it will not do
 

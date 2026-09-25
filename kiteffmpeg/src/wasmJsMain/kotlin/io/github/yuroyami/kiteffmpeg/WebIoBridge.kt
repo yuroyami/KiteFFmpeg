@@ -155,13 +155,16 @@ private external fun writeChunk(module: JsAny, pointer: Int, packed: String)
  * are called BY the module, synchronously, from inside `avformat_open_input`. Routing them back
  * through Kotlin would add a second module crossing to every read for no gain, and Kotlin/Wasm
  * cannot be handed to `addFunction` as a raw table entry anyway.
+ *
+ * The end of the data is KC_IO_EOF, -1, as the C bridge defines it. FFmpeg's own AVERROR_EOF is
+ * not: the bridge maps every other negative value to an I/O error, so every playback ended failing.
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
     """(m, base, total) => {
         let pos = 0;
         const read = m.addFunction((opaque, dst, len) => {
-            if (pos >= total) return -541478725;
+            if (pos >= total) return -1;
             const n = Math.min(len, total - pos);
             m.HEAPU8.copyWithin(dst, base + pos, base + pos + n);
             pos += n;
