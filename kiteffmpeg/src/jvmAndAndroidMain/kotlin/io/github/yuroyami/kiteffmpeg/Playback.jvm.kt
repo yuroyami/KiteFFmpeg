@@ -235,7 +235,7 @@ public actual class StreamDecoder internal constructor(
             stream: StreamInfo,
             threadCount: Int,
             lowDelay: Boolean,
-            requestedDecoder: CodecId?,
+            requestedDecoder: DecoderId?,
             options: io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions? = null,
             hardware: HardwareAccel? = null,
             corruptData: CorruptData = CorruptData.Skip,

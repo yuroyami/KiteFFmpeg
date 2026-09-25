@@ -33,7 +33,8 @@ class HwaccelContractTest {
         MediaSink.open(path).use { sink ->
             val video = sink.addVideoEncoder(
                 VideoEncoderSpec(
-                    codec = CodecId.H264VideoToolbox,
+                    codec = CodecId.H264,
+                    encoder = EncoderId.H264VideoToolbox,
                     width = 320,
                     height = 240,
                     frameRate = Rational(30, 1),
@@ -58,7 +59,7 @@ class HwaccelContractTest {
 
     @Test
     fun videoToolboxDecodesHardwareFramesIdenticallyOnEveryBoundary() {
-        if (!FFmpeg.hasEncoder(CodecId.H264VideoToolbox.name)) {
+        if (!FFmpeg.hasEncoder(EncoderId.H264VideoToolbox.name)) {
             println("hwaccel contract arm degraded: no h264_videotoolbox encoder on this target")
             return
         }

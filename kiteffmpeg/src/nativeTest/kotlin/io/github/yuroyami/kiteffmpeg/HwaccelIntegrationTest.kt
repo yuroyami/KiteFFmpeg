@@ -44,7 +44,8 @@ class HwaccelIntegrationTest {
         MediaSink.open(path).use { sink ->
             val video = sink.addVideoEncoder(
                 VideoEncoderSpec(
-                    codec = CodecId.H264VideoToolbox,
+                    codec = CodecId.H264,
+                    encoder = EncoderId.H264VideoToolbox,
                     width = 320,
                     height = 240,
                     frameRate = Rational(30, 1),
@@ -69,7 +70,7 @@ class HwaccelIntegrationTest {
 
     @Test
     fun aVideoToolboxDecoderProducesHardwareFramesAndTheDownloadBringsThemBack() {
-        if (!FFmpeg.hasEncoder(CodecId.H264VideoToolbox.name)) {
+        if (!FFmpeg.hasEncoder(EncoderId.H264VideoToolbox.name)) {
             // Simulator-shaped build: decode-only VideoToolbox. The attach itself is proven by
             // the C control arm; without an encoder there is no clip to decode, and saying the
             // full path ran here would be a lie.

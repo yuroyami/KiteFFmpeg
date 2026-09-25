@@ -52,7 +52,7 @@ public actual class MediaSource private constructor() : AutoCloseable {
         stream: StreamInfo,
         threadCount: Int,
         lowDelay: Boolean,
-        decoder: CodecId?,
+        decoder: DecoderId?,
         options: DecoderOptions?,
         hardware: HardwareAccel?,
         corruptData: CorruptData,

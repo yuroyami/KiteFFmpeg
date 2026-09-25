@@ -87,7 +87,7 @@ class ErrorsTest {
      */
     @Test
     fun aRequestedDecoderRefusalNamesBothTheDecoderAndTheStreamCodec() {
-        val message = decoderNotFoundMessage(streamCodec = CodecId("av1"), requested = CodecId("libdav1d"))
+        val message = decoderNotFoundMessage(streamCodec = CodecId("av1"), requested = DecoderId.LibDav1d)
         assertTrue("libdav1d" in message, "the decoder actually asked for: $message")
         assertTrue("av1" in message, "and the stream codec it was asked for: $message")
         assertTrue("hasDecoder" in message, "the query takes the DECODER name here: $message")
@@ -98,7 +98,7 @@ class ErrorsTest {
     fun theTwoRefusalsReadDifferently() {
         assertTrue(
             decoderNotFoundMessage(CodecId("av1"), null) !=
-                decoderNotFoundMessage(CodecId("av1"), CodecId("libdav1d")),
+                decoderNotFoundMessage(CodecId("av1"), DecoderId.LibDav1d),
         )
     }
 

@@ -2,6 +2,7 @@ package io.github.yuroyami.kiteffmpeg.sample
 
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.FFmpeg
 import io.github.yuroyami.kiteffmpeg.MediaSource
 import io.github.yuroyami.kiteffmpeg.MediaType
@@ -130,16 +131,16 @@ private fun printInfo() {
  * that drives it, silently require a GPL FFmpeg, which is exactly the flavour the project does
  * NOT ship by default.
  */
-internal fun pickVideoEncoder(preferHardware: Boolean): CodecId {
+internal fun pickVideoEncoder(preferHardware: Boolean): EncoderId {
     if (preferHardware) {
-        val hw = listOf(CodecId.H264VideoToolbox, CodecId.H264MediaCodec)
+        val hw = listOf(EncoderId.H264VideoToolbox, EncoderId.H264MediaCodec)
             .firstOrNull { FFmpeg.hasEncoder(it.name) }
         return hw ?: error(
             "Hardware encode requested (-vt) but the linked FFmpeg has neither " +
                 "h264_videotoolbox nor h264_mediacodec. Drop -vt for a software encoder.",
         )
     }
-    val candidates = listOf(CodecId.Libx264, CodecId("mpeg4"), CodecId("libsvtav1"), CodecId.Mjpeg)
+    val candidates = listOf(EncoderId.Libx264, EncoderId.Mpeg4, EncoderId.LibSvtAv1, EncoderId.Mjpeg)
     return candidates.firstOrNull { FFmpeg.hasEncoder(it.name) }
         ?: error("The linked FFmpeg has no usable video encoder (tried ${candidates.joinToString { it.name }}).")
 }
@@ -156,14 +157,14 @@ internal fun pickVideoEncoder(preferHardware: Boolean): CodecId {
  * Preference order is deliberate: `aac` first because it is what mp4 and mov are normally written
  * with, then the dependency-free fallbacks the shared profile has always guaranteed.
  */
-internal fun pickAudioEncoder(): CodecId {
-    val candidates = listOf(CodecId.Aac, CodecId.Flac, CodecId.PcmS16)
+internal fun pickAudioEncoder(): EncoderId {
+    val candidates = listOf(EncoderId.Aac, EncoderId.Flac, EncoderId.PcmS16)
     return candidates.firstOrNull { FFmpeg.hasEncoder(it.name) }
         ?: error("The linked FFmpeg has no usable audio encoder (tried ${candidates.joinToString { it.name }}).")
 }
 
 /** The `codec_name` ffprobe reports for a stream written by [encoder]. */
-internal fun outputCodecNameFor(encoder: CodecId): String = when (encoder.name) {
+internal fun outputCodecNameFor(encoder: EncoderId): String = when (encoder.name) {
     "libx264", "h264_videotoolbox", "h264_mediacodec" -> "h264"
     "libx265", "hevc_videotoolbox", "hevc_mediacodec" -> "hevc"
     "libsvtav1" -> "av1"
@@ -213,16 +214,17 @@ private fun transcode(
         val spec = if (videoInfo != null) {
             // If the filter contains `scale=W:H`, the encoder must match the filter's output size.
             val scaleMatch = Regex("""scale=(\d+):(\d+)""").find(filter)
-            val codec = pickVideoEncoder(preferHardware = useVideoToolbox)
+            val encoder = pickVideoEncoder(preferHardware = useVideoToolbox)
             VideoEncoderSpec(
-                codec = codec,
+                codec = CodecId(outputCodecNameFor(encoder)),
+                encoder = encoder,
                 width = scaleMatch?.groupValues?.get(1)?.toIntOrNull() ?: videoInfo.width,
                 height = scaleMatch?.groupValues?.get(2)?.toIntOrNull() ?: videoInfo.height,
                 frameRate = frameRate ?: io.github.yuroyami.kiteffmpeg.Rational(30, 1),
                 bitrateBps = 1_500_000,
                 // allow_sw lets videotoolbox fall back to its software path on machines/VMs
                 // without hardware encode sessions (CI runners).
-                options = if (codec.name.endsWith("_videotoolbox")) mapOf("allow_sw" to "1") else emptyMap(),
+                options = if (encoder == EncoderId.H264VideoToolbox) mapOf("allow_sw" to "1") else emptyMap(),
             )
         } else {
             println("  (input has no video, audio-only transcode, filter ignored)")
@@ -233,7 +235,7 @@ private fun transcode(
             AudioChoice.Copy -> "  (audio stream-copied)"
             AudioChoice.Encode -> ""
         }
-        if (spec != null) println("Filter: $filter$audioNote  codec=${spec.codec.name}")
+        if (spec != null) println("Filter: $filter$audioNote  encoder=${spec.encoder?.name}")
 
         Transcoder.transcode(
             input = input,
@@ -242,7 +244,9 @@ private fun transcode(
             // An empty filter argument means "no graph at all": decoder frames go straight to the
             // encoder. Passing "" through would hand libavfilter an unparseable description.
             videoFilter = if (spec != null) filter.takeIf { it.isNotBlank() } else null,
-            audioSpec = if (audio == AudioChoice.Encode) AudioEncoderSpec(codec = pickAudioEncoder()) else null,
+            audioSpec = if (audio == AudioChoice.Encode) {
+                pickAudioEncoder().let { AudioEncoderSpec(codec = CodecId(outputCodecNameFor(it)), encoder = it) }
+            } else null,
             audioCopy = audio == AudioChoice.Copy,
             subtitleCopy = subtitles,
             startMicros = startMicros,

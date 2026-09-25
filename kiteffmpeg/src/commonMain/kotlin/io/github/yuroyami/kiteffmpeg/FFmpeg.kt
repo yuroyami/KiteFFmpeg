@@ -43,6 +43,21 @@ public expect object FFmpeg {
      * what the loaded codec module links.
      */
     public fun components(kind: FFmpegComponent): List<String>
+
+    /** The format [encoder] produces, or null when the bound FFmpeg has no such encoder. */
+    public fun codecOf(encoder: EncoderId): CodecId?
+
+    /** The format [decoder] reads, or null when the bound FFmpeg has no such decoder. */
+    public fun codecOf(decoder: DecoderId): CodecId?
+
+    /**
+     * Every encoder the bound FFmpeg has for [codec], the one FFmpeg picks by default first; empty
+     * when it has none. The default is what an encoder spec with no [VideoEncoderSpec.encoder] gets.
+     */
+    public fun encodersFor(codec: CodecId): List<EncoderId>
+
+    /** Every decoder the bound FFmpeg has for [codec], the one FFmpeg picks by default first. */
+    public fun decodersFor(codec: CodecId): List<DecoderId>
 }
 
 /** The C layer's code for [kind], a KC_COMPONENT_* value. */

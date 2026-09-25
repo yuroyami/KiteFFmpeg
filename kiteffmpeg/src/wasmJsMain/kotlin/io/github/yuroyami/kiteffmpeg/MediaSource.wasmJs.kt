@@ -423,7 +423,7 @@ public actual class MediaSource internal constructor(
         stream: StreamInfo,
         threadCount: Int,
         lowDelay: Boolean,
-        decoder: CodecId?,
+        decoder: DecoderId?,
         options: DecoderOptions?,
         hardware: HardwareAccel?,
         corruptData: CorruptData,

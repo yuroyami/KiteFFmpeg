@@ -64,4 +64,16 @@ public actual object FFmpeg {
             wasmFree(m, buffer)
         }
     }
+
+    // Wired in the next commit; until then these refuse rather than guess.
+    public actual fun codecOf(encoder: EncoderId): CodecId? = throw mappingNotWired()
+
+    public actual fun codecOf(decoder: DecoderId): CodecId? = throw mappingNotWired()
+
+    public actual fun encodersFor(codec: CodecId): List<EncoderId> = throw mappingNotWired()
+
+    public actual fun decodersFor(codec: CodecId): List<DecoderId> = throw mappingNotWired()
 }
+
+internal fun mappingNotWired(): FFmpegException =
+    FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "the codec and implementation mapping is not wired yet"))

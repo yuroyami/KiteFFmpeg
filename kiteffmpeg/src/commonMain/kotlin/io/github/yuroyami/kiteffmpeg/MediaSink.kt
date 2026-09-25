@@ -116,6 +116,7 @@ public expect class CopyStream {
 }
 
 public data class VideoEncoderSpec(
+    /** The format to write. */
     val codec: CodecId,
     val width: Int,
     val height: Int,
@@ -152,9 +153,16 @@ public data class VideoEncoderSpec(
      * source. An empty [HdrMetadata] writes none in both cases.
      */
     val hdr: HdrMetadata? = null,
+    /**
+     * The encoder that writes [codec]. Null takes the one FFmpeg picks for the format, the first of
+     * [FFmpeg.encodersFor]. An encoder that writes another format is refused with
+     * [FFmpegError.InvalidArgument].
+     */
+    val encoder: EncoderId? = null,
 )
 
 public data class AudioEncoderSpec(
+    /** The format to write. */
     val codec: CodecId,
     val sampleRate: Int = 44_100,
     val channels: Int = 2,
@@ -170,6 +178,8 @@ public data class AudioEncoderSpec(
      * copies the source stream's.
      */
     val channelLayoutMask: Long? = null,
+    /** The encoder that writes [codec]; null takes FFmpeg's default for the format. See [VideoEncoderSpec.encoder]. */
+    val encoder: EncoderId? = null,
 )
 
 /**

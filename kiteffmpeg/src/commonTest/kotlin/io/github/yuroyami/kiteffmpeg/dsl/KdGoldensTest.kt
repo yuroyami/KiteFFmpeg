@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg.dsl
 import io.github.yuroyami.kiteffmpeg.SampleFormat
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.PixelFormat
 import io.github.yuroyami.kiteffmpeg.Rational
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
@@ -152,9 +153,11 @@ class KdGoldensTest {
 
     private fun videoSpec(
         options: Map<String, String> = emptyMap(),
-        codec: CodecId = CodecId.Libx264,
+        encoder: EncoderId? = EncoderId.Libx264,
+        codec: CodecId = CodecId.H264,
     ) = VideoEncoderSpec(
         codec = codec,
+        encoder = encoder,
         width = 1280,
         height = 720,
         frameRate = Rational(30, 1),
@@ -190,7 +193,7 @@ class KdGoldensTest {
     fun constantBitrateOnAnEncoderWithoutHrdIsTheCappedPipeAlone() {
         val tuned = VideoEncoderTuning(
             rateControl = RateControl.ConstantBitrate(4_000_000),
-        ).applyTo(videoSpec(codec = CodecId.H264VideoToolbox))
+        ).applyTo(videoSpec(encoder = EncoderId.H264VideoToolbox))
         // maxrate/minrate/bufsize are AVCodecContext fields, so the shape is legal everywhere.
         assertEquals("4000000", tuned.options["maxrate"])
         assertNull(tuned.options["nal-hrd"])
@@ -201,14 +204,17 @@ class KdGoldensTest {
         // The encoders this project actually SHIPS are mpeg4, mjpeg, png and the platform
         // hardware ones. Not one of them has a preset, a tune or a crf, so this tuning used to
         // compile into options that were dropped at open and changed nothing at all.
-        for (codec in listOf(CodecId.H264VideoToolbox, CodecId.H264MediaCodec, CodecId.Mjpeg)) {
-            val spec = videoSpec(codec = codec)
-            assertFailsWith<IllegalArgumentException> {
-                VideoEncoderTuning(preset = EncoderPreset.Slow).applyTo(spec)
+        for (encoder in listOf(EncoderId.H264VideoToolbox, EncoderId.H264MediaCodec, EncoderId.Mjpeg, EncoderId.H264Nvenc)) {
+            val spec = videoSpec(encoder = encoder)
+            if (encoder != EncoderId.H264Nvenc) {
+                assertFailsWith<IllegalArgumentException> {
+                    VideoEncoderTuning(preset = EncoderPreset.Slow).applyTo(spec)
+                }
+                assertFailsWith<IllegalArgumentException> {
+                    VideoEncoderTuning(tune = "film").applyTo(spec)
+                }
             }
-            assertFailsWith<IllegalArgumentException> {
-                VideoEncoderTuning(tune = "film").applyTo(spec)
-            }
+            // NVENC has a preset and a tune, but its constant quality option is cq, not crf.
             assertFailsWith<IllegalArgumentException> {
                 VideoEncoderTuning(rateControl = RateControl.ConstantQuality(23)).applyTo(spec)
             }
@@ -216,10 +222,18 @@ class KdGoldensTest {
     }
 
     @Test
+    fun aFamilyKnobNeedsANamedEncoder() {
+        // No encoder means FFmpeg's default for the format, which this layer cannot know.
+        val spec = videoSpec(encoder = null)
+        assertFailsWith<IllegalArgumentException> { VideoEncoderTuning(preset = EncoderPreset.Slow).applyTo(spec) }
+        assertEquals("main", VideoEncoderTuning(profile = "main").applyTo(spec).options["profile"])
+    }
+
+    @Test
     fun profileIsGenericAndPassesForAnyEncoder() {
         // The one knob here that is an AVCodecContext field rather than an x264 option.
         val tuned = VideoEncoderTuning(profile = "main")
-            .applyTo(videoSpec(codec = CodecId.H264VideoToolbox))
+            .applyTo(videoSpec(encoder = EncoderId.H264VideoToolbox))
         assertEquals("main", tuned.options["profile"])
     }
 
@@ -227,10 +241,10 @@ class KdGoldensTest {
     fun crfIsAcceptedByTheWiderFamilyThatHasIt() {
         // libvpx-vp9 and libaom-av1 have crf and no preset, so the two sets are not the same set.
         val vp9 = VideoEncoderTuning(rateControl = RateControl.ConstantQuality(31))
-            .applyTo(videoSpec(codec = CodecId("libvpx-vp9")))
+            .applyTo(videoSpec(encoder = EncoderId.LibVpxVp9, codec = CodecId.Vp9))
         assertEquals("31", vp9.options["crf"])
         assertFailsWith<IllegalArgumentException> {
-            VideoEncoderTuning(preset = EncoderPreset.Slow).applyTo(videoSpec(codec = CodecId("libvpx-vp9")))
+            VideoEncoderTuning(preset = EncoderPreset.Slow).applyTo(videoSpec(encoder = EncoderId.LibVpxVp9, codec = CodecId.Vp9))
         }
     }
 

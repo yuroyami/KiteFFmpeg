@@ -354,7 +354,7 @@ public actual class MediaSource internal constructor(
         stream: StreamInfo,
         threadCount: Int,
         lowDelay: Boolean,
-        decoder: CodecId?,
+        decoder: DecoderId?,
         options: io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions?,
         hardware: HardwareAccel?,
         corruptData: CorruptData,

@@ -80,7 +80,7 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
         requireNoTypedVideoOptionCollision(spec)
-        val context = newEncoderContext(spec.codec.name) { _, codecContext ->
+        val context = newEncoderContext(spec.encoder?.name ?: spec.codec.name) { _, codecContext ->
             Internals.codecCtxSetVideo(
                 codecContext,
                 spec.width,
@@ -120,13 +120,13 @@ public actual class MediaSink internal constructor(
         requireNoTypedAudioOptionCollision(spec)
         requireLayoutMatchesChannels(spec)
         var negotiated = spec.sampleFormat
-        val context = newEncoderContext(spec.codec.name) { codec, codecContext ->
+        val context = newEncoderContext(spec.encoder?.name ?: spec.codec.name) { codec, codecContext ->
             if (negotiated == SampleFormat.None) {
                 val first = Internals.codecFirstSampleFormat(codec)
                 if (first < 0) {
                     throw FFmpegException(
                         FFmpegError.Internal(
-                            "Encoder '${spec.codec.name}' does not advertise sample formats; " +
+                            "Encoder '${spec.encoder?.name ?: spec.codec.name}' does not advertise sample formats; " +
                                 "set AudioEncoderSpec.sampleFormat explicitly",
                         ),
                     )

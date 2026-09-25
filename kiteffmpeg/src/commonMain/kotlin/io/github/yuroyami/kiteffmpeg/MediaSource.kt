@@ -159,10 +159,10 @@ public expect class MediaSource : AutoCloseable {
     /**
      * Opens one independently driven decoder for [stream].
      *
-     * A null [decoder] lets FFmpeg choose its default implementation by codec id. A non-null value
-     * selects that exact decoder name and refuses it unless it can decode this stream's codec. This
-     * is the selection seam used for FFmpeg-owned hardware decoders such as
-     * `h264_mediacodec`; it does not call a platform decoder API directly.
+     * A null [decoder] lets FFmpeg choose its default implementation for the stream's codec. A
+     * non-null value selects that exact decoder and refuses it unless it can decode this stream's
+     * codec. This is the selection seam used for FFmpeg-owned hardware decoders such as
+     * [DecoderId.H264MediaCodec]; it does not call a platform decoder API directly.
      *
      * [hardware] requests an HWACCEL behind the chosen decoder ([HardwareAccel]); it is attached
      * between context creation and open and fails typed when the running FFmpeg cannot honour it.
@@ -173,7 +173,7 @@ public expect class MediaSource : AutoCloseable {
         stream: StreamInfo,
         threadCount: Int = 0,
         lowDelay: Boolean = false,
-        decoder: CodecId? = null,
+        decoder: DecoderId? = null,
         options: io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions? = null,
         hardware: HardwareAccel? = null,
         corruptData: CorruptData = CorruptData.Skip,

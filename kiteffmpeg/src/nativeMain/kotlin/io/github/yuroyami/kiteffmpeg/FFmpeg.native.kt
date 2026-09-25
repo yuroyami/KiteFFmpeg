@@ -61,4 +61,16 @@ public actual object FFmpeg {
         if (written < 0) throw FFmpegException(avError(written))
         return componentList(bytes.decodeToString(0, minOf(written, needed)))
     }
+
+    // Wired in the next commit; until then these refuse rather than guess.
+    public actual fun codecOf(encoder: EncoderId): CodecId? = throw mappingNotWired()
+
+    public actual fun codecOf(decoder: DecoderId): CodecId? = throw mappingNotWired()
+
+    public actual fun encodersFor(codec: CodecId): List<EncoderId> = throw mappingNotWired()
+
+    public actual fun decodersFor(codec: CodecId): List<DecoderId> = throw mappingNotWired()
 }
+
+internal fun mappingNotWired(): FFmpegException =
+    FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "the codec and implementation mapping is not wired yet"))

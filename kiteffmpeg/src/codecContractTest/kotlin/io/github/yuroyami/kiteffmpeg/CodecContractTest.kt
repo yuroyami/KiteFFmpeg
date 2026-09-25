@@ -100,7 +100,7 @@ internal class CodecContractTest {
             }
 
             source.seekMicrosBlocking(0L)
-            val decoded = decodeOne(source, video, video.codec)
+            val decoded = decodeOne(source, video, DecoderId(video.codec.name))
             try {
                 assertEquals(MediaType.Video, decoded.info.type)
                 assertEquals(16, decoded.info.width)
@@ -123,7 +123,7 @@ internal class CodecContractTest {
             exerciseDecoderDrainFlushAndWrongState(source, video, transcript)
 
             assertFailsWith<FFmpegException> {
-                source.openDecoder(video, decoder = CodecId.PcmS16)
+                source.openDecoder(video, decoder = DecoderId("pcm_s16le"))
             }
             transcript.put("decode.incompatible_named_refused", true)
         }
@@ -635,7 +635,7 @@ internal class CodecContractTest {
         }
     }
 
-    private fun decodeOne(source: MediaSource, stream: StreamInfo, decoderName: CodecId): Frame {
+    private fun decodeOne(source: MediaSource, stream: StreamInfo, decoderName: DecoderId): Frame {
         return source.openDecoder(stream, decoder = decoderName).useOwner { decoder ->
             source.openPacketReader(listOf(stream)).useOwner readerOwner@ { reader ->
                 var atEof = false
@@ -671,7 +671,7 @@ internal class CodecContractTest {
         stream: StreamInfo,
         transcript: CodecContractTranscript,
     ) {
-        source.openDecoder(stream, decoder = stream.codec).useOwner { decoder ->
+        source.openDecoder(stream, decoder = DecoderId(stream.codec.name)).useOwner { decoder ->
             source.openPacketReader(listOf(stream)).useOwner { reader ->
                 reader.seek(0L)
                 var pending: Packet? = null

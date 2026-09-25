@@ -59,24 +59,21 @@ public value class SampleFormat(public val name: String) {
     }
 }
 
-/** Codec identifier: symbolic name (`h264`, `aac`, `libx264`). Matches `avcodec_find_*_by_name`. */
+/**
+ * A bitstream format, by FFmpeg's codec name (`h264`, `aac`, `av1`): what a stream carries,
+ * whichever implementation wrote it or reads it. [EncoderId] and [DecoderId] name the
+ * implementations, and [FFmpeg.codecOf], [FFmpeg.encodersFor] and [FFmpeg.decodersFor] map
+ * between the two.
+ */
 @JvmInline
 public value class CodecId(public val name: String) {
     public companion object {
         public val H264   : CodecId = CodecId("h264");        public val Hevc   : CodecId = CodecId("hevc")
         public val Av1    : CodecId = CodecId("av1");         public val Vp9    : CodecId = CodecId("vp9")
-        public val Vp8    : CodecId = CodecId("vp8");         public val Mjpeg  : CodecId = CodecId("mjpeg")
+        public val Vp8    : CodecId = CodecId("vp8");         public val Mpeg4  : CodecId = CodecId("mpeg4")
+        public val Mjpeg  : CodecId = CodecId("mjpeg");       public val Png    : CodecId = CodecId("png")
         public val Aac    : CodecId = CodecId("aac");         public val Mp3    : CodecId = CodecId("mp3")
         public val Opus   : CodecId = CodecId("opus");        public val Vorbis : CodecId = CodecId("vorbis")
         public val Flac   : CodecId = CodecId("flac");        public val PcmS16 : CodecId = CodecId("pcm_s16le")
-        public val Libx264 : CodecId = CodecId("libx264");    public val Libx265 : CodecId = CodecId("libx265")
-        public val LibOpus : CodecId = CodecId("libopus");    public val LibMp3 : CodecId = CodecId("libmp3lame")
-        public val Png     : CodecId = CodecId("png")
-
-        /** Hardware encoders. They resolve at runtime only on builds with the matching hwaccel. */
-        public val H264VideoToolbox : CodecId = CodecId("h264_videotoolbox")
-        public val HevcVideoToolbox : CodecId = CodecId("hevc_videotoolbox")
-        public val H264MediaCodec   : CodecId = CodecId("h264_mediacodec")
-        public val HevcMediaCodec   : CodecId = CodecId("hevc_mediacodec")
     }
 }

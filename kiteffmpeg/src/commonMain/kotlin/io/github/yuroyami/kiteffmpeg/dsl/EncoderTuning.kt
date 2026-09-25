@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
-import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 
 /**
@@ -38,25 +38,26 @@ public data class VideoEncoderTuning(
     }
 
     /**
-     * The `av_opt_set` pairs this tuning becomes for [codec].
+     * The `av_opt_set` pairs this tuning becomes for [encoder]. A null encoder, which is FFmpeg's
+     * default for the format and so not known here, takes only the knobs every encoder has.
      *
      * @throws IllegalArgumentException when a knob does not exist on that encoder.
      */
-    public fun compile(codec: CodecId): Map<String, String> = buildMap {
+    public fun compile(encoder: EncoderId?): Map<String, String> = buildMap {
         preset?.let {
-            requireKnob(codec, "preset", PRESET_ENCODERS)
+            requireKnob(encoder, "preset", PRESET_ENCODERS)
             put("preset", it.ff)
         }
         // `profile` IS generic: it is an AVCodecContext field, so aac, mpeg4 and the VideoToolbox
         // encoders all take it. It is the one knob here that needs no family check.
         profile?.let { put("profile", it) }
         tune?.let {
-            requireKnob(codec, "tune", PRESET_ENCODERS)
+            requireKnob(encoder, "tune", PRESET_ENCODERS)
             put("tune", it)
         }
         when (rateControl) {
             is RateControl.ConstantQuality -> {
-                requireKnob(codec, "crf", CRF_ENCODERS)
+                requireKnob(encoder, "crf", CRF_ENCODERS)
                 put("crf", rateControl.crf.toString())
             }
             is RateControl.ConstantBitrate -> {
@@ -69,7 +70,7 @@ public data class VideoEncoderTuning(
                 // x264 is the one encoder here that can make it real: nal-hrd=cbr turns on the
                 // HRD model and the filler NAL units that hold the rate exactly. Anywhere else
                 // the option does not exist, and the capped pipe above is the honest best.
-                if (codec.name in NAL_HRD_ENCODERS) put("nal-hrd", "cbr")
+                if (encoder in NAL_HRD_ENCODERS) put("nal-hrd", "cbr")
             }
             is RateControl.AverageBitrate, null -> Unit
         }
@@ -81,7 +82,7 @@ public data class VideoEncoderTuning(
      * quality alone (FFmpeg reads a zero bit_rate as unset).
      */
     public fun applyTo(spec: VideoEncoderSpec): VideoEncoderSpec {
-        val compiled = compile(spec.codec)
+        val compiled = compile(spec.encoder)
         val collision = compiled.keys.firstOrNull { spec.options.containsKey(it) }
         require(collision == null) {
             "the typed knob '$collision' collides with the same key in the spec's options map; " +
@@ -97,23 +98,33 @@ public data class VideoEncoderTuning(
     }
 
     private companion object {
-        /** Encoders carrying the x264 speed ladder. NVENC spells the same option the same way. */
-        val PRESET_ENCODERS: Set<String> = setOf("libx264", "libx265", "libsvtav1")
+        /** Encoders carrying a speed ladder under the x264 option names, NVENC among them. */
+        val PRESET_ENCODERS: Set<EncoderId> = setOf(
+            EncoderId.Libx264, EncoderId.Libx265, EncoderId.LibSvtAv1,
+            EncoderId.H264Nvenc, EncoderId.HevcNvenc, EncoderId.Av1Nvenc,
+        )
 
-        /** Encoders with a `crf` option. Wider than the preset set: the VPx and AV1 ones have it. */
-        val CRF_ENCODERS: Set<String> =
-            setOf("libx264", "libx265", "libsvtav1", "libvpx-vp9", "libaom-av1")
+        /**
+         * Encoders with a `crf` option. The VPx and AV1 ones have it; NVENC does not, because its
+         * constant quality option is `cq`.
+         */
+        val CRF_ENCODERS: Set<EncoderId> = setOf(
+            EncoderId.Libx264, EncoderId.Libx265, EncoderId.LibSvtAv1, EncoderId.LibVpxVp9, EncoderId.LibAomAv1,
+        )
 
         /** Encoders that can hold a rate exactly rather than merely cap it. */
-        val NAL_HRD_ENCODERS: Set<String> = setOf("libx264")
+        val NAL_HRD_ENCODERS: Set<EncoderId> = setOf(EncoderId.Libx264)
 
-        fun requireKnob(codec: CodecId, knob: String, accepted: Set<String>) {
-            val ok = codec.name in accepted || codec.name.endsWith("_nvenc")
-            require(ok) {
-                "'$knob' is an x264-family option and the encoder '${codec.name}' does not have " +
+        fun requireKnob(encoder: EncoderId?, knob: String, accepted: Set<EncoderId>) {
+            require(encoder != null) {
+                "'$knob' belongs to particular encoders, so it needs VideoEncoderSpec.encoder to name " +
+                    "one. Encoders that accept it: " + accepted.map { it.name }.sorted().joinToString(", ") + "."
+            }
+            require(encoder in accepted) {
+                "'$knob' is an x264-family option and the encoder '${encoder.name}' does not have " +
                     "it, so setting it would change nothing and the encode would run at that " +
                     "encoder's own defaults. Encoders that accept it: " +
-                    accepted.sorted().joinToString(", ") + ", and the *_nvenc family."
+                    accepted.map { it.name }.sorted().joinToString(", ") + "."
             }
         }
     }

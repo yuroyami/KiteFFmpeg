@@ -192,7 +192,7 @@ public class FFmpegException : RuntimeException {
  * build has no decoder for the stream's codec at all. A value means the specific implementation
  * asked for is absent, and the default decoder may still play the stream perfectly well.
  */
-internal fun decoderNotFoundMessage(streamCodec: CodecId, requested: CodecId?): String =
+internal fun decoderNotFoundMessage(streamCodec: CodecId, requested: DecoderId?): String =
     if (requested == null) {
         "no decoder for codec '${streamCodec.name}' in this build. " +
             "FFmpeg.hasDecoder(\"${streamCodec.name}\") answers that without opening a file, and " +
