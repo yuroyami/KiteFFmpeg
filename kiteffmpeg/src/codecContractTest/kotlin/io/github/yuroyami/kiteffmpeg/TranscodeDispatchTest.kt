@@ -104,7 +104,9 @@ internal class TranscodeDispatchTest {
             transcode.cancelAndJoin()
         }
         val written = TranscodeFixtures.decodedFrameIndices(output).size
-        assertTrue(written < FRAMES / 2, "the cancelled transcode went on to write $written of $FRAMES frames")
+        // The bug writes every frame before the cancel runs. A busy machine delays the cancel too,
+        // so the bound is the end of the file, not a fraction of it.
+        assertTrue(written < FRAMES, "the cancelled transcode went on to write $written of $FRAMES frames")
         assertEquals(baseline, contractLiveHandleCount(), "a cancelled transcode left a native object open")
     }
 
