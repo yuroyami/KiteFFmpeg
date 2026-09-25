@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.3
+# abi-version 3.4
 #
-# Exact scope: 207 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 218 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 229 records.
+# records are sorted without deduplication. There must be exactly 240 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -32,6 +32,8 @@ KC_API int ffkmp_codec_first_pix_fmt(const kc_codec *codec);
 KC_API int ffkmp_codec_first_sample_fmt(const kc_codec *codec);
 KC_API int ffkmp_codec_id(const kc_codec *codec);
 KC_API int ffkmp_codec_supports_pix_fmt(const kc_codec *codec, int fmt);
+KC_API int ffkmp_codecctx_add_content_light(kc_codec_ctx *c, int max_cll, int max_fall);
+KC_API int ffkmp_codecctx_add_mastering_display(kc_codec_ctx *c, const int *q, int flags);
 KC_API int ffkmp_codecctx_channels(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_frame_size(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_from_par(kc_codec_ctx *c, kc_codec_par *p);
@@ -43,7 +45,10 @@ KC_API int ffkmp_codecctx_receive_packet(kc_codec_ctx *ctx, kc_packet *packet);
 KC_API int ffkmp_codecctx_sample_rate(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_send_frame(kc_codec_ctx *ctx, const kc_frame *frame);
 KC_API int ffkmp_codecctx_send_packet(kc_codec_ctx *ctx, const kc_packet *packet);
+KC_API int ffkmp_codecctx_set_ch_layout_mask(kc_codec_ctx *c, int64_t mask);
+KC_API int ffkmp_codecctx_set_color(kc_codec_ctx *c, int primaries, int transfer, int matrix, int range, int chroma_location);
 KC_API int ffkmp_codecctx_set_opt(kc_codec_ctx *c, const char *key, const char *value);
+KC_API int ffkmp_codecctx_set_sample_aspect_ratio(kc_codec_ctx *c, int num, int den);
 KC_API int ffkmp_codecctx_use_d3d11va(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_use_videotoolbox(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_width(kc_codec_ctx *c);
@@ -57,12 +62,14 @@ KC_API int ffkmp_codecpar_color_primaries(kc_codec_par *p);
 KC_API int ffkmp_codecpar_color_range(kc_codec_par *p);
 KC_API int ffkmp_codecpar_color_space(kc_codec_par *p);
 KC_API int ffkmp_codecpar_color_transfer(kc_codec_par *p);
+KC_API int ffkmp_codecpar_content_light(kc_codec_par *p, int *max_cll, int *max_fall);
 KC_API int ffkmp_codecpar_copy_for_mux(kc_codec_par *dst, const kc_codec_par *src);
 KC_API int ffkmp_codecpar_extradata(kc_codec_par *p, uint8_t *dst, int dst_size);
 KC_API int ffkmp_codecpar_format(kc_codec_par *p);
 KC_API int ffkmp_codecpar_from_context(kc_codec_par *par, kc_codec_ctx *ctx);
 KC_API int ffkmp_codecpar_height(kc_codec_par *p);
 KC_API int ffkmp_codecpar_level(kc_codec_par *p);
+KC_API int ffkmp_codecpar_mastering_display(kc_codec_par *p, int *q, int *flags);
 KC_API int ffkmp_codecpar_profile(kc_codec_par *p);
 KC_API int ffkmp_codecpar_sample_rate(kc_codec_par *p);
 KC_API int ffkmp_codecpar_width(kc_codec_par *p);
@@ -100,6 +107,7 @@ KC_API int ffkmp_frame_color_primaries(kc_frame *f);
 KC_API int ffkmp_frame_color_range(kc_frame *f);
 KC_API int ffkmp_frame_color_trc(kc_frame *f);
 KC_API int ffkmp_frame_colorspace(kc_frame *f);
+KC_API int ffkmp_frame_content_light(kc_frame *f, int *max_cll, int *max_fall);
 KC_API int ffkmp_frame_copy_to_buffer(kc_frame *f, uint8_t *dst, int dst_size);
 KC_API int ffkmp_frame_fill_audio(kc_frame *f, const uint8_t *src, int src_size);
 KC_API int ffkmp_frame_fill_video(kc_frame *f, const uint8_t *src, int src_size);
@@ -110,13 +118,14 @@ KC_API int ffkmp_frame_hw_download(kc_frame *src, kc_frame *dst);
 KC_API int ffkmp_frame_is_hardware(kc_frame *f);
 KC_API int ffkmp_frame_is_keyframe(kc_frame *f);
 KC_API int ffkmp_frame_linesize(kc_frame *f, int p);
+KC_API int ffkmp_frame_mastering_display(kc_frame *f, int *q, int *flags);
 KC_API int ffkmp_frame_nb_samples(kc_frame *f);
 KC_API int ffkmp_frame_plane_count(kc_frame *f);
 KC_API int ffkmp_frame_plane_height(kc_frame *f, int p);
 KC_API int ffkmp_frame_sample_rate(kc_frame *f);
 KC_API int ffkmp_frame_width(kc_frame *f);
-KC_API int ffkmp_graph_build_audio( kc_filter_graph **out_graph, kc_filter_ctx **out_src, kc_filter_ctx **out_sink, const char *description, int sample_rate, int sample_fmt, int channels, int tb_num, int tb_den, int out_sample_fmt, int out_sample_rate, int out_channels );
-KC_API int ffkmp_graph_build_audio_multi( kc_filter_graph **out_graph, kc_filter_ctx **out_srcs, kc_filter_ctx **out_sink, const char *description, int n, const int *sample_rates, const int *sample_fmts, const int *channels, const int *tb_nums, const int *tb_dens, int out_sample_fmt, int out_sample_rate, int out_channels );
+KC_API int ffkmp_graph_build_audio( kc_filter_graph **out_graph, kc_filter_ctx **out_src, kc_filter_ctx **out_sink, const char *description, int sample_rate, int sample_fmt, int channels, int tb_num, int tb_den, int out_sample_fmt, int out_sample_rate, int out_channels, int64_t layout_mask, int64_t out_layout_mask );
+KC_API int ffkmp_graph_build_audio_multi( kc_filter_graph **out_graph, kc_filter_ctx **out_srcs, kc_filter_ctx **out_sink, const char *description, int n, const int *sample_rates, const int *sample_fmts, const int *channels, const int *tb_nums, const int *tb_dens, int out_sample_fmt, int out_sample_rate, int out_channels, const int64_t *layout_masks, int64_t out_layout_mask );
 KC_API int ffkmp_graph_build_video( kc_filter_graph **out_graph, kc_filter_ctx **out_src, kc_filter_ctx **out_sink, const char *description, int width, int height, int pix_fmt, int tb_num, int tb_den, int fr_num, int fr_den, int sar_num, int sar_den );
 KC_API int ffkmp_graph_build_video_multi( kc_filter_graph **out_graph, kc_filter_ctx **out_srcs, kc_filter_ctx **out_sink, const char *description, int n, const int *widths, const int *heights, const int *pix_fmts, const int *tb_nums, const int *tb_dens, const int *fr_nums, const int *fr_dens, const int *sar_nums, const int *sar_dens );
 KC_API int ffkmp_graph_receive(kc_filter_ctx *sink, kc_frame *frame);
@@ -139,11 +148,13 @@ KC_API int ffkmp_stream_copy_identity(kc_stream *dst, const kc_stream *src);
 KC_API int ffkmp_stream_disposition(kc_stream *s);
 KC_API int ffkmp_stream_index(kc_stream *s);
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);
+KC_API int ffkmp_stream_set_sample_aspect_ratio(kc_stream *s, int num, int den);
 KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in);
-KC_API int ffkmp_swr_create(kc_swr **out, int in_rate, int in_channels, int in_format, int out_rate, int out_channels, int out_format);
+KC_API int ffkmp_swr_create(kc_swr **out, int in_rate, int in_channels, int in_format, int out_rate, int out_channels, int out_format, int64_t in_mask, int64_t out_mask);
 KC_API int kc_init(void);
 KC_API int kc_jvm_attach(void *java_vm);
 KC_API int32_t ffkmp_codecpar_field_order(const kc_codec_par *p);
+KC_API int64_t ffkmp_codecctx_ch_layout_mask(kc_codec_ctx *c);
 KC_API int64_t ffkmp_codecpar_bit_rate(kc_codec_par *p);
 KC_API int64_t ffkmp_codecpar_ch_layout_mask(kc_codec_par *p);
 KC_API int64_t ffkmp_fmt_bit_rate(const kc_fmt_ctx *ctx);

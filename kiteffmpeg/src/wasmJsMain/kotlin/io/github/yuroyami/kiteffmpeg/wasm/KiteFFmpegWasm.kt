@@ -81,6 +81,12 @@ internal external fun ffkmp_codec_id(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1) => m._ffkmp_codec_supports_pix_fmt(a0, a1)")
 internal external fun ffkmp_codec_supports_pix_fmt(module: JsAny, a0: Int, a1: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_codecctx_add_content_light(a0, a1, a2)")
+internal external fun ffkmp_codecctx_add_content_light(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
+@JsFun("(m, a0, a1, a2) => m._ffkmp_codecctx_add_mastering_display(a0, a1, a2)")
+internal external fun ffkmp_codecctx_add_mastering_display(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_codecctx_channels(a0)")
 internal external fun ffkmp_codecctx_channels(module: JsAny, a0: Int): Int
 
@@ -114,8 +120,17 @@ internal external fun ffkmp_codecctx_send_frame(module: JsAny, a0: Int, a1: Int)
 @JsFun("(m, a0, a1) => m._ffkmp_codecctx_send_packet(a0, a1)")
 internal external fun ffkmp_codecctx_send_packet(module: JsAny, a0: Int, a1: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_codecctx_set_ch_layout_mask(a0, a1)")
+internal external fun ffkmp_codecctx_set_ch_layout_mask(module: JsAny, a0: Int, a1: Long): Int
+
+@JsFun("(m, a0, a1, a2, a3, a4, a5) => m._ffkmp_codecctx_set_color(a0, a1, a2, a3, a4, a5)")
+internal external fun ffkmp_codecctx_set_color(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_codecctx_set_opt(a0, a1, a2)")
 internal external fun ffkmp_codecctx_set_opt(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
+@JsFun("(m, a0, a1, a2) => m._ffkmp_codecctx_set_sample_aspect_ratio(a0, a1, a2)")
+internal external fun ffkmp_codecctx_set_sample_aspect_ratio(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_codecctx_use_d3d11va(a0)")
 internal external fun ffkmp_codecctx_use_d3d11va(module: JsAny, a0: Int): Int
@@ -156,6 +171,9 @@ internal external fun ffkmp_codecpar_color_space(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_codecpar_color_transfer(a0)")
 internal external fun ffkmp_codecpar_color_transfer(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_codecpar_content_light(a0, a1, a2)")
+internal external fun ffkmp_codecpar_content_light(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_codecpar_copy_for_mux(a0, a1)")
 internal external fun ffkmp_codecpar_copy_for_mux(module: JsAny, a0: Int, a1: Int): Int
 
@@ -173,6 +191,9 @@ internal external fun ffkmp_codecpar_height(module: JsAny, a0: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_codecpar_level(a0)")
 internal external fun ffkmp_codecpar_level(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0, a1, a2) => m._ffkmp_codecpar_mastering_display(a0, a1, a2)")
+internal external fun ffkmp_codecpar_mastering_display(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_codecpar_profile(a0)")
 internal external fun ffkmp_codecpar_profile(module: JsAny, a0: Int): Int
@@ -282,6 +303,9 @@ internal external fun ffkmp_frame_color_trc(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_frame_colorspace(a0)")
 internal external fun ffkmp_frame_colorspace(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_frame_content_light(a0, a1, a2)")
+internal external fun ffkmp_frame_content_light(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_frame_copy_to_buffer(a0, a1, a2)")
 internal external fun ffkmp_frame_copy_to_buffer(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
@@ -312,6 +336,9 @@ internal external fun ffkmp_frame_is_keyframe(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1) => m._ffkmp_frame_linesize(a0, a1)")
 internal external fun ffkmp_frame_linesize(module: JsAny, a0: Int, a1: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_frame_mastering_display(a0, a1, a2)")
+internal external fun ffkmp_frame_mastering_display(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_frame_nb_samples(a0)")
 internal external fun ffkmp_frame_nb_samples(module: JsAny, a0: Int): Int
 
@@ -327,11 +354,11 @@ internal external fun ffkmp_frame_sample_rate(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_frame_width(a0)")
 internal external fun ffkmp_frame_width(module: JsAny, a0: Int): Int
 
-@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) => m._ffkmp_graph_build_audio(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)")
-internal external fun ffkmp_graph_build_audio(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int): Int
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) => m._ffkmp_graph_build_audio(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)")
+internal external fun ffkmp_graph_build_audio(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Long, a13: Long): Int
 
-@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => m._ffkmp_graph_build_audio_multi(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)")
-internal external fun ffkmp_graph_build_audio_multi(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int): Int
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) => m._ffkmp_graph_build_audio_multi(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)")
+internal external fun ffkmp_graph_build_audio_multi(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int, a13: Int, a14: Long): Int
 
 @JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => m._ffkmp_graph_build_video(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)")
 internal external fun ffkmp_graph_build_video(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int): Int
@@ -399,17 +426,23 @@ internal external fun ffkmp_stream_index(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_stream_rotation_degrees(a0)")
 internal external fun ffkmp_stream_rotation_degrees(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_stream_set_sample_aspect_ratio(a0, a1, a2)")
+internal external fun ffkmp_stream_set_sample_aspect_ratio(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_swr_convert_frame(a0, a1, a2)")
 internal external fun ffkmp_swr_convert_frame(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
-@JsFun("(m, a0, a1, a2, a3, a4, a5, a6) => m._ffkmp_swr_create(a0, a1, a2, a3, a4, a5, a6)")
-internal external fun ffkmp_swr_create(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int): Int
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8) => m._ffkmp_swr_create(a0, a1, a2, a3, a4, a5, a6, a7, a8)")
+internal external fun ffkmp_swr_create(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Long, a8: Long): Int
 
 @JsFun("(m) => m._kc_init()")
 internal external fun kc_init(module: JsAny): Int
 
 @JsFun("(m, a0) => m._ffkmp_codecpar_field_order(a0)")
 internal external fun ffkmp_codecpar_field_order(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0) => m._ffkmp_codecctx_ch_layout_mask(a0)")
+internal external fun ffkmp_codecctx_ch_layout_mask(module: JsAny, a0: Int): Long
 
 @JsFun("(m, a0) => m._ffkmp_codecpar_bit_rate(a0)")
 internal external fun ffkmp_codecpar_bit_rate(module: JsAny, a0: Int): Long

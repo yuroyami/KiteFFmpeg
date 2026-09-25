@@ -116,6 +116,29 @@ The output video has a constant rate: exactly `frameRate` frames per second. Whe
 
 The `options` map passes codec-specific settings straight through (`preset`, `crf`, `allow_sw`, and so on). KiteFFmpeg does not validate them. They reach the encoder unchanged.
 
+### Colour, HDR metadata, pixel shape and channel layout
+
+A transcode keeps what describes the picture and the sound. For each of these spec fields that you leave `null`, `Transcoder` copies the value from the source:
+
+| Field | Copied from |
+|---|---|
+| `VideoEncoderSpec.color` | The first frame the encoder receives, after `videoFilter`. Only the fields the source declares, never a guess. |
+| `VideoEncoderSpec.sampleAspectRatio` | The same frame. A square pixel is not written. |
+| `VideoEncoderSpec.hdr` | The same frame, or the stream when no frame comes out. |
+| `AudioEncoderSpec.channelLayoutMask` | The source audio stream, when it has `channels` channels. |
+
+Because the values come from the first frame after the filter, a filter decides what the output declares. A `scale` that halves the width doubles the pixel width, and a tone mapper that drops the HDR metadata leaves the output without it.
+
+To read that frame, the transcode opens the input a second time and decodes until the first frame comes out. Set all three video fields to skip it. A set value is written as it is:
+
+```kotlin
+val sdr = videoSpec.copy(
+    color = ColorInfo.Unspecified,        // declare no colour
+    sampleAspectRatio = Rational(1, 1),   // square pixels
+    hdr = HdrMetadata(),                  // no HDR metadata
+)
+```
+
 ### Choosing a codec
 
 `CodecId` is a thin value class wrapping the FFmpeg codec name. Pick whichever the linked FFmpeg build provides:

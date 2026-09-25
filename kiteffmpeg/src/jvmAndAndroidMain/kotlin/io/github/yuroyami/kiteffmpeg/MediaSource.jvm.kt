@@ -635,6 +635,7 @@ private fun buildStreams(format: Long): List<StreamInfo> = buildList {
                             readVp9CodecInfo(parameters)
                         } else null,
                         fieldOrder = FieldOrder.ofCode(Internals.codecParFieldOrder(parameters)),
+                        hdr = Internals.codecParHdr(parameters),
                     ) else null,
                     audio = if (type == MediaType.Audio) AudioStreamInfo(
                         sampleRate = Internals.codecParSampleRate(parameters),

@@ -10,6 +10,9 @@
 #include "kitecodec_helpers.h"
 
 #include <libavfilter/buffersink.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/error.h>
+#include <libavutil/frame.h>
 #include <libavutil/mem.h>
 #include <libavutil/samplefmt.h>
 #include <string.h>
@@ -36,7 +39,7 @@ static int build_failing_multi(kc_filter_ctx **srcs, int n)
     }
     return ffkmp_graph_build_audio_multi(&graph, srcs, &sink,
                                          "[in0][in1]amix=inputs=2[out]", n,
-                                         rates, fmts, chans, tbn, tbd, -1, 0, 0);
+                                         rates, fmts, chans, tbn, tbd, -1, 0, 0, NULL, 0);
 }
 
 static void case_failed_multi_build_leaves_no_dangling_sources(void)
@@ -82,7 +85,7 @@ static int build_pinned_multi(const char *description, int *out_rate)
     if (out_rate) *out_rate = 0;
     rc = ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                        rates, fmts, chans, tbn, tbd,
-                                       AV_SAMPLE_FMT_S16, 44100, 2);
+                                       AV_SAMPLE_FMT_S16, 44100, 2, NULL, 0);
     if (rc == 0) {
         /* The sink's OWN answer, which is the only place the pins become observable. An
          * unlabelled chain still connects to the sink, so a graph that dropped its aformat
@@ -162,6 +165,56 @@ static void case_audio_fill_matches_its_reading_twin(void)
     ffkmp_frame_free(f);
 }
 
+/* Six channels of silence in the layout `mask`, planar float at 48 kHz. */
+static kc_frame *six_channel_frame(uint64_t mask)
+{
+    AVFrame *f = av_frame_alloc();
+    KC_NOT_NULL(f);
+    f->nb_samples = 256;
+    f->sample_rate = 48000;
+    f->format = AV_SAMPLE_FMT_FLTP;
+    KC_EQ_INT(av_channel_layout_from_mask(&f->ch_layout, mask), 0);
+    KC_EQ_INT(av_frame_get_buffer(f, 0), 0);
+    for (int c = 0; c < 6; c++) memset(f->data[c], 0, (size_t)f->nb_samples * sizeof(float));
+    return f;
+}
+
+static void case_an_audio_graph_takes_the_frames_own_layout(void)
+{
+    kc_filter_graph *graph = NULL;
+    kc_filter_ctx *src = NULL, *sink = NULL;
+    kc_frame *side = six_channel_frame(0x60F);
+    AVFrame *out = av_frame_alloc();
+
+    kc_case("a graph declared with the count's default refuses side surrounds; one given the mask converts them");
+    KC_NOT_NULL(out);
+    KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "anull", 48000, AV_SAMPLE_FMT_FLTP, 6,
+                                      1, 48000, -1, -1, 0, 0, 0), 0);
+    /* The count's default is 5.1 with back surrounds, so the buffer source refuses this frame:
+       the bug that stopped every AC-3 film from being re-encoded. */
+    KC_EQ_INT(ffkmp_graph_send(src, side), AVERROR(EINVAL));
+    ffkmp_graph_free(&graph);
+
+    KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "anull", 48000, AV_SAMPLE_FMT_FLTP, 6,
+                                      1, 48000, -1, -1, 6, 0x60F, 0x3F), 0);
+    KC_EQ_INT(ffkmp_graph_send(src, side), 0);
+    KC_EQ_INT(ffkmp_graph_send(src, NULL), 0);
+    KC_EQ_INT(ffkmp_graph_receive(sink, out), 0);
+    KC_EQ_INT(out->ch_layout.order, AV_CHANNEL_ORDER_NATIVE);
+    KC_EQ_I64((int64_t)out->ch_layout.u.mask, 0x3F);
+    ffkmp_graph_free(&graph);
+
+    kc_case("a mask that names another channel count is refused on either side");
+    KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "anull", 48000, AV_SAMPLE_FMT_FLTP, 2,
+                                      1, 48000, -1, -1, 0, 0x60F, 0), AVERROR(EINVAL));
+    KC_NULL(graph);
+    KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "anull", 48000, AV_SAMPLE_FMT_FLTP, 6,
+                                      1, 48000, -1, -1, 2, 0, 0x60F), AVERROR(EINVAL));
+    KC_NULL(graph);
+    av_frame_free(&out);
+    ffkmp_frame_free(side);
+}
+
 int main(void)
 {
     kc_suite_begin("test_filter");
@@ -169,6 +222,7 @@ int main(void)
     case_failed_multi_build_leaves_no_dangling_sources();
     case_out_label_is_a_label_not_a_substring();
     case_audio_fill_matches_its_reading_twin();
+    case_an_audio_graph_takes_the_frames_own_layout();
 
     return kc_suite_end();
 }

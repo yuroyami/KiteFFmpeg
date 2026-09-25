@@ -71,6 +71,11 @@ internal fun requireAudioSpec(frame: Frame, spec: AudioSpec) {
         if (info.sampleFormat != spec.sampleFormat) {
             add("sample format ${info.sampleFormat.name}, not ${spec.sampleFormat.name}")
         }
+        // A frame that names no layout is read as the input's; one that names another is refused.
+        val frameMask = info.channelLayoutMask
+        if (frameMask != null && frameMask != spec.layoutMaskOrDefault()) {
+            add("channel layout 0x${frameMask.toString(16)}, not 0x${spec.layoutMaskOrDefault().toString(16)}")
+        }
     }
     if (problems.isEmpty()) return
     throw FFmpegException(
@@ -81,3 +86,23 @@ internal fun requireAudioSpec(frame: Frame, spec: AudioSpec) {
 /** The microsecond timestamp of the output sample at [samplesBefore], from [startMicros]. */
 internal fun resampledPtsMicros(startMicros: Long, samplesBefore: Long, sampleRate: Int): Long =
     startMicros + samplesBefore * 1_000_000L / sampleRate
+
+/** The mask this spec names, or FFmpeg's default layout mask for its channel count. */
+internal fun AudioSpec.layoutMaskOrDefault(): Long = channelLayoutMask ?: defaultLayoutMask(channels)
+
+/**
+ * FFmpeg's default layout for [channels] channels, as `av_channel_layout_default` picks it: the
+ * first native layout with that count. Six channels are 5.1 with back surrounds. 0 when FFmpeg has
+ * no native default, which is the case above eight channels except for sixteen.
+ */
+internal fun defaultLayoutMask(channels: Int): Long = when (channels) {
+    1 -> 0x4L            // mono: FC
+    2 -> 0x3L            // stereo
+    3 -> 0xBL            // 2.1
+    4 -> 0x107L          // 4.0
+    5 -> 0x37L           // 5.0 (back)
+    6 -> 0x3FL           // 5.1 (back)
+    7 -> 0x70FL          // 6.1
+    8 -> 0x63FL          // 7.1
+    else -> 0L
+}

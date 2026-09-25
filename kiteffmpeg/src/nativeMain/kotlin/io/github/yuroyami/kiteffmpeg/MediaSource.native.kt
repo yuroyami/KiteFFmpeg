@@ -13,6 +13,8 @@ import ffmpeg.ffkmp_fmt_bit_rate
 import ffmpeg.ffkmp_codecpar_field_order
 import ffmpeg.ffkmp_codecpar_bit_depth
 import ffmpeg.ffkmp_codecpar_ch_layout_mask
+import ffmpeg.ffkmp_codecpar_content_light
+import ffmpeg.ffkmp_codecpar_mastering_display
 import ffmpeg.ffkmp_codecpar_chroma_location
 import ffmpeg.ffkmp_codecpar_chroma_subsampling
 import ffmpeg.ffkmp_codecpar_channels
@@ -1021,6 +1023,10 @@ private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> {
                 color = readCodecParameterColor(par),
                 vp9 = if (codecName == "vp9") readVp9CodecInfo(par) else null,
                 fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(par)),
+                hdr = readHdr(
+                    display = { q, flags -> ffkmp_codecpar_mastering_display(par, q, flags) },
+                    light = { maxCll, maxFall -> ffkmp_codecpar_content_light(par, maxCll, maxFall) },
+                ),
             ) else null,
             audio = if (type == MediaType.Audio) AudioStreamInfo(
                 sampleRate = ffkmp_codecpar_sample_rate(par),

@@ -86,6 +86,15 @@ public actual object Transcoder {
                 if (videoCopy) source.seekMicros(startMicros) else source.seekForDecode(startMicros)
             }
 
+            // What the source declares and the specs leave open: colour, pixel shape and HDR
+            // metadata from the first frame the encoder will receive, the channel layout from the
+            // audio stream.
+            val videoSpec = spec?.let { requested ->
+                if (!requested.inheritsAnything) requested
+                else requested.inheriting(firstEncodedFrameInfo(input, videoStream!!, videoFilter, startMicros), videoStream)
+            }
+            val audioEncoderSpec = audioSpec?.inheriting(audioStream)
+
             MediaSink.open(output).use { sink ->
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
                 sink.setChapters(
@@ -95,9 +104,9 @@ public actual object Transcoder {
                         lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
                     ),
                 )
-                val videoEncoder = spec?.let(sink::addVideoEncoder)
-                val audioEncoder = if (audioSpec != null && audioStream != null) {
-                    sink.addAudioEncoder(audioSpec)
+                val videoEncoder = videoSpec?.let(sink::addVideoEncoder)
+                val audioEncoder = if (audioEncoderSpec != null && audioStream != null) {
+                    sink.addAudioEncoder(audioEncoderSpec)
                 } else null
                 val videoCopyStream = if (videoCopy && videoStream != null) {
                     sink.addCopyStream(source, videoStream)
@@ -137,6 +146,9 @@ public actual object Transcoder {
                             audioEncoder.sampleRate,
                             audioEncoder.sampleFormat,
                             audioEncoder.channels,
+                            // The stream's own layout in, the encoder's exact layout out.
+                            channelLayoutMask = audioInfo.channelLayoutMask,
+                            outputChannelLayoutMask = audioEncoder.channelLayoutMask,
                         ).also { graph ->
                             if (audioEncoder.frameSize > 0) graph.setOutputFrameSize(audioEncoder.frameSize)
                         }

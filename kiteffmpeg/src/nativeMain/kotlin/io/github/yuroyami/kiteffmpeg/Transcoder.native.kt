@@ -106,6 +106,15 @@ public actual object Transcoder {
                 }
             }
 
+            // What the source declares and the specs leave open: colour, pixel shape and HDR
+            // metadata from the first frame the encoder will receive, the channel layout from the
+            // audio stream.
+            val videoSpec = spec?.let { requested ->
+                if (!requested.inheritsAnything) requested
+                else requested.inheriting(firstEncodedFrameInfo(input, videoStream!!, videoFilter, startMicros), videoStream)
+            }
+            val audioEncoderSpec = audioSpec?.inheriting(audioStream)
+
             MediaSink.open(output).use { sink ->
                 // All encoders + copy mappings + metadata must exist before the header.
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
@@ -116,8 +125,8 @@ public actual object Transcoder {
                         lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
                     ),
                 )
-                val venc = if (spec != null) sink.addVideoEncoder(spec) else null
-                val aenc = if (audioSpec != null && ainfo != null) sink.addAudioEncoder(audioSpec) else null
+                val venc = if (videoSpec != null) sink.addVideoEncoder(videoSpec) else null
+                val aenc = if (audioEncoderSpec != null && ainfo != null) sink.addAudioEncoder(audioEncoderSpec) else null
                 val vcopy = if (videoCopy && videoStream != null) sink.addCopyStream(source, videoStream) else null
                 val acopy = if (audioCopy && audioStream != null) sink.addCopyStream(source, audioStream) else null
                 val subCopies = subtitleStreams.associate { it.index to sink.addCopyStream(source, it) }
@@ -229,7 +238,7 @@ public actual object Transcoder {
                             var audioGraphKey: List<Any>? = null
                             fun audioGraphFor(frame: Frame): FilterGraph {
                                 val info = frame.info
-                                val key = listOf(info.sampleRate, info.channelCount, info.sampleFormat.name)
+                                val key = listOf(info.sampleRate, info.channelCount, info.sampleFormat.name, info.channelLayoutMask ?: 0L)
                                 audioGraph?.let { existing ->
                                     if (key == audioGraphKey) return existing
                                     existing.flushInto(::encodeAudio)
@@ -248,6 +257,9 @@ public actual object Transcoder {
                                     outputSampleRate = aenc!!.sampleRate,
                                     outputSampleFormat = aenc.sampleFormat,
                                     outputChannels = aenc.channels,
+                                    // The frames' own layout in, the encoder's exact layout out.
+                                    channelLayoutMask = info.channelLayoutMask,
+                                    outputChannelLayoutMask = aenc.channelLayoutMask,
                                 ).also { graph ->
                                     if (aenc.frameSize > 0) graph.setOutputFrameSize(aenc.frameSize)
                                     audioGraph = graph

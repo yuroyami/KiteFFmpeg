@@ -61,11 +61,12 @@ internal fun requireEncodableAudio(
 /**
  * [input] with every frame converted to what the encoder takes, through a [Resampler].
  *
- * The sample format and the channel count are always converted, because that leaves the sample
- * count, and so the chunk size, unchanged. The sample rate is converted only when [frameSize] is
- * 0, meaning the codec takes any chunk size; a rate change into a fixed-size encoder such as AAC is
- * refused by [requireEncodableAudio]. A source frame is closed once converted, and the resampler's
- * held samples are emitted when [input] ends.
+ * The sample format, the channel count and the channel layout are always converted, because that
+ * leaves the sample count, and so the chunk size, unchanged. A frame that names no layout is taken
+ * to have the encoder's. The sample rate is converted only when [frameSize] is 0, meaning the codec
+ * takes any chunk size; a rate change into a fixed-size encoder such as AAC is refused by
+ * [requireEncodableAudio]. A source frame is closed once converted, and the resampler's held
+ * samples are emitted when [input] ends.
  */
 internal fun audioForEncoder(
     input: Flow<Frame>,
@@ -73,8 +74,9 @@ internal fun audioForEncoder(
     sampleRate: Int,
     channels: Int,
     frameSize: Int,
+    channelLayoutMask: Long?,
 ): Flow<Frame> = flow {
-    val target = AudioSpec(sampleRate, channels, sampleFormat)
+    val target = AudioSpec(sampleRate, channels, sampleFormat, channelLayoutMask)
     var resampler: Resampler? = null
     suspend fun drain(done: Resampler) {
         while (true) emit(done.flush() ?: break)
@@ -83,8 +85,12 @@ internal fun audioForEncoder(
         input.collect { frame ->
             val info = frame.info
             val declaresNothing = info.sampleRate <= 0 || info.channelCount <= 0 || info.sampleFormat == SampleFormat.None
-            val source = AudioSpec(info.sampleRate, info.channelCount, info.sampleFormat)
-            if (declaresNothing || source == target) {
+            val source = AudioSpec(info.sampleRate, info.channelCount, info.sampleFormat, info.channelLayoutMask)
+            val sameLayout = info.channelLayoutMask == null || channelLayoutMask == null ||
+                info.channelLayoutMask == channelLayoutMask
+            val matches = info.sampleRate == sampleRate && info.channelCount == channels &&
+                info.sampleFormat == sampleFormat && sameLayout
+            if (declaresNothing || matches) {
                 emit(frame)
                 return@collect
             }

@@ -88,6 +88,15 @@ jbyteArray kj_bytes_new(JNIEnv *env, const void *data, int32_t len);
 /* New Java long array carrying an exact copy of count values. */
 jlongArray kj_longs_new(JNIEnv *env, const jlong *values, int32_t count);
 
+/* New Java int array carrying an exact copy of count values. */
+jintArray kj_ints_new(JNIEnv *env, const jint *values, int32_t count);
+
+/* The HDR metadata of a stream or a frame as one int array of KJ_HDR_INTS, or NULL when it has
+ * neither half: [0] the mastering display flags (0 for none), [1..20] its ten num/den pairs,
+ * [21] 1 when a content light level follows, [22] MaxCLL, [23] MaxFALL. */
+#define KJ_HDR_INTS 24
+jintArray kj_hdr_new(JNIEnv *env, int display_rc, const int *q, int flags, int light_rc, int max_cll, int max_fall);
+
 /* Copy a Java byte array into malloc-owned bytes. This is the sole Java-to-C byte-array conversion
  * unit. Empty arrays succeed with *out_len == 0 and a non-NULL allocation; caller frees *out. */
 int kj_bytes_dup(JNIEnv *env, jbyteArray bytes, uint8_t **out, int32_t *out_len);

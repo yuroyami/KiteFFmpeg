@@ -38,18 +38,38 @@ private val AUDIO_TYPED_OPTIONS: Map<String, String> = mapOf(
     "sample_rate" to "sampleRate",
     "ac" to "channels",
     "channels" to "channels",
-    // NOT ch_layout. It is the only way to say 5.1(side) rather than 5.1(back), which a channel
-    // COUNT cannot express, so it refines the typed field instead of duplicating it. Listing it
-    // here broke a passing test that used it for exactly that, which is the check working.
+    // NOT ch_layout on its own. It refines the channel count rather than duplicating it, and a
+    // passing test uses it to say 5.1(side). It collides only with channelLayoutMask, below.
     "sample_fmt" to "sampleFormat",
     "time_base" to "sampleRate",
 )
 
-internal fun requireNoTypedVideoOptionCollision(options: Map<String, String>): Unit =
-    refuseCollisions(options, VIDEO_TYPED_OPTIONS, "VideoEncoderSpec")
+/** Raw option keys that say what [VideoEncoderSpec.color] says. */
+internal val COLOR_OPTION_KEYS: Set<String> =
+    setOf("color_primaries", "color_trc", "colorspace", "color_range", "chroma_sample_location")
 
-internal fun requireNoTypedAudioOptionCollision(options: Map<String, String>): Unit =
-    refuseCollisions(options, AUDIO_TYPED_OPTIONS, "AudioEncoderSpec")
+/** The raw option key for [VideoEncoderSpec.sampleAspectRatio]. */
+internal const val SAR_OPTION_KEY = "aspect"
+
+/** The raw option key for [AudioEncoderSpec.channelLayoutMask]. */
+internal const val LAYOUT_OPTION_KEY = "ch_layout"
+
+/** The spec's own collisions, plus the colour and pixel shape keys once their fields are set. */
+internal fun requireNoTypedVideoOptionCollision(spec: VideoEncoderSpec): Unit = refuseCollisions(
+    spec.options,
+    VIDEO_TYPED_OPTIONS +
+        (if (spec.color != null) COLOR_OPTION_KEYS.associateWith { "color" } else emptyMap()) +
+        (if (spec.sampleAspectRatio != null) mapOf(SAR_OPTION_KEY to "sampleAspectRatio") else emptyMap()),
+    "VideoEncoderSpec",
+)
+
+/** The spec's own collisions, plus `ch_layout` once [AudioEncoderSpec.channelLayoutMask] is set. */
+internal fun requireNoTypedAudioOptionCollision(spec: AudioEncoderSpec): Unit = refuseCollisions(
+    spec.options,
+    AUDIO_TYPED_OPTIONS +
+        (if (spec.channelLayoutMask != null) mapOf(LAYOUT_OPTION_KEY to "channelLayoutMask") else emptyMap()),
+    "AudioEncoderSpec",
+)
 
 private fun refuseCollisions(
     options: Map<String, String>,

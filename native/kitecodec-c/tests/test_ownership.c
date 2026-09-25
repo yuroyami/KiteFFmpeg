@@ -953,7 +953,7 @@ static void case_graph_build_audio_free(int measure)
     kc_alloc_snapshot(&before);
     KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "anull",
                                       48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000,
-                                      AV_SAMPLE_FMT_S16, 44100, 2), 0);
+                                      AV_SAMPLE_FMT_S16, 44100, 2, 0, 0), 0);
     KC_NOT_NULL(graph);
     KC_NOT_NULL(src);
     KC_NOT_NULL(sink);
@@ -1006,7 +1006,7 @@ static void case_graph_build_audio_multi_free(int measure)
     KC_EQ_INT(ffkmp_graph_build_audio_multi(&graph, srcs, &sink,
                                             "[in0][in1]amix=inputs=2[out]", 2,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            AV_SAMPLE_FMT_S16, 44100, 2), 0);
+                                            AV_SAMPLE_FMT_S16, 44100, 2, NULL, 0), 0);
     KC_NOT_NULL(graph);
     KC_NOT_NULL(srcs[0]);
     KC_NOT_NULL(srcs[1]);
@@ -1039,7 +1039,7 @@ static void case_graph_build_refusal_frees_the_partial_graph(int measure)
     KC_NULL(src);
     KC_NULL(sink);
     KC_CHECKF(ffkmp_graph_build_audio(&graph, &src, &sink, "no_such_filter_exists",
-                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0) < 0,
+                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0, 0, 0) < 0,
               "an unknown audio filter was accepted");
     KC_NULL(graph);
     KC_CHECKF(ffkmp_graph_build_video_multi(&graph, srcs, &sink, "[in0]no_such_filter_exists",
@@ -1049,7 +1049,7 @@ static void case_graph_build_refusal_frees_the_partial_graph(int measure)
     KC_NULL(graph);
     KC_CHECKF(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, "[in0]no_such_filter_exists",
                                             1, rates, fmts, channels, tb_nums, tb_dens,
-                                            -1, -1, 0) < 0,
+                                            -1, -1, 0, NULL, 0) < 0,
               "an unknown filter was accepted by the multi audio builder");
     KC_NULL(graph);
     /* Four refusals, nothing retained. */
@@ -1078,7 +1078,7 @@ static void case_graph_send_keeps_the_callers_frame(int measure)
     const uint8_t *payload;
     kc_alloc_snapshot(&before);
     KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "anull",
-                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0), 0);
+                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0, 0, 0), 0);
     pushed = audio_frame(48000, AV_SAMPLE_FMT_FLTP, 2, 1024);
     payload = ffkmp_frame_plane(pushed, 0);
     KC_EQ_INT(ffkmp_graph_send(src, pushed), 0);

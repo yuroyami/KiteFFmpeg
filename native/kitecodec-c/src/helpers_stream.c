@@ -39,14 +39,21 @@ KC_API void ffkmp_stream_avg_frame_rate(AVStream *s, int *n, int *d) {
 KC_API void ffkmp_stream_set_time_base(AVStream *s, int n, int d) {
     if (s) { s->time_base.num = n; s->time_base.den = d ? d : 1; }
 }
+KC_API int ffkmp_stream_set_sample_aspect_ratio(AVStream *s, int num, int den) {
+    if (!s || num < 0 || den <= 0) return AVERROR(EINVAL);
+    s->sample_aspect_ratio = av_make_q(num, den);
+    return 0;
+}
 
 /* Copies what names src into dst: every tag, language and title among them, and the disposition
-   flags. The side data a renderer needs, such as the display matrix, already travels with the
-   codec parameters. Run it before the output header is written. */
+   flags. Also the stream-level pixel shape, which a Matroska demuxer reads from the container and
+   never stores in the codec parameters. The side data a renderer needs, such as the display matrix,
+   already travels with the codec parameters. Run it before the output header is written. */
 KC_API int ffkmp_stream_copy_identity(AVStream *dst, const AVStream *src) {
     if (!dst || !src) return AVERROR(EINVAL);
     int rc = av_dict_copy(&dst->metadata, src->metadata, 0);
     if (rc < 0) return rc;
     dst->disposition = src->disposition;
+    dst->sample_aspect_ratio = src->sample_aspect_ratio;
     return 0;
 }

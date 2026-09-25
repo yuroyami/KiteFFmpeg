@@ -171,6 +171,18 @@ JNIEXPORT jlong JNICALL kj_frame_channel_layout(JNIEnv *env, jclass cls, jlong t
     return frame ? (jlong)ffkmp_frame_ch_layout_mask(frame) : 0;
 }
 
+JNIEXPORT jintArray JNICALL kj_frame_hdr(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    int q[KC_HDR_MASTERING_INTS] = { 0 }, flags = 0, cll = 0, fall = 0;
+    int display_rc, light_rc;
+    (void)cls;
+    if (frame == NULL) return NULL;
+    display_rc = ffkmp_frame_mastering_display(frame, q, &flags);
+    light_rc = ffkmp_frame_content_light(frame, &cll, &fall);
+    return kj_hdr_new(env, display_rc, q, flags, light_rc, cll, fall);
+}
+
 JNIEXPORT jint JNICALL kj_frame_color_range(JNIEnv *env, jclass cls, jlong token)
 {
     kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
@@ -325,11 +337,13 @@ JNIEXPORT jint JNICALL kj_frame_fill_audio(JNIEnv *env, jclass cls, jlong token,
 /* The resampler behind Resampler: a handle-table token of kind KJ_KIND_SWR. */
 JNIEXPORT jlong JNICALL kj_swr_create(JNIEnv *env, jclass cls,
                                       jint in_rate, jint in_channels, jint in_format,
-                                      jint out_rate, jint out_channels, jint out_format)
+                                      jint out_rate, jint out_channels, jint out_format,
+                                      jlong in_mask, jlong out_mask)
 {
     kc_swr *s = NULL;
     jlong token;
-    int rc = ffkmp_swr_create(&s, in_rate, in_channels, in_format, out_rate, out_channels, out_format);
+    int rc = ffkmp_swr_create(&s, in_rate, in_channels, in_format, out_rate, out_channels, out_format,
+                              (int64_t)in_mask, (int64_t)out_mask);
     (void)cls;
     if (rc < 0 || s == NULL) { kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "swr_create"); return 0; }
     token = kj_handle_put_checked(env, KJ_KIND_SWR, s);

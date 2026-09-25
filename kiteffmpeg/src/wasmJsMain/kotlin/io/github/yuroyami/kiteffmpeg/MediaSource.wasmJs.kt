@@ -2,6 +2,8 @@ package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions
 import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_content_light
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_mastering_display
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_alloc
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_attached_pic
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_comment
@@ -661,6 +663,11 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                     color = readParameterColor(m, par),
                     vp9 = if (codecName == "vp9") readVp9CodecInfo(m, par) else null,
                     fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(m, par)),
+                    hdr = readHdr(
+                        m,
+                        display = { q, flags -> ffkmp_codecpar_mastering_display(m, par, q, flags) },
+                        light = { maxCll, maxFall -> ffkmp_codecpar_content_light(m, par, maxCll, maxFall) },
+                    ),
                 )
             } else {
                 null

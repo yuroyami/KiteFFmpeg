@@ -85,3 +85,30 @@ internal external fun writeInt32(module: JsAny, pointer: Int, value: Int)
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, p) => new DataView(m.HEAPU8.buffer).getBigInt64(p, true)")
 internal external fun readInt64(module: JsAny, pointer: Int): Long
+
+/**
+ * The HDR metadata a pair of C readers reports through the codec module's memory, or null:
+ * [display] fills a mastering display and its flags, [light] a content light level, and each
+ * answers 1 when there is one.
+ */
+internal inline fun readHdr(
+    module: JsAny,
+    display: (q: Int, flags: Int) -> Int,
+    light: (maxCll: Int, maxFall: Int) -> Int,
+): HdrMetadata? {
+    val scratch = wasmAlloc(module, (HDR_MASTERING_INTS + 3) * 4)
+    try {
+        val flags = scratch + HDR_MASTERING_INTS * 4
+        val maxCll = flags + 4
+        val maxFall = maxCll + 4
+        val masteringDisplay = if (display(scratch, flags) > 0) {
+            masteringDisplayOf(IntArray(HDR_MASTERING_INTS) { readInt32(module, scratch + it * 4) }, 0, readInt32(module, flags))
+        } else null
+        val contentLight = if (light(maxCll, maxFall) > 0) {
+            ContentLightLevel(readInt32(module, maxCll), readInt32(module, maxFall))
+        } else null
+        return hdrMetadataOf(masteringDisplay, contentLight)
+    } finally {
+        wasmFree(module, scratch)
+    }
+}

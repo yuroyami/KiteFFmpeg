@@ -100,6 +100,35 @@ KC_API int ffkmp_graph_build_video(
     return 0;
 }
 
+/* The layout of `channels` channels: the native layout `mask` names, or FFmpeg's default for the
+   count when mask is 0. A negative mask, or one that names another number of channels, is
+   refused. */
+static int ffkmp_layout_for_(AVChannelLayout *out, int channels, int64_t mask) {
+    if (mask < 0) return AVERROR(EINVAL);
+    if (mask == 0) {
+        av_channel_layout_default(out, channels > 0 ? channels : 2);
+        return 0;
+    }
+    int rc = av_channel_layout_from_mask(out, (uint64_t)mask);
+    if (rc < 0) return rc;
+    if (channels > 0 && out->nb_channels != channels) {
+        av_channel_layout_uninit(out);
+        return AVERROR(EINVAL);
+    }
+    return 0;
+}
+
+/* The count a pinned output mask names must agree with the pinned count, when both are given. */
+static int ffkmp_out_mask_valid_(int out_channels, int64_t out_layout_mask) {
+    if (out_layout_mask < 0) return 0;
+    if (out_layout_mask == 0 || out_channels <= 0) return 1;
+    AVChannelLayout pinned = { 0 };
+    if (av_channel_layout_from_mask(&pinned, (uint64_t)out_layout_mask) < 0) return 0;
+    int agrees = pinned.nb_channels == out_channels;
+    av_channel_layout_uninit(&pinned);
+    return agrees;
+}
+
 KC_API int ffkmp_graph_build_audio(
     AVFilterGraph **out_graph, AVFilterContext **out_src, AVFilterContext **out_sink,
     const char *description,
@@ -108,11 +137,13 @@ KC_API int ffkmp_graph_build_audio(
     /* Pin the graph's output so frames arrive encoder-ready. Pass -1/-1/0 to leave free.
        Implemented by appending an `aformat` filter rather than buffersink options, because the
        option names were renamed across FFmpeg 7→8, the filter-string syntax never changes. */
-    int out_sample_fmt, int out_sample_rate, int out_channels
+    int out_sample_fmt, int out_sample_rate, int out_channels,
+    int64_t layout_mask, int64_t out_layout_mask
 ) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out_graph || !out_src || !out_sink) return AVERROR(EINVAL);
     *out_graph = NULL; *out_src = NULL; *out_sink = NULL;
+    if (!ffkmp_out_mask_valid_(out_channels, out_layout_mask)) return AVERROR(EINVAL);
     AVFilterGraph *graph = avfilter_graph_alloc();
     if (!graph) return AVERROR(ENOMEM);
     const AVFilter *src = avfilter_get_by_name("abuffer");
@@ -122,10 +153,14 @@ KC_API int ffkmp_graph_build_audio(
     const char *fmt_name = av_get_sample_fmt_name((enum AVSampleFormat)sample_fmt);
     if (!fmt_name) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
 
-    AVChannelLayout in_layout;
-    av_channel_layout_default(&in_layout, channels > 0 ? channels : 2);
+    /* The declared input layout has to be the frames' own. The buffer source refuses a frame
+       whose layout differs, so declaring the count's default refused every 5.1 frame with side
+       surrounds, which is what AC-3 decodes to. */
+    AVChannelLayout in_layout = { 0 };
+    int rc = ffkmp_layout_for_(&in_layout, channels, layout_mask);
+    if (rc < 0) { avfilter_graph_free(&graph); return rc; }
     char layout_str[128];
-    int rc = av_channel_layout_describe(&in_layout, layout_str, sizeof(layout_str));
+    rc = av_channel_layout_describe(&in_layout, layout_str, sizeof(layout_str));
     av_channel_layout_uninit(&in_layout);
     if (rc < 0) { avfilter_graph_free(&graph); return rc; }
 
@@ -153,7 +188,7 @@ KC_API int ffkmp_graph_build_audio(
     int n = snprintf(full_desc, sizeof(full_desc), "%s",
                      (description && description[0]) ? description : "anull");
     if (n < 0 || n >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
-    if (out_sample_fmt >= 0 || out_sample_rate > 0 || out_channels > 0) {
+    if (out_sample_fmt >= 0 || out_sample_rate > 0 || out_channels > 0 || out_layout_mask > 0) {
         n += snprintf(full_desc + n, sizeof(full_desc) - n, ",aformat=");
         if (n < 0 || n >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
         int first = 1;
@@ -169,7 +204,13 @@ KC_API int ffkmp_graph_build_audio(
             if (n < 0 || n >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
             first = 0;
         }
-        if (out_channels > 0) {
+        /* An exact layout as a hex mask, which the layout parser reads and the filter-string
+           parser leaves alone; a name like "5.1(side)" carries parentheses. */
+        if (out_layout_mask > 0) {
+            n += snprintf(full_desc + n, sizeof(full_desc) - n, "%schannel_layouts=0x%llx", first ? "" : ":",
+                          (unsigned long long)out_layout_mask);
+            if (n < 0 || n >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+        } else if (out_channels > 0) {
             n += snprintf(full_desc + n, sizeof(full_desc) - n, "%schannel_layouts=%dc", first ? "" : ":", out_channels);
             if (n < 0 || n >= (int)sizeof(full_desc)) { avfilter_graph_free(&graph); return AVERROR(EINVAL); }
         }
@@ -302,7 +343,8 @@ KC_API int ffkmp_graph_build_audio_multi(
     const char *description, int n,
     const int *sample_rates, const int *sample_fmts, const int *channels,
     const int *tb_nums, const int *tb_dens,
-    int out_sample_fmt, int out_sample_rate, int out_channels
+    int out_sample_fmt, int out_sample_rate, int out_channels,
+    const int64_t *layout_masks, int64_t out_layout_mask
 ) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out_graph || !out_srcs || !out_sink) return AVERROR(EINVAL);
@@ -310,6 +352,7 @@ KC_API int ffkmp_graph_build_audio_multi(
     if (n <= 0 || !sample_rates || !sample_fmts || !channels || !tb_nums || !tb_dens) {
         return AVERROR(EINVAL);
     }
+    if (!ffkmp_out_mask_valid_(out_channels, out_layout_mask)) return AVERROR(EINVAL);
     if ((!description || !description[0]) && n != 1) return AVERROR(EINVAL);
     AVFilterGraph *graph = avfilter_graph_alloc();
     if (!graph) return AVERROR(ENOMEM);
@@ -320,10 +363,11 @@ KC_API int ffkmp_graph_build_audio_multi(
     for (int i = 0; i < n; i++) {
         const char *fmt = av_get_sample_fmt_name((enum AVSampleFormat)sample_fmts[i]);
         if (!fmt) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
-        AVChannelLayout lay;
-        av_channel_layout_default(&lay, channels[i] > 0 ? channels[i] : 2);
+        AVChannelLayout lay = { 0 };
+        int rc = ffkmp_layout_for_(&lay, channels[i], layout_masks ? layout_masks[i] : 0);
+        if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
         char lay_str[128];
-        int rc = av_channel_layout_describe(&lay, lay_str, sizeof(lay_str));
+        rc = av_channel_layout_describe(&lay, lay_str, sizeof(lay_str));
         av_channel_layout_uninit(&lay);
         if (rc < 0) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return rc; }
         char args[512], name[16];
@@ -346,7 +390,7 @@ KC_API int ffkmp_graph_build_audio_multi(
     int len = snprintf(full_desc, sizeof(full_desc), "%s",
                        generated_default ? "[in0]anull" : description);
     if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
-    if (out_sample_fmt >= 0 || out_sample_rate > 0 || out_channels > 0) {
+    if (out_sample_fmt >= 0 || out_sample_rate > 0 || out_channels > 0 || out_layout_mask > 0) {
         /* The pinned chain must hang off [out]'s producer. Renaming a caller's terminal label
            would be intrusive, so an explicit [out] means the caller controls formats; Transcoder
            always appends its own aformat before [out]. The generated default deliberately has no
@@ -367,7 +411,11 @@ KC_API int ffkmp_graph_build_audio_multi(
                 if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
                 first = 0;
             }
-            if (out_channels > 0) {
+            if (out_layout_mask > 0) {
+                len += snprintf(full_desc + len, sizeof(full_desc) - len, "%schannel_layouts=0x%llx", first ? "" : ":",
+                                (unsigned long long)out_layout_mask);
+                if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
+            } else if (out_channels > 0) {
                 len += snprintf(full_desc + len, sizeof(full_desc) - len, "%schannel_layouts=%dc", first ? "" : ":", out_channels);
                 if (len < 0 || len >= (int)sizeof(full_desc)) { ffkmp_clear_srcs_(out_srcs, n); avfilter_graph_free(&graph); return AVERROR(EINVAL); }
             }

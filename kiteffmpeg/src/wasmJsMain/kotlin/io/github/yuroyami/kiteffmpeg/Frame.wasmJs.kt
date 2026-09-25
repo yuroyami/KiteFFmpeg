@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_content_light
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_mastering_display
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_channels
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_clone
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_color_range
@@ -79,6 +81,13 @@ public actual class Frame internal constructor(
                     ffkmp_frame_height(m, p),
                 ),
                 isHardware = ffkmp_frame_is_hardware(m, p) != 0,
+                hdr = if (type == MediaType.Video) {
+                    readHdr(
+                        m,
+                        display = { q, flags -> ffkmp_frame_mastering_display(m, p, q, flags) },
+                        light = { maxCll, maxFall -> ffkmp_frame_content_light(m, p, maxCll, maxFall) },
+                    )
+                } else null,
             )
         }
 

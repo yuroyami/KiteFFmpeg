@@ -170,6 +170,23 @@ class WebContainerModelTest {
     }
 
     @Test
+    fun theVideoStreamsHdrMetadataIsRead() {
+        open().use { source ->
+            val video = assertNotNull(source.primaryVideo?.video, "no video stream")
+            assertEquals(
+                HdrMetadata(
+                    masteringDisplay = MasteringDisplay(
+                        primaries = null,
+                        luminance = LuminanceRange(min = Rational(1, 10000), max = Rational(1000, 1)),
+                    ),
+                    contentLight = ContentLightLevel(maxCll = 1000, maxFall = 400),
+                ),
+                video.hdr,
+            )
+        }
+    }
+
+    @Test
     fun theContainerBitRateIsRead() {
         open().use { source ->
             // Not a round number on purpose: a backend that answered a plausible constant instead

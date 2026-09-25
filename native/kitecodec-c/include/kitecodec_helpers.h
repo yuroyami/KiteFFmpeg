@@ -286,6 +286,45 @@ KC_API void  ffkmp_codecctx_set_global_header(kc_codec_ctx *c);
  */
 KC_API int   ffkmp_codecctx_set_opt(kc_codec_ctx *c, const char *key, const char *value);
 KC_API void  ffkmp_codecctx_set_full_range(kc_codec_ctx *c);
+
+/* The colour an encoder declares, as FFmpeg's own enum values: primaries, transfer, matrix, range
+ * and chroma location, each written as given, the unspecified values included. Run it before
+ * ffkmp_codecctx_open. A NULL context or a value outside its enum is refused with
+ * AVERROR(EINVAL) and changes nothing. */
+KC_API int ffkmp_codecctx_set_color(kc_codec_ctx *c, int primaries, int transfer, int matrix,
+                                    int range, int chroma_location);
+
+/* The shape of one pixel. 0/1 means unknown, which players read as square. A NULL context, a
+ * negative numerator or a denominator that is not positive is refused with AVERROR(EINVAL). */
+KC_API int ffkmp_codecctx_set_sample_aspect_ratio(kc_codec_ctx *c, int num, int den);
+
+/* The exact channel layout of an audio encoder, as a native channel mask; it replaces the
+ * default layout that ffkmp_codecctx_set_audio wrote. A NULL context or a mask that is not
+ * positive is refused with AVERROR(EINVAL). */
+KC_API int ffkmp_codecctx_set_ch_layout_mask(kc_codec_ctx *c, int64_t mask);
+
+/* The context's channel layout as a native channel mask; 0 for NULL or a layout with no native
+ * order. */
+KC_API int64_t ffkmp_codecctx_ch_layout_mask(kc_codec_ctx *c);
+
+/* HDR static metadata crosses this layer as ints. A mastering display is KC_HDR_MASTERING_INTS
+ * ints, ten num/den pairs in this order: red x, red y, green x, green y, blue x, blue y, white x,
+ * white y, minimum luminance, maximum luminance. The flags say which halves are present:
+ * KC_HDR_HAS_PRIMARIES for the first eight pairs, KC_HDR_HAS_LUMINANCE for the last two. */
+#define KC_HDR_MASTERING_INTS 20
+#define KC_HDR_HAS_PRIMARIES 1
+#define KC_HDR_HAS_LUMINANCE 2
+
+/* Gives an encoder a mastering display (SMPTE ST 2086) before ffkmp_codecctx_open. The encoder
+ * writes it into the stream's side data when it opens, and an encoder that embeds it in the
+ * bitstream does that too. A second call replaces the first. A NULL context or array, flags with
+ * neither half, or a pair with a denominator that is not positive is refused with
+ * AVERROR(EINVAL). */
+KC_API int ffkmp_codecctx_add_mastering_display(kc_codec_ctx *c, const int *q, int flags);
+
+/* Gives an encoder a content light level (CTA-861.3), in candelas per square metre, the same way.
+ * A NULL context or a negative level is refused with AVERROR(EINVAL). */
+KC_API int ffkmp_codecctx_add_content_light(kc_codec_ctx *c, int max_cll, int max_fall);
 KC_API const kc_codec* ffkmp_find_decoder_by_id(int id);
 
 /* The def's header removal forces this pointer wrapper before the typed outcome model lands
@@ -356,17 +395,21 @@ KC_API int ffkmp_component_names(int kind, char *buf, int cap);
 typedef struct kc_swr kc_swr;
 
 /* Ownership. On success *out is a resampler the caller owns and releases with ffkmp_swr_free.
- * A non-positive rate or channel count, or an unknown sample format, is refused with
+ * in_mask and out_mask name each side's channel layout as a native channel mask; 0 takes
+ * FFmpeg's default layout for the channel count. A non-positive rate or channel count, an unknown
+ * sample format, a negative mask or a mask whose channel count differs is refused with
  * AVERROR(EINVAL) and leaves *out NULL. */
 KC_API int ffkmp_swr_create(kc_swr **out,
                             int in_rate, int in_channels, int in_format,
-                            int out_rate, int out_channels, int out_format);
+                            int out_rate, int out_channels, int out_format,
+                            int64_t in_mask, int64_t out_mask);
 
 /* Converts in into out. out is a frame the caller allocated; it is unreferenced first, stamped
  * with the output rate, layout and format, and given buffers for the converted samples, so its
  * nb_samples says how many came out (0 when the resampler buffered them all). NULL in drains the
- * samples the resampler still holds. A frame whose rate, layout or format differs from the ones
- * the resampler was created for is refused with AVERROR_INPUT_CHANGED. */
+ * samples the resampler still holds. A frame that names no layout is read as the input layout. A
+ * frame whose rate, layout or format differs from the ones the resampler was created for is
+ * refused with AVERROR_INPUT_CHANGED. */
 KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in);
 
 /* The samples the resampler holds, in 1/base units; 0 for NULL. */
@@ -580,6 +623,11 @@ KC_API void ffkmp_stream_time_base(kc_stream *s, int *n, int *d);
 KC_API void ffkmp_stream_avg_frame_rate(kc_stream *s, int *n, int *d);
 KC_API void ffkmp_stream_set_time_base(kc_stream *s, int n, int d);
 
+/* The stream-level shape of one pixel, which Matroska reads instead of the codec parameters'.
+ * A NULL stream, a negative numerator or a denominator that is not positive is refused with
+ * AVERROR(EINVAL). */
+KC_API int ffkmp_stream_set_sample_aspect_ratio(kc_stream *s, int num, int den);
+
 /* Filter graphs (single-input video / audio) */
 
 /* The def's header removal forces this boolean wrapper before the typed outcome model lands
@@ -614,7 +662,11 @@ KC_API int ffkmp_graph_build_audio(
     /* Pin the graph's output so frames arrive encoder-ready. Pass -1/-1/0 to leave free.
        Implemented by appending an `aformat` filter rather than buffersink options, because the
        option names were renamed across FFmpeg 7→8, the filter-string syntax never changes. */
-    int out_sample_fmt, int out_sample_rate, int out_channels
+    int out_sample_fmt, int out_sample_rate, int out_channels,
+    /* The input's channel layout and the exact output layout, as native masks. 0 takes the
+       default layout for the count on input and pins only the count on output. A negative mask,
+       or one whose channel count differs from its count, is refused with AVERROR(EINVAL). */
+    int64_t layout_mask, int64_t out_layout_mask
 );
 
 /* Ownership. On success the caller owns the graph through *out_graph and releases it with
@@ -646,7 +698,10 @@ KC_API int ffkmp_graph_build_audio_multi(
     const char *description, int n,
     const int *sample_rates, const int *sample_fmts, const int *channels,
     const int *tb_nums, const int *tb_dens,
-    int out_sample_fmt, int out_sample_rate, int out_channels
+    int out_sample_fmt, int out_sample_rate, int out_channels,
+    /* Each input's channel layout as a native mask, or NULL; an entry of 0 takes the default
+       layout for that input's count. out_layout_mask pins the exact output layout, 0 for none. */
+    const int64_t *layout_masks, int64_t out_layout_mask
 );
 
 /* Ownership. Frees the graph together with every filter context in it, and writes NULL
@@ -707,6 +762,17 @@ KC_API int ffkmp_frame_is_keyframe(kc_frame *f);
 KC_API void ffkmp_frame_sample_aspect_ratio(kc_frame *f, int *n, int *d);
 KC_API int64_t ffkmp_frame_ch_layout_mask(kc_frame *f);
 KC_API int64_t ffkmp_codecpar_ch_layout_mask(kc_codec_par *p);
+
+/* The mastering display a stream or a frame declares, in the layout described at
+ * ffkmp_codecctx_add_mastering_display: q receives KC_HDR_MASTERING_INTS ints and flags which
+ * halves are present. They return 1 when there is one, 0 when there is none, and AVERROR(EINVAL)
+ * for a NULL argument. */
+KC_API int ffkmp_codecpar_mastering_display(kc_codec_par *p, int *q, int *flags);
+KC_API int ffkmp_frame_mastering_display(kc_frame *f, int *q, int *flags);
+
+/* The content light level a stream or a frame declares, with the same returns. */
+KC_API int ffkmp_codecpar_content_light(kc_codec_par *p, int *max_cll, int *max_fall);
+KC_API int ffkmp_frame_content_light(kc_frame *f, int *max_cll, int *max_fall);
 KC_API uint8_t* ffkmp_frame_plane(kc_frame *f, int p);
 KC_API int ffkmp_frame_plane_count(kc_frame *f);
 KC_API int ffkmp_frame_plane_height(kc_frame *f, int p);

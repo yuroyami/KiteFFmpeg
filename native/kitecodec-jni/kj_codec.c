@@ -195,6 +195,31 @@ JNIEXPORT jlong JNICALL kj_codecctx_time_base(JNIEnv *env,jclass cls,jlong token
 {kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);int n=0,d=1;(void)cls;if(c)ffkmp_codecctx_time_base(c,&n,&d);return((jlong)(uint32_t)n<<32)|(uint32_t)d;}
 JNIEXPORT void JNICALL kj_codecctx_global_header(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;if(c)ffkmp_codecctx_set_global_header(c);}
+JNIEXPORT jint JNICALL kj_codecctx_set_color(JNIEnv *env,jclass cls,jlong token,jint primaries,jint transfer,jint matrix,jint range,jint chroma)
+{kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;return c?ffkmp_codecctx_set_color(c,primaries,transfer,matrix,range,chroma):-22;}
+JNIEXPORT jint JNICALL kj_codecctx_set_sar(JNIEnv *env,jclass cls,jlong token,jint num,jint den)
+{kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;return c?ffkmp_codecctx_set_sample_aspect_ratio(c,num,den):-22;}
+JNIEXPORT jint JNICALL kj_codecctx_set_layout(JNIEnv *env,jclass cls,jlong token,jlong mask)
+{kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;return c?ffkmp_codecctx_set_ch_layout_mask(c,(int64_t)mask):-22;}
+JNIEXPORT jlong JNICALL kj_codecctx_layout(JNIEnv *env,jclass cls,jlong token)
+{kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;return c?(jlong)ffkmp_codecctx_ch_layout_mask(c):0;}
+JNIEXPORT jint JNICALL kj_codecctx_add_light(JNIEnv *env,jclass cls,jlong token,jint max_cll,jint max_fall)
+{kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;return c?ffkmp_codecctx_add_content_light(c,max_cll,max_fall):-22;}
+
+/* The mastering display as KC_HDR_MASTERING_INTS ints and the halves present. */
+JNIEXPORT jint JNICALL kj_codecctx_add_mastering(JNIEnv *env, jclass cls, jlong token, jintArray values, jint flags)
+{
+    kc_codec_ctx *c = (kc_codec_ctx *)kj_handle_get(env, token, KJ_KIND_CODEC_CTX);
+    int *q = NULL;
+    int32_t n = 0;
+    int rc;
+    (void)cls;
+    if (c == NULL) return -22;
+    if (kj_ints_dup(env, values, &q, &n) != 0) return -22;
+    rc = n == KC_HDR_MASTERING_INTS ? ffkmp_codecctx_add_mastering_display(c, q, flags) : -22;
+    free(q);
+    return rc;
+}
 JNIEXPORT void JNICALL kj_codecctx_full_range(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;if(c)ffkmp_codecctx_set_full_range(c);}
 JNIEXPORT jint JNICALL kj_codecctx_pixel_format(JNIEnv *env,jclass cls,jlong token)

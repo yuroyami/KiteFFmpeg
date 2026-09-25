@@ -43,11 +43,14 @@
 #define PIN_SAMPLE_FMT   AV_SAMPLE_FMT_FLTP
 #define PIN_SAMPLE_RATE  44100
 #define PIN_CHANNELS     2
+/* Stereo's native mask, so the pinned path also writes the exact-layout form of the pin. */
+#define PIN_LAYOUT_MASK  0x3
 
 /* Pins off, as the header documents it: -1 for the format, -1 for the rate, 0 for the channels. */
 #define NO_PIN_SAMPLE_FMT   (-1)
 #define NO_PIN_SAMPLE_RATE  (-1)
 #define NO_PIN_CHANNELS     0
+#define NO_PIN_LAYOUT_MASK  0
 
 typedef struct {
     int sample_rate;
@@ -73,7 +76,8 @@ static void build_single(const char *description, int pinned) {
         in->sample_rate, in->sample_fmt, in->channels, in->tb_num, in->tb_den,
         pinned ? PIN_SAMPLE_FMT : NO_PIN_SAMPLE_FMT,
         pinned ? PIN_SAMPLE_RATE : NO_PIN_SAMPLE_RATE,
-        pinned ? PIN_CHANNELS : NO_PIN_CHANNELS);
+        pinned ? PIN_CHANNELS : NO_PIN_CHANNELS,
+        0, pinned ? PIN_LAYOUT_MASK : NO_PIN_LAYOUT_MASK);
 
     if (rc == 0) {
         if (graph == NULL || src == NULL || sink == NULL) abort();
@@ -103,7 +107,8 @@ static void build_multi(const char *description, int n, int pinned) {
         rates, fmts, channels, tb_nums, tb_dens,
         pinned ? PIN_SAMPLE_FMT : NO_PIN_SAMPLE_FMT,
         pinned ? PIN_SAMPLE_RATE : NO_PIN_SAMPLE_RATE,
-        pinned ? PIN_CHANNELS : NO_PIN_CHANNELS);
+        pinned ? PIN_CHANNELS : NO_PIN_CHANNELS,
+        NULL, pinned ? PIN_LAYOUT_MASK : NO_PIN_LAYOUT_MASK);
 
     if (rc == 0) {
         if (graph == NULL || sink == NULL) abort();

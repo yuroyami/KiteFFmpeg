@@ -70,6 +70,11 @@ import kotlin.js.JsAny
             __stage: stage,
             __mallocCount: () => mallocCount,
             __lastMalloc: () => lastMalloc,
+            // No HDR metadata unless a surface scripts some: a stream or frame that declares none.
+            _ffkmp_codecpar_mastering_display: () => 0,
+            _ffkmp_codecpar_content_light: () => 0,
+            _ffkmp_frame_mastering_display: () => 0,
+            _ffkmp_frame_content_light: () => 0,
             _kc_ffmpeg_report_get: (p) => { HEAPU8.copyWithin(p, stage, stage + 2176); },
             _kc_ffmpeg_library_name: (i) => (i >= 0 && i < libs.length) ? libs[i] : 0,
             _kc_verdict_name: (v) => (v >= 0 && v < verdicts.length) ? verdicts[v] : 0,
@@ -578,6 +583,24 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         m._ffkmp_codecpar_field_order = () => 2;
         m._ffkmp_fmt_bit_rate = () => 3141592n;
         m._ffkmp_codecpar_ch_layout_mask = () => 3n;
+        // A luminance-only mastering display and a light level, so the reader has to honour the
+        // flags: the primaries half is absent and must stay absent.
+        m._ffkmp_codecpar_mastering_display = (par, q, flags) => {
+            if (par !== CODECPAR) return 0;
+            for (let i = 0; i < 20; i++) m.HEAP32[(q >> 2) + i] = (i % 2 === 1) ? 1 : 0;
+            m.HEAP32[(q >> 2) + 16] = 1;
+            m.HEAP32[(q >> 2) + 17] = 10000;
+            m.HEAP32[(q >> 2) + 18] = 1000;
+            m.HEAP32[(q >> 2) + 19] = 1;
+            m.HEAP32[flags >> 2] = 2;
+            return 1;
+        };
+        m._ffkmp_codecpar_content_light = (par, maxCll, maxFall) => {
+            if (par !== CODECPAR) return 0;
+            m.HEAP32[maxCll >> 2] = 1000;
+            m.HEAP32[maxFall >> 2] = 400;
+            return 1;
+        };
         // The rest of what a probe reads: the demuxer's name, a duration and seekability.
         const formatName = cstr("matroska,webm");
         m._ffkmp_fmt_iformat_name = () => formatName;

@@ -55,6 +55,7 @@ public actual class Frame internal constructor(
             Internals.frameSampleAspectRatio(open).let { if (it.num == 0) Rational(1, 1) else it }
         } else Rational(1, 1),
         isHardware = Internals.frameIsHardware(open),
+        hdr = if (streamType == MediaType.Video) Internals.frameHdr(open) else null,
     )
 
     private fun readColorInfo(open: Long): ColorInfo {

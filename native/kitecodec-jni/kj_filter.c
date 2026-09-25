@@ -74,7 +74,7 @@ JNIEXPORT jlongArray JNICALL kj_graph_build_video(
 JNIEXPORT jlongArray JNICALL kj_graph_build_audio(
     JNIEnv *env, jclass cls, jstring description,
     jint rate, jint format, jint channels, jint tbn, jint tbd,
-    jint out_format, jint out_rate, jint out_channels)
+    jint out_format, jint out_rate, jint out_channels, jlong layout_mask, jlong out_layout_mask)
 {
     char *desc = kj_string_dup(env, description);
     kc_filter_graph *graph = NULL;
@@ -84,7 +84,8 @@ JNIEXPORT jlongArray JNICALL kj_graph_build_audio(
     (void)cls;
     if ((*env)->ExceptionCheck(env)) return NULL;
     rc = ffkmp_graph_build_audio(&graph, &source, &sink, desc, rate, format, channels,
-                                 tbn, tbd, out_format, out_rate, out_channels);
+                                 tbn, tbd, out_format, out_rate, out_channels,
+                                 (int64_t)layout_mask, (int64_t)out_layout_mask);
     free(desc);
     if (rc < 0) {
         kj_throw_ffmpeg(env, rc, "graph_build_audio");
@@ -148,11 +149,13 @@ done:
 JNIEXPORT jlongArray JNICALL kj_graph_build_audio_multi(
     JNIEnv *env, jclass cls, jstring description, jint count,
     jintArray rates, jintArray formats, jintArray channels,
-    jintArray tbns, jintArray tbds, jint out_format, jint out_rate, jint out_channels)
+    jintArray tbns, jintArray tbds, jint out_format, jint out_rate, jint out_channels,
+    jlongArray layout_masks, jlong out_layout_mask)
 {
     char *desc = NULL;
     int *rate = NULL, *fmt = NULL, *ch = NULL, *tn = NULL, *td = NULL;
-    int32_t nr, nf, nc, ntn, ntd;
+    jlong *masks = NULL;
+    int32_t nr, nf, nc, ntn, ntd, nm;
     kc_filter_graph *graph = NULL;
     kc_filter_ctx **sources = NULL, *sink = NULL;
     jlongArray result = NULL;
@@ -171,14 +174,16 @@ JNIEXPORT jlongArray JNICALL kj_graph_build_audio_multi(
     }
     if (kj_ints_dup(env, rates, &rate, &nr) != 0 || kj_ints_dup(env, formats, &fmt, &nf) != 0
         || kj_ints_dup(env, channels, &ch, &nc) != 0 || kj_ints_dup(env, tbns, &tn, &ntn) != 0
-        || kj_ints_dup(env, tbds, &td, &ntd) != 0) goto done;
-    if (nr != count || nf != count || nc != count || ntn != count || ntd != count) {
+        || kj_ints_dup(env, tbds, &td, &ntd) != 0
+        || kj_longs_dup(env, layout_masks, &masks, &nm) != 0) goto done;
+    if (nr != count || nf != count || nc != count || ntn != count || ntd != count || nm != count) {
         kj_throw_handle(env, "audio multi graph argument-array length mismatch");
         goto done;
     }
     rc = ffkmp_graph_build_audio_multi(&graph, sources, &sink, desc, count,
                                        rate, fmt, ch, tn, td,
-                                       out_format, out_rate, out_channels);
+                                       out_format, out_rate, out_channels,
+                                       (const int64_t *)masks, (int64_t)out_layout_mask);
     if (rc < 0) {
         kj_throw_ffmpeg(env, rc, "graph_build_audio_multi");
         goto done;
@@ -187,7 +192,7 @@ JNIEXPORT jlongArray JNICALL kj_graph_build_audio_multi(
     graph = NULL;
 done:
     if (graph != NULL) ffkmp_graph_free(&graph);
-    free(desc); free(sources); free(rate); free(fmt); free(ch); free(tn); free(td);
+    free(desc); free(sources); free(rate); free(fmt); free(ch); free(tn); free(td); free(masks);
     return result;
 }
 

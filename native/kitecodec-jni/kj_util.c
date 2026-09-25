@@ -315,6 +315,39 @@ jlongArray kj_longs_new(JNIEnv *env, const jlong *values, int32_t count)
     return out;
 }
 
+jintArray kj_ints_new(JNIEnv *env, const jint *values, int32_t count)
+{
+    jintArray out;
+    if (values == NULL || count < 0) {
+        kj_throw_handle(env, "int copy across the JNI boundary refused: NULL data or negative length");
+        return NULL;
+    }
+    out = (*env)->NewIntArray(env, (jsize)count);
+    if (out == NULL) return NULL;
+    if (count > 0) {
+        (*env)->SetIntArrayRegion(env, out, 0, (jsize)count, values);
+        if ((*env)->ExceptionCheck(env)) return NULL;
+    }
+    return out;
+}
+
+jintArray kj_hdr_new(JNIEnv *env, int display_rc, const int *q, int flags, int light_rc, int max_cll, int max_fall)
+{
+    jint packed[KJ_HDR_INTS] = { 0 };
+    int has_display = display_rc > 0 && flags != 0;
+    if (!has_display && light_rc <= 0) return NULL;
+    if (has_display) {
+        packed[0] = flags;
+        for (int i = 0; i < KC_HDR_MASTERING_INTS; i++) packed[1 + i] = q[i];
+    }
+    if (light_rc > 0) {
+        packed[21] = 1;
+        packed[22] = max_cll;
+        packed[23] = max_fall;
+    }
+    return kj_ints_new(env, packed, KJ_HDR_INTS);
+}
+
 int kj_bytes_dup(JNIEnv *env, jbyteArray bytes, uint8_t **out, int32_t *out_len)
 {
     jsize len;

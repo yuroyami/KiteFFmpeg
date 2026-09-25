@@ -17,6 +17,7 @@ import kotlinx.cinterop.Arena
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointerVar
 import kotlinx.cinterop.IntVar
+import kotlinx.cinterop.LongVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.allocPointerTo
@@ -363,7 +364,6 @@ public actual class FilterGraph internal constructor(
         ): FilterGraph {
             // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
-            refuseUnwiredFields("channelLayoutMask" to channelLayoutMask, "outputChannelLayoutMask" to outputChannelLayoutMask)
             val arena = Arena()
             val graphVar = arena.allocPointerTo<kc_filter_graph>()
             val srcVar = arena.allocPointerTo<kc_filter_ctx>()
@@ -376,6 +376,7 @@ public actual class FilterGraph internal constructor(
                 sampleRate, sampleFormatToAv(sampleFormat), channels,
                 timeBase.num, timeBase.den,
                 outFmtAv, outputSampleRate, outputChannels,
+                channelLayoutMask ?: 0L, outputChannelLayoutMask ?: 0L,
             )
             if (rc < 0) { arena.clear(); throw FFmpegException(avError(rc)) }
 
@@ -432,10 +433,6 @@ public actual class FilterGraph internal constructor(
         ): FilterGraph {
             // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
-            refuseUnwiredFields(
-                "outputChannelLayoutMask" to outputChannelLayoutMask,
-                "AudioInput.channelLayoutMask" to inputs.firstNotNullOfOrNull { it.channelLayoutMask },
-            )
             require(inputs.isNotEmpty()) { "Need at least one input" }
             memScoped {
                 val n = inputs.size
@@ -445,11 +442,13 @@ public actual class FilterGraph internal constructor(
                 val rates = allocArray<IntVar>(n); val fmts = allocArray<IntVar>(n)
                 val chans = allocArray<IntVar>(n)
                 val tbN = allocArray<IntVar>(n); val tbD = allocArray<IntVar>(n)
+                val masks = allocArray<LongVar>(n)
                 inputs.forEachIndexed { i, inp ->
                     rates[i] = inp.sampleRate
                     fmts[i] = sampleFormatToAv(inp.sampleFormat)
                     chans[i] = inp.channels
                     tbN[i] = inp.timeBase.num; tbD[i] = inp.timeBase.den
+                    masks[i] = inp.channelLayoutMask ?: 0L
                 }
                 val outFmtAv = if (outputSampleFormat == SampleFormat.None) -1 else sampleFormatToAv(outputSampleFormat)
 
@@ -458,6 +457,7 @@ public actual class FilterGraph internal constructor(
                     description, n,
                     rates, fmts, chans, tbN, tbD,
                     outFmtAv, outputSampleRate, outputChannels,
+                    masks, outputChannelLayoutMask ?: 0L,
                 )
                 if (rc < 0) throw FFmpegException(avError(rc))
 

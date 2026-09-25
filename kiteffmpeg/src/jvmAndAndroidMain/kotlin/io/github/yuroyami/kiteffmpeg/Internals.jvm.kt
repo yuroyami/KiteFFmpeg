@@ -81,11 +81,14 @@ internal object Internals {
         outRate: Int,
         outChannels: Int,
         outFormat: Int,
+        inMask: Long,
+        outMask: Long,
     ): Long
     private external fun nativeSwrConvertFrame(swrToken: Long, outToken: Long, inToken: Long): Int
     private external fun nativeSwrFree(token: Long)
     private external fun nativeComponentNames(kind: Int): String
     private external fun nativeStreamCopyIdentity(dstToken: Long, srcToken: Long): Int
+    private external fun nativeStreamSetSar(token: Long, num: Int, den: Int): Int
     private external fun nativeFmtAddChapter(
         fmtToken: Long,
         id: Long,
@@ -159,6 +162,7 @@ internal object Internals {
     private external fun nativeCodecParExtradata(token: Long): ByteArray?
     private external fun nativeCodecParSar(token: Long): Long
     private external fun nativeCodecParChannelLayout(token: Long): Long
+    private external fun nativeCodecParHdr(token: Long): IntArray?
     private external fun nativeCodecParFromContext(parameters: Long, context: Long): Int
     private external fun nativeCodecParCopy(destination: Long, source: Long): Int
 
@@ -193,6 +197,12 @@ internal object Internals {
     private external fun nativeCodecCtxTimeBase(context: Long): Long
     private external fun nativeCodecCtxGlobalHeader(context: Long)
     private external fun nativeCodecCtxFullRange(context: Long)
+    private external fun nativeCodecCtxSetColor(context: Long, primaries: Int, transfer: Int, matrix: Int, range: Int, chromaLocation: Int): Int
+    private external fun nativeCodecCtxSetSar(context: Long, num: Int, den: Int): Int
+    private external fun nativeCodecCtxSetChannelLayout(context: Long, mask: Long): Int
+    private external fun nativeCodecCtxChannelLayout(context: Long): Long
+    private external fun nativeCodecCtxAddMastering(context: Long, values: IntArray, flags: Int): Int
+    private external fun nativeCodecCtxAddLight(context: Long, maxCll: Int, maxFall: Int): Int
     private external fun nativeCodecCtxPixelFormat(context: Long): Int
     private external fun nativeCodecCtxWidth(context: Long): Int
     private external fun nativeCodecCtxHeight(context: Long): Int
@@ -213,6 +223,7 @@ internal object Internals {
     private external fun nativeFrameSampleRate(token: Long): Int
     private external fun nativeFrameChannels(token: Long): Int
     private external fun nativeFrameChannelLayout(token: Long): Long
+    private external fun nativeFrameHdr(token: Long): IntArray?
     private external fun nativeFrameColorRange(token: Long): Int
     private external fun nativeFrameColorSpace(token: Long): Int
     private external fun nativeFrameColorPrimaries(token: Long): Int
@@ -234,9 +245,9 @@ internal object Internals {
     private external fun nativeFrameFillAudio(token: Long, bytes: ByteArray): Int
 
     private external fun nativeGraphBuildVideo(description: String, width: Int, height: Int, format: Int, tbn: Int, tbd: Int, frn: Int, frd: Int, sarn: Int, sard: Int): LongArray
-    private external fun nativeGraphBuildAudio(description: String?, rate: Int, format: Int, channels: Int, tbn: Int, tbd: Int, outFormat: Int, outRate: Int, outChannels: Int): LongArray
+    private external fun nativeGraphBuildAudio(description: String?, rate: Int, format: Int, channels: Int, tbn: Int, tbd: Int, outFormat: Int, outRate: Int, outChannels: Int, layoutMask: Long, outLayoutMask: Long): LongArray
     private external fun nativeGraphBuildVideoMulti(description: String, count: Int, widths: IntArray, heights: IntArray, formats: IntArray, tbns: IntArray, tbds: IntArray, frns: IntArray, frds: IntArray, sarns: IntArray, sards: IntArray): LongArray
-    private external fun nativeGraphBuildAudioMulti(description: String?, count: Int, rates: IntArray, formats: IntArray, channels: IntArray, tbns: IntArray, tbds: IntArray, outFormat: Int, outRate: Int, outChannels: Int): LongArray
+    private external fun nativeGraphBuildAudioMulti(description: String?, count: Int, rates: IntArray, formats: IntArray, channels: IntArray, tbns: IntArray, tbds: IntArray, outFormat: Int, outRate: Int, outChannels: Int, layoutMasks: LongArray, outLayoutMask: Long): LongArray
     private external fun nativeGraphFree(token: Long)
     private external fun nativeGraphSend(source: Long, frame: Long): Int
     private external fun nativeGraphReceive(sink: Long, frame: Long): Int
@@ -358,13 +369,14 @@ internal object Internals {
     internal fun interruptNew() = token("interrupt cell") { nativeInterruptNew() }
     internal fun interruptRaise(token: Long) = checked { nativeInterruptRaise(token) }
     internal fun interruptFree(token: Long) = checked { nativeInterruptFree(token) }
-    internal fun swrCreate(inRate: Int, inChannels: Int, inFormat: Int, outRate: Int, outChannels: Int, outFormat: Int) =
-        token("resampler") { nativeSwrCreate(inRate, inChannels, inFormat, outRate, outChannels, outFormat) }
+    internal fun swrCreate(inRate: Int, inChannels: Int, inFormat: Int, outRate: Int, outChannels: Int, outFormat: Int, inMask: Long, outMask: Long) =
+        token("resampler") { nativeSwrCreate(inRate, inChannels, inFormat, outRate, outChannels, outFormat, inMask, outMask) }
     internal fun swrConvertFrame(swrToken: Long, outToken: Long, inToken: Long) =
         checked { nativeSwrConvertFrame(swrToken, outToken, inToken) }
     internal fun swrFree(token: Long) = checked { nativeSwrFree(token) }
     internal fun componentNames(kind: Int): String = checked { nativeComponentNames(kind) }
     internal fun streamCopyIdentity(dstToken: Long, srcToken: Long) = checked { nativeStreamCopyIdentity(dstToken, srcToken) }
+    internal fun streamSetSar(token: Long, sar: Rational) = checked { nativeStreamSetSar(token, sar.num, sar.den) }
     internal fun fmtAddChapter(
         fmtToken: Long,
         id: Long,
@@ -457,6 +469,7 @@ internal object Internals {
     internal fun codecParExtradata(token: Long) = checked { nativeCodecParExtradata(token) }
     internal fun codecParSar(token: Long) = unpackRational(checked { nativeCodecParSar(token) })
     internal fun codecParChannelLayout(token: Long) = checked { nativeCodecParChannelLayout(token) }
+    internal fun codecParHdr(token: Long): HdrMetadata? = hdrFromInts(checked { nativeCodecParHdr(token) })
     internal fun codecParFromContext(parameters: Long, context: Long) = checked { nativeCodecParFromContext(parameters, context) }
     internal fun codecParCopy(destination: Long, source: Long) = checked { nativeCodecParCopy(destination, source) }
 
@@ -488,6 +501,13 @@ internal object Internals {
     internal fun codecCtxSampleRate(context: Long) = checked { nativeCodecCtxSampleRate(context) }
     internal fun codecCtxChannels(context: Long) = checked { nativeCodecCtxChannels(context) }
     internal fun codecCtxTimeBase(context: Long) = unpackRational(checked { nativeCodecCtxTimeBase(context) })
+    internal fun codecCtxSetColor(context: Long, primaries: Int, transfer: Int, matrix: Int, range: Int, chromaLocation: Int) =
+        checked { nativeCodecCtxSetColor(context, primaries, transfer, matrix, range, chromaLocation) }
+    internal fun codecCtxSetSar(context: Long, sar: Rational) = checked { nativeCodecCtxSetSar(context, sar.num, sar.den) }
+    internal fun codecCtxSetChannelLayout(context: Long, mask: Long) = checked { nativeCodecCtxSetChannelLayout(context, mask) }
+    internal fun codecCtxChannelLayout(context: Long) = checked { nativeCodecCtxChannelLayout(context) }
+    internal fun codecCtxAddMastering(context: Long, values: IntArray, flags: Int) = checked { nativeCodecCtxAddMastering(context, values, flags) }
+    internal fun codecCtxAddLight(context: Long, maxCll: Int, maxFall: Int) = checked { nativeCodecCtxAddLight(context, maxCll, maxFall) }
     internal fun codecCtxGlobalHeader(context: Long) = checked { nativeCodecCtxGlobalHeader(context) }
     internal fun codecCtxFullRange(context: Long) = checked { nativeCodecCtxFullRange(context) }
     internal fun codecCtxPixelFormat(context: Long) = checked { nativeCodecCtxPixelFormat(context) }
@@ -510,6 +530,7 @@ internal object Internals {
     internal fun frameSampleRate(token: Long) = checked { nativeFrameSampleRate(token) }
     internal fun frameChannels(token: Long) = checked { nativeFrameChannels(token) }
     internal fun frameChannelLayout(token: Long) = checked { nativeFrameChannelLayout(token) }
+    internal fun frameHdr(token: Long): HdrMetadata? = hdrFromInts(checked { nativeFrameHdr(token) })
     internal fun frameColorRange(token: Long) = checked { nativeFrameColorRange(token) }
     internal fun frameColorSpace(token: Long) = checked { nativeFrameColorSpace(token) }
     internal fun frameColorPrimaries(token: Long) = checked { nativeFrameColorPrimaries(token) }
@@ -531,9 +552,9 @@ internal object Internals {
     internal fun frameFillAudio(token: Long, bytes: ByteArray) = checked { nativeFrameFillAudio(token, bytes) }
 
     internal fun graphBuildVideo(description: String, width: Int, height: Int, format: Int, timeBase: Rational, frameRate: Rational, sar: Rational) = checked { nativeGraphBuildVideo(description, width, height, format, timeBase.num, timeBase.den, frameRate.num, frameRate.den, sar.num, sar.den) }
-    internal fun graphBuildAudio(description: String?, rate: Int, format: Int, channels: Int, timeBase: Rational, outFormat: Int, outRate: Int, outChannels: Int) = checked { nativeGraphBuildAudio(description, rate, format, channels, timeBase.num, timeBase.den, outFormat, outRate, outChannels) }
+    internal fun graphBuildAudio(description: String?, rate: Int, format: Int, channels: Int, timeBase: Rational, outFormat: Int, outRate: Int, outChannels: Int, layoutMask: Long, outLayoutMask: Long) = checked { nativeGraphBuildAudio(description, rate, format, channels, timeBase.num, timeBase.den, outFormat, outRate, outChannels, layoutMask, outLayoutMask) }
     internal fun graphBuildVideoMulti(description: String, count: Int, widths: IntArray, heights: IntArray, formats: IntArray, tbns: IntArray, tbds: IntArray, frns: IntArray, frds: IntArray, sarns: IntArray, sards: IntArray) = checked { nativeGraphBuildVideoMulti(description, count, widths, heights, formats, tbns, tbds, frns, frds, sarns, sards) }
-    internal fun graphBuildAudioMulti(description: String?, count: Int, rates: IntArray, formats: IntArray, channels: IntArray, tbns: IntArray, tbds: IntArray, outFormat: Int, outRate: Int, outChannels: Int) = checked { nativeGraphBuildAudioMulti(description, count, rates, formats, channels, tbns, tbds, outFormat, outRate, outChannels) }
+    internal fun graphBuildAudioMulti(description: String?, count: Int, rates: IntArray, formats: IntArray, channels: IntArray, tbns: IntArray, tbds: IntArray, outFormat: Int, outRate: Int, outChannels: Int, layoutMasks: LongArray, outLayoutMask: Long) = checked { nativeGraphBuildAudioMulti(description, count, rates, formats, channels, tbns, tbds, outFormat, outRate, outChannels, layoutMasks, outLayoutMask) }
     internal fun graphFree(token: Long) = checked { nativeGraphFree(token) }
     internal fun graphSend(source: Long, frame: Long) = checked { nativeGraphSend(source, frame) }
     internal fun graphReceive(sink: Long, frame: Long) = checked { nativeGraphReceive(sink, frame) }

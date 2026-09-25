@@ -154,6 +154,56 @@ static int invalid_stream_copy_identity(void)
     return ffkmp_stream_copy_identity(NULL, NULL);
 }
 
+static int invalid_stream_set_sample_aspect_ratio(void)
+{
+    return ffkmp_stream_set_sample_aspect_ratio(NULL, 4, 3);
+}
+
+static int invalid_codecctx_set_color(void)
+{
+    return ffkmp_codecctx_set_color(NULL, 2, 2, 2, 0, 0);
+}
+
+static int invalid_codecctx_set_sample_aspect_ratio(void)
+{
+    return ffkmp_codecctx_set_sample_aspect_ratio(NULL, 4, 3);
+}
+
+static int invalid_codecctx_set_ch_layout_mask(void)
+{
+    return ffkmp_codecctx_set_ch_layout_mask(NULL, 0x3F);
+}
+
+static int invalid_codecctx_add_mastering_display(void)
+{
+    return ffkmp_codecctx_add_mastering_display(NULL, NULL, KC_HDR_HAS_PRIMARIES);
+}
+
+static int invalid_codecctx_add_content_light(void)
+{
+    return ffkmp_codecctx_add_content_light(NULL, 1000, 400);
+}
+
+static int invalid_codecpar_mastering_display(void)
+{
+    return ffkmp_codecpar_mastering_display(NULL, NULL, NULL);
+}
+
+static int invalid_frame_mastering_display(void)
+{
+    return ffkmp_frame_mastering_display(NULL, NULL, NULL);
+}
+
+static int invalid_codecpar_content_light(void)
+{
+    return ffkmp_codecpar_content_light(NULL, NULL, NULL);
+}
+
+static int invalid_frame_content_light(void)
+{
+    return ffkmp_frame_content_light(NULL, NULL, NULL);
+}
+
 static int invalid_fmt_add_chapter(void)
 {
     return ffkmp_fmt_add_chapter(NULL, 1, 0, 1000, NULL, NULL, 0);
@@ -245,7 +295,7 @@ static int invalid_graph_build_audio(void)
 {
     return ffkmp_graph_build_audio(
         NULL, NULL, NULL, "anull", 48000, ffkmp_sample_fmt_from_name("fltp"), 2,
-        1, 48000, -1, -1, 0
+        1, 48000, -1, -1, 0, 0, 0
     );
 }
 
@@ -261,7 +311,7 @@ static int invalid_graph_build_audio_multi(void)
 {
     return ffkmp_graph_build_audio_multi(
         NULL, NULL, NULL, "[in0]anull[out]", 1,
-        NULL, NULL, NULL, NULL, NULL, -1, -1, 0
+        NULL, NULL, NULL, NULL, NULL, -1, -1, 0, NULL, 0
     );
 }
 
@@ -290,7 +340,7 @@ static void control_audio_description_null(void)
     kc_frame *pulled;
     int rc = ffkmp_graph_build_audio(
         &graph, &source, &sink, NULL, 48000, ffkmp_sample_fmt_from_name("fltp"), 2,
-        1, 48000, -1, -1, 0
+        1, 48000, -1, -1, 0, 0, 0
     );
 
     KC_EQ_INT(rc, 0);
@@ -304,7 +354,7 @@ static void control_audio_description_null(void)
     rc = ffkmp_graph_build_audio_multi(
         &graph, sources, &sink, NULL, 1,
         sample_rates, sample_fmts, channels, tb_nums, tb_dens,
-        ffkmp_sample_fmt_from_name("s16"), 44100, 1
+        ffkmp_sample_fmt_from_name("s16"), 44100, 1, NULL, 0
     );
     KC_EQ_INT(rc, 0);
     KC_NOT_NULL(graph);
@@ -341,7 +391,7 @@ static void control_graph_send_null_frame(void)
     kc_filter_ctx *sink = NULL;
     int rc = ffkmp_graph_build_audio(
         &graph, &source, &sink, "anull", 48000, ffkmp_sample_fmt_from_name("fltp"), 2,
-        1, 48000, -1, -1, 0
+        1, 48000, -1, -1, 0, 0, 0
     );
 
     KC_EQ_INT(rc, 0);
@@ -462,6 +512,16 @@ static const invalid_case invalid_cases[] = {
     { "invalid_fmt_open_input2_pairs", "ffkmp_fmt_open_input2 refuses pairs without arrays", invalid_fmt_open_input2_pairs },
     { "invalid_fmt_chapter_count", "ffkmp_fmt_chapter_count refuses a NULL context", invalid_fmt_chapter_count },
     { "invalid_stream_copy_identity", "ffkmp_stream_copy_identity refuses NULL streams", invalid_stream_copy_identity },
+    { "invalid_stream_set_sample_aspect_ratio", "ffkmp_stream_set_sample_aspect_ratio refuses a NULL stream", invalid_stream_set_sample_aspect_ratio },
+    { "invalid_codecctx_set_color", "ffkmp_codecctx_set_color refuses a NULL context", invalid_codecctx_set_color },
+    { "invalid_codecctx_set_sample_aspect_ratio", "ffkmp_codecctx_set_sample_aspect_ratio refuses a NULL context", invalid_codecctx_set_sample_aspect_ratio },
+    { "invalid_codecctx_set_ch_layout_mask", "ffkmp_codecctx_set_ch_layout_mask refuses a NULL context", invalid_codecctx_set_ch_layout_mask },
+    { "invalid_codecctx_add_mastering_display", "ffkmp_codecctx_add_mastering_display refuses a NULL context", invalid_codecctx_add_mastering_display },
+    { "invalid_codecctx_add_content_light", "ffkmp_codecctx_add_content_light refuses a NULL context", invalid_codecctx_add_content_light },
+    { "invalid_codecpar_mastering_display", "ffkmp_codecpar_mastering_display refuses NULL arguments", invalid_codecpar_mastering_display },
+    { "invalid_frame_mastering_display", "ffkmp_frame_mastering_display refuses NULL arguments", invalid_frame_mastering_display },
+    { "invalid_codecpar_content_light", "ffkmp_codecpar_content_light refuses NULL arguments", invalid_codecpar_content_light },
+    { "invalid_frame_content_light", "ffkmp_frame_content_light refuses NULL arguments", invalid_frame_content_light },
     { "invalid_fmt_add_chapter", "ffkmp_fmt_add_chapter refuses a NULL context", invalid_fmt_add_chapter },
     { "invalid_fmt_add_chapter_backwards", "ffkmp_fmt_add_chapter refuses an end before the start", invalid_fmt_add_chapter_backwards },
     { "invalid_fmt_chapter_get", "ffkmp_fmt_chapter_get refuses NULL arguments", invalid_fmt_chapter_get },

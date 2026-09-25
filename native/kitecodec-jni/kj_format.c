@@ -496,6 +496,17 @@ JNIEXPORT jlong JNICALL kj_codecpar_sar(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,token,KJ_KIND_CODEC_PAR);int n=0,d=1;(void)cls;if(p)ffkmp_codecpar_sample_aspect_ratio(p,&n,&d);return((jlong)(uint32_t)n<<32)|(uint32_t)d;}
 JNIEXPORT jlong JNICALL kj_codecpar_layout(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,token,KJ_KIND_CODEC_PAR);(void)cls;return p?ffkmp_codecpar_ch_layout_mask(p):0;}
+JNIEXPORT jintArray JNICALL kj_codecpar_hdr(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_codec_par *p = (kc_codec_par *)kj_handle_get(env, token, KJ_KIND_CODEC_PAR);
+    int q[KC_HDR_MASTERING_INTS] = { 0 }, flags = 0, cll = 0, fall = 0;
+    int display_rc, light_rc;
+    (void)cls;
+    if (p == NULL) return NULL;
+    display_rc = ffkmp_codecpar_mastering_display(p, q, &flags);
+    light_rc = ffkmp_codecpar_content_light(p, &cll, &fall);
+    return kj_hdr_new(env, display_rc, q, flags, light_rc, cll, fall);
+}
 JNIEXPORT jint JNICALL kj_codecpar_from_context(JNIEnv *env,jclass cls,jlong par_token,jlong ctx_token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,par_token,KJ_KIND_CODEC_PAR);kc_codec_ctx*c;(void)cls;if(!p)return-1;c=(kc_codec_ctx*)kj_handle_get(env,ctx_token,KJ_KIND_CODEC_CTX);return c?ffkmp_codecpar_from_context(p,c):-1;}
 JNIEXPORT jint JNICALL kj_codecpar_copy(JNIEnv *env,jclass cls,jlong dst_token,jlong src_token)
@@ -733,7 +744,14 @@ JNIEXPORT void JNICALL kj_fmt_close_input_io(JNIEnv *env, jclass cls, jlong toke
     kj_io_state_free(env, st);
 }
 
-/* The identity of a copied stream: every tag and the disposition flags. */
+JNIEXPORT jint JNICALL kj_stream_set_sar(JNIEnv *env, jclass cls, jlong token, jint num, jint den)
+{
+    kc_stream *s = (kc_stream *)kj_handle_get(env, token, KJ_KIND_STREAM);
+    (void)cls;
+    return s ? ffkmp_stream_set_sample_aspect_ratio(s, num, den) : -22;
+}
+
+/* The identity of a copied stream: every tag, the disposition flags and the pixel shape. */
 JNIEXPORT jint JNICALL kj_stream_copy_identity(JNIEnv *env, jclass cls, jlong dst_token, jlong src_token)
 {
     kc_stream *dst = (kc_stream *)kj_handle_get(env, dst_token, KJ_KIND_STREAM);

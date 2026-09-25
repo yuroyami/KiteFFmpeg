@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import ffmpeg.ffkmp_frame_content_light
+import ffmpeg.ffkmp_frame_mastering_display
 import ffmpeg.ffkmp_codec_first_pix_fmt
 import ffmpeg.ffkmp_codec_supports_pix_fmt
 import ffmpeg.ffkmp_codecctx_alloc
@@ -151,6 +153,12 @@ public actual class Frame internal constructor(
             color         = if (streamType == MediaType.Video) readColorInfo() else ColorInfo.Unspecified,
             sampleAspectRatio = if (streamType == MediaType.Video) readFrameSar() else Rational(1, 1),
             isHardware    = ffkmp_frame_is_hardware(nativeFrame) != 0,
+            hdr           = if (streamType == MediaType.Video) {
+                readHdr(
+                    display = { q, flags -> ffkmp_frame_mastering_display(nativeFrame, q, flags) },
+                    light = { maxCll, maxFall -> ffkmp_frame_content_light(nativeFrame, maxCll, maxFall) },
+                )
+            } else null,
         )
 
     private fun readColorInfo(): ColorInfo {

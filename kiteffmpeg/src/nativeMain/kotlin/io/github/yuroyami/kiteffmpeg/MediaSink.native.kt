@@ -11,7 +11,12 @@ import ffmpeg.ffkmp_codecctx_pix_fmt
 import ffmpeg.ffkmp_codecctx_receive_packet
 import ffmpeg.ffkmp_codecctx_sample_rate
 import ffmpeg.ffkmp_codecctx_send_frame
+import ffmpeg.ffkmp_codecctx_ch_layout_mask
 import ffmpeg.ffkmp_codecctx_set_audio
+import ffmpeg.ffkmp_codecctx_set_ch_layout_mask
+import ffmpeg.ffkmp_codecctx_set_color
+import ffmpeg.ffkmp_codecctx_set_sample_aspect_ratio
+import ffmpeg.ffkmp_stream_set_sample_aspect_ratio
 import ffmpeg.ffkmp_codecctx_set_global_header
 import ffmpeg.ffkmp_codecctx_set_opt
 import ffmpeg.ffkmp_codecctx_set_video
@@ -157,8 +162,7 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
-        requireNoTypedVideoOptionCollision(spec.options)
-        refuseUnwiredFields("color" to spec.color, "sampleAspectRatio" to spec.sampleAspectRatio, "hdr" to spec.hdr)
+        requireNoTypedVideoOptionCollision(spec)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         val codecCtx = newEncoderContext(spec.codec.name) { codec, cc ->
@@ -171,9 +175,16 @@ public actual class MediaSink internal constructor(
                 spec.bitrateBps,
                 spec.keyframeIntervalFrames,
             )
+            spec.color?.encoderValues()?.let { (primaries, transfer, matrix, range, chroma) ->
+                check0(ffkmp_codecctx_set_color(cc, primaries, transfer, matrix, range, chroma), "encoder colour")
+            }
+            spec.sampleAspectRatio?.let { sar ->
+                check0(ffkmp_codecctx_set_sample_aspect_ratio(cc, sar.num, sar.den), "encoder sample aspect ratio")
+            }
+            spec.hdr?.let { hdr -> applyHdr(cc, hdr) }
             spec.options.forEach { (k, v) -> check0(ffkmp_codecctx_set_opt(cc, k, v), "av_opt_set ('$k')") }
         }
-        val stream = newStreamFor(codecCtx)
+        val stream = newStreamFor(codecCtx, spec.sampleAspectRatio)
         val core = EncoderCore(
             sink = this,
             codecCtx = codecCtx,
@@ -226,8 +237,8 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
-        requireNoTypedAudioOptionCollision(spec.options)
-        refuseUnwiredFields("channelLayoutMask" to spec.channelLayoutMask)
+        requireNoTypedAudioOptionCollision(spec)
+        requireLayoutMatchesChannels(spec)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         var negotiatedFormat = spec.sampleFormat
@@ -246,6 +257,7 @@ public actual class MediaSink internal constructor(
                 spec.channels,
                 spec.bitrateBps,
             )
+            spec.channelLayoutMask?.let { mask -> check0(ffkmp_codecctx_set_ch_layout_mask(cc, mask), "encoder channel layout") }
             spec.options.forEach { (k, v) -> check0(ffkmp_codecctx_set_opt(cc, k, v), "av_opt_set ('$k')") }
         }
         val stream = newStreamFor(codecCtx)
@@ -265,7 +277,7 @@ public actual class MediaSink internal constructor(
             // (Transcoder builds its aformat pin from these) must resample to the real values.
             sampleRate = ffkmp_codecctx_sample_rate(codecCtx).takeIf { it > 0 } ?: spec.sampleRate,
             channels = ffkmp_codecctx_channels(codecCtx).takeIf { it > 0 } ?: spec.channels,
-            channelLayoutMask = null,
+            channelLayoutMask = ffkmp_codecctx_ch_layout_mask(codecCtx).takeIf { it != 0L },
         )
     }
 
@@ -304,8 +316,12 @@ public actual class MediaSink internal constructor(
         }
     }
 
-    /** Create the muxer stream for an opened encoder context and copy its parameters over. */
-    private fun newStreamFor(codecCtx: CPointer<kc_codec_ctx>): CPointer<kc_stream> {
+    /**
+     * Create the muxer stream for an opened encoder context and copy its parameters over. A
+     * [sampleAspectRatio] goes on the stream too, because Matroska reads the stream's and never
+     * the codec parameters'.
+     */
+    private fun newStreamFor(codecCtx: CPointer<kc_codec_ctx>, sampleAspectRatio: Rational? = null): CPointer<kc_stream> {
         var mutated = false
         try {
             val stream = ffkmp_fmt_new_stream(ctx, null)
@@ -315,6 +331,9 @@ public actual class MediaSink internal constructor(
             val par = ffkmp_stream_codecpar(stream)
                 ?: throw FFmpegException(FFmpegError.Internal("New stream missing codecpar"))
             check0(ffkmp_codecpar_from_context(par, codecCtx), "avcodec_parameters_from_context")
+            sampleAspectRatio?.let { sar ->
+                check0(ffkmp_stream_set_sample_aspect_ratio(stream, sar.num, sar.den), "stream sample aspect ratio")
+            }
             val tb = codecCtxTimeBase(codecCtx)
             ffkmp_stream_set_time_base(stream, tb.num, tb.den)
             declaredStreams += 1
@@ -884,7 +903,7 @@ public actual class AudioEncoder internal constructor(
         try {
             core.ensureHeaderWritten()
             withPacket { packet ->
-                audioForEncoder(input, sampleFormat, sampleRate, channels, frameSize).collect { frame ->
+                audioForEncoder(input, sampleFormat, sampleRate, channels, frameSize, channelLayoutMask).collect { frame ->
                     core.encode(packet, frame)
                 }
                 core.finish(packet)

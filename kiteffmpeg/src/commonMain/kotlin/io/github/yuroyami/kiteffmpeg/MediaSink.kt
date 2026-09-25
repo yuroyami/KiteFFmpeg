@@ -209,12 +209,3 @@ public expect class AudioEncoder : AutoCloseable {
     public suspend fun drive(input: Flow<Frame>)
     override fun close()
 }
-
-/** Wired in the next commit; until then a field this build cannot apply is refused, not dropped. */
-internal fun refuseUnwiredFields(vararg fields: Pair<String, Any?>) {
-    val named = fields.filter { it.second != null }.map { it.first }
-    if (named.isEmpty()) return
-    throw FFmpegException(
-        FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "${named.joinToString()} is not wired yet"),
-    )
-}

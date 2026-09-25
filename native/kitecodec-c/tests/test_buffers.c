@@ -789,19 +789,19 @@ static void case_audio_args_at_the_widest_inputs(void)
      * FFmpeg that changes that description cannot do it silently. */
     KC_CHECKF(ffkmp_graph_build_audio(&graph, &src, &sink, "anull",
                                       INT_MIN, AV_SAMPLE_FMT_S16P, 64,
-                                      INT_MIN, INT_MAX, -1, -1, 0) < 0,
+                                      INT_MIN, INT_MAX, -1, -1, 0, 0, 0) < 0,
               "a 64 channel graph at INT_MIN rates was accepted");
     KC_NULL(graph);
     /* An unknown sample format is refused before anything is rendered, which is the branch
      * that would otherwise pass NULL to a %s conversion. */
     KC_CHECKF(ffkmp_graph_build_audio(&graph, &src, &sink, "anull",
-                                      48000, 9999, 2, 1, 48000, -1, -1, 0) < 0,
+                                      48000, 9999, 2, 1, 48000, -1, -1, 0, 0, 0) < 0,
               "an unknown sample format was accepted");
     KC_NULL(graph);
     /* Zero and negative channel counts fall back to 2 inside the helper rather than describing
      * a zero channel layout. */
     KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "anull",
-                                      48000, AV_SAMPLE_FMT_FLTP, 0, 1, 48000, -1, -1, 0), 0);
+                                      48000, AV_SAMPLE_FMT_FLTP, 0, 1, 48000, -1, -1, 0, 0, 0), 0);
     KC_NOT_NULL(graph);
     ffkmp_graph_free(&graph);
 }
@@ -821,12 +821,12 @@ static void case_audio_multi_args_at_the_widest_inputs(void)
      * described in one call. */
     KC_CHECKF(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, "[in0][in1]amix=inputs=2[out]",
                                             2, rates, fmts, channels, tb_nums, tb_dens,
-                                            -1, -1, 0) < 0,
+                                            -1, -1, 0, NULL, 0) < 0,
               "a 64 channel multi input graph at INT_MIN rates was accepted");
     KC_NULL(graph);
     KC_CHECKF(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, "[in0]anull[out]", -1,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            -1, -1, 0) < 0,
+                                            -1, -1, 0, NULL, 0) < 0,
               "a negative input count was accepted");
     KC_NULL(graph);
 }
@@ -913,7 +913,7 @@ static void case_full_desc_exact_fit_without_pins(void)
      * description which fits, and a truncation at the very last byte. */
     char *description = chain_of_length(2047, "", "atrim=start=0");
     KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, description,
-                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0), 0);
+                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0, 0, 0), 0);
     KC_NOT_NULL(graph);
     KC_NOT_NULL(src);
     KC_NOT_NULL(sink);
@@ -934,7 +934,7 @@ static void case_full_desc_one_byte_over_without_pins(void)
      * caller asked for, and nothing downstream could ever notice. */
     char *description = chain_of_length(2048, "", "atrim=start=00");
     KC_CHECKF(ffkmp_graph_build_audio(&graph, &src, &sink, description,
-                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0) < 0,
+                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0, 0, 0) < 0,
               "a description one byte past the buffer was accepted");
     KC_NULL(graph);
     KC_NULL(src);
@@ -959,7 +959,7 @@ static void case_full_desc_exact_fit_with_all_three_pins(void)
      * path unusable for long descriptions for no reason. */
     KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, description,
                                       48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000,
-                                      PIN_FMT, PIN_RATE, PIN_CHANNELS), 0);
+                                      PIN_FMT, PIN_RATE, PIN_CHANNELS, 0, 0), 0);
     KC_NOT_NULL(graph);
     KC_EQ_INT(av_buffersink_get_format(sink), PIN_FMT);
     KC_EQ_INT(av_buffersink_get_sample_rate(sink), PIN_RATE);
@@ -981,7 +981,7 @@ static void case_full_desc_one_byte_over_with_all_three_pins(void)
     char *description = chain_of_length(2047 - suffix + 6, "", "anull");
     KC_CHECKF(ffkmp_graph_build_audio(&graph, &src, &sink, description,
                                       48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000,
-                                      PIN_FMT, PIN_RATE, PIN_CHANNELS) < 0,
+                                      PIN_FMT, PIN_RATE, PIN_CHANNELS, 0, 0) < 0,
               "a description that leaves no room for the pins was accepted");
     KC_NULL(graph);
     kc_detail("description=%zu pins=%d limit=2047", kc_strlen(description), suffix);
@@ -1009,14 +1009,14 @@ static void case_full_desc_trips_the_first_append_with_more_pending(void)
     char *description = chain_of_length(2045, "", "anull");
     KC_CHECKF(ffkmp_graph_build_audio(&graph, &src, &sink, description,
                                       48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000,
-                                      PIN_FMT, PIN_RATE, PIN_CHANNELS) < 0,
+                                      PIN_FMT, PIN_RATE, PIN_CHANNELS, 0, 0) < 0,
               "a description that overflows on the first append was accepted");
     KC_NULL(graph);
     /* The same trip point with only the middle pin requested, so a different subset of the
      * appends runs and the one that trips is a different statement. */
     KC_CHECKF(ffkmp_graph_build_audio(&graph, &src, &sink, description,
                                       48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000,
-                                      -1, PIN_RATE, 0) < 0,
+                                      -1, PIN_RATE, 0, 0, 0) < 0,
               "a description that overflows before sample_rates was accepted");
     KC_NULL(graph);
     kc_detail("description=%zu first_append=9", kc_strlen(description));
@@ -1033,12 +1033,12 @@ static void case_full_desc_empty_description_falls_back(void)
      * pins the whole description and produce a graph with no input link. */
     KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, NULL,
                                       48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000,
-                                      PIN_FMT, PIN_RATE, PIN_CHANNELS), 0);
+                                      PIN_FMT, PIN_RATE, PIN_CHANNELS, 0, 0), 0);
     KC_NOT_NULL(graph);
     KC_EQ_INT(av_buffersink_get_format(sink), PIN_FMT);
     ffkmp_graph_free(&graph);
     KC_EQ_INT(ffkmp_graph_build_audio(&graph, &src, &sink, "",
-                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0), 0);
+                                      48000, AV_SAMPLE_FMT_FLTP, 2, 1, 48000, -1, -1, 0, 0, 0), 0);
     KC_NOT_NULL(graph);
     ffkmp_graph_free(&graph);
 }
@@ -1061,7 +1061,7 @@ static void case_multi_full_desc_exact_fit_without_pins(void)
     /* Same property as the single input exact fit row, through src 700 instead of src 555. */
     KC_EQ_INT(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            -1, -1, 0), 0);
+                                            -1, -1, 0, NULL, 0), 0);
     KC_NOT_NULL(graph);
     KC_NOT_NULL(srcs[0]);
     ffkmp_graph_free(&graph);
@@ -1084,7 +1084,7 @@ static void case_multi_full_desc_one_byte_over_without_pins(void)
     char *description = chain_of_length(2048, "[in0]", "atrim=start=000");
     KC_CHECKF(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            -1, -1, 0) < 0,
+                                            -1, -1, 0, NULL, 0) < 0,
               "a description one byte past the buffer was accepted");
     KC_NULL(graph);
     kc_detail("description=%zu limit=2047", kc_strlen(description));
@@ -1107,7 +1107,7 @@ static void case_multi_full_desc_exact_fit_with_all_three_pins(void)
     char *description = chain_of_length(2047 - suffix, "[in0]", "atrim=start=000000");
     KC_EQ_INT(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            PIN_FMT, PIN_RATE, PIN_CHANNELS), 0);
+                                            PIN_FMT, PIN_RATE, PIN_CHANNELS, NULL, 0), 0);
     KC_NOT_NULL(graph);
     KC_EQ_INT(av_buffersink_get_format(sink), PIN_FMT);
     KC_EQ_INT(av_buffersink_get_sample_rate(sink), PIN_RATE);
@@ -1133,12 +1133,12 @@ static void case_multi_full_desc_trips_an_append_with_more_pending(void)
     char *description = chain_of_length(2045, "[in0]", "atrim=start=000000");
     KC_CHECKF(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            PIN_FMT, PIN_RATE, PIN_CHANNELS) < 0,
+                                            PIN_FMT, PIN_RATE, PIN_CHANNELS, NULL, 0) < 0,
               "a description that overflows on the first append was accepted");
     KC_NULL(graph);
     KC_CHECKF(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            -1, -1, PIN_CHANNELS) < 0,
+                                            -1, -1, PIN_CHANNELS, NULL, 0) < 0,
               "a description that overflows before channel_layouts was accepted");
     KC_NULL(graph);
     kc_detail("description=%zu first_append=9", kc_strlen(description));
@@ -1162,7 +1162,7 @@ static void case_multi_full_desc_with_an_explicit_out_label_skips_the_pins(void)
     char *description = chain_of_length(2042, "[in0]", "volume=1.0[out]");
     KC_EQ_INT(ffkmp_graph_build_audio_multi(&graph, srcs, &sink, description, 1,
                                             rates, fmts, channels, tb_nums, tb_dens,
-                                            PIN_FMT, PIN_RATE, PIN_CHANNELS), 0);
+                                            PIN_FMT, PIN_RATE, PIN_CHANNELS, NULL, 0), 0);
     KC_NOT_NULL(graph);
     /* The pins were skipped, so the sink keeps the input format rather than the pinned one. */
     KC_EQ_INT(av_buffersink_get_format(sink), AV_SAMPLE_FMT_FLTP);

@@ -77,8 +77,7 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
-        requireNoTypedVideoOptionCollision(spec.options)
-        refuseUnwiredFields("color" to spec.color, "sampleAspectRatio" to spec.sampleAspectRatio, "hdr" to spec.hdr)
+        requireNoTypedVideoOptionCollision(spec)
         val context = newEncoderContext(spec.codec.name) { _, codecContext ->
             Internals.codecCtxSetVideo(
                 codecContext,
@@ -90,11 +89,25 @@ public actual class MediaSink internal constructor(
                 spec.bitrateBps,
                 spec.keyframeIntervalFrames,
             )
+            spec.color?.encoderValues()?.let { (primaries, transfer, matrix, range, chroma) ->
+                check0(Internals.codecCtxSetColor(codecContext, primaries, transfer, matrix, range, chroma), "encoder colour")
+            }
+            spec.sampleAspectRatio?.let { sar ->
+                check0(Internals.codecCtxSetSar(codecContext, sar), "encoder sample aspect ratio")
+            }
+            spec.hdr?.let { hdr ->
+                hdr.masteringDisplay?.toInts()?.let { (values, flags) ->
+                    check0(Internals.codecCtxAddMastering(codecContext, values, flags), "mastering display side data")
+                }
+                hdr.contentLight?.let { light ->
+                    check0(Internals.codecCtxAddLight(codecContext, light.maxCll, light.maxFall), "content light side data")
+                }
+            }
             spec.options.forEach { (key, value) ->
                 check0(Internals.codecCtxSetOpt(codecContext, key, value), "av_opt_set ('$key')")
             }
         }
-        val stream = newStreamFor(context)
+        val stream = newStreamFor(context, spec.sampleAspectRatio)
         val core = EncoderCore(this, context, stream, Internals.codecCtxTimeBase(context), false)
         encoderCores += core
         VideoEncoder(core)
@@ -102,8 +115,8 @@ public actual class MediaSink internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
-        requireNoTypedAudioOptionCollision(spec.options)
-        refuseUnwiredFields("channelLayoutMask" to spec.channelLayoutMask)
+        requireNoTypedAudioOptionCollision(spec)
+        requireLayoutMatchesChannels(spec)
         var negotiated = spec.sampleFormat
         val context = newEncoderContext(spec.codec.name) { codec, codecContext ->
             if (negotiated == SampleFormat.None) {
@@ -125,6 +138,9 @@ public actual class MediaSink internal constructor(
                 spec.channels,
                 spec.bitrateBps,
             )
+            spec.channelLayoutMask?.let { mask ->
+                check0(Internals.codecCtxSetChannelLayout(codecContext, mask), "encoder channel layout")
+            }
             spec.options.forEach { (key, value) ->
                 check0(Internals.codecCtxSetOpt(codecContext, key, value), "av_opt_set ('$key')")
             }
@@ -138,7 +154,7 @@ public actual class MediaSink internal constructor(
             negotiated,
             Internals.codecCtxSampleRate(context).takeIf { it > 0 } ?: spec.sampleRate,
             Internals.codecCtxChannels(context).takeIf { it > 0 } ?: spec.channels,
-            null,
+            Internals.codecCtxChannelLayout(context).takeIf { it != 0L },
         )
     }
 
@@ -203,7 +219,12 @@ public actual class MediaSink internal constructor(
         }
     }
 
-    private fun newStreamFor(context: Long): Long {
+    /**
+     * Create the muxer stream for an opened encoder context and copy its parameters over. A
+     * [sampleAspectRatio] goes on the stream too, because Matroska reads the stream's and never
+     * the codec parameters'.
+     */
+    private fun newStreamFor(context: Long, sampleAspectRatio: Rational? = null): Long {
         var stream = 0L
         var parameters = 0L
         var mutated = false
@@ -213,6 +234,7 @@ public actual class MediaSink internal constructor(
             mutated = true
             parameters = Internals.streamCodecPar(stream)
             check0(Internals.codecParFromContext(parameters, context), "avcodec_parameters_from_context")
+            sampleAspectRatio?.let { sar -> check0(Internals.streamSetSar(stream, sar), "stream sample aspect ratio") }
             Internals.streamSetTimeBase(stream, Internals.codecCtxTimeBase(context))
             declaredStreams += 1
             return stream
@@ -669,7 +691,7 @@ public actual class AudioEncoder internal constructor(
         try {
             core.ensureHeaderWritten()
             withPacket { packet ->
-                audioForEncoder(input, sampleFormat, sampleRate, channels, frameSize).collect { frame ->
+                audioForEncoder(input, sampleFormat, sampleRate, channels, frameSize, channelLayoutMask).collect { frame ->
                     core.encode(packet, frame)
                 }
                 core.finish(packet)

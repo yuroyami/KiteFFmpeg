@@ -63,6 +63,24 @@ val encoder = sink.addVideoEncoder(spec)
 | `bitrateBps` | `Long` | `4_000_000` | Target bitrate. Ignored when you set `crf`. |
 | `keyframeIntervalFrames` | `Int` | `frameRate × 2` | GOP length. Computed from the frame rate unless you override it. |
 | `options` | `Map<String,String>` | empty | Codec-specific options passed straight to `av_opt_set`. |
+| `color` | `ColorInfo?` | `null` | The colour the output declares: primaries, transfer, matrix, range and chroma location. Every field that is not unspecified is written. |
+| `sampleAspectRatio` | `Rational?` | `null` | The shape of one pixel, for anamorphic video. `null` writes none, which players read as square. |
+| `hdr` | `HdrMetadata?` | `null` | The mastering display and the content light level of HDR video. |
+
+A `ColorInfo` read from a stream or a frame fills what the source did not declare with a guess, such as BT.709 for high definition. Pass its `withoutGuesses()` to write only what the source declared:
+
+```kotlin
+val spec = VideoEncoderSpec(
+    codec = CodecId.HevcVideoToolbox,
+    width = 3840, height = 2160,
+    pixelFormat = PixelFormat.P010le,
+    frameRate = Rational(24000, 1001),
+    color = source.primaryVideo!!.video!!.color.withoutGuesses(),
+    hdr = source.primaryVideo!!.video!!.hdr,
+)
+```
+
+A raw option that sets the same thing as one of these fields is refused once the field is set, for example `color_trc` beside `color` or `aspect` beside `sampleAspectRatio`.
 
 ### Per-encoder options: preset, crf, and others
 
@@ -138,6 +156,9 @@ audio.drive(audioFrames)         // audioFrames: Flow<Frame>
 | `sampleFormat` | `SampleFormat` | `None` | `None` lets the encoder pick its preferred format (`fltp` for AAC). |
 | `bitrateBps` | `Long` | `128_000` | Target bitrate. |
 | `options` | `Map<String,String>` | empty | Codec-specific options. |
+| `channelLayoutMask` | `Long?` | `null` | The exact layout as an FFmpeg channel mask, when the count is ambiguous. `null` takes FFmpeg's default for `channels`: six channels are 5.1 with back surrounds. |
+
+Six channels are 5.1 with back surrounds or 5.1 with side surrounds, and the count alone cannot say which. `0x60FL` is 5.1 with side surrounds, the layout AC-3 decodes to. A mask whose channel count differs from `channels` is refused.
 
 After the encoder opens, the `AudioEncoder` handle exposes the values that were actually negotiated:
 
@@ -146,6 +167,7 @@ val audio = sink.addAudioEncoder(AudioEncoderSpec(codec = CodecId.Aac))
 println(audio.sampleFormat)   // resolved from None, e.g. FltP for aac
 println(audio.sampleRate)     // 44100
 println(audio.channels)       // 2
+println(audio.channelLayoutMask) // 3, the stereo mask
 println(audio.frameSize)      // 1024 for aac, 0 for codecs taking any chunk size
 ```
 

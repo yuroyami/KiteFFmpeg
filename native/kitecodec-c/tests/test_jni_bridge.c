@@ -382,6 +382,12 @@ jbyteArray kj_bytes_new(JNIEnv *caller, const void *data, int32_t len)
     KC_FAIL("the bridge copied bytes into a Java array, which no case here expects");
 }
 
+jintArray kj_hdr_new(JNIEnv *caller, int display_rc, const int *q, int flags, int light_rc, int max_cll, int max_fall)
+{
+    (void)caller; (void)display_rc; (void)q; (void)flags; (void)light_rc; (void)max_cll; (void)max_fall;
+    KC_FAIL("the bridge built an HDR array, which no case here expects");
+}
+
 /* ---- Fixture ---- */
 
 static char wav_path[1024];

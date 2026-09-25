@@ -1,6 +1,6 @@
 # The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09).
 #
-# abi-version 3.3
+# abi-version 3.4
 #
 # Every external symbol the archive may export, one per line, without the Mach-O
 # underscore. symbol-audit.sh check 6 compares the archive against this file, so the
@@ -21,7 +21,10 @@ ffkmp_codec_first_sample_fmt
 ffkmp_codec_id
 ffkmp_codec_id_name
 ffkmp_codec_supports_pix_fmt
+ffkmp_codecctx_add_content_light
+ffkmp_codecctx_add_mastering_display
 ffkmp_codecctx_alloc
+ffkmp_codecctx_ch_layout_mask
 ffkmp_codecctx_channels
 ffkmp_codecctx_flush
 ffkmp_codecctx_frame_size
@@ -36,10 +39,13 @@ ffkmp_codecctx_sample_rate
 ffkmp_codecctx_send_frame
 ffkmp_codecctx_send_packet
 ffkmp_codecctx_set_audio
+ffkmp_codecctx_set_ch_layout_mask
+ffkmp_codecctx_set_color
 ffkmp_codecctx_set_full_range
 ffkmp_codecctx_set_global_header
 ffkmp_codecctx_set_low_delay
 ffkmp_codecctx_set_opt
+ffkmp_codecctx_set_sample_aspect_ratio
 ffkmp_codecctx_set_threads
 ffkmp_codecctx_set_video
 ffkmp_codecctx_time_base
@@ -58,6 +64,7 @@ ffkmp_codecpar_color_primaries
 ffkmp_codecpar_color_range
 ffkmp_codecpar_color_space
 ffkmp_codecpar_color_transfer
+ffkmp_codecpar_content_light
 ffkmp_codecpar_copy_for_mux
 ffkmp_codecpar_extradata
 ffkmp_codecpar_field_order
@@ -65,6 +72,7 @@ ffkmp_codecpar_format
 ffkmp_codecpar_from_context
 ffkmp_codecpar_height
 ffkmp_codecpar_level
+ffkmp_codecpar_mastering_display
 ffkmp_codecpar_profile
 ffkmp_codecpar_sample_aspect_ratio
 ffkmp_codecpar_sample_rate
@@ -127,6 +135,7 @@ ffkmp_frame_color_primaries
 ffkmp_frame_color_range
 ffkmp_frame_color_trc
 ffkmp_frame_colorspace
+ffkmp_frame_content_light
 ffkmp_frame_convert_pixfmt
 ffkmp_frame_copy_to_buffer
 ffkmp_frame_duration
@@ -141,6 +150,7 @@ ffkmp_frame_hw_surface
 ffkmp_frame_is_hardware
 ffkmp_frame_is_keyframe
 ffkmp_frame_linesize
+ffkmp_frame_mastering_display
 ffkmp_frame_nb_samples
 ffkmp_frame_plane
 ffkmp_frame_plane_count
@@ -209,6 +219,7 @@ ffkmp_stream_duration_micros
 ffkmp_stream_index
 ffkmp_stream_metadata
 ffkmp_stream_rotation_degrees
+ffkmp_stream_set_sample_aspect_ratio
 ffkmp_stream_set_time_base
 ffkmp_stream_start_time
 ffkmp_stream_time_base

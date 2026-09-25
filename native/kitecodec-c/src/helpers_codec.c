@@ -135,6 +135,38 @@ KC_API int ffkmp_codec_id(const kc_codec *codec) {
    "libdav1d"/"libopus" and would answer NOTHING at all for streams with no decoder compiled
    in (subtitles, attachments, data). Never returns NULL; unknown ids yield "none". */
 KC_API const char* ffkmp_codec_id_name(int id) { return avcodec_get_name((enum AVCodecID)id); }
+KC_API int ffkmp_codecctx_set_color(AVCodecContext *c, int primaries, int transfer, int matrix,
+                                    int range, int chroma_location) {
+    if (!c || primaries < 0 || primaries >= AVCOL_PRI_NB || transfer < 0 || transfer >= AVCOL_TRC_NB ||
+        matrix < 0 || matrix >= AVCOL_SPC_NB || range < 0 || range >= AVCOL_RANGE_NB ||
+        chroma_location < 0 || chroma_location >= AVCHROMA_LOC_NB) {
+        return AVERROR(EINVAL);
+    }
+    c->color_primaries = (enum AVColorPrimaries)primaries;
+    c->color_trc = (enum AVColorTransferCharacteristic)transfer;
+    c->colorspace = (enum AVColorSpace)matrix;
+    c->color_range = (enum AVColorRange)range;
+    c->chroma_sample_location = (enum AVChromaLocation)chroma_location;
+    return 0;
+}
+KC_API int ffkmp_codecctx_set_sample_aspect_ratio(AVCodecContext *c, int num, int den) {
+    if (!c || num < 0 || den <= 0) return AVERROR(EINVAL);
+    c->sample_aspect_ratio = av_make_q(num, den);
+    return 0;
+}
+KC_API int ffkmp_codecctx_set_ch_layout_mask(AVCodecContext *c, int64_t mask) {
+    if (!c || mask <= 0) return AVERROR(EINVAL);
+    AVChannelLayout layout = { 0 };
+    int rc = av_channel_layout_from_mask(&layout, (uint64_t)mask);
+    if (rc < 0) return rc;
+    av_channel_layout_uninit(&c->ch_layout);
+    c->ch_layout = layout;
+    return 0;
+}
+KC_API int64_t ffkmp_codecctx_ch_layout_mask(AVCodecContext *c) {
+    if (!c || c->ch_layout.order != AV_CHANNEL_ORDER_NATIVE) return 0;
+    return (int64_t)c->ch_layout.u.mask;
+}
 KC_API int ffkmp_codecctx_pix_fmt(AVCodecContext *c) { return c ? (int)c->pix_fmt : -1; }
 KC_API int ffkmp_codecctx_width(AVCodecContext *c)   { return c ? c->width : 0; }
 KC_API int ffkmp_codecctx_height(AVCodecContext *c)  { return c ? c->height : 0; }
