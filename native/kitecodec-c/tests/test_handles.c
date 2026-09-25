@@ -27,6 +27,17 @@ static int32_t slot_of(int64_t token)
     return (int32_t)(token & (KJ_MAX_SLOTS - 1));
 }
 
+/* Live handles that record a parent, counted from the table itself. */
+static int64_t borrowed_live(void)
+{
+    int64_t n = 0;
+    int32_t i;
+    for (i = 0; i < kj_capacity; i++) {
+        if (kj_slot_live(&kj_slots[i]) && kj_slots[i].parent >= 0) n++;
+    }
+    return n;
+}
+
 static void case_ordinary_round_trip(void)
 {
     int64_t token;
@@ -177,16 +188,15 @@ static void case_deep_borrow_chain_closes_without_recursing(void)
         KC_CHECK(chain[i] != 0);
     }
     KC_EQ_I64(kj_handle_live_count(), (int64_t)DEPTH);
-    KC_EQ_I64(kj_borrowed_live, (int64_t)(DEPTH - 1));
+    KC_EQ_I64(borrowed_live(), (int64_t)(DEPTH - 1));
 
     kj_handle_release(chain[0], KJ_KIND_FMT_CTX);
     KC_EQ_I64(kj_handle_live_count(), (int64_t)0);
-    KC_EQ_I64(kj_borrowed_live, (int64_t)0);
+    KC_EQ_I64(borrowed_live(), (int64_t)0);
     for (i = 0; i < DEPTH; i++) {
         KC_NULL(kj_handle_peek(chain[i], i == 0 ? KJ_KIND_FMT_CTX : KJ_KIND_STREAM));
     }
-    kc_note("every level is closed and the borrowed counter is back to zero, which is what lets");
-    kc_note("an ordinary close skip the sweep entirely");
+    kc_note("every level is closed and no borrowed handle is left");
 }
 
 static void case_borrowed_counter_tracks_the_table(void)
@@ -194,19 +204,45 @@ static void case_borrowed_counter_tracks_the_table(void)
     int64_t parent, child;
 
     kc_case("the borrowed counter follows mint and close, in both orders");
-    KC_EQ_I64(kj_borrowed_live, (int64_t)0);
+    KC_EQ_I64(borrowed_live(), (int64_t)0);
     parent = kj_handle_put(KJ_KIND_FMT_CTX, &object_a);
-    KC_EQ_I64(kj_borrowed_live, (int64_t)0);
+    KC_EQ_I64(borrowed_live(), (int64_t)0);
     child = kj_handle_put_borrowed_raw(KJ_KIND_STREAM, &object_b, parent);
     KC_CHECK(child != 0);
-    KC_EQ_I64(kj_borrowed_live, (int64_t)1);
+    KC_EQ_I64(borrowed_live(), (int64_t)1);
 
-    /* Closing the child first is the other order: the parent outlives it and the counter still
-     * has to come back, or every later close pays for a sweep that can find nothing. */
+    /* Closing the child first is the other order: the parent outlives it and must count no
+     * children afterwards, or closing it pays for a sweep that can find nothing. */
     kj_handle_release(child, KJ_KIND_STREAM);
-    KC_EQ_I64(kj_borrowed_live, (int64_t)0);
+    KC_EQ_I64(borrowed_live(), (int64_t)0);
+    KC_EQ_INT(kj_slots[slot_of(parent)].children, 0);
     kj_handle_release(parent, KJ_KIND_FMT_CTX);
     KC_EQ_I64(kj_handle_live_count(), (int64_t)0);
+}
+
+static void case_only_a_parent_counts_children(void)
+{
+    int64_t parent, first, second, unrelated;
+
+    kc_case("a handle counts the handles borrowed from it, and closing any other handle leaves them");
+    parent = kj_handle_put(KJ_KIND_FILTER_GRAPH, &object_a);
+    first = kj_handle_put_borrowed_raw(KJ_KIND_FILTER_CTX, &object_b, parent);
+    second = kj_handle_put_borrowed_raw(KJ_KIND_FILTER_CTX, &object_a, parent);
+    unrelated = kj_handle_put(KJ_KIND_FRAME, &object_b);
+    KC_EQ_INT(kj_slots[slot_of(parent)].children, 2);
+    KC_EQ_INT(kj_slots[slot_of(unrelated)].children, 0);
+
+    /* The ordinary close, a frame while a graph is open: nothing borrowed from it, no sweep. */
+    kj_handle_release(unrelated, KJ_KIND_FRAME);
+    KC_EQ_PTR(kj_handle_peek(first, KJ_KIND_FILTER_CTX), &object_b);
+    KC_EQ_INT(kj_slots[slot_of(parent)].children, 2);
+
+    kj_handle_release(first, KJ_KIND_FILTER_CTX);
+    KC_EQ_INT(kj_slots[slot_of(parent)].children, 1);
+    kj_handle_release(parent, KJ_KIND_FILTER_GRAPH);
+    KC_NULL(kj_handle_peek(second, KJ_KIND_FILTER_CTX));
+    KC_EQ_INT(kj_slots[slot_of(parent)].children, 0);
+    KC_EQ_I64(borrowed_live(), (int64_t)0);
 }
 
 static void case_live_count_returns_to_zero(void)
@@ -226,6 +262,7 @@ int main(void)
     case_token_kind_field_is_checked();
     case_deep_borrow_chain_closes_without_recursing();
     case_borrowed_counter_tracks_the_table();
+    case_only_a_parent_counts_children();
     case_live_count_returns_to_zero();
 
     return kc_suite_end();

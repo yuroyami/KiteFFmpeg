@@ -22,6 +22,7 @@ typedef struct kj_slot {
     uint8_t  kind;
     int32_t  parent;   /* slot index of a live parent, or -1 for an owned/root token */
     uint32_t parent_gen;
+    int32_t  children; /* live handles borrowed from this one */
 } kj_slot;
 
 static pthread_mutex_t kj_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -29,9 +30,6 @@ static kj_slot *kj_slots = NULL;
 static int32_t  kj_capacity = 0;
 static int32_t  kj_next_free_scan = 0;
 static int64_t  kj_live = 0;
-/* How many live handles record a parent. Zero means a close has nothing to orphan, which is the
- * ordinary case and is why the sweep below is skipped rather than run over the whole table. */
-static int64_t  kj_borrowed_live = 0;
 
 /* The generation as the TOKEN can carry it.
  *
@@ -50,14 +48,24 @@ static int64_t kj_encode(uint32_t gen, int kind, int32_t slot)
          | (int64_t)(slot & (KJ_MAX_SLOTS - 1));
 }
 
+static int kj_slot_live(const kj_slot *slot);
+
 static void kj_slot_reset(kj_slot *slot)
 {
-    if (slot->parent >= 0) kj_borrowed_live -= 1;
+    if (slot->parent >= 0) {
+        /* A parent still live at the generation this child recorded loses one child. An orphan's
+           parent is already gone, and its count went with it. */
+        if (slot->parent < kj_capacity && kj_slot_live(&kj_slots[slot->parent])
+            && kj_slots[slot->parent].gen == slot->parent_gen) {
+            kj_slots[slot->parent].children -= 1;
+        }
+    }
     slot->ptr = NULL;
     slot->gen = (slot->gen + 1u) & KJ_GEN_MASK; /* live odd -> free even, inside the token's bits */
     slot->kind = KJ_KIND_NONE;
     slot->parent = -1;
     slot->parent_gen = 0;
+    slot->children = 0;
     kj_live -= 1;
 }
 
@@ -127,7 +135,8 @@ static int64_t kj_handle_put_locked(int kind, void *ptr, int32_t parent, uint32_
     kj_slots[slot].kind = (uint8_t)kind;
     kj_slots[slot].parent = parent;
     kj_slots[slot].parent_gen = parent_gen;
-    if (parent >= 0) kj_borrowed_live += 1;
+    kj_slots[slot].children = 0;
+    if (parent >= 0) kj_slots[parent].children += 1;
     kj_next_free_scan = slot + 1;
     kj_live += 1;
     token = kj_encode(kj_slots[slot].gen, kind, slot);
@@ -182,9 +191,12 @@ static void *kj_resolve(int64_t token, int kind, int close_it)
         && kj_slots[slot].kind == (uint8_t)kind) {
         ptr = kj_slots[slot].ptr;
         if (close_it) {
+            int had_children = kj_slots[slot].children > 0;
             kj_slot_reset(&kj_slots[slot]);
-            /* Nothing can be orphaned when nothing was borrowed, which is most closes. */
-            if (kj_borrowed_live > 0) kj_invalidate_orphans_locked();
+            /* Only a handle something was borrowed from can leave orphans, which is few closes. A
+               sweep on every close cost 5 us each at 10,000 live handles while a filter graph,
+               whose contexts are borrowed, was open. */
+            if (had_children) kj_invalidate_orphans_locked();
         }
     }
     pthread_mutex_unlock(&kj_lock);
