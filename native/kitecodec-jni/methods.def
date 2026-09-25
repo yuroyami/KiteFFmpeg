@@ -17,8 +17,10 @@
 // kj_registration.c includes THIS file (through the KJ_METHOD X-macro) to build its
 // JNINativeMethod tables. Internals.jvm.kt has exactly one private external per row; buildSrc's
 // parser validates four fields, exact names and JVM descriptors, while an isolated-JVM control
-// loads a deliberately corrupted generated manifest and requires RegisterNatives to fail. There is
-// deliberately no second native-registration list.
+// loads a deliberately corrupted generated manifest and requires RegisterNatives to fail. Before
+// every JNI build, buildSrc's CheckJniRegistrationTask holds each C function to its descriptor:
+// the same return type, and one matching JNI type per argument. There is deliberately no second
+// native-registration list.
 //
 // The two exception classes the adapter throws (kj_util.c) and the keep rule must name:
 //   io.github.yuroyami.kiteffmpeg.JniHandleException

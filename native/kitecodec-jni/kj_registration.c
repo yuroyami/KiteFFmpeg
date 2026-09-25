@@ -16,10 +16,11 @@
 #include <string.h>
 
 /* Pass 1: forward-declare every manifest row's C function. Only the SYMBOL matters here; the
- * real JNI signatures differ per row and JNINativeMethod's fnPtr holds an opaque pointer. A wrong
- * descriptor in a row therefore fails at RegisterNatives or on first call, never silently, which
- * the manifest-parser test relies on. The declaration deliberately has an empty parameter list,
- * the one C form that accepts any signature at the definition site. */
+ * real JNI signatures differ per row and JNINativeMethod's fnPtr holds an opaque pointer. A
+ * descriptor that names no Kotlin method fails at RegisterNatives. A C function whose signature
+ * differs from its descriptor would build and corrupt the call, so buildSrc's
+ * CheckJniRegistrationTask compares the two before every JNI build. The declaration deliberately
+ * has an empty parameter list, the one C form that accepts any signature at the definition site. */
 typedef void (*kj_fnptr)(void);
 
 #define KJ_METHOD(cls, name, desc, fn) extern void fn();

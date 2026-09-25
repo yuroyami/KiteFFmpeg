@@ -753,6 +753,19 @@ val checkWasmBindingMirror =
 
 tasks.named("check") { dependsOn(checkWasmBindingMirror) }
 
+// RegisterNatives keeps each registered function as an untyped pointer, so the compiler never
+// compares a C function with its JNI descriptor. Every JNI build runs this comparison first.
+val checkJniRegistration =
+    tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.CheckJniRegistrationTask>("checkJniRegistration") {
+        group = "verification"
+        description = "Fails if a C function registered in methods.def differs from its JNI descriptor."
+        manifest.set(rootDir.resolve("native/kitecodec-jni/methods.def"))
+        sources.from(fileTree(rootDir.resolve("native/kitecodec-jni")) { include("*.c") })
+    }
+
+tasks.named("check") { dependsOn(checkJniRegistration) }
+tasks.withType<LinkKiteFFmpegJniTask>().configureEach { dependsOn(checkJniRegistration) }
+
 tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.CompileKiteFFmpegCWasmTask>("compileKiteFFmpegCForWasm") {
     dependsOn("buildFFmpegForWasm")
     sourceDir.set(rootDir.resolve("native/kitecodec-c/src"))
