@@ -22,6 +22,8 @@
 #include <libavutil/pixdesc.h>
 #include <libavutil/samplefmt.h>
 
+#include <math.h>
+
 /* ════════════ Playback additions ════════════
    Everything below exists for KitePlayer. A batch transcoder reads a file once, front to back, and
    needs none of it. A player needs to drive demuxing and decoding as separate stages, to flush a
@@ -103,7 +105,9 @@ KC_API int ffkmp_disposition_attached_pic(void)      { return AV_DISPOSITION_ATT
 /* Rotation, in degrees, from the display matrix a phone writes into its recordings. Without this
    every video shot in portrait plays on its side. av_display_rotation_get returns the angle the
    image must be rotated by counter-clockwise, as a double; the sign is flipped here so the result
-   is the clockwise rotation a renderer should apply. */
+   is the clockwise rotation a renderer should apply. A singular matrix, such as all zeros, gives
+   NaN, and NaN converted to an int is undefined (0 on arm64, garbage on x86-64), so it reads as
+   upright. */
 KC_API int ffkmp_stream_rotation_degrees(AVStream *s) {
     if (!s) return 0;
     const AVPacketSideData *sd = av_packet_side_data_get(s->codecpar->coded_side_data,
@@ -111,6 +115,7 @@ KC_API int ffkmp_stream_rotation_degrees(AVStream *s) {
                                                          AV_PKT_DATA_DISPLAYMATRIX);
     if (!sd || sd->size < 9 * 4) return 0;
     double theta = -av_display_rotation_get((const int32_t *)sd->data);
+    if (!isfinite(theta)) return 0;
     int deg = (int)(theta < 0 ? theta - 0.5 : theta + 0.5);
     deg %= 360;
     if (deg < 0) deg += 360;
