@@ -19,6 +19,12 @@ public data class AudioInput(
     val sampleFormat: SampleFormat,
     val channels: Int,
     val timeBase: Rational,
+    /**
+     * Which speaker each channel belongs to, as an FFmpeg channel mask, such as a decoded frame's
+     * [FrameInfo.channelLayoutMask]. Null means FFmpeg's default layout for [channels]. A frame
+     * whose layout differs from the declared one is refused by the graph.
+     */
+    val channelLayoutMask: Long? = null,
 )
 
 /**
@@ -111,6 +117,14 @@ public expect class FilterGraph : AutoCloseable {
          * @param sampleFormat input sample format (decoder output, e.g. fltp)
          * @param channels input channel count
          * @param timeBase pts time-base of input frames
+         * @param channelLayoutMask which speaker each input channel belongs to, as an FFmpeg
+         *                          channel mask; pass the decoded frame's
+         *                          [FrameInfo.channelLayoutMask]. Null means FFmpeg's default
+         *                          layout for [channels], and a frame with another layout, such as
+         *                          5.1 with side surrounds, is refused by the graph.
+         * @param outputChannelLayoutMask the exact layout the output is converted to, when
+         *                                [outputChannels] alone is ambiguous. Its channel count
+         *                                must equal [outputChannels].
          */
         @Throws(FFmpegException::class)
         public fun buildAudio(
@@ -122,6 +136,8 @@ public expect class FilterGraph : AutoCloseable {
             outputSampleRate: Int = 0,
             outputSampleFormat: SampleFormat = SampleFormat.None,
             outputChannels: Int = 0,
+            channelLayoutMask: Long? = null,
+            outputChannelLayoutMask: Long? = null,
         ): FilterGraph
 
         /**
@@ -149,6 +165,7 @@ public expect class FilterGraph : AutoCloseable {
             outputSampleRate: Int = 0,
             outputSampleFormat: SampleFormat = SampleFormat.None,
             outputChannels: Int = 0,
+            outputChannelLayoutMask: Long? = null,
         ): FilterGraph
     }
 }
@@ -187,10 +204,12 @@ public fun FilterGraph.Companion.buildAudio(
     outputSampleRate: Int = 0,
     outputSampleFormat: SampleFormat = SampleFormat.None,
     outputChannels: Int = 0,
+    channelLayoutMask: Long? = null,
+    outputChannelLayoutMask: Long? = null,
 ): FilterGraph {
     chain.requireAvailable()
     return buildAudio(
         chain.compile(), sampleRate, sampleFormat, channels, timeBase,
-        outputSampleRate, outputSampleFormat, outputChannels,
+        outputSampleRate, outputSampleFormat, outputChannels, channelLayoutMask, outputChannelLayoutMask,
     )
 }

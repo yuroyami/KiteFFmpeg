@@ -44,6 +44,23 @@ public data class ColorInfo(
     public val isHdr: Boolean
         get() = transfer == ColorTransfer.SmpteSt2084 || transfer == ColorTransfer.AribStdB67
 
+    /**
+     * This colour with every guessed field reset to unspecified, so that only what the source
+     * declared is left. Pass it to [VideoEncoderSpec.color] to write a source's colour into an
+     * output without writing a guess as if it were a fact.
+     */
+    public fun withoutGuesses(): ColorInfo = ColorInfo(
+        matrix = if (matrixSpecified) matrix else ColorMatrix.Unspecified,
+        primaries = if (primariesSpecified) primaries else ColorPrimaries.Unspecified,
+        transfer = if (transferSpecified) transfer else ColorTransfer.Unspecified,
+        fullRange = rangeSpecified && fullRange,
+        chromaLocation = chromaLocation,
+        rangeSpecified = rangeSpecified,
+        matrixSpecified = matrixSpecified,
+        primariesSpecified = primariesSpecified,
+        transferSpecified = transferSpecified,
+    )
+
     /** True when nothing usable was declared, so [guessFor] should be applied. */
     public val isUnspecified: Boolean
         get() = matrix == ColorMatrix.Unspecified &&

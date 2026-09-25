@@ -33,6 +33,7 @@ public actual class Resampler actual constructor(
     init {
         // The FFmpeg identity gate. Before the first allocation.
         requireCompatibleFFmpeg()
+        refuseUnwiredFields("AudioSpec.channelLayoutMask" to (input.channelLayoutMask ?: output.channelLayoutMask))
         val inFormat = sampleFormatToAv(input.sampleFormat)
         val outFormat = sampleFormatToAv(output.sampleFormat)
         handle = memScoped {

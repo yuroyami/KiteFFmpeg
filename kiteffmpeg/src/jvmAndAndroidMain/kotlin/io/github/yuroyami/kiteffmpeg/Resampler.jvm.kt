@@ -14,6 +14,7 @@ public actual class Resampler actual constructor(
 
     init {
         Internals.requireCompatible()
+        refuseUnwiredFields("AudioSpec.channelLayoutMask" to (input.channelLayoutMask ?: output.channelLayoutMask))
         token = Internals.swrCreate(
             input.sampleRate, input.channels, sampleFormatToAv(input.sampleFormat),
             output.sampleRate, output.channels, sampleFormatToAv(output.sampleFormat),

@@ -47,6 +47,8 @@ public actual class FilterGraph private constructor() : AutoCloseable {
             outputSampleRate: Int,
             outputSampleFormat: SampleFormat,
             outputChannels: Int,
+            channelLayoutMask: Long?,
+            outputChannelLayoutMask: Long?,
         ): FilterGraph = placeholderBackendUnavailable("Building an audio filter graph")
 
         @Throws(FFmpegException::class)
@@ -60,6 +62,7 @@ public actual class FilterGraph private constructor() : AutoCloseable {
             outputSampleRate: Int,
             outputSampleFormat: SampleFormat,
             outputChannels: Int,
+            outputChannelLayoutMask: Long?,
         ): FilterGraph = placeholderBackendUnavailable("Building a multi-input audio filter graph")
     }
 }

@@ -158,6 +158,7 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
         requireNoTypedVideoOptionCollision(spec.options)
+        refuseUnwiredFields("color" to spec.color, "sampleAspectRatio" to spec.sampleAspectRatio, "hdr" to spec.hdr)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         val codecCtx = newEncoderContext(spec.codec.name) { codec, cc ->
@@ -226,6 +227,7 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
         requireNoTypedAudioOptionCollision(spec.options)
+        refuseUnwiredFields("channelLayoutMask" to spec.channelLayoutMask)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         var negotiatedFormat = spec.sampleFormat
@@ -263,6 +265,7 @@ public actual class MediaSink internal constructor(
             // (Transcoder builds its aformat pin from these) must resample to the real values.
             sampleRate = ffkmp_codecctx_sample_rate(codecCtx).takeIf { it > 0 } ?: spec.sampleRate,
             channels = ffkmp_codecctx_channels(codecCtx).takeIf { it > 0 } ?: spec.channels,
+            channelLayoutMask = null,
         )
     }
 
@@ -873,6 +876,7 @@ public actual class AudioEncoder internal constructor(
     public actual val sampleFormat: SampleFormat,
     public actual val sampleRate: Int,
     public actual val channels: Int,
+    public actual val channelLayoutMask: Long?,
 ) : AutoCloseable {
 
     public actual suspend fun drive(input: Flow<Frame>) {

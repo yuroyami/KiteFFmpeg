@@ -232,8 +232,11 @@ public actual class FilterGraph internal constructor(
             outputSampleRate: Int,
             outputSampleFormat: SampleFormat,
             outputChannels: Int,
+            channelLayoutMask: Long?,
+            outputChannelLayoutMask: Long?,
         ): FilterGraph {
             Internals.requireCompatible()
+            refuseUnwiredFields("channelLayoutMask" to channelLayoutMask, "outputChannelLayoutMask" to outputChannelLayoutMask)
             val outFormat = if (outputSampleFormat == SampleFormat.None) {
                 -1
             } else sampleFormatToAv(outputSampleFormat)
@@ -283,8 +286,13 @@ public actual class FilterGraph internal constructor(
             outputSampleRate: Int,
             outputSampleFormat: SampleFormat,
             outputChannels: Int,
+            outputChannelLayoutMask: Long?,
         ): FilterGraph {
             Internals.requireCompatible()
+            refuseUnwiredFields(
+                "outputChannelLayoutMask" to outputChannelLayoutMask,
+                "AudioInput.channelLayoutMask" to inputs.firstNotNullOfOrNull { it.channelLayoutMask },
+            )
             require(inputs.isNotEmpty()) { "Need at least one input" }
             val outFormat = if (outputSampleFormat == SampleFormat.None) {
                 -1

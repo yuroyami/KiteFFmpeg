@@ -56,6 +56,8 @@ public actual class AudioEncoder private constructor() : AutoCloseable {
         get() = placeholderBackendUnavailable("Reading an audio encoder sample rate")
     public actual val channels: Int
         get() = placeholderBackendUnavailable("Reading an audio encoder channel count")
+    public actual val channelLayoutMask: Long?
+        get() = placeholderBackendUnavailable("Reading an audio encoder channel layout")
 
     public actual suspend fun drive(input: Flow<Frame>): Unit =
         placeholderBackendUnavailable("Encoding audio")

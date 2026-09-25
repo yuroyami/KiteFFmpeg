@@ -358,9 +358,12 @@ public actual class FilterGraph internal constructor(
             outputSampleRate: Int,
             outputSampleFormat: SampleFormat,
             outputChannels: Int,
+            channelLayoutMask: Long?,
+            outputChannelLayoutMask: Long?,
         ): FilterGraph {
             // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
+            refuseUnwiredFields("channelLayoutMask" to channelLayoutMask, "outputChannelLayoutMask" to outputChannelLayoutMask)
             val arena = Arena()
             val graphVar = arena.allocPointerTo<kc_filter_graph>()
             val srcVar = arena.allocPointerTo<kc_filter_ctx>()
@@ -425,9 +428,14 @@ public actual class FilterGraph internal constructor(
             outputSampleRate: Int,
             outputSampleFormat: SampleFormat,
             outputChannels: Int,
+            outputChannelLayoutMask: Long?,
         ): FilterGraph {
             // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
+            refuseUnwiredFields(
+                "outputChannelLayoutMask" to outputChannelLayoutMask,
+                "AudioInput.channelLayoutMask" to inputs.firstNotNullOfOrNull { it.channelLayoutMask },
+            )
             require(inputs.isNotEmpty()) { "Need at least one input" }
             memScoped {
                 val n = inputs.size

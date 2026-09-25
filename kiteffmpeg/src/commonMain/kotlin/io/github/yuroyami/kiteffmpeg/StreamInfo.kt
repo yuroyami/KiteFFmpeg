@@ -117,6 +117,11 @@ public data class VideoStreamInfo(
      * to choose what an unknown answer means for it.
      */
     val fieldOrder: FieldOrder = FieldOrder.Unknown,
+    /**
+     * The static HDR metadata the container declares: the mastering display and the content light
+     * level. Null when it declares neither, which includes every SDR stream.
+     */
+    val hdr: HdrMetadata? = null,
 )
 
 /**
@@ -272,6 +277,12 @@ public data class FrameInfo(
      * avoid.
      */
     val isHardware: Boolean = false,
+    /**
+     * The static HDR metadata this frame carries: from the bitstream, such as an HEVC SEI message,
+     * or from the container. Null on every SDR frame. Like [color], the decoder is the authority
+     * here, and a raw HEVC or MPEG-TS stream declares it only in the bitstream.
+     */
+    val hdr: HdrMetadata? = null,
 ) {
     /** False when the frame carries no timestamp (`AV_NOPTS_VALUE`). [ptsSeconds] is meaningless then. */
     val hasPts: Boolean get() = pts != NOPTS

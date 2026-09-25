@@ -39,6 +39,12 @@ public expect object Transcoder {
      *             this throws. The video is written at a constant [VideoEncoderSpec.frameRate]:
      *             frames are dropped or repeated against the input timeline the way FFmpeg's
      *             `fps` filter does, so a rate change keeps the duration and never the speed.
+     *             The colour, pixel shape and HDR metadata the spec leaves null are copied from
+     *             the first frame the encoder receives, after [videoFilter], so a filter that
+     *             changes them decides what the output declares. Only what that frame declares
+     *             is copied, never a guess. To read that frame the transcode opens [input] a
+     *             second time and decodes until the frame comes out; a spec that sets all three
+     *             skips that.
      * @param videoFilter filter graph description applied to the video stream. Null passes
      *                    decoded frames straight into the encoder. Requires [spec].
      * @param videoCopy stream-copy the video instead of re-encoding (`-c:v copy`): bit-exact
@@ -46,7 +52,9 @@ public expect object Transcoder {
      *                  re-encode only the audio. Mutually exclusive with [spec]/[videoFilter].
      *                  Trimming a copied video stream is keyframe-snapped, not frame-exact.
      * @param audioSpec audio encoder spec. Null (with [audioCopy] false) drops audio. When set
-     *                  but the input has no audio stream, the output is silently video-only.
+     *                  but the input has no audio stream, the output is silently video-only. A
+     *                  null [AudioEncoderSpec.channelLayoutMask] copies the input stream's layout
+     *                  when it has [AudioEncoderSpec.channels] channels.
      * @param audioFilter filter chain for the audio stream (e.g. `volume=0.5,atempo=1.25`).
      *                    Null means plain resample and reformat to what the encoder needs.
      * @param audioCopy stream-copy the audio instead of re-encoding (`-c:a copy`): bit-exact,

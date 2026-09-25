@@ -78,6 +78,7 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
         requireNoTypedVideoOptionCollision(spec.options)
+        refuseUnwiredFields("color" to spec.color, "sampleAspectRatio" to spec.sampleAspectRatio, "hdr" to spec.hdr)
         val context = newEncoderContext(spec.codec.name) { _, codecContext ->
             Internals.codecCtxSetVideo(
                 codecContext,
@@ -102,6 +103,7 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
         requireNoTypedAudioOptionCollision(spec.options)
+        refuseUnwiredFields("channelLayoutMask" to spec.channelLayoutMask)
         var negotiated = spec.sampleFormat
         val context = newEncoderContext(spec.codec.name) { codec, codecContext ->
             if (negotiated == SampleFormat.None) {
@@ -136,6 +138,7 @@ public actual class MediaSink internal constructor(
             negotiated,
             Internals.codecCtxSampleRate(context).takeIf { it > 0 } ?: spec.sampleRate,
             Internals.codecCtxChannels(context).takeIf { it > 0 } ?: spec.channels,
+            null,
         )
     }
 
@@ -659,6 +662,7 @@ public actual class AudioEncoder internal constructor(
     public actual val sampleFormat: SampleFormat,
     public actual val sampleRate: Int,
     public actual val channels: Int,
+    public actual val channelLayoutMask: Long?,
 ) : AutoCloseable {
     public actual suspend fun drive(input: Flow<Frame>) {
         core.beginDrive()

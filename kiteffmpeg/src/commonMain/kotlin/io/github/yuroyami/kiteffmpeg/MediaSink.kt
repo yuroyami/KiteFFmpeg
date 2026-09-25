@@ -120,6 +120,25 @@ public data class VideoEncoderSpec(
      * `"crf" to "23"` (libx264), `"allow_sw" to "1"` (videotoolbox), etc.
      */
     val options: Map<String, String> = emptyMap(),
+    /**
+     * The colour the output declares: primaries, transfer, matrix, range and chroma location.
+     * Every field that is not unspecified is written, and the range when [ColorInfo.fullRange] or
+     * [ColorInfo.rangeSpecified] says so. A colour read from a stream or a frame fills its silences
+     * with guesses, so pass its [ColorInfo.withoutGuesses] to write only what the source declared.
+     * Null declares nothing, except that [Transcoder] then copies it from the source.
+     */
+    val color: ColorInfo? = null,
+    /**
+     * The shape of one pixel, for anamorphic video. Null writes none, which players read as
+     * square, except that [Transcoder] then copies it from the source.
+     */
+    val sampleAspectRatio: Rational? = null,
+    /**
+     * The HDR metadata the output carries, as stream side data and, for an encoder that reads it,
+     * in the bitstream too. Null writes none, except that [Transcoder] then copies it from the
+     * source. An empty [HdrMetadata] writes none in both cases.
+     */
+    val hdr: HdrMetadata? = null,
 )
 
 public data class AudioEncoderSpec(
@@ -131,6 +150,13 @@ public data class AudioEncoderSpec(
     val bitrateBps: Long = 128_000L,
     /** Encoder-specific options, passed through as `av_opt_set` strings. */
     val options: Map<String, String> = emptyMap(),
+    /**
+     * The exact channel layout, as an FFmpeg channel mask, when [channels] alone is ambiguous: six
+     * channels are 5.1 with back surrounds or 5.1 with side surrounds. Its channel count must equal
+     * [channels]. Null uses FFmpeg's default layout for the count, except that [Transcoder] then
+     * copies the source stream's.
+     */
+    val channelLayoutMask: Long? = null,
 )
 
 /**
@@ -168,12 +194,27 @@ public expect class AudioEncoder : AutoCloseable {
     public val channels: Int
 
     /**
+     * The channel layout the encoder opened with, as an FFmpeg channel mask: the spec's
+     * [AudioEncoderSpec.channelLayoutMask], or FFmpeg's default layout for [channels].
+     */
+    public val channelLayoutMask: Long?
+
+    /**
      * Drain [input] into this encoder + the parent muxer. Returns when the flow completes.
      *
-     * A frame in another sample format or with another channel count is converted with a
-     * [Resampler] first. So is a frame at another sample rate when [frameSize] is 0; a fixed-size
+     * A frame in another sample format, with another channel count or with another channel layout
+     * is converted with a [Resampler] first. So is a frame at another sample rate when [frameSize] is 0; a fixed-size
      * codec refuses it, because a resampled frame no longer has the size the codec takes.
      */
     public suspend fun drive(input: Flow<Frame>)
     override fun close()
+}
+
+/** Wired in the next commit; until then a field this build cannot apply is refused, not dropped. */
+internal fun refuseUnwiredFields(vararg fields: Pair<String, Any?>) {
+    val named = fields.filter { it.second != null }.map { it.first }
+    if (named.isEmpty()) return
+    throw FFmpegException(
+        FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "${named.joinToString()} is not wired yet"),
+    )
 }

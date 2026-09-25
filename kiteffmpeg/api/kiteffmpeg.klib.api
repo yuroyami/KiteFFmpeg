@@ -930,6 +930,8 @@ final class io.github.yuroyami.kiteffmpeg.dsl/Volume : io.github.yuroyami.kiteff
 }
 
 final class io.github.yuroyami.kiteffmpeg/AudioEncoder : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/AudioEncoder|null[0]
+    final val channelLayoutMask // io.github.yuroyami.kiteffmpeg/AudioEncoder.channelLayoutMask|{}channelLayoutMask[0]
+        final fun <get-channelLayoutMask>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AudioEncoder.channelLayoutMask.<get-channelLayoutMask>|<get-channelLayoutMask>(){}[0]
     final val channels // io.github.yuroyami.kiteffmpeg/AudioEncoder.channels|{}channels[0]
         final fun <get-channels>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioEncoder.channels.<get-channels>|<get-channels>(){}[0]
     final val frameSize // io.github.yuroyami.kiteffmpeg/AudioEncoder.frameSize|{}frameSize[0]
@@ -944,10 +946,12 @@ final class io.github.yuroyami.kiteffmpeg/AudioEncoder : kotlin/AutoCloseable { 
 }
 
 final class io.github.yuroyami.kiteffmpeg/AudioEncoderSpec { // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec|null[0]
-    constructor <init>(io.github.yuroyami.kiteffmpeg/CodecId, kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...) // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.<init>|<init>(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/CodecId, kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Long? = ...) // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.<init>|<init>(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Long?){}[0]
 
     final val bitrateBps // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.bitrateBps|{}bitrateBps[0]
         final fun <get-bitrateBps>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.bitrateBps.<get-bitrateBps>|<get-bitrateBps>(){}[0]
+    final val channelLayoutMask // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.channelLayoutMask|{}channelLayoutMask[0]
+        final fun <get-channelLayoutMask>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.channelLayoutMask.<get-channelLayoutMask>|<get-channelLayoutMask>(){}[0]
     final val channels // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.channels|{}channels[0]
         final fun <get-channels>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.channels.<get-channels>|<get-channels>(){}[0]
     final val codec // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.codec|{}codec[0]
@@ -965,15 +969,18 @@ final class io.github.yuroyami.kiteffmpeg/AudioEncoderSpec { // io.github.yuroya
     final fun component4(): io.github.yuroyami.kiteffmpeg/SampleFormat // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.component4|component4(){}[0]
     final fun component5(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.component5|component5(){}[0]
     final fun component6(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.component6|component6(){}[0]
-    final fun copy(io.github.yuroyami.kiteffmpeg/CodecId = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/AudioEncoderSpec // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.copy|copy(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+    final fun component7(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.component7|component7(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/CodecId = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Long? = ...): io.github.yuroyami.kiteffmpeg/AudioEncoderSpec // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.copy|copy(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Long?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/AudioEncoderSpec.toString|toString(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/AudioInput { // io.github.yuroyami.kiteffmpeg/AudioInput|null[0]
-    constructor <init>(kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Int, io.github.yuroyami.kiteffmpeg/Rational) // io.github.yuroyami.kiteffmpeg/AudioInput.<init>|<init>(kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational){}[0]
+    constructor <init>(kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Int, io.github.yuroyami.kiteffmpeg/Rational, kotlin/Long? = ...) // io.github.yuroyami.kiteffmpeg/AudioInput.<init>|<init>(kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Long?){}[0]
 
+    final val channelLayoutMask // io.github.yuroyami.kiteffmpeg/AudioInput.channelLayoutMask|{}channelLayoutMask[0]
+        final fun <get-channelLayoutMask>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AudioInput.channelLayoutMask.<get-channelLayoutMask>|<get-channelLayoutMask>(){}[0]
     final val channels // io.github.yuroyami.kiteffmpeg/AudioInput.channels|{}channels[0]
         final fun <get-channels>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioInput.channels.<get-channels>|<get-channels>(){}[0]
     final val sampleFormat // io.github.yuroyami.kiteffmpeg/AudioInput.sampleFormat|{}sampleFormat[0]
@@ -987,15 +994,18 @@ final class io.github.yuroyami.kiteffmpeg/AudioInput { // io.github.yuroyami.kit
     final fun component2(): io.github.yuroyami.kiteffmpeg/SampleFormat // io.github.yuroyami.kiteffmpeg/AudioInput.component2|component2(){}[0]
     final fun component3(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioInput.component3|component3(){}[0]
     final fun component4(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/AudioInput.component4|component4(){}[0]
-    final fun copy(kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/Rational = ...): io.github.yuroyami.kiteffmpeg/AudioInput // io.github.yuroyami.kiteffmpeg/AudioInput.copy|copy(kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational){}[0]
+    final fun component5(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AudioInput.component5|component5(){}[0]
+    final fun copy(kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Long? = ...): io.github.yuroyami.kiteffmpeg/AudioInput // io.github.yuroyami.kiteffmpeg/AudioInput.copy|copy(kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Long?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AudioInput.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioInput.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/AudioInput.toString|toString(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/AudioSpec { // io.github.yuroyami.kiteffmpeg/AudioSpec|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat) // io.github.yuroyami.kiteffmpeg/AudioSpec.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Long? = ...) // io.github.yuroyami.kiteffmpeg/AudioSpec.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long?){}[0]
 
+    final val channelLayoutMask // io.github.yuroyami.kiteffmpeg/AudioSpec.channelLayoutMask|{}channelLayoutMask[0]
+        final fun <get-channelLayoutMask>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AudioSpec.channelLayoutMask.<get-channelLayoutMask>|<get-channelLayoutMask>(){}[0]
     final val channels // io.github.yuroyami.kiteffmpeg/AudioSpec.channels|{}channels[0]
         final fun <get-channels>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.channels.<get-channels>|<get-channels>(){}[0]
     final val sampleFormat // io.github.yuroyami.kiteffmpeg/AudioSpec.sampleFormat|{}sampleFormat[0]
@@ -1006,7 +1016,8 @@ final class io.github.yuroyami.kiteffmpeg/AudioSpec { // io.github.yuroyami.kite
     final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.component1|component1(){}[0]
     final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.component2|component2(){}[0]
     final fun component3(): io.github.yuroyami.kiteffmpeg/SampleFormat // io.github.yuroyami.kiteffmpeg/AudioSpec.component3|component3(){}[0]
-    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ...): io.github.yuroyami.kiteffmpeg/AudioSpec // io.github.yuroyami.kiteffmpeg/AudioSpec.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat){}[0]
+    final fun component4(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AudioSpec.component4|component4(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long? = ...): io.github.yuroyami.kiteffmpeg/AudioSpec // io.github.yuroyami.kiteffmpeg/AudioSpec.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AudioSpec.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/AudioSpec.toString|toString(){}[0]
@@ -1097,6 +1108,7 @@ final class io.github.yuroyami.kiteffmpeg/ColorInfo { // io.github.yuroyami.kite
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/ColorInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/ColorInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/ColorInfo.toString|toString(){}[0]
+    final fun withoutGuesses(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/ColorInfo.withoutGuesses|withoutGuesses(){}[0]
 
     final object Companion { // io.github.yuroyami.kiteffmpeg/ColorInfo.Companion|null[0]
         final val Unspecified // io.github.yuroyami.kiteffmpeg/ColorInfo.Companion.Unspecified|{}Unspecified[0]
@@ -1106,8 +1118,58 @@ final class io.github.yuroyami.kiteffmpeg/ColorInfo { // io.github.yuroyami.kite
     }
 }
 
+final class io.github.yuroyami.kiteffmpeg/ContentLightLevel { // io.github.yuroyami.kiteffmpeg/ContentLightLevel|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int) // io.github.yuroyami.kiteffmpeg/ContentLightLevel.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
+
+    final val maxCll // io.github.yuroyami.kiteffmpeg/ContentLightLevel.maxCll|{}maxCll[0]
+        final fun <get-maxCll>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/ContentLightLevel.maxCll.<get-maxCll>|<get-maxCll>(){}[0]
+    final val maxFall // io.github.yuroyami.kiteffmpeg/ContentLightLevel.maxFall|{}maxFall[0]
+        final fun <get-maxFall>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/ContentLightLevel.maxFall.<get-maxFall>|<get-maxFall>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/ContentLightLevel.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/ContentLightLevel.component2|component2(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/ContentLightLevel // io.github.yuroyami.kiteffmpeg/ContentLightLevel.copy|copy(kotlin.Int;kotlin.Int){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/ContentLightLevel.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/ContentLightLevel.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/ContentLightLevel.toString|toString(){}[0]
+}
+
 final class io.github.yuroyami.kiteffmpeg/CopyStream { // io.github.yuroyami.kiteffmpeg/CopyStream|null[0]
     final fun write(io.github.yuroyami.kiteffmpeg/Packet) // io.github.yuroyami.kiteffmpeg/CopyStream.write|write(io.github.yuroyami.kiteffmpeg.Packet){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/DisplayPrimaries { // io.github.yuroyami.kiteffmpeg/DisplayPrimaries|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational) // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.<init>|<init>(io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational){}[0]
+
+    final val blueX // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.blueX|{}blueX[0]
+        final fun <get-blueX>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.blueX.<get-blueX>|<get-blueX>(){}[0]
+    final val blueY // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.blueY|{}blueY[0]
+        final fun <get-blueY>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.blueY.<get-blueY>|<get-blueY>(){}[0]
+    final val greenX // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.greenX|{}greenX[0]
+        final fun <get-greenX>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.greenX.<get-greenX>|<get-greenX>(){}[0]
+    final val greenY // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.greenY|{}greenY[0]
+        final fun <get-greenY>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.greenY.<get-greenY>|<get-greenY>(){}[0]
+    final val redX // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.redX|{}redX[0]
+        final fun <get-redX>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.redX.<get-redX>|<get-redX>(){}[0]
+    final val redY // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.redY|{}redY[0]
+        final fun <get-redY>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.redY.<get-redY>|<get-redY>(){}[0]
+    final val whiteX // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.whiteX|{}whiteX[0]
+        final fun <get-whiteX>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.whiteX.<get-whiteX>|<get-whiteX>(){}[0]
+    final val whiteY // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.whiteY|{}whiteY[0]
+        final fun <get-whiteY>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.whiteY.<get-whiteY>|<get-whiteY>(){}[0]
+
+    final fun component1(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component1|component1(){}[0]
+    final fun component2(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component2|component2(){}[0]
+    final fun component3(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component3|component3(){}[0]
+    final fun component4(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component4|component4(){}[0]
+    final fun component5(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component5|component5(){}[0]
+    final fun component6(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component6|component6(){}[0]
+    final fun component7(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component7|component7(){}[0]
+    final fun component8(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.component8|component8(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ...): io.github.yuroyami.kiteffmpeg/DisplayPrimaries // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.copy|copy(io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/DisplayPrimaries.toString|toString(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/Disposition { // io.github.yuroyami.kiteffmpeg/Disposition|null[0]
@@ -1235,8 +1297,8 @@ final class io.github.yuroyami.kiteffmpeg/FilterGraph : kotlin/AutoCloseable { /
     final fun setOutputFrameSize(kotlin/Int) // io.github.yuroyami.kiteffmpeg/FilterGraph.setOutputFrameSize|setOutputFrameSize(kotlin.Int){}[0]
 
     final object Companion { // io.github.yuroyami.kiteffmpeg/FilterGraph.Companion|null[0]
-        final fun buildAudio(kotlin/String, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Int, io.github.yuroyami.kiteffmpeg/Rational, kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/FilterGraph.Companion.buildAudio|buildAudio(kotlin.String;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int){}[0]
-        final fun buildAudioMulti(kotlin/String, kotlin.collections/List<io.github.yuroyami.kiteffmpeg/AudioInput>, kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/FilterGraph.Companion.buildAudioMulti|buildAudioMulti(kotlin.String;kotlin.collections.List<io.github.yuroyami.kiteffmpeg.AudioInput>;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int){}[0]
+        final fun buildAudio(kotlin/String, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Int, io.github.yuroyami.kiteffmpeg/Rational, kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ..., kotlin/Long? = ..., kotlin/Long? = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/FilterGraph.Companion.buildAudio|buildAudio(kotlin.String;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;kotlin.Long?;kotlin.Long?){}[0]
+        final fun buildAudioMulti(kotlin/String, kotlin.collections/List<io.github.yuroyami.kiteffmpeg/AudioInput>, kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ..., kotlin/Long? = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/FilterGraph.Companion.buildAudioMulti|buildAudioMulti(kotlin.String;kotlin.collections.List<io.github.yuroyami.kiteffmpeg.AudioInput>;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;kotlin.Long?){}[0]
         final fun buildVideo(kotlin/String, kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/FilterGraph.Companion.buildVideo|buildVideo(kotlin.String;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational){}[0]
         final fun buildVideoMulti(kotlin/String, kotlin.collections/List<io.github.yuroyami.kiteffmpeg/VideoInput>): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/FilterGraph.Companion.buildVideoMulti|buildVideoMulti(kotlin.String;kotlin.collections.List<io.github.yuroyami.kiteffmpeg.VideoInput>){}[0]
     }
@@ -1259,7 +1321,7 @@ final class io.github.yuroyami.kiteffmpeg/Frame : kotlin/AutoCloseable { // io.g
 }
 
 final class io.github.yuroyami.kiteffmpeg/FrameInfo { // io.github.yuroyami.kiteffmpeg/FrameInfo|null[0]
-    constructor <init>(kotlin/Int, io.github.yuroyami.kiteffmpeg/MediaType, kotlin/Long, io.github.yuroyami.kiteffmpeg/Rational, kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long? = ..., kotlin/Long = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Boolean = ...) // io.github.yuroyami.kiteffmpeg/FrameInfo.<init>|<init>(kotlin.Int;io.github.yuroyami.kiteffmpeg.MediaType;kotlin.Long;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;kotlin.Int;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long?;kotlin.Long;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Int, io.github.yuroyami.kiteffmpeg/MediaType, kotlin/Long, io.github.yuroyami.kiteffmpeg/Rational, kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long? = ..., kotlin/Long = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...) // io.github.yuroyami.kiteffmpeg/FrameInfo.<init>|<init>(kotlin.Int;io.github.yuroyami.kiteffmpeg.MediaType;kotlin.Long;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;kotlin.Int;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long?;kotlin.Long;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
 
     final val channelCount // io.github.yuroyami.kiteffmpeg/FrameInfo.channelCount|{}channelCount[0]
         final fun <get-channelCount>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FrameInfo.channelCount.<get-channelCount>|<get-channelCount>(){}[0]
@@ -1271,6 +1333,8 @@ final class io.github.yuroyami.kiteffmpeg/FrameInfo { // io.github.yuroyami.kite
         final fun <get-duration>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/FrameInfo.duration.<get-duration>|<get-duration>(){}[0]
     final val hasPts // io.github.yuroyami.kiteffmpeg/FrameInfo.hasPts|{}hasPts[0]
         final fun <get-hasPts>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FrameInfo.hasPts.<get-hasPts>|<get-hasPts>(){}[0]
+    final val hdr // io.github.yuroyami.kiteffmpeg/FrameInfo.hdr|{}hdr[0]
+        final fun <get-hdr>(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/FrameInfo.hdr.<get-hdr>|<get-hdr>(){}[0]
     final val height // io.github.yuroyami.kiteffmpeg/FrameInfo.height|{}height[0]
         final fun <get-height>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FrameInfo.height.<get-height>|<get-height>(){}[0]
     final val isHardware // io.github.yuroyami.kiteffmpeg/FrameInfo.isHardware|{}isHardware[0]
@@ -1309,6 +1373,7 @@ final class io.github.yuroyami.kiteffmpeg/FrameInfo { // io.github.yuroyami.kite
     final fun component15(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/FrameInfo.component15|component15(){}[0]
     final fun component16(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/FrameInfo.component16|component16(){}[0]
     final fun component17(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FrameInfo.component17|component17(){}[0]
+    final fun component18(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/FrameInfo.component18|component18(){}[0]
     final fun component2(): io.github.yuroyami.kiteffmpeg/MediaType // io.github.yuroyami.kiteffmpeg/FrameInfo.component2|component2(){}[0]
     final fun component3(): kotlin/Long // io.github.yuroyami.kiteffmpeg/FrameInfo.component3|component3(){}[0]
     final fun component4(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/FrameInfo.component4|component4(){}[0]
@@ -1317,7 +1382,7 @@ final class io.github.yuroyami.kiteffmpeg/FrameInfo { // io.github.yuroyami.kite
     final fun component7(): io.github.yuroyami.kiteffmpeg/PixelFormat // io.github.yuroyami.kiteffmpeg/FrameInfo.component7|component7(){}[0]
     final fun component8(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FrameInfo.component8|component8(){}[0]
     final fun component9(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FrameInfo.component9|component9(){}[0]
-    final fun copy(kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/MediaType = ..., kotlin/Long = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long? = ..., kotlin/Long = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Boolean = ...): io.github.yuroyami.kiteffmpeg/FrameInfo // io.github.yuroyami.kiteffmpeg/FrameInfo.copy|copy(kotlin.Int;io.github.yuroyami.kiteffmpeg.MediaType;kotlin.Long;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;kotlin.Int;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long?;kotlin.Long;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Boolean){}[0]
+    final fun copy(kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/MediaType = ..., kotlin/Long = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Long? = ..., kotlin/Long = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...): io.github.yuroyami.kiteffmpeg/FrameInfo // io.github.yuroyami.kiteffmpeg/FrameInfo.copy|copy(kotlin.Int;io.github.yuroyami.kiteffmpeg.MediaType;kotlin.Long;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;kotlin.Int;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long?;kotlin.Long;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FrameInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FrameInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/FrameInfo.toString|toString(){}[0]
@@ -1326,6 +1391,54 @@ final class io.github.yuroyami.kiteffmpeg/FrameInfo { // io.github.yuroyami.kite
         final const val NOPTS // io.github.yuroyami.kiteffmpeg/FrameInfo.Companion.NOPTS|{}NOPTS[0]
             final fun <get-NOPTS>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/FrameInfo.Companion.NOPTS.<get-NOPTS>|<get-NOPTS>(){}[0]
     }
+}
+
+final class io.github.yuroyami.kiteffmpeg/HdrMetadata { // io.github.yuroyami.kiteffmpeg/HdrMetadata|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/MasteringDisplay? = ..., io.github.yuroyami.kiteffmpeg/ContentLightLevel? = ...) // io.github.yuroyami.kiteffmpeg/HdrMetadata.<init>|<init>(io.github.yuroyami.kiteffmpeg.MasteringDisplay?;io.github.yuroyami.kiteffmpeg.ContentLightLevel?){}[0]
+
+    final val contentLight // io.github.yuroyami.kiteffmpeg/HdrMetadata.contentLight|{}contentLight[0]
+        final fun <get-contentLight>(): io.github.yuroyami.kiteffmpeg/ContentLightLevel? // io.github.yuroyami.kiteffmpeg/HdrMetadata.contentLight.<get-contentLight>|<get-contentLight>(){}[0]
+    final val masteringDisplay // io.github.yuroyami.kiteffmpeg/HdrMetadata.masteringDisplay|{}masteringDisplay[0]
+        final fun <get-masteringDisplay>(): io.github.yuroyami.kiteffmpeg/MasteringDisplay? // io.github.yuroyami.kiteffmpeg/HdrMetadata.masteringDisplay.<get-masteringDisplay>|<get-masteringDisplay>(){}[0]
+
+    final fun component1(): io.github.yuroyami.kiteffmpeg/MasteringDisplay? // io.github.yuroyami.kiteffmpeg/HdrMetadata.component1|component1(){}[0]
+    final fun component2(): io.github.yuroyami.kiteffmpeg/ContentLightLevel? // io.github.yuroyami.kiteffmpeg/HdrMetadata.component2|component2(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/MasteringDisplay? = ..., io.github.yuroyami.kiteffmpeg/ContentLightLevel? = ...): io.github.yuroyami.kiteffmpeg/HdrMetadata // io.github.yuroyami.kiteffmpeg/HdrMetadata.copy|copy(io.github.yuroyami.kiteffmpeg.MasteringDisplay?;io.github.yuroyami.kiteffmpeg.ContentLightLevel?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/HdrMetadata.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/HdrMetadata.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/HdrMetadata.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/LuminanceRange { // io.github.yuroyami.kiteffmpeg/LuminanceRange|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational) // io.github.yuroyami.kiteffmpeg/LuminanceRange.<init>|<init>(io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational){}[0]
+
+    final val max // io.github.yuroyami.kiteffmpeg/LuminanceRange.max|{}max[0]
+        final fun <get-max>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/LuminanceRange.max.<get-max>|<get-max>(){}[0]
+    final val min // io.github.yuroyami.kiteffmpeg/LuminanceRange.min|{}min[0]
+        final fun <get-min>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/LuminanceRange.min.<get-min>|<get-min>(){}[0]
+
+    final fun component1(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/LuminanceRange.component1|component1(){}[0]
+    final fun component2(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/LuminanceRange.component2|component2(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ...): io.github.yuroyami.kiteffmpeg/LuminanceRange // io.github.yuroyami.kiteffmpeg/LuminanceRange.copy|copy(io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/LuminanceRange.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/LuminanceRange.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/LuminanceRange.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/MasteringDisplay { // io.github.yuroyami.kiteffmpeg/MasteringDisplay|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/DisplayPrimaries?, io.github.yuroyami.kiteffmpeg/LuminanceRange?) // io.github.yuroyami.kiteffmpeg/MasteringDisplay.<init>|<init>(io.github.yuroyami.kiteffmpeg.DisplayPrimaries?;io.github.yuroyami.kiteffmpeg.LuminanceRange?){}[0]
+
+    final val luminance // io.github.yuroyami.kiteffmpeg/MasteringDisplay.luminance|{}luminance[0]
+        final fun <get-luminance>(): io.github.yuroyami.kiteffmpeg/LuminanceRange? // io.github.yuroyami.kiteffmpeg/MasteringDisplay.luminance.<get-luminance>|<get-luminance>(){}[0]
+    final val primaries // io.github.yuroyami.kiteffmpeg/MasteringDisplay.primaries|{}primaries[0]
+        final fun <get-primaries>(): io.github.yuroyami.kiteffmpeg/DisplayPrimaries? // io.github.yuroyami.kiteffmpeg/MasteringDisplay.primaries.<get-primaries>|<get-primaries>(){}[0]
+
+    final fun component1(): io.github.yuroyami.kiteffmpeg/DisplayPrimaries? // io.github.yuroyami.kiteffmpeg/MasteringDisplay.component1|component1(){}[0]
+    final fun component2(): io.github.yuroyami.kiteffmpeg/LuminanceRange? // io.github.yuroyami.kiteffmpeg/MasteringDisplay.component2|component2(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/DisplayPrimaries? = ..., io.github.yuroyami.kiteffmpeg/LuminanceRange? = ...): io.github.yuroyami.kiteffmpeg/MasteringDisplay // io.github.yuroyami.kiteffmpeg/MasteringDisplay.copy|copy(io.github.yuroyami.kiteffmpeg.DisplayPrimaries?;io.github.yuroyami.kiteffmpeg.LuminanceRange?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/MasteringDisplay.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/MasteringDisplay.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/MasteringDisplay.toString|toString(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/MediaInfo { // io.github.yuroyami.kiteffmpeg/MediaInfo|null[0]
@@ -1740,14 +1853,18 @@ final class io.github.yuroyami.kiteffmpeg/VideoEncoder : kotlin/AutoCloseable { 
 }
 
 final class io.github.yuroyami.kiteffmpeg/VideoEncoderSpec { // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec|null[0]
-    constructor <init>(io.github.yuroyami.kiteffmpeg/CodecId, kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational, kotlin/Long = ..., kotlin/Int = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...) // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.<init>|<init>(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Long;kotlin.Int;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/CodecId, kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational, kotlin/Long = ..., kotlin/Int = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., io.github.yuroyami.kiteffmpeg/ColorInfo? = ..., io.github.yuroyami.kiteffmpeg/Rational? = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...) // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.<init>|<init>(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Long;kotlin.Int;kotlin.collections.Map<kotlin.String,kotlin.String>;io.github.yuroyami.kiteffmpeg.ColorInfo?;io.github.yuroyami.kiteffmpeg.Rational?;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
 
     final val bitrateBps // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.bitrateBps|{}bitrateBps[0]
         final fun <get-bitrateBps>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.bitrateBps.<get-bitrateBps>|<get-bitrateBps>(){}[0]
     final val codec // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.codec|{}codec[0]
         final fun <get-codec>(): io.github.yuroyami.kiteffmpeg/CodecId // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.codec.<get-codec>|<get-codec>(){}[0]
+    final val color // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.color|{}color[0]
+        final fun <get-color>(): io.github.yuroyami.kiteffmpeg/ColorInfo? // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.color.<get-color>|<get-color>(){}[0]
     final val frameRate // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.frameRate|{}frameRate[0]
         final fun <get-frameRate>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.frameRate.<get-frameRate>|<get-frameRate>(){}[0]
+    final val hdr // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.hdr|{}hdr[0]
+        final fun <get-hdr>(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.hdr.<get-hdr>|<get-hdr>(){}[0]
     final val height // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.height|{}height[0]
         final fun <get-height>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.height.<get-height>|<get-height>(){}[0]
     final val keyframeIntervalFrames // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.keyframeIntervalFrames|{}keyframeIntervalFrames[0]
@@ -1756,10 +1873,14 @@ final class io.github.yuroyami.kiteffmpeg/VideoEncoderSpec { // io.github.yuroya
         final fun <get-options>(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.options.<get-options>|<get-options>(){}[0]
     final val pixelFormat // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.pixelFormat|{}pixelFormat[0]
         final fun <get-pixelFormat>(): io.github.yuroyami.kiteffmpeg/PixelFormat // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.pixelFormat.<get-pixelFormat>|<get-pixelFormat>(){}[0]
+    final val sampleAspectRatio // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.sampleAspectRatio|{}sampleAspectRatio[0]
+        final fun <get-sampleAspectRatio>(): io.github.yuroyami.kiteffmpeg/Rational? // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.sampleAspectRatio.<get-sampleAspectRatio>|<get-sampleAspectRatio>(){}[0]
     final val width // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.width|{}width[0]
         final fun <get-width>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.width.<get-width>|<get-width>(){}[0]
 
     final fun component1(): io.github.yuroyami.kiteffmpeg/CodecId // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component1|component1(){}[0]
+    final fun component10(): io.github.yuroyami.kiteffmpeg/Rational? // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component10|component10(){}[0]
+    final fun component11(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component11|component11(){}[0]
     final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component2|component2(){}[0]
     final fun component3(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component3|component3(){}[0]
     final fun component4(): io.github.yuroyami.kiteffmpeg/PixelFormat // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component4|component4(){}[0]
@@ -1767,7 +1888,8 @@ final class io.github.yuroyami.kiteffmpeg/VideoEncoderSpec { // io.github.yuroya
     final fun component6(): kotlin/Long // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component6|component6(){}[0]
     final fun component7(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component7|component7(){}[0]
     final fun component8(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component8|component8(){}[0]
-    final fun copy(io.github.yuroyami.kiteffmpeg/CodecId = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Long = ..., kotlin/Int = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/VideoEncoderSpec // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.copy|copy(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Long;kotlin.Int;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+    final fun component9(): io.github.yuroyami.kiteffmpeg/ColorInfo? // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.component9|component9(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/CodecId = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., kotlin/Long = ..., kotlin/Int = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., io.github.yuroyami.kiteffmpeg/ColorInfo? = ..., io.github.yuroyami.kiteffmpeg/Rational? = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...): io.github.yuroyami.kiteffmpeg/VideoEncoderSpec // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.copy|copy(io.github.yuroyami.kiteffmpeg.CodecId;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Long;kotlin.Int;kotlin.collections.Map<kotlin.String,kotlin.String>;io.github.yuroyami.kiteffmpeg.ColorInfo?;io.github.yuroyami.kiteffmpeg.Rational?;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/VideoEncoderSpec.toString|toString(){}[0]
@@ -1802,7 +1924,7 @@ final class io.github.yuroyami.kiteffmpeg/VideoInput { // io.github.yuroyami.kit
 }
 
 final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyami.kiteffmpeg/VideoStreamInfo|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
 
     final val color // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color|{}color[0]
         final fun <get-color>(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color.<get-color>|<get-color>(){}[0]
@@ -1810,6 +1932,8 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
         final fun <get-fieldOrder>(): io.github.yuroyami.kiteffmpeg/FieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.fieldOrder.<get-fieldOrder>|<get-fieldOrder>(){}[0]
     final val frameRate // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.frameRate|{}frameRate[0]
         final fun <get-frameRate>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.frameRate.<get-frameRate>|<get-frameRate>(){}[0]
+    final val hdr // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.hdr|{}hdr[0]
+        final fun <get-hdr>(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.hdr.<get-hdr>|<get-hdr>(){}[0]
     final val height // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.height|{}height[0]
         final fun <get-height>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.height.<get-height>|<get-height>(){}[0]
     final val pixelFormat // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.pixelFormat|{}pixelFormat[0]
@@ -1829,7 +1953,8 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
     final fun component6(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component6|component6(){}[0]
     final fun component7(): io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component7|component7(){}[0]
     final fun component8(): io.github.yuroyami.kiteffmpeg/FieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component8|component8(){}[0]
-    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder){}[0]
+    final fun component9(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component9|component9(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.toString|toString(){}[0]
@@ -2118,7 +2243,7 @@ final val io.github.yuroyami.kiteffmpeg/mediaInfo // io.github.yuroyami.kiteffmp
 final val io.github.yuroyami.kiteffmpeg/ptsMicros // io.github.yuroyami.kiteffmpeg/ptsMicros|@io.github.yuroyami.kiteffmpeg.Frame{}ptsMicros[0]
     final fun (io.github.yuroyami.kiteffmpeg/Frame).<get-ptsMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/ptsMicros.<get-ptsMicros>|<get-ptsMicros>@io.github.yuroyami.kiteffmpeg.Frame(){}[0]
 
-final fun (io.github.yuroyami.kiteffmpeg/FilterGraph.Companion).io.github.yuroyami.kiteffmpeg/buildAudio(io.github.yuroyami.kiteffmpeg.dsl/FilterChain, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Int, io.github.yuroyami.kiteffmpeg/Rational, kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/buildAudio|buildAudio@io.github.yuroyami.kiteffmpeg.FilterGraph.Companion(io.github.yuroyami.kiteffmpeg.dsl.FilterChain;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int){}[0]
+final fun (io.github.yuroyami.kiteffmpeg/FilterGraph.Companion).io.github.yuroyami.kiteffmpeg/buildAudio(io.github.yuroyami.kiteffmpeg.dsl/FilterChain, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Int, io.github.yuroyami.kiteffmpeg/Rational, kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ..., kotlin/Int = ..., kotlin/Long? = ..., kotlin/Long? = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/buildAudio|buildAudio@io.github.yuroyami.kiteffmpeg.FilterGraph.Companion(io.github.yuroyami.kiteffmpeg.dsl.FilterChain;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;io.github.yuroyami.kiteffmpeg.Rational;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Int;kotlin.Long?;kotlin.Long?){}[0]
 final fun (io.github.yuroyami.kiteffmpeg/FilterGraph.Companion).io.github.yuroyami.kiteffmpeg/buildVideo(io.github.yuroyami.kiteffmpeg.dsl/FilterChain, kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational = ...): io.github.yuroyami.kiteffmpeg/FilterGraph // io.github.yuroyami.kiteffmpeg/buildVideo|buildVideo@io.github.yuroyami.kiteffmpeg.FilterGraph.Companion(io.github.yuroyami.kiteffmpeg.dsl.FilterChain;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational){}[0]
 final fun (io.github.yuroyami.kiteffmpeg/MediaSource.Companion).io.github.yuroyami.kiteffmpeg/open(io.github.yuroyami.kiteffmpeg/MediaByteSource, io.github.yuroyami.kiteffmpeg.dsl/DemuxOptions, io.github.yuroyami.kiteffmpeg/OpenInterrupt? = ...): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/open|open@io.github.yuroyami.kiteffmpeg.MediaSource.Companion(io.github.yuroyami.kiteffmpeg.MediaByteSource;io.github.yuroyami.kiteffmpeg.dsl.DemuxOptions;io.github.yuroyami.kiteffmpeg.OpenInterrupt?){}[0]
 final fun (io.github.yuroyami.kiteffmpeg/MediaSource.Companion).io.github.yuroyami.kiteffmpeg/open(kotlin/String, io.github.yuroyami.kiteffmpeg.dsl/DemuxOptions, io.github.yuroyami.kiteffmpeg/OpenInterrupt? = ...): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/open|open@io.github.yuroyami.kiteffmpeg.MediaSource.Companion(kotlin.String;io.github.yuroyami.kiteffmpeg.dsl.DemuxOptions;io.github.yuroyami.kiteffmpeg.OpenInterrupt?){}[0]

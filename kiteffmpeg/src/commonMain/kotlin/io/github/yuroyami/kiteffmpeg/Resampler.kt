@@ -5,6 +5,11 @@ public data class AudioSpec(
     val sampleRate: Int,
     val channels: Int,
     val sampleFormat: SampleFormat,
+    /**
+     * Which speaker each channel belongs to, as an FFmpeg channel mask. Null means FFmpeg's default
+     * layout for [channels]. Its channel count must equal [channels].
+     */
+    val channelLayoutMask: Long? = null,
 )
 
 /**
@@ -18,8 +23,9 @@ public data class AudioSpec(
  * }
  * ```
  *
- * Channel layouts are FFmpeg's default for each channel count, so two channels are stereo and six
- * are 5.1. A rate change holds some samples back to filter them, so a converted frame can be
+ * A channel layout is FFmpeg's default for the channel count unless [AudioSpec.channelLayoutMask]
+ * names one, so two channels are stereo and six are 5.1 with back surrounds. A layout change at the
+ * same count is converted too, such as side surrounds to back surrounds. A rate change holds some samples back to filter them, so a converted frame can be
  * shorter than the one that went in, and [flush] returns the samples still held once the input
  * ends. Output frames carry microsecond timestamps: the first one starts at the first input frame's
  * timestamp (or zero when it had none), and every later one follows from the samples before it.
