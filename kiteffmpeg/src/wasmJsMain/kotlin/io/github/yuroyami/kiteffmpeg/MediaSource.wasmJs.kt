@@ -511,9 +511,19 @@ public actual class MediaSource internal constructor(
         ffkmp_fmt_interrupt(requireModule(), context)
     }
 
+    /** The request [adoptOpenInterrupt] bound, and the target it runs, unbound at [close]. */
+    private var openInterrupt: OpenInterrupt? = null
+    private val interruptTarget: () -> Unit = { interrupt() }
+
+    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt) {
+        openInterrupt = interrupt
+        interrupt.bind(interruptTarget)
+    }
+
     actual override fun close() {
         if (closed) return
         closed = true
+        openInterrupt?.unbind(interruptTarget)
         // Before the context goes: every reader and decoder holding it raw must stop using it.
         lifetime.closed()
         val m = requireModule()
@@ -525,10 +535,21 @@ public actual class MediaSource internal constructor(
     public actual companion object {
         public actual fun open(path: String): MediaSource = throw noFilesystem(path)
 
-        public actual fun open(path: String, options: Map<String, String>): MediaSource =
-            throw noFilesystem(path)
+        public actual fun open(
+            path: String,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource = throw noFilesystem(path)
 
-        public actual fun open(io: MediaByteSource, options: Map<String, String>): MediaSource {
+        // Single-threaded runtime: nothing can raise the request while the open runs, so it is
+        // checked before the open and bound to the source after it.
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource = openUnder(interrupt) { openIo(io, options) }
+
+        private fun openIo(io: MediaByteSource, options: Map<String, String>): MediaSource {
             val m = requireModule()
             val bridge = WebIoBridge.install(io)
             val slot = wasmAlloc(m, 4)

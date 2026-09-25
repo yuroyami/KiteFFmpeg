@@ -65,6 +65,8 @@ public actual class MediaSource private constructor() : AutoCloseable {
 
     public actual fun interrupt(): Unit = Unit
 
+    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt): Unit = Unit
+
     actual override fun close(): Unit = Unit
 
     public actual companion object {
@@ -73,11 +75,17 @@ public actual class MediaSource private constructor() : AutoCloseable {
             placeholderBackendUnavailable("Opening media")
 
         @Throws(FFmpegException::class)
-        public actual fun open(path: String, options: Map<String, String>): MediaSource =
-            placeholderBackendUnavailable("Opening media")
+        public actual fun open(
+            path: String,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource = placeholderBackendUnavailable("Opening media")
 
         @Throws(FFmpegException::class)
-        public actual fun open(io: MediaByteSource, options: Map<String, String>): MediaSource =
-            placeholderBackendUnavailable("Opening media")
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource = placeholderBackendUnavailable("Opening media")
     }
 }

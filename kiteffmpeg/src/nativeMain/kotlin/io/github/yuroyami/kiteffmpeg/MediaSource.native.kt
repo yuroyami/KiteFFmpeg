@@ -595,6 +595,15 @@ public actual class MediaSource internal constructor(
         ffkmp_fmt_interrupt(ctx)
     }
 
+    /** The request [adoptOpenInterrupt] bound, and the target it runs, unbound at [close]. */
+    private var openInterrupt: OpenInterrupt? = null
+    private val interruptTarget: () -> Unit = { interrupt() }
+
+    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt) {
+        openInterrupt = interrupt
+        interrupt.bind(interruptTarget)
+    }
+
     actual override fun close() {
         synchronized(stateLock) {
             if (closed) return
@@ -608,6 +617,8 @@ public actual class MediaSource internal constructor(
             }
             closed = true
         }
+        // Before the context goes: unbind waits for a request that is raising it right now.
+        openInterrupt?.unbind(interruptTarget)
         memScoped {
             val pp = alloc<CPointerVar<kc_fmt_ctx>>()
             pp.value = ctx
@@ -627,15 +638,23 @@ public actual class MediaSource internal constructor(
         }
 
         @Throws(FFmpegException::class)
-        public actual fun open(path: String, options: Map<String, String>): MediaSource {
+        public actual fun open(
+            path: String,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource {
             requireCompatibleFFmpeg()
-            return openMediaSource(path, options)
+            return openUnder(interrupt) { openMediaSource(path, options) }
         }
 
         @Throws(FFmpegException::class)
-        public actual fun open(io: MediaByteSource, options: Map<String, String>): MediaSource {
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource {
             requireCompatibleFFmpeg()
-            return openMediaSourceIo(io, options)
+            return openUnder(interrupt) { openMediaSourceIo(io, options) }
         }
 
         /**

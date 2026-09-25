@@ -387,6 +387,20 @@ public actual class MediaSource internal constructor(
         Internals.fmtInterrupt(formatToken)
     }
 
+    /** The request [adoptOpenInterrupt] bound, and the target it runs, unbound at [close]. */
+    private var openInterrupt: OpenInterrupt? = null
+    private var interruptTarget: (() -> Unit)? = null
+
+    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt) {
+        // The token is captured: close zeroes formatToken before it unbinds, and the context
+        // stays valid until the unbind returns.
+        val token = formatToken
+        val target = { Internals.fmtInterrupt(token) }
+        openInterrupt = interrupt
+        interruptTarget = target
+        interrupt.bind(target)
+    }
+
     actual override fun close() {
         val context = synchronized(stateLock) {
             if (formatToken == 0L) return
@@ -398,6 +412,8 @@ public actual class MediaSource internal constructor(
             }
             formatToken.also { formatToken = 0L }
         }
+        // Before the context goes: unbind waits for a request that is raising it right now.
+        interruptTarget?.let { openInterrupt?.unbind(it) }
         if (jniIo != null) {
             Internals.fmtCloseInputIo(context)
             jniIo.closeSource()
@@ -414,15 +430,23 @@ public actual class MediaSource internal constructor(
         }
 
         @Throws(FFmpegException::class)
-        public actual fun open(path: String, options: Map<String, String>): MediaSource {
+        public actual fun open(
+            path: String,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource {
             Internals.requireCompatible()
-            return openMediaSource(path, options)
+            return openUnder(interrupt) { openMediaSource(path, options) }
         }
 
         @Throws(FFmpegException::class)
-        public actual fun open(io: MediaByteSource, options: Map<String, String>): MediaSource {
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource {
             Internals.requireCompatible()
-            return openMediaSourceIo(io, options)
+            return openUnder(interrupt) { openMediaSourceIo(io, options) }
         }
 
         private const val DECODE_SEEK_BACKOFF_MICROS = 5_000_000L

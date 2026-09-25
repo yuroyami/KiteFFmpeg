@@ -691,10 +691,11 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSource : java/lang/AutoClo
 }
 
 public final class io/github/yuroyami/kiteffmpeg/MediaSource$Companion {
-	public final fun open (Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public final fun open (Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
 	public final fun open (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
-	public final fun open (Ljava/lang/String;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
-	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public final fun open (Ljava/lang/String;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Ljava/lang/String;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/MediaType : java/lang/Enum {
@@ -708,6 +709,12 @@ public final class io/github/yuroyami/kiteffmpeg/MediaType : java/lang/Enum {
 	public final fun isAv ()Z
 	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/MediaType;
 	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/MediaType;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/OpenInterrupt {
+	public fun <init> ()V
+	public final fun interrupt ()V
+	public final fun isInterrupted ()Z
 }
 
 public final class io/github/yuroyami/kiteffmpeg/Packet : java/lang/AutoCloseable {

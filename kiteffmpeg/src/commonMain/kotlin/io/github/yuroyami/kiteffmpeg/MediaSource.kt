@@ -197,6 +197,9 @@ public expect class MediaSource : AutoCloseable {
      */
     public fun interrupt()
 
+    /** Keeps [interrupt] bound to this source until [close], so a later request reaches it. */
+    internal fun adoptOpenInterrupt(interrupt: OpenInterrupt)
+
     override fun close()
 
     public companion object {
@@ -211,21 +214,32 @@ public expect class MediaSource : AutoCloseable {
         public fun open(path: String): MediaSource
 
         /**
-         * Open with pre-open options (KD-4): pairs applied between allocation and open, the only
-         * moment probesize, fflags and format forcing can act. Keys FFmpeg does not consume are
-         * reported through [unusedOpenOptions], never silently dropped.
+         * Open with pre-open options: pairs applied between allocation and open, the only moment
+         * probesize, fflags and format forcing can act. Keys FFmpeg does not consume are reported
+         * through [unusedOpenOptions], never silently dropped.
+         *
+         * [interrupt] lets another thread stop this open while it runs, and then stays with the
+         * returned source; see [OpenInterrupt]. The open fails with [FFmpegError.Interrupted].
          */
         @Throws(FFmpegException::class)
-        public fun open(path: String, options: Map<String, String>): MediaSource
+        public fun open(
+            path: String,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt? = null,
+        ): MediaSource
 
         /**
-         * Open over caller-supplied bytes (M1, the custom AVIO bridge): FFmpeg demuxes whatever
-         * [io] reads, with no path and no FFmpeg protocol involved. The returned source OWNS
-         * [io] and closes it when it closes. Pre-open [options] behave exactly like the path
-         * overload's. Blocking, like every open here: call it off the UI thread, and expect
-         * [io]'s own read latency to shape the open time.
+         * Open over caller-supplied bytes: FFmpeg demuxes whatever [io] reads, with no path and
+         * no FFmpeg protocol involved. The returned source OWNS [io] and closes it when it
+         * closes. Pre-open [options] and [interrupt] behave exactly like the path overload's.
+         * Blocking, like every open here: call it off the UI thread, and expect [io]'s own read
+         * latency to shape the open time.
          */
         @Throws(FFmpegException::class)
-        public fun open(io: MediaByteSource, options: Map<String, String> = emptyMap()): MediaSource
+        public fun open(
+            io: MediaByteSource,
+            options: Map<String, String> = emptyMap(),
+            interrupt: OpenInterrupt? = null,
+        ): MediaSource
     }
 }

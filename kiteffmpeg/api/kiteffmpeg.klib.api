@@ -1354,10 +1354,19 @@ final class io.github.yuroyami.kiteffmpeg/MediaSource : kotlin/AutoCloseable { /
     final suspend fun seekMicros(kotlin/Long) // io.github.yuroyami.kiteffmpeg/MediaSource.seekMicros|seekMicros(kotlin.Long){}[0]
 
     final object Companion { // io.github.yuroyami.kiteffmpeg/MediaSource.Companion|null[0]
-        final fun open(io.github.yuroyami.kiteffmpeg/MediaByteSource, kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/MediaSource.Companion.open|open(io.github.yuroyami.kiteffmpeg.MediaByteSource;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+        final fun open(io.github.yuroyami.kiteffmpeg/MediaByteSource, kotlin.collections/Map<kotlin/String, kotlin/String> = ..., io.github.yuroyami.kiteffmpeg/OpenInterrupt? = ...): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/MediaSource.Companion.open|open(io.github.yuroyami.kiteffmpeg.MediaByteSource;kotlin.collections.Map<kotlin.String,kotlin.String>;io.github.yuroyami.kiteffmpeg.OpenInterrupt?){}[0]
         final fun open(kotlin/String): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/MediaSource.Companion.open|open(kotlin.String){}[0]
-        final fun open(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String>): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/MediaSource.Companion.open|open(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+        final fun open(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String>, io.github.yuroyami.kiteffmpeg/OpenInterrupt? = ...): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/MediaSource.Companion.open|open(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>;io.github.yuroyami.kiteffmpeg.OpenInterrupt?){}[0]
     }
+}
+
+final class io.github.yuroyami.kiteffmpeg/OpenInterrupt { // io.github.yuroyami.kiteffmpeg/OpenInterrupt|null[0]
+    constructor <init>() // io.github.yuroyami.kiteffmpeg/OpenInterrupt.<init>|<init>(){}[0]
+
+    final val isInterrupted // io.github.yuroyami.kiteffmpeg/OpenInterrupt.isInterrupted|{}isInterrupted[0]
+        final fun <get-isInterrupted>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/OpenInterrupt.isInterrupted.<get-isInterrupted>|<get-isInterrupted>(){}[0]
+
+    final fun interrupt() // io.github.yuroyami.kiteffmpeg/OpenInterrupt.interrupt|interrupt(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/Packet : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/Packet|null[0]
