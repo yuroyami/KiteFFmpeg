@@ -523,6 +523,11 @@ jobs:
         run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 --stacktrace || true
       - name: Unit + native tests against the vendored build
         run: ./gradlew :kiteffmpeg:macosArm64Test --stacktrace
+      # The JVM backend runs the JNI adapter over the same vendored tree, and no other job runs its
+      # tests: the shared contract suite, the byte-source and close-race tests and the dispatch tests
+      # had only ever run on a developer's machine.
+      - name: JVM tests against the vendored build
+        run: ./gradlew :kiteffmpeg:jvmTest --stacktrace
       - name: Link sample
         run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
       - name: End-to-end transcode against the vendored build
