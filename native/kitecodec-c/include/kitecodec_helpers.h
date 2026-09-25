@@ -320,6 +320,18 @@ KC_API int  ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
  */
 KC_API void ffkmp_fmt_close_input(kc_fmt_ctx **ctx);
 
+/* Copies every tag and the disposition flags of src onto dst, two streams of any contexts. The
+ * display matrix and other coded side data travel with the codec parameters, not here. Run it
+ * before the output header is written. NULL either side is refused with AVERROR(EINVAL). */
+KC_API int ffkmp_stream_copy_identity(kc_stream *dst, const kc_stream *src);
+
+/* Appends one chapter to an output context: bounds in microseconds on the output timeline and n
+ * tag pairs. Run it before the header is written. The context owns the chapter. A NULL context,
+ * an end before the start, a negative n, or a NULL entry in the arrays is refused with
+ * AVERROR(EINVAL). */
+KC_API int ffkmp_fmt_add_chapter(kc_fmt_ctx *ctx, int64_t id, int64_t start_us, int64_t end_us,
+                                 const char *const *keys, const char *const *values, int n);
+
 /* The component families ffkmp_component_names lists. */
 #define KC_COMPONENT_DECODERS 0
 #define KC_COMPONENT_ENCODERS 1

@@ -35,3 +35,16 @@ public val MediaSource.mediaInfo: MediaInfo
         metadata = metadata,
         chapters = chapters,
     )
+
+/**
+ * [chapters] of a source moved onto the timeline of an output cut from it: [originMicros] is the
+ * absolute time that becomes zero (the source's start time plus the start of any trim) and
+ * [lengthMicros] how long the output runs, or [Long.MAX_VALUE] when it runs to the end. A chapter
+ * outside the window is dropped and one crossing its edge is clipped to it.
+ */
+internal fun chaptersForOutput(chapters: List<Chapter>, originMicros: Long, lengthMicros: Long): List<Chapter> =
+    chapters.mapNotNull { chapter ->
+        val start = (chapter.startMicros - originMicros).coerceAtLeast(0L)
+        val end = (chapter.endMicros - originMicros).let { if (lengthMicros == Long.MAX_VALUE) it else minOf(it, lengthMicros) }
+        if (end <= start) null else chapter.copy(startMicros = start, endMicros = end)
+    }

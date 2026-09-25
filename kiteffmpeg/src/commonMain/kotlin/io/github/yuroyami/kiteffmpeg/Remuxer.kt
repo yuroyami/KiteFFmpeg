@@ -18,6 +18,11 @@ public expect object Remuxer {
      * keyframe at or before [startMicros] and stops once the first selected stream passes
      * [endMicros]. Output timestamps are rebased to start at zero.
      *
+     * Each copied stream keeps its tags (language, title and the rest), its disposition flags and
+     * its display matrix, and the output gets the input's chapters that overlap the trim window,
+     * moved onto the output's timeline. What the target container cannot store is dropped by its
+     * muxer: MP4 has no stream titles, and Matroska has no display matrix.
+     *
      * Bitstream filters are not applied yet, so container pairs that need one (h264-in-mp4 to
      * MPEG-TS Annex B) fail with a muxer error rather than producing a broken file.
      *

@@ -93,6 +93,7 @@ import ffmpeg.kc_codec_par
 import ffmpeg.kc_dict
 import ffmpeg.kc_fmt_ctx
 import ffmpeg.kc_packet
+import ffmpeg.kc_stream
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
 import kotlinx.cinterop.allocArray
@@ -464,6 +465,13 @@ public actual class MediaSource internal constructor(
     }
 
     /** Native codec parameters of a stream, for stream-copy setups ([MediaSink.addCopyStream]). */
+    /** The stream behind [stream], checked to belong to this source. */
+    internal fun streamOf(stream: StreamInfo): CPointer<kc_stream>? {
+        check(!isClosed) { "MediaSource is closed" }
+        requireOwnStream(stream)
+        return ffkmp_fmt_stream(ctx, stream.index.toUInt())
+    }
+
     internal fun codecparOf(stream: StreamInfo): CPointer<kc_codec_par>? {
         check(!isClosed) { "MediaSource is closed" }
         // The copy path reached this with any index at all, so a StreamInfo belonging to ANOTHER

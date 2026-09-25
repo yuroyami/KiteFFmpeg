@@ -85,6 +85,15 @@ internal object Internals {
     private external fun nativeSwrConvertFrame(swrToken: Long, outToken: Long, inToken: Long): Int
     private external fun nativeSwrFree(token: Long)
     private external fun nativeComponentNames(kind: Int): String
+    private external fun nativeStreamCopyIdentity(dstToken: Long, srcToken: Long): Int
+    private external fun nativeFmtAddChapter(
+        fmtToken: Long,
+        id: Long,
+        startMicros: Long,
+        endMicros: Long,
+        keys: Array<String>?,
+        values: Array<String>?,
+    ): Int
     private external fun nativeFmtCloseInputIo(token: Long)
     private external fun nativeFmtChapterCount(token: Long): Int
     private external fun nativeFmtChapterGet(token: Long, index: Int, outFields: LongArray): Int
@@ -355,6 +364,15 @@ internal object Internals {
         checked { nativeSwrConvertFrame(swrToken, outToken, inToken) }
     internal fun swrFree(token: Long) = checked { nativeSwrFree(token) }
     internal fun componentNames(kind: Int): String = checked { nativeComponentNames(kind) }
+    internal fun streamCopyIdentity(dstToken: Long, srcToken: Long) = checked { nativeStreamCopyIdentity(dstToken, srcToken) }
+    internal fun fmtAddChapter(
+        fmtToken: Long,
+        id: Long,
+        startMicros: Long,
+        endMicros: Long,
+        keys: Array<String>?,
+        values: Array<String>?,
+    ) = checked { nativeFmtAddChapter(fmtToken, id, startMicros, endMicros, keys, values) }
     internal fun fmtCloseInputIo(token: Long) = checked { nativeFmtCloseInputIo(token) }
     internal fun fmtInterrupt(token: Long) = checked { nativeFmtInterrupt(token) }
     internal fun fmtChapterCount(token: Long) = checked { nativeFmtChapterCount(token) }

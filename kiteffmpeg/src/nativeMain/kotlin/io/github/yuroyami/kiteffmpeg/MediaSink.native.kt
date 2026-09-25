@@ -38,6 +38,7 @@ import ffmpeg.ffkmp_packet_set_pts
 import ffmpeg.ffkmp_packet_set_stream_index
 import ffmpeg.ffkmp_packet_unref
 import ffmpeg.ffkmp_fmt_alloc_output2
+import ffmpeg.ffkmp_fmt_add_chapter
 import ffmpeg.ffkmp_fmt_avoid_negative_ts
 import ffmpeg.ffkmp_fmt_free_output
 import ffmpeg.ffkmp_fmt_set_opt
@@ -50,6 +51,7 @@ import ffmpeg.ffkmp_fmt_write_trailer
 import ffmpeg.ffkmp_oformat_global_header
 import ffmpeg.ffkmp_rescale_q
 import ffmpeg.ffkmp_stream_codecpar
+import ffmpeg.ffkmp_stream_copy_identity
 import ffmpeg.ffkmp_stream_index
 import ffmpeg.ffkmp_stream_set_time_base
 import ffmpeg.ffkmp_stream_time_base
@@ -61,13 +63,17 @@ import ffmpeg.kc_packet
 import ffmpeg.kc_stream
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointerVar
 import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.allocPointerTo
+import kotlinx.cinterop.cstr
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.set
 import kotlinx.cinterop.value
 import kotlinx.coroutines.flow.Flow
 
@@ -203,6 +209,9 @@ public actual class MediaSink internal constructor(
             val outPar = ffkmp_stream_codecpar(outStream)
                 ?: throw FFmpegException(FFmpegError.Internal("New stream missing codecpar"))
             check0(ffkmp_codecpar_copy_for_mux(outPar, sourcePar), "avcodec_parameters_copy")
+            // The packets keep their bytes; this keeps what names them: language, title and every
+            // other tag, and the disposition flags.
+            check0(ffkmp_stream_copy_identity(outStream, source.streamOf(stream)), "stream identity copy")
             // Seed the output time-base with the input's; the muxer may still rewrite it in
             // avformat_write_header, which is why writeCopyPacket re-reads it per packet.
             ffkmp_stream_set_time_base(outStream, stream.timeBase.num, stream.timeBase.den)
@@ -314,10 +323,27 @@ public actual class MediaSink internal constructor(
         }
     }
 
-    // Wired in the next commit; until then it refuses rather than drops the chapters.
     @Throws(FFmpegException::class)
-    public actual fun setChapters(chapters: List<Chapter>): Unit =
-        throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "writing chapters is not wired yet"))
+    public actual fun setChapters(chapters: List<Chapter>): Unit = synchronized(muxLock) {
+        check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
+        check(!closed) { "MediaSink is closed" }
+        checkUsable()
+        chapters.forEach { chapter ->
+            memScoped {
+                val tags = chapter.metadata.entries.toList()
+                val keys = allocArray<CPointerVar<ByteVar>>(tags.size)
+                val values = allocArray<CPointerVar<ByteVar>>(tags.size)
+                tags.forEachIndexed { index, (key, value) ->
+                    keys[index] = key.cstr.ptr
+                    values[index] = value.cstr.ptr
+                }
+                check0(
+                    ffkmp_fmt_add_chapter(ctx, chapter.id, chapter.startMicros, chapter.endMicros, keys, values, tags.size),
+                    "adding chapter ${chapter.id}",
+                )
+            }
+        }
+    }
 
     @Throws(FFmpegException::class)
     public actual fun setMetadata(metadata: Map<String, String>): Unit = synchronized(muxLock) {

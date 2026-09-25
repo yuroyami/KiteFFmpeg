@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.2
+# abi-version 3.3
 #
-# Exact scope: 205 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 207 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 227 records.
+# records are sorted without deduplication. There must be exactly 229 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -75,6 +75,7 @@ KC_API int ffkmp_disposition_forced(void);
 KC_API int ffkmp_disposition_hearing_impaired(void);
 KC_API int ffkmp_disposition_visual_impaired(void);
 KC_API int ffkmp_filter_exists(const char *name);
+KC_API int ffkmp_fmt_add_chapter(kc_fmt_ctx *ctx, int64_t id, int64_t start_us, int64_t end_us, const char *const *keys, const char *const *values, int n);
 KC_API int ffkmp_fmt_alloc_output2(kc_fmt_ctx **out, const char *path, const char *format);
 KC_API int ffkmp_fmt_chapter_count(const kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_chapter_get(const kc_fmt_ctx *ctx, int index, int64_t *out_id, int64_t *out_start_us, int64_t *out_end_us);
@@ -134,6 +135,7 @@ KC_API int ffkmp_pix_fmt_from_name(const char *n);
 KC_API int ffkmp_sample_fmt_from_name(const char *n);
 KC_API int ffkmp_samples_copy_to_buffer(kc_frame *f, uint8_t *dst, int dst_size);
 KC_API int ffkmp_samples_get_buffer_size(kc_frame *f);
+KC_API int ffkmp_stream_copy_identity(kc_stream *dst, const kc_stream *src);
 KC_API int ffkmp_stream_disposition(kc_stream *s);
 KC_API int ffkmp_stream_index(kc_stream *s);
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);

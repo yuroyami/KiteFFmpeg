@@ -88,6 +88,13 @@ public actual object Transcoder {
 
             MediaSink.open(output).use { sink ->
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
+                sink.setChapters(
+                    chaptersForOutput(
+                        source.chapters,
+                        originMicros = source.startTimeMicros + startMicros,
+                        lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
+                    ),
+                )
                 val videoEncoder = spec?.let(sink::addVideoEncoder)
                 val audioEncoder = if (audioSpec != null && audioStream != null) {
                     sink.addAudioEncoder(audioSpec)

@@ -1,6 +1,6 @@
 # Remuxing
 
-Rewrite a media file into a different container without touching the encoded streams. Remuxing moves the same packets from one wrapper to another (mp4, mkv, mov), so it runs in seconds, produces bit-exact output, and never decodes or re-encodes a single frame.
+Rewrite a media file into a different container without touching the encoded streams. Remuxing moves the same packets from one wrapper to another (mp4, mkv, mov), so it runs in seconds, keeps the encoded packets bit-exact, and never decodes or re-encodes a single frame.
 
 ## Overview
 
@@ -76,6 +76,8 @@ Remuxer.remux("input.mov", "output.mp4")
 ```
 
 The output is bit-exact for the media data: the H.264, HEVC, AAC, or Opus packets in `output.mkv` are byte-identical to those in `input.mp4`. Quality is unchanged because nothing was re-encoded.
+
+What names the streams travels with them. Each stream keeps its tags (language, title and the rest), its disposition flags (default, forced, commentary and the others) and its display matrix, and the file keeps its chapters. A trimmed remux keeps the chapters that overlap the window, clipped to it and moved onto the output's timeline. The target container decides what it can store: MP4 has no stream titles, and Matroska has no display matrix.
 
 !!! note "Container compatibility"
     Not every codec fits in every container. A stream copied from a permissive container into a stricter one can fail if the target format does not accept that codec. When the muxer rejects a stream, `remux` raises an `FFmpegException`. See [Errors](#errors) below.

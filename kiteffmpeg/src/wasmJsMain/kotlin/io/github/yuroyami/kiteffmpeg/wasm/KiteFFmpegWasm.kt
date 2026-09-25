@@ -210,6 +210,9 @@ internal external fun ffkmp_disposition_visual_impaired(module: JsAny): Int
 @JsFun("(m, a0) => m._ffkmp_filter_exists(a0)")
 internal external fun ffkmp_filter_exists(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6) => m._ffkmp_fmt_add_chapter(a0, a1, a2, a3, a4, a5, a6)")
+internal external fun ffkmp_fmt_add_chapter(module: JsAny, a0: Int, a1: Long, a2: Long, a3: Long, a4: Int, a5: Int, a6: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_fmt_alloc_output2(a0, a1, a2)")
 internal external fun ffkmp_fmt_alloc_output2(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
@@ -383,6 +386,9 @@ internal external fun ffkmp_samples_copy_to_buffer(module: JsAny, a0: Int, a1: I
 
 @JsFun("(m, a0) => m._ffkmp_samples_get_buffer_size(a0)")
 internal external fun ffkmp_samples_get_buffer_size(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0, a1) => m._ffkmp_stream_copy_identity(a0, a1)")
+internal external fun ffkmp_stream_copy_identity(module: JsAny, a0: Int, a1: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_stream_disposition(a0)")
 internal external fun ffkmp_stream_disposition(module: JsAny, a0: Int): Int

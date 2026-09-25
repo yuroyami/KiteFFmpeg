@@ -143,7 +143,7 @@ public actual class MediaSink internal constructor(
     public actual fun addCopyStream(source: MediaSource, stream: StreamInfo): CopyStream = synchronized(muxLock) {
         check(!headerWritten) { "Cannot add streams after the muxer has started writing." }
         val format = checkOpen()
-        source.withCodecParameters(stream) { sourceParameters ->
+        source.withCodecParameters(stream) { sourceStream, sourceParameters ->
             val outputStream = Internals.fmtNewStream(format)
             var outputParameters = 0L
             try {
@@ -154,6 +154,9 @@ public actual class MediaSink internal constructor(
                     Internals.codecParCopy(outputParameters, sourceParameters),
                     "avcodec_parameters_copy",
                 )
+                // The packets keep their bytes; this keeps what names them: language, title and
+                // every other tag, and the disposition flags.
+                check0(Internals.streamCopyIdentity(outputStream, sourceStream), "stream identity copy")
                 Internals.streamSetTimeBase(outputStream, stream.timeBase)
                 declaredStreams += 1
                 CopyStream(this, outputStream, stream.timeBase, stream.index)
@@ -221,10 +224,25 @@ public actual class MediaSink internal constructor(
         }
     }
 
-    // Wired in the next commit; until then it refuses rather than drops the chapters.
     @Throws(FFmpegException::class)
-    public actual fun setChapters(chapters: List<Chapter>): Unit =
-        throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "writing chapters is not wired yet"))
+    public actual fun setChapters(chapters: List<Chapter>): Unit = synchronized(muxLock) {
+        check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
+        val format = checkOpen()
+        chapters.forEach { chapter ->
+            val tags = chapter.metadata.entries.toList()
+            check0(
+                Internals.fmtAddChapter(
+                    format,
+                    chapter.id,
+                    chapter.startMicros,
+                    chapter.endMicros,
+                    tags.map { it.key }.toTypedArray().takeIf { it.isNotEmpty() },
+                    tags.map { it.value }.toTypedArray().takeIf { it.isNotEmpty() },
+                ),
+                "adding chapter ${chapter.id}",
+            )
+        }
+    }
 
     @Throws(FFmpegException::class)
     public actual fun setMetadata(metadata: Map<String, String>): Unit = synchronized(muxLock) {

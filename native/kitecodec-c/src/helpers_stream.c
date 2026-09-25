@@ -10,6 +10,8 @@
 
 #include "kitecodec_helpers.h"
 
+#include <libavutil/dict.h>
+
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
 #include <libavutil/mathematics.h>
@@ -36,4 +38,15 @@ KC_API void ffkmp_stream_avg_frame_rate(AVStream *s, int *n, int *d) {
 }
 KC_API void ffkmp_stream_set_time_base(AVStream *s, int n, int d) {
     if (s) { s->time_base.num = n; s->time_base.den = d ? d : 1; }
+}
+
+/* Copies what names src into dst: every tag, language and title among them, and the disposition
+   flags. The side data a renderer needs, such as the display matrix, already travels with the
+   codec parameters. Run it before the output header is written. */
+KC_API int ffkmp_stream_copy_identity(AVStream *dst, const AVStream *src) {
+    if (!dst || !src) return AVERROR(EINVAL);
+    int rc = av_dict_copy(&dst->metadata, src->metadata, 0);
+    if (rc < 0) return rc;
+    dst->disposition = src->disposition;
+    return 0;
 }

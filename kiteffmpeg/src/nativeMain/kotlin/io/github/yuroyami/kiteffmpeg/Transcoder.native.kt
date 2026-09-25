@@ -109,6 +109,13 @@ public actual object Transcoder {
             MediaSink.open(output).use { sink ->
                 // All encoders + copy mappings + metadata must exist before the header.
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
+                sink.setChapters(
+                    chaptersForOutput(
+                        source.chapters,
+                        originMicros = source.startTimeMicros + startMicros,
+                        lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
+                    ),
+                )
                 val venc = if (spec != null) sink.addVideoEncoder(spec) else null
                 val aenc = if (audioSpec != null && ainfo != null) sink.addAudioEncoder(audioSpec) else null
                 val vcopy = if (videoCopy && videoStream != null) sink.addCopyStream(source, videoStream) else null

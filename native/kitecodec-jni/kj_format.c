@@ -732,3 +732,54 @@ JNIEXPORT void JNICALL kj_fmt_close_input_io(JNIEnv *env, jclass cls, jlong toke
     ffkmp_fmt_close_input_io(&ctx);
     kj_io_state_free(env, st);
 }
+
+/* The identity of a copied stream: every tag and the disposition flags. */
+JNIEXPORT jint JNICALL kj_stream_copy_identity(JNIEnv *env, jclass cls, jlong dst_token, jlong src_token)
+{
+    kc_stream *dst = (kc_stream *)kj_handle_get(env, dst_token, KJ_KIND_STREAM);
+    kc_stream *src;
+    (void)cls;
+    if (dst == NULL) return -22;
+    src = (kc_stream *)kj_handle_get(env, src_token, KJ_KIND_STREAM);
+    return src ? ffkmp_stream_copy_identity(dst, src) : -22;
+}
+
+/* One output chapter with its tags. keys and values are parallel arrays, both NULL for none. */
+JNIEXPORT jint JNICALL kj_fmt_add_chapter(JNIEnv *env, jclass cls, jlong fmt_token, jlong id,
+                                          jlong start_us, jlong end_us,
+                                          jobjectArray keys, jobjectArray values)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, fmt_token, KJ_KIND_FMT_CTX);
+    char **ckeys = NULL;
+    char **cvalues = NULL;
+    jsize n = 0;
+    jsize i;
+    int rc;
+    (void)cls;
+    if (ctx == NULL) return -22;
+    if ((keys == NULL) != (values == NULL)) return -22;
+    if (keys != NULL) {
+        n = (*env)->GetArrayLength(env, keys);
+        if ((*env)->GetArrayLength(env, values) != n) return -22;
+    }
+    if (n > 0) {
+        ckeys = (char **)calloc((size_t)n, sizeof(char *));
+        cvalues = (char **)calloc((size_t)n, sizeof(char *));
+        if (ckeys == NULL || cvalues == NULL) { rc = -12; goto done; }
+        for (i = 0; i < n; i++) {
+            jstring jk = (jstring)(*env)->GetObjectArrayElement(env, keys, i);
+            jstring jv = (jstring)(*env)->GetObjectArrayElement(env, values, i);
+            ckeys[i] = kj_string_dup(env, jk);
+            cvalues[i] = kj_string_dup(env, jv);
+            if (jk != NULL) (*env)->DeleteLocalRef(env, jk);
+            if (jv != NULL) (*env)->DeleteLocalRef(env, jv);
+            if (ckeys[i] == NULL || cvalues[i] == NULL) { rc = -12; goto done; }
+        }
+    }
+    rc = ffkmp_fmt_add_chapter(ctx, (int64_t)id, (int64_t)start_us, (int64_t)end_us,
+                               (const char *const *)ckeys, (const char *const *)cvalues, (int)n);
+done:
+    if (ckeys != NULL) { for (i = 0; i < n; i++) free(ckeys[i]); free(ckeys); }
+    if (cvalues != NULL) { for (i = 0; i < n; i++) free(cvalues[i]); free(cvalues); }
+    return (jint)rc;
+}

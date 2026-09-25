@@ -149,6 +149,27 @@ static int invalid_fmt_chapter_count(void)
     return ffkmp_fmt_chapter_count(NULL);
 }
 
+static int invalid_stream_copy_identity(void)
+{
+    return ffkmp_stream_copy_identity(NULL, NULL);
+}
+
+static int invalid_fmt_add_chapter(void)
+{
+    return ffkmp_fmt_add_chapter(NULL, 1, 0, 1000, NULL, NULL, 0);
+}
+
+static int invalid_fmt_add_chapter_backwards(void)
+{
+    kc_fmt_ctx *ctx = NULL;
+    int rc;
+    /* An end before the start is refused before anything is allocated. */
+    if (ffkmp_fmt_alloc_output2(&ctx, "kiteffmpeg-args.mkv", "matroska") < 0) return -1;
+    rc = ffkmp_fmt_add_chapter(ctx, 1, 2000, 1000, NULL, NULL, 0);
+    ffkmp_fmt_free_output(&ctx);
+    return rc;
+}
+
 static int invalid_fmt_chapter_get(void)
 {
     return ffkmp_fmt_chapter_get(NULL, 0, NULL, NULL, NULL);
@@ -440,6 +461,9 @@ static const invalid_case invalid_cases[] = {
     { "invalid_fmt_open_input2", "ffkmp_fmt_open_input2 refuses a NULL output", invalid_fmt_open_input2 },
     { "invalid_fmt_open_input2_pairs", "ffkmp_fmt_open_input2 refuses pairs without arrays", invalid_fmt_open_input2_pairs },
     { "invalid_fmt_chapter_count", "ffkmp_fmt_chapter_count refuses a NULL context", invalid_fmt_chapter_count },
+    { "invalid_stream_copy_identity", "ffkmp_stream_copy_identity refuses NULL streams", invalid_stream_copy_identity },
+    { "invalid_fmt_add_chapter", "ffkmp_fmt_add_chapter refuses a NULL context", invalid_fmt_add_chapter },
+    { "invalid_fmt_add_chapter_backwards", "ffkmp_fmt_add_chapter refuses an end before the start", invalid_fmt_add_chapter_backwards },
     { "invalid_fmt_chapter_get", "ffkmp_fmt_chapter_get refuses NULL arguments", invalid_fmt_chapter_get },
     { "invalid_fmt_read_frame", "ffkmp_fmt_read_frame refuses NULL arguments", invalid_fmt_read_frame },
     { "invalid_codecctx_use_videotoolbox", "ffkmp_codecctx_use_videotoolbox refuses a NULL context", invalid_codecctx_use_videotoolbox },

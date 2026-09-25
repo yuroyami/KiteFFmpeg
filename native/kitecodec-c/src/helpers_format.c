@@ -286,6 +286,38 @@ KC_API int ffkmp_fmt_set_metadata(AVFormatContext *c, const char *key, const cha
     return av_dict_set(&c->metadata, key, value, 0);
 }
 
+/* Appends one chapter to an output context, bounds in microseconds on the output timeline and n
+   tags beside them. The context owns the chapter from here and avformat_free_context frees it,
+   metadata included; the allocation is the public form FFmpeg's own tools use, because the
+   helper that does it inside libavformat is private. */
+KC_API int ffkmp_fmt_add_chapter(AVFormatContext *ctx, int64_t id, int64_t start_us, int64_t end_us,
+                                 const char *const *keys, const char *const *values, int n) {
+    if (!ctx || end_us < start_us || n < 0 || (n > 0 && (!keys || !values))) return AVERROR(EINVAL);
+    AVChapter *chapter = av_mallocz(sizeof(*chapter));
+    if (!chapter) return AVERROR(ENOMEM);
+    chapter->id = id;
+    chapter->time_base = AV_TIME_BASE_Q;
+    chapter->start = start_us;
+    chapter->end = end_us;
+    for (int i = 0; i < n; i++) {
+        int rc = (keys[i] && values[i]) ? av_dict_set(&chapter->metadata, keys[i], values[i], 0) : AVERROR(EINVAL);
+        if (rc < 0) {
+            av_dict_free(&chapter->metadata);
+            av_free(chapter);
+            return rc;
+        }
+    }
+    AVChapter **grown = av_realloc_array(ctx->chapters, ctx->nb_chapters + 1, sizeof(*grown));
+    if (!grown) {
+        av_dict_free(&chapter->metadata);
+        av_free(chapter);
+        return AVERROR(ENOMEM);
+    }
+    ctx->chapters = grown;
+    ctx->chapters[ctx->nb_chapters++] = chapter;
+    return 0;
+}
+
 /* ════════════ Custom AVIO (M1) ════════════ */
 
 /* The bridge the AVIOContext's opaque points at. The magic pins provenance so the paired

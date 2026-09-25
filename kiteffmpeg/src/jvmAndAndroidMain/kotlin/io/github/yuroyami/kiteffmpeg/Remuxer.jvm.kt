@@ -67,6 +67,13 @@ public actual object Remuxer {
 
             MediaSink.open(output).use { sink ->
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
+                sink.setChapters(
+                    chaptersForOutput(
+                        source.chapters,
+                        originMicros = source.startTimeMicros + startMicros,
+                        lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
+                    ),
+                )
                 val copies = selected.associate { it.index to sink.addCopyStream(source, it) }
                 sink.ensureHeaderWritten()
                 var written = 0L

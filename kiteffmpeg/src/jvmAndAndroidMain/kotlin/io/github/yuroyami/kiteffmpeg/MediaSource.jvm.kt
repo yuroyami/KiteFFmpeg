@@ -275,7 +275,7 @@ public actual class MediaSource internal constructor(
         seekMicros((micros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L))
     }
 
-    internal fun <T> withCodecParameters(stream: StreamInfo, block: (Long) -> T): T {
+    internal fun <T> withCodecParameters(stream: StreamInfo, block: (streamToken: Long, parameters: Long) -> T): T {
         // Before the index is trusted, not after. This is the entry point addCopyStream uses, so
         // without the check a StreamInfo from a DIFFERENT source resolved to whatever lives at the
         // same index here, and the remux wrote these codec parameters under the other file's time
@@ -286,7 +286,7 @@ public actual class MediaSource internal constructor(
             var parameters = 0L
             try {
                 parameters = Internals.streamCodecPar(streamToken)
-                block(parameters)
+                block(streamToken, parameters)
             } finally {
                 if (parameters != 0L) Internals.borrowedRelease(parameters, Internals.KIND_CODEC_PAR)
                 Internals.borrowedRelease(streamToken, Internals.KIND_STREAM)
