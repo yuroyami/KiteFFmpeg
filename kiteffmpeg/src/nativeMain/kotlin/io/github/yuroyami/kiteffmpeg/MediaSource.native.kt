@@ -875,18 +875,10 @@ private val byteSourceRead = staticCFunction { opaque: COpaquePointer?, buf: CPo
         val r = state.io.read(state.scratch, 0, want)
         when {
             r > 0 -> {
-                // Element copy, not memcpy: posix memcpy's size_t is 32-bit on androidNativeArm32
-                // and 64-bit everywhere else, and the shared-native metadata compile refuses a
-                // commonized declaration whose widths differ (hit on the first full 11-target
-                // publish). A counted loop has no width to disagree about, and at media
-                // bitrates its cost is noise next to the decode this feeds.
-                val dst = buf!!
-                val src = state.scratch
-                var i = 0
-                while (i < r) {
-                    dst[i] = src[i].toUByte()
-                    i++
-                }
+                // One C copy. posix memcpy cannot be called here: its size_t is 32-bit on
+                // androidNativeArm32 and 64-bit elsewhere, and the shared-native metadata compile
+                // refuses a commonized declaration whose widths differ.
+                copyInto(buf!!, state.scratch, 0, r)
                 state.position += r
                 state.failure = null
                 r

@@ -624,6 +624,9 @@ internal external fun ffkmp_codecctx_time_base(module: JsAny, a0: Int, a1: Int, 
 @JsFun("(m, a0, a1, a2) => m._ffkmp_codecpar_sample_aspect_ratio(a0, a1, a2)")
 internal external fun ffkmp_codecpar_sample_aspect_ratio(module: JsAny, a0: Int, a1: Int, a2: Int): Unit
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_copy_bytes(a0, a1, a2)")
+internal external fun ffkmp_copy_bytes(module: JsAny, a0: Int, a1: Int, a2: Int): Unit
+
 @JsFun("(m, a0) => m._ffkmp_dict_free(a0)")
 internal external fun ffkmp_dict_free(module: JsAny, a0: Int): Unit
 

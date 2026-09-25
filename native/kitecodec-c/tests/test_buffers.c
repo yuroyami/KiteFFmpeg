@@ -1178,6 +1178,20 @@ typedef struct {
     void (*run)(void);
 } buffer_case;
 
+static void case_copy_bytes_copies_exactly_n(void)
+{
+    uint8_t src[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    uint8_t dst[8] = { 0 };
+    static const uint8_t want[8] = { 1, 2, 3, 4, 5, 0, 0, 0 };
+    ffkmp_copy_bytes(dst, src, 5);
+    KC_CHECKF(memcmp(dst, want, sizeof(want)) == 0, "copied other than the first five bytes");
+    ffkmp_copy_bytes(dst, src, 0);
+    ffkmp_copy_bytes(dst, src, -1);
+    ffkmp_copy_bytes(NULL, src, 8);
+    ffkmp_copy_bytes(dst, NULL, 8);
+    KC_CHECKF(memcmp(dst, want, sizeof(want)) == 0, "a refused copy wrote something");
+}
+
 static const buffer_case cases[] = {
     { "codecpar extradata query and exact copy",           case_codecpar_extradata_query_and_exact_copy },
     { "codecpar extradata partial copy",                   case_codecpar_extradata_partial_copy },
@@ -1216,6 +1230,7 @@ static const buffer_case cases[] = {
     { "multi full_desc[2048] exact fit with all three pins", case_multi_full_desc_exact_fit_with_all_three_pins },
     { "multi full_desc[2048] trips an append, D27",        case_multi_full_desc_trips_an_append_with_more_pending },
     { "multi full_desc[2048] explicit out label skips the pins", case_multi_full_desc_with_an_explicit_out_label_skips_the_pins },
+    { "copy_bytes copies exactly n and refuses the rest",     case_copy_bytes_copies_exactly_n },
 };
 
 int main(void)

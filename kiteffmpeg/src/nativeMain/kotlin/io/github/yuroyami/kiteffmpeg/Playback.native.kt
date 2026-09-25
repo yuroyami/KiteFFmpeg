@@ -42,7 +42,6 @@ import ffmpeg.ffkmp_packet_move_ref
 import ffmpeg.ffkmp_packet_pos
 import ffmpeg.ffkmp_packet_pts
 import ffmpeg.ffkmp_packet_data
-import kotlinx.cinterop.readBytes
 import ffmpeg.ffkmp_packet_size
 import ffmpeg.ffkmp_packet_stream_index
 import ffmpeg.ffkmp_packet_unref
@@ -172,7 +171,7 @@ public actual class Packet internal constructor(
         val size = ffkmp_packet_size(live)
         if (size <= 0) return@locked ByteArray(0)
         val data = ffkmp_packet_data(live) ?: return@locked ByteArray(0)
-        data.readBytes(size)
+        data.toByteArray(size)
     }
 
     actual override fun close(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {

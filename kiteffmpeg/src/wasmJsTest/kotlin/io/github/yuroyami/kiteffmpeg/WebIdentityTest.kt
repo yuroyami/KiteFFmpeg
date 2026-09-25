@@ -35,7 +35,7 @@ class WebIdentityTest {
         assertEquals(0, identity.status)
         assertTrue(identity.isAcceptable)
         assertFalse(identity.bypassed)
-        assertEquals("3.9", identity.cAbiVersion)
+        assertEquals("3.10", identity.cAbiVersion)
         assertEquals("n8.0", identity.buildFFmpegRef)
         assertEquals("lgpl", identity.buildLicenseFlavour)
         assertEquals("/opt/kite/ffmpeg", identity.buildProvisioningDir)
@@ -183,7 +183,7 @@ private fun stageHealthyReport(module: JsAny) {
     int(ReportLayout.status, 0)
     int(ReportLayout.bypassed, 0)
     int(ReportLayout.abiMajor, 3)
-    int(ReportLayout.abiMinor, 9)
+    int(ReportLayout.abiMinor, 10)
     perLibrary(ReportLayout.headerMajor) { 60 + it }
     perLibrary(ReportLayout.headerMinor) { 1 + it }
     perLibrary(ReportLayout.headerMicro) { 100 + it }

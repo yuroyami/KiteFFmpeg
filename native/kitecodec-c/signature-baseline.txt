@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.9
+# abi-version 3.10
 #
-# Exact scope: 232 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 233 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 255 records.
+# records are sorted without deduplication. There must be exactly 256 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -215,6 +215,7 @@ KC_API void ffkmp_codecctx_set_threads(kc_codec_ctx *c, int count, int frame_lev
 KC_API void ffkmp_codecctx_set_video( kc_codec_ctx *c, int width, int height, int pix_fmt, int fr_num, int fr_den, int tb_num, int tb_den, int64_t bit_rate, int gop_size );
 KC_API void ffkmp_codecctx_time_base(kc_codec_ctx *c, int *n, int *d);
 KC_API void ffkmp_codecpar_sample_aspect_ratio(kc_codec_par *p, int *num, int *den);
+KC_API void ffkmp_copy_bytes(void *dst, const void *src, int n);
 KC_API void ffkmp_dict_free(kc_dict **dict);
 KC_API void ffkmp_fmt_avoid_negative_ts(kc_fmt_ctx *ctx);
 KC_API void ffkmp_fmt_close_input(kc_fmt_ctx **ctx);

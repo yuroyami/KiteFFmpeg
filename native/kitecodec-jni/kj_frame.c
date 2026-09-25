@@ -64,12 +64,13 @@ JNIEXPORT jboolean JNICALL kj_frame_is_keyframe(JNIEnv *env, jclass cls, jlong t
 JNIEXPORT jbyteArray JNICALL kj_frame_copy_planes(JNIEnv *env, jclass cls, jlong token)
 {
     kc_frame *f = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
-    int size, rc;
-    uint8_t *tmp;
+    int size, rc, video;
     jbyteArray out;
+    void *dst;
     (void)cls;
     if (f == NULL) return NULL;
-    if (ffkmp_frame_width(f) > 0) {
+    video = ffkmp_frame_width(f) > 0;
+    if (video) {
         size = ffkmp_image_get_buffer_size(ffkmp_frame_format(f),
                                            ffkmp_frame_width(f), ffkmp_frame_height(f), 1);
     } else {
@@ -80,18 +81,19 @@ JNIEXPORT jbyteArray JNICALL kj_frame_copy_planes(JNIEnv *env, jclass cls, jlong
         return kj_bytes_new(env, &empty, 0);
     }
     if (size < 0) { kj_throw_ffmpeg(env, size, "frame_copy_planes size"); return NULL; }
-    tmp = (uint8_t *)malloc((size_t)size);
-    if (tmp == NULL) { kj_throw_handle(env, "out of memory copying frame planes"); return NULL; }
-    rc = ffkmp_frame_width(f) > 0
-        ? ffkmp_frame_copy_to_buffer(f, tmp, size)
-        : ffkmp_samples_copy_to_buffer(f, tmp, size);
+    /* One copy, straight into the Java array, where a scratch buffer and SetByteArrayRegion made
+       two. The critical region holds only the copy: no JNI call, no lock, nothing that blocks. */
+    out = (*env)->NewByteArray(env, (jsize)size);
+    if (out == NULL) return NULL; /* OOM already thrown */
+    dst = (*env)->GetPrimitiveArrayCritical(env, out, NULL);
+    if (dst == NULL) return NULL; /* OOM already thrown */
+    rc = video ? ffkmp_frame_copy_to_buffer(f, (uint8_t *)dst, size)
+               : ffkmp_samples_copy_to_buffer(f, (uint8_t *)dst, size);
+    (*env)->ReleasePrimitiveArrayCritical(env, out, dst, 0);
     if (rc < 0) {
-        free(tmp);
         kj_throw_ffmpeg(env, rc, "frame_copy_planes copy");
         return NULL;
     }
-    out = kj_bytes_new(env, tmp, size);
-    free(tmp);
     return out;
 }
 

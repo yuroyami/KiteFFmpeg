@@ -9,8 +9,8 @@ import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.UByteVar
 import kotlinx.cinterop.allocPointerTo
 import kotlinx.cinterop.asStableRef
-import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.plus
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.value
@@ -48,13 +48,8 @@ private val byteSinkWrite = staticCFunction { opaque: COpaquePointer?, buf: CPoi
         var done = 0
         while (done < len) {
             val piece = minOf(len - done, state.scratch.size)
-            // Element copy, for the same reason as the byte source's: memcpy's size_t width differs
-            // between the 32-bit and 64-bit native targets.
-            var i = 0
-            while (i < piece) {
-                state.scratch[i] = src[done + i].toByte()
-                i++
-            }
+            // One C copy, for the same reason as the byte source's.
+            copyFrom((src + done)!!, state.scratch, piece)
             state.sink.write(state.scratch, 0, piece)
             done += piece
         }

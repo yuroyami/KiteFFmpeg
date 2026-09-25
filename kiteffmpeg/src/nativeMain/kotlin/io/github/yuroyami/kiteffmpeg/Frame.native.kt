@@ -56,16 +56,13 @@ import ffmpeg.ffkmp_frame_is_hardware
 import ffmpeg.ffkmp_frame_is_keyframe
 import ffmpeg.ffkmp_frame_sample_aspect_ratio
 import ffmpeg.kc_frame
-import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.readBytes
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 
@@ -194,28 +191,32 @@ public actual class Frame internal constructor(
         }
     }
 
-    private fun copyVideoPlanes(): ByteArray = memScoped {
+    // Both copies write straight into the pinned result: one copy, where a scratch buffer and
+    // cinterop's element-by-element readBytes made two and cost half a second per 1080p frame.
+    private fun copyVideoPlanes(): ByteArray {
         val width = ffkmp_frame_width(nativeFrame)
         val height = ffkmp_frame_height(nativeFrame)
         val format = ffkmp_frame_format(nativeFrame)
-        if (width <= 0 || height <= 0 || format < 0) return@memScoped ByteArray(0)
+        if (width <= 0 || height <= 0 || format < 0) return ByteArray(0)
 
         val needed = ffkmp_image_get_buffer_size(format, width, height, 1)
         check0(needed, "av_image_get_buffer_size")
-        val buf = allocArray<ByteVar>(needed)
-        val written = ffkmp_frame_copy_to_buffer(nativeFrame, buf.reinterpret(), needed)
+        val bytes = ByteArray(needed)
+        if (needed == 0) return bytes
+        val written = bytes.usePinned { ffkmp_frame_copy_to_buffer(nativeFrame, it.addressOf(0).reinterpret(), needed) }
         check0(written, "av_image_copy_to_buffer")
-        buf.readBytes(written)
+        return if (written == needed) bytes else bytes.copyOf(written)
     }
 
-    private fun copyAudioSamples(): ByteArray = memScoped {
-        if (ffkmp_frame_nb_samples(nativeFrame) <= 0) return@memScoped ByteArray(0)
+    private fun copyAudioSamples(): ByteArray {
+        if (ffkmp_frame_nb_samples(nativeFrame) <= 0) return ByteArray(0)
         val needed = ffkmp_samples_get_buffer_size(nativeFrame)
         check0(needed, "av_samples_get_buffer_size")
-        val buf = allocArray<ByteVar>(needed)
-        val written = ffkmp_samples_copy_to_buffer(nativeFrame, buf.reinterpret(), needed)
+        val bytes = ByteArray(needed)
+        if (needed == 0) return bytes
+        val written = bytes.usePinned { ffkmp_samples_copy_to_buffer(nativeFrame, it.addressOf(0).reinterpret(), needed) }
         check0(written, "samples_copy_to_buffer")
-        buf.readBytes(written)
+        return if (written == needed) bytes else bytes.copyOf(written)
     }
 
     @Throws(FFmpegException::class)
@@ -309,7 +310,7 @@ public actual class Frame internal constructor(
                             check0(rc, "avcodec_receive_packet (image)")
                             if (bytes == null) {
                                 val size = ffkmp_packet_size(packet)
-                                bytes = ffkmp_packet_data(packet)?.readBytes(size)
+                                bytes = ffkmp_packet_data(packet)?.toByteArray(size)
                             }
                             ffkmp_packet_unref(packet)
                         }

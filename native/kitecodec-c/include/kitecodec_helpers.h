@@ -150,6 +150,13 @@ KC_API int64_t   ffkmp_packet_dts(kc_packet *p);
 KC_API int       ffkmp_packet_stream_index(kc_packet *p);
 KC_API int       ffkmp_packet_size(kc_packet *p);
 KC_API uint8_t*  ffkmp_packet_data(kc_packet *p);
+
+/* Copies n bytes from src to dst, which must not overlap. For Kotlin code shared by every native
+ * target, which cannot call memcpy because its size_t width differs between them. Nothing is
+ * copied when n <= 0 or either pointer is NULL.
+ */
+KC_API void      ffkmp_copy_bytes(void *dst, const void *src, int n);
+
 KC_API int64_t   ffkmp_packet_duration(kc_packet *p);
 KC_API int       ffkmp_packet_is_keyframe(kc_packet *p);
 KC_API void      ffkmp_packet_set_stream_index(kc_packet *p, int i);

@@ -13,6 +13,8 @@
 #include <libavcodec/packet.h>
 #include <libavutil/avutil.h>
 
+#include <string.h>
+
 /* ════════════ AVPacket ════════════ */
 
 KC_API AVPacket* ffkmp_packet_alloc(void)        { return KC_GATE_OPEN() ? av_packet_alloc() : NULL; }
@@ -23,6 +25,11 @@ KC_API int64_t   ffkmp_packet_dts(AVPacket *p)           { return p ? p->dts : A
 KC_API int       ffkmp_packet_stream_index(AVPacket *p)  { return p ? p->stream_index : -1; }
 KC_API int       ffkmp_packet_size(AVPacket *p)          { return p ? p->size : 0; }
 KC_API uint8_t*  ffkmp_packet_data(AVPacket *p)          { return p ? p->data : NULL; }
+
+/* Kotlin code shared by every native target cannot call memcpy, whose size_t is 32 bits on some
+   of them and 64 on the rest, and its own copy moves one element at a time. */
+KC_API void ffkmp_copy_bytes(void *dst, const void *src, int n) { if (dst && src && n > 0) memcpy(dst, src, (size_t)n); }
+
 KC_API int64_t   ffkmp_packet_duration(AVPacket *p)      { return p ? p->duration : 0; }
 KC_API int       ffkmp_packet_is_keyframe(AVPacket *p)   { return (p && (p->flags & AV_PKT_FLAG_KEY)) ? 1 : 0; }
 KC_API void      ffkmp_packet_set_stream_index(AVPacket *p, int i) { if (p) p->stream_index = i; }
