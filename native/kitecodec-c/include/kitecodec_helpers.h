@@ -320,6 +320,32 @@ KC_API int  ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
  */
 KC_API void ffkmp_fmt_close_input(kc_fmt_ctx **ctx);
 
+/* The audio resampler, libswresample behind one opaque handle. Channel layouts are FFmpeg's
+ * default for each channel count; sample formats are AVSampleFormat values, as
+ * ffkmp_sample_fmt_from_name answers them.
+ */
+typedef struct kc_swr kc_swr;
+
+/* Ownership. On success *out is a resampler the caller owns and releases with ffkmp_swr_free.
+ * A non-positive rate or channel count, or an unknown sample format, is refused with
+ * AVERROR(EINVAL) and leaves *out NULL. */
+KC_API int ffkmp_swr_create(kc_swr **out,
+                            int in_rate, int in_channels, int in_format,
+                            int out_rate, int out_channels, int out_format);
+
+/* Converts in into out. out is a frame the caller allocated; it is unreferenced first, stamped
+ * with the output rate, layout and format, and given buffers for the converted samples, so its
+ * nb_samples says how many came out (0 when the resampler buffered them all). NULL in drains the
+ * samples the resampler still holds. A frame whose rate, layout or format differs from the ones
+ * the resampler was created for is refused with AVERROR_INPUT_CHANGED. */
+KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in);
+
+/* The samples the resampler holds, in 1/base units; 0 for NULL. */
+KC_API int64_t ffkmp_swr_delay(kc_swr *s, int64_t base);
+
+/* Ownership. Frees *s and writes NULL through the pointer; safe on NULL either way. */
+KC_API void ffkmp_swr_free(kc_swr **s);
+
 /* An interrupt cell a caller creates BEFORE an open, so another thread can stop the open while
  * it runs: ffkmp_fmt_open_input2 and ffkmp_fmt_open_input_io poll it instead of allocating a
  * cell of their own, and the context they return keeps polling it. No close ever frees it. The

@@ -157,7 +157,13 @@ public expect class AudioEncoder : AutoCloseable {
     public val sampleRate: Int
     public val channels: Int
 
-    /** Drain [input] into this encoder + the parent muxer. Returns when the flow completes. */
+    /**
+     * Drain [input] into this encoder + the parent muxer. Returns when the flow completes.
+     *
+     * A frame in another sample format or with another channel count is converted with a
+     * [Resampler] first. So is a frame at another sample rate when [frameSize] is 0; a fixed-size
+     * codec refuses it, because a resampled frame no longer has the size the codec takes.
+     */
     public suspend fun drive(input: Flow<Frame>)
     override fun close()
 }

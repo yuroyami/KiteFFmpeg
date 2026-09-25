@@ -74,6 +74,16 @@ internal object Internals {
     private external fun nativeInterruptNew(): Long
     private external fun nativeInterruptRaise(token: Long)
     private external fun nativeInterruptFree(token: Long)
+    private external fun nativeSwrCreate(
+        inRate: Int,
+        inChannels: Int,
+        inFormat: Int,
+        outRate: Int,
+        outChannels: Int,
+        outFormat: Int,
+    ): Long
+    private external fun nativeSwrConvertFrame(swrToken: Long, outToken: Long, inToken: Long): Int
+    private external fun nativeSwrFree(token: Long)
     private external fun nativeFmtCloseInputIo(token: Long)
     private external fun nativeFmtChapterCount(token: Long): Int
     private external fun nativeFmtChapterGet(token: Long, index: Int, outFields: LongArray): Int
@@ -338,6 +348,11 @@ internal object Internals {
     internal fun interruptNew() = token("interrupt cell") { nativeInterruptNew() }
     internal fun interruptRaise(token: Long) = checked { nativeInterruptRaise(token) }
     internal fun interruptFree(token: Long) = checked { nativeInterruptFree(token) }
+    internal fun swrCreate(inRate: Int, inChannels: Int, inFormat: Int, outRate: Int, outChannels: Int, outFormat: Int) =
+        token("resampler") { nativeSwrCreate(inRate, inChannels, inFormat, outRate, outChannels, outFormat) }
+    internal fun swrConvertFrame(swrToken: Long, outToken: Long, inToken: Long) =
+        checked { nativeSwrConvertFrame(swrToken, outToken, inToken) }
+    internal fun swrFree(token: Long) = checked { nativeSwrFree(token) }
     internal fun fmtCloseInputIo(token: Long) = checked { nativeFmtCloseInputIo(token) }
     internal fun fmtInterrupt(token: Long) = checked { nativeFmtInterrupt(token) }
     internal fun fmtChapterCount(token: Long) = checked { nativeFmtChapterCount(token) }

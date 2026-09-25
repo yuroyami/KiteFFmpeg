@@ -321,3 +321,42 @@ JNIEXPORT jint JNICALL kj_frame_fill_audio(JNIEnv *env, jclass cls, jlong token,
     (void)cls;
     return kj_frame_fill(env, token, bytes, 1);
 }
+
+/* The resampler behind Resampler: a handle-table token of kind KJ_KIND_SWR. */
+JNIEXPORT jlong JNICALL kj_swr_create(JNIEnv *env, jclass cls,
+                                      jint in_rate, jint in_channels, jint in_format,
+                                      jint out_rate, jint out_channels, jint out_format)
+{
+    kc_swr *s = NULL;
+    jlong token;
+    int rc = ffkmp_swr_create(&s, in_rate, in_channels, in_format, out_rate, out_channels, out_format);
+    (void)cls;
+    if (rc < 0 || s == NULL) { kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "swr_create"); return 0; }
+    token = kj_handle_put_checked(env, KJ_KIND_SWR, s);
+    if (token == 0) ffkmp_swr_free(&s);
+    return token;
+}
+/* Converts the frame behind in_token (0 drains) into the frame behind out_token; returns the
+ * FFmpeg status, which the Kotlin side maps. */
+JNIEXPORT jint JNICALL kj_swr_convert_frame(JNIEnv *env, jclass cls, jlong swr_token,
+                                            jlong out_token, jlong in_token)
+{
+    kc_swr *s = (kc_swr *)kj_handle_get(env, swr_token, KJ_KIND_SWR);
+    kc_frame *out;
+    kc_frame *in = NULL;
+    (void)cls;
+    if (s == NULL) return -22;
+    out = (kc_frame *)kj_handle_get(env, out_token, KJ_KIND_FRAME);
+    if (out == NULL) return -22;
+    if (in_token != 0) {
+        in = (kc_frame *)kj_handle_get(env, in_token, KJ_KIND_FRAME);
+        if (in == NULL) return -22;
+    }
+    return (jint)ffkmp_swr_convert_frame(s, out, in);
+}
+JNIEXPORT void JNICALL kj_swr_free(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_swr *s = (kc_swr *)kj_handle_close(token, KJ_KIND_SWR);
+    (void)env; (void)cls;
+    ffkmp_swr_free(&s); /* NULL-safe; double close resolved to NULL by the table */
+}

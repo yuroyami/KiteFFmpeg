@@ -1,6 +1,6 @@
 # The exported symbol baseline of the KiteFFmpeg C archive (interlude item I-09).
 #
-# abi-version 3.0
+# abi-version 3.1
 #
 # Every external symbol the archive may export, one per line, without the Mach-O
 # underscore. symbol-audit.sh check 6 compares the archive against this file, so the
@@ -210,6 +210,10 @@ ffkmp_stream_set_time_base
 ffkmp_stream_start_time
 ffkmp_stream_time_base
 ffkmp_strerror
+ffkmp_swr_convert_frame
+ffkmp_swr_create
+ffkmp_swr_delay
+ffkmp_swr_free
 kc_abi_version
 kc_ffmpeg_configuration
 kc_ffmpeg_library_name

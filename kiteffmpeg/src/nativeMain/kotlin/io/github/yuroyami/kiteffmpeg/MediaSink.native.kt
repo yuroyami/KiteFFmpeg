@@ -849,8 +849,7 @@ public actual class AudioEncoder internal constructor(
         try {
             core.ensureHeaderWritten()
             withPacket { packet ->
-                input.collect { frame ->
-                    requireEncodableAudio(frame, sampleFormat, sampleRate, channels)
+                audioForEncoder(input, sampleFormat, sampleRate, channels, frameSize).collect { frame ->
                     core.encode(packet, frame)
                 }
                 core.finish(packet)

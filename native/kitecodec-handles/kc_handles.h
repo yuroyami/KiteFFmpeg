@@ -52,6 +52,7 @@ enum {
     KJ_KIND_PACKET,
     KJ_KIND_STREAM,
     KJ_KIND_INTERRUPT,
+    KJ_KIND_SWR,
     KJ_KIND_COUNT
 };
 

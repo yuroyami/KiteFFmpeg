@@ -1,30 +1,27 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
 /**
  * Refuses an audio frame the encoder cannot read, before FFmpeg reads it.
  *
- * ### Why this is a guard and not a conversion
- *
- * The video side validates dimensions and converts pixel formats on the way in. The audio side did
- * neither, and the cost was not a cryptic error: measured on 2026-08-30, a frame whose channel
- * count or sample format did not match the encoder **segfaulted the process**. FFmpeg reads
+ * Measured on 2026-08-30, before this guard existed: a frame whose channel count or sample format
+ * did not match the encoder **segfaulted the process**. FFmpeg reads
  * `nb_samples * channels * bytes_per_sample` using the ENCODER's idea of both, so a narrower or
  * differently-typed frame is read past its end. A sample-rate mismatch did not crash; it was
  * accepted silently and encoded at the wrong rate, which is the quieter half of the same bug.
  *
- * A public API must not be able to segfault its caller, so this refuses. It does NOT resample or
- * repack, and the remainder is honest: converting would need swresample bound through the C ABI,
- * which nothing here reaches yet.
- *
- * Frames that declare nothing (rate 0, no channels, [SampleFormat.None]) are passed through rather
- * than guessed at, the same way the video guard skips a frame with no dimensions.
+ * [audioForEncoder] now converts every frame it can, so this refuses only what is left: a sample
+ * rate change into an encoder that takes a fixed chunk size, because a converted frame no longer
+ * has that size. Frames that declare nothing (rate 0, no channels, [SampleFormat.None]) are passed
+ * through rather than guessed at, the same way the video guard skips a frame with no dimensions.
  *
  * ### It closes the frame it refuses
  *
  * `drive` CONSUMES every frame it is handed: `EncoderCore.encode` closes it in a `finally`, on the
  * failure paths too. A guard that threw before reaching that would quietly leak the frame it just
- * refused, which is a poor trade for the crash it prevents. The contract suite's owner ledger
- * caught exactly that on the first attempt at this.
+ * refused, which is a poor trade for the crash it prevents.
  */
 internal fun requireEncodableAudio(
     frame: Frame,
@@ -53,9 +50,63 @@ internal fun requireEncodableAudio(
         FFmpegError.InvalidArgument(
             0,
             "This audio frame does not match the encoder: " + problems.joinToString("; ") + ". " +
-                "Reading it would run past the end of its buffers. Route the audio through " +
-                "FilterGraph.buildAudio to resample and repack it, or open the encoder for the " +
-                "format you actually have.",
+                "The encoder takes fixed-size chunks, so a resampled frame would not fit it. Route " +
+                "the audio through FilterGraph.buildAudio with setOutputFrameSize, or open the " +
+                "encoder at the rate you actually have.",
         ),
     )
+}
+
+
+/**
+ * [input] with every frame converted to what the encoder takes, through a [Resampler].
+ *
+ * The sample format and the channel count are always converted, because that leaves the sample
+ * count, and so the chunk size, unchanged. The sample rate is converted only when [frameSize] is
+ * 0, meaning the codec takes any chunk size; a rate change into a fixed-size encoder such as AAC is
+ * refused by [requireEncodableAudio]. A source frame is closed once converted, and the resampler's
+ * held samples are emitted when [input] ends.
+ */
+internal fun audioForEncoder(
+    input: Flow<Frame>,
+    sampleFormat: SampleFormat,
+    sampleRate: Int,
+    channels: Int,
+    frameSize: Int,
+): Flow<Frame> = flow {
+    val target = AudioSpec(sampleRate, channels, sampleFormat)
+    var resampler: Resampler? = null
+    suspend fun drain(done: Resampler) {
+        while (true) emit(done.flush() ?: break)
+    }
+    try {
+        input.collect { frame ->
+            val info = frame.info
+            val declaresNothing = info.sampleRate <= 0 || info.channelCount <= 0 || info.sampleFormat == SampleFormat.None
+            val source = AudioSpec(info.sampleRate, info.channelCount, info.sampleFormat)
+            if (declaresNothing || source == target) {
+                emit(frame)
+                return@collect
+            }
+            if (info.sampleRate != sampleRate && frameSize != 0) {
+                requireEncodableAudio(frame, sampleFormat, sampleRate, channels)
+            }
+            val current = resampler?.takeIf { it.input == source } ?: run {
+                resampler?.let { previous ->
+                    drain(previous)
+                    previous.close()
+                }
+                Resampler(source, target).also { resampler = it }
+            }
+            val converted = try {
+                current.convert(frame)
+            } finally {
+                frame.close()
+            }
+            if (converted != null) emit(converted)
+        }
+        resampler?.let { drain(it) }
+    } finally {
+        resampler?.close()
+    }
 }

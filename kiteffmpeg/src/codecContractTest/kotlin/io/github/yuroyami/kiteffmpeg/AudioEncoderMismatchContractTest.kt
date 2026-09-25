@@ -4,20 +4,20 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * An audio frame the encoder cannot read is refused, not read anyway.
+ * An audio frame the encoder cannot read as it is gets converted, or refused, and is never read
+ * anyway.
  *
  * This is not a tidiness test. Measured on 2026-08-30, before the guard existed: a frame whose
  * channel count or sample format disagreed with the encoder **crashed the process with SIGSEGV**,
  * because FFmpeg reads `nb_samples * channels * bytes_per_sample` using the ENCODER's idea of both
  * and runs off the end of a narrower or differently-typed buffer. A sample-rate mismatch did not
- * crash: it was accepted silently and encoded at the wrong rate.
- *
- * So the falsification for this file is not a red assertion, it is a dead test runner. Remove the
- * guard and the two format cases below take the whole JVM down with them.
+ * crash: it was accepted silently and encoded at the wrong rate. Such frames now go through a
+ * Resampler, except a rate change into an encoder that takes fixed chunks, which is refused.
  */
 class AudioEncoderMismatchContractTest {
 
@@ -67,42 +67,34 @@ class AudioEncoderMismatchContractTest {
     }
 
     @Test
-    fun aFrameWithTheWrongChannelCountIsRefusedRatherThanReadPastItsEnd() = runBlocking {
-        val (sink, encoder) = openEncoder()
-        try {
-            val refusal = assertFailsWith<FFmpegException> {
-                encoder.drive(flowOf(frame(RATE, 1, encoder.sampleFormat)))
-            }
-            assertTrue(
-                "channels" in (refusal.message ?: ""),
-                "the refusal must name what was wrong, said: ${refusal.message}",
-            )
-        } finally {
-            runCatching { sink.close() }
+    fun aFrameWithAnotherChannelCountIsConvertedRatherThanReadPastItsEnd() = runBlocking {
+        val path = contractOutputPath("mkv").also(paths::add)
+        MediaSink.open(path).use { sink ->
+            val encoder = sink.addAudioEncoder(AudioEncoderSpec(codec = CodecId("aac"), sampleRate = RATE, channels = CHANNELS))
+            encoder.drive(flowOf(frame(RATE, 1, encoder.sampleFormat), frame(RATE, 1, encoder.sampleFormat)))
         }
+        MediaSource.open(path).use { source ->
+            assertEquals(CHANNELS, source.primaryAudio?.audio?.channels, "the mono frames must reach the file as stereo")
+        }
+        assertTrue(TranscodeFixtures.decodedSampleCount(path) > 0, "the converted frames were not encoded")
     }
 
     @Test
-    fun aFrameWithTheWrongSampleFormatIsRefusedRatherThanReadPastItsEnd() = runBlocking {
-        val (sink, encoder) = openEncoder()
-        try {
-            val wrong = if (encoder.sampleFormat == SampleFormat.S16) SampleFormat.FltP else SampleFormat.S16
-            val refusal = assertFailsWith<FFmpegException> {
-                encoder.drive(flowOf(frame(RATE, CHANNELS, wrong)))
-            }
-            assertTrue(
-                "sample format" in (refusal.message ?: ""),
-                "the refusal must name what was wrong, said: ${refusal.message}",
-            )
-        } finally {
-            runCatching { sink.close() }
+    fun aFrameInAnotherSampleFormatIsConvertedRatherThanReadPastItsEnd() = runBlocking {
+        val path = contractOutputPath("mkv").also(paths::add)
+        MediaSink.open(path).use { sink ->
+            val encoder = sink.addAudioEncoder(AudioEncoderSpec(codec = CodecId("aac"), sampleRate = RATE, channels = CHANNELS))
+            val other = if (encoder.sampleFormat == SampleFormat.S16) SampleFormat.FltP else SampleFormat.S16
+            encoder.drive(flowOf(frame(RATE, CHANNELS, other), frame(RATE, CHANNELS, other)))
         }
+        assertTrue(TranscodeFixtures.decodedSampleCount(path) > 0, "the converted frames were not encoded")
     }
 
     @Test
-    fun aFrameAtTheWrongSampleRateIsRefusedRatherThanEncodedAtTheWrongSpeed() = runBlocking {
-        // This one never crashed. It was accepted and encoded as if it were 44.1 kHz, so the
-        // output played back at the wrong speed with nothing reporting it.
+    fun aFrameAtAnotherRateIsRefusedByAnEncoderThatTakesFixedChunks() = runBlocking {
+        // A resampled frame no longer holds the 1024 samples AAC takes, so this is still refused.
+        // Before the guard it was accepted and encoded as if it were 44.1 kHz, so the output
+        // played back at the wrong speed with nothing reporting it.
         val (sink, encoder) = openEncoder()
         try {
             val refusal = assertFailsWith<FFmpegException> {
@@ -115,5 +107,20 @@ class AudioEncoderMismatchContractTest {
         } finally {
             runCatching { sink.close() }
         }
+    }
+
+    @Test
+    fun aFrameAtAnotherRateIsResampledForAnEncoderThatTakesAnyChunk() = runBlocking {
+        val path = contractOutputPath("wav").also(paths::add)
+        MediaSink.open(path).use { sink ->
+            val encoder = sink.addAudioEncoder(
+                AudioEncoderSpec(codec = CodecId.PcmS16, sampleRate = RATE, channels = CHANNELS, sampleFormat = SampleFormat.S16),
+            )
+            assertEquals(0, encoder.frameSize, "PCM takes any chunk size, which is what this case needs")
+            encoder.drive(flowOf(*Array(10) { frame(48_000, CHANNELS, SampleFormat.FltP) }))
+        }
+        // 10 frames of 1024 samples at 48 kHz are 10240 * 44100 / 48000 = 9408 samples at 44.1 kHz.
+        val decoded = TranscodeFixtures.decodedSampleCount(path)
+        assertTrue(decoded in 9_406L..9_410L, "10240 samples at 48 kHz decoded to $decoded at 44.1 kHz")
     }
 }

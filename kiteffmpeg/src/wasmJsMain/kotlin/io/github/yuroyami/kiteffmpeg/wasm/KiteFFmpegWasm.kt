@@ -390,6 +390,12 @@ internal external fun ffkmp_stream_index(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_stream_rotation_degrees(a0)")
 internal external fun ffkmp_stream_rotation_degrees(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_swr_convert_frame(a0, a1, a2)")
+internal external fun ffkmp_swr_convert_frame(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6) => m._ffkmp_swr_create(a0, a1, a2, a3, a4, a5, a6)")
+internal external fun ffkmp_swr_create(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int): Int
+
 @JsFun("(m) => m._kc_init()")
 internal external fun kc_init(module: JsAny): Int
 
@@ -440,6 +446,9 @@ internal external fun ffkmp_stream_duration_micros(module: JsAny, a0: Int): Long
 
 @JsFun("(m, a0) => m._ffkmp_stream_start_time(a0)")
 internal external fun ffkmp_stream_start_time(module: JsAny, a0: Int): Long
+
+@JsFun("(m, a0, a1) => m._ffkmp_swr_delay(a0, a1)")
+internal external fun ffkmp_swr_delay(module: JsAny, a0: Int, a1: Long): Long
 
 @JsFun("(m, a0) => m._ffkmp_codecctx_alloc(a0)")
 internal external fun ffkmp_codecctx_alloc(module: JsAny, a0: Int): Int
@@ -626,6 +635,9 @@ internal external fun ffkmp_stream_set_time_base(module: JsAny, a0: Int, a1: Int
 
 @JsFun("(m, a0, a1, a2) => m._ffkmp_stream_time_base(a0, a1, a2)")
 internal external fun ffkmp_stream_time_base(module: JsAny, a0: Int, a1: Int, a2: Int): Unit
+
+@JsFun("(m, a0) => m._ffkmp_swr_free(a0)")
+internal external fun ffkmp_swr_free(module: JsAny, a0: Int): Unit
 
 @JsFun("(m, a0) => m._kc_ffmpeg_report_get(a0)")
 internal external fun kc_ffmpeg_report_get(module: JsAny, a0: Int): Unit

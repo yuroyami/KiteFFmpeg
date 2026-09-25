@@ -924,6 +924,25 @@ final class io.github.yuroyami.kiteffmpeg/AudioInput { // io.github.yuroyami.kit
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/AudioInput.toString|toString(){}[0]
 }
 
+final class io.github.yuroyami.kiteffmpeg/AudioSpec { // io.github.yuroyami.kiteffmpeg/AudioSpec|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat) // io.github.yuroyami.kiteffmpeg/AudioSpec.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat){}[0]
+
+    final val channels // io.github.yuroyami.kiteffmpeg/AudioSpec.channels|{}channels[0]
+        final fun <get-channels>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.channels.<get-channels>|<get-channels>(){}[0]
+    final val sampleFormat // io.github.yuroyami.kiteffmpeg/AudioSpec.sampleFormat|{}sampleFormat[0]
+        final fun <get-sampleFormat>(): io.github.yuroyami.kiteffmpeg/SampleFormat // io.github.yuroyami.kiteffmpeg/AudioSpec.sampleFormat.<get-sampleFormat>|<get-sampleFormat>(){}[0]
+    final val sampleRate // io.github.yuroyami.kiteffmpeg/AudioSpec.sampleRate|{}sampleRate[0]
+        final fun <get-sampleRate>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.sampleRate.<get-sampleRate>|<get-sampleRate>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.component2|component2(){}[0]
+    final fun component3(): io.github.yuroyami.kiteffmpeg/SampleFormat // io.github.yuroyami.kiteffmpeg/AudioSpec.component3|component3(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/SampleFormat = ...): io.github.yuroyami.kiteffmpeg/AudioSpec // io.github.yuroyami.kiteffmpeg/AudioSpec.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AudioSpec.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AudioSpec.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/AudioSpec.toString|toString(){}[0]
+}
+
 final class io.github.yuroyami.kiteffmpeg/AudioStreamInfo { // io.github.yuroyami.kiteffmpeg/AudioStreamInfo|null[0]
     constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Long? = ...) // io.github.yuroyami.kiteffmpeg/AudioStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long?){}[0]
 
@@ -1450,6 +1469,19 @@ final class io.github.yuroyami.kiteffmpeg/Rational : kotlin/Comparable<io.github
 
         final fun invoke(kotlin/Int, kotlin/Int): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/Rational.Companion.invoke|invoke(kotlin.Int;kotlin.Int){}[0]
     }
+}
+
+final class io.github.yuroyami.kiteffmpeg/Resampler : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/Resampler|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/AudioSpec, io.github.yuroyami.kiteffmpeg/AudioSpec) // io.github.yuroyami.kiteffmpeg/Resampler.<init>|<init>(io.github.yuroyami.kiteffmpeg.AudioSpec;io.github.yuroyami.kiteffmpeg.AudioSpec){}[0]
+
+    final val input // io.github.yuroyami.kiteffmpeg/Resampler.input|{}input[0]
+        final fun <get-input>(): io.github.yuroyami.kiteffmpeg/AudioSpec // io.github.yuroyami.kiteffmpeg/Resampler.input.<get-input>|<get-input>(){}[0]
+    final val output // io.github.yuroyami.kiteffmpeg/Resampler.output|{}output[0]
+        final fun <get-output>(): io.github.yuroyami.kiteffmpeg/AudioSpec // io.github.yuroyami.kiteffmpeg/Resampler.output.<get-output>|<get-output>(){}[0]
+
+    final fun close() // io.github.yuroyami.kiteffmpeg/Resampler.close|close(){}[0]
+    final fun convert(io.github.yuroyami.kiteffmpeg/Frame): io.github.yuroyami.kiteffmpeg/Frame? // io.github.yuroyami.kiteffmpeg/Resampler.convert|convert(io.github.yuroyami.kiteffmpeg.Frame){}[0]
+    final fun flush(): io.github.yuroyami.kiteffmpeg/Frame? // io.github.yuroyami.kiteffmpeg/Resampler.flush|flush(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/StreamDecoder : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/StreamDecoder|null[0]

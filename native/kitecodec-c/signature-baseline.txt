@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.0
+# abi-version 3.1
 #
-# Exact scope: 200 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 204 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 222 records.
+# records are sorted without deduplication. There must be exactly 226 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -136,6 +136,8 @@ KC_API int ffkmp_samples_get_buffer_size(kc_frame *f);
 KC_API int ffkmp_stream_disposition(kc_stream *s);
 KC_API int ffkmp_stream_index(kc_stream *s);
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);
+KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in);
+KC_API int ffkmp_swr_create(kc_swr **out, int in_rate, int in_channels, int in_format, int out_rate, int out_channels, int out_format);
 KC_API int kc_init(void);
 KC_API int kc_jvm_attach(void *java_vm);
 KC_API int32_t ffkmp_codecpar_field_order(const kc_codec_par *p);
@@ -154,6 +156,7 @@ KC_API int64_t ffkmp_packet_pts(kc_packet *p);
 KC_API int64_t ffkmp_rescale_q(int64_t v, int sn, int sd, int dn, int dd);
 KC_API int64_t ffkmp_stream_duration_micros(kc_stream *s);
 KC_API int64_t ffkmp_stream_start_time(kc_stream *s);
+KC_API int64_t ffkmp_swr_delay(kc_swr *s, int64_t base);
 KC_API kc_codec_ctx* ffkmp_codecctx_alloc(const kc_codec *c);
 KC_API kc_codec_par* ffkmp_stream_codecpar(kc_stream *s);
 KC_API kc_dict* ffkmp_fmt_chapter_metadata(const kc_fmt_ctx *ctx, int index);
@@ -216,6 +219,7 @@ KC_API void ffkmp_stream_discard_all(kc_stream *s);
 KC_API void ffkmp_stream_discard_none(kc_stream *s);
 KC_API void ffkmp_stream_set_time_base(kc_stream *s, int n, int d);
 KC_API void ffkmp_stream_time_base(kc_stream *s, int *n, int *d);
+KC_API void ffkmp_swr_free(kc_swr **s);
 KC_API void kc_ffmpeg_report_get(kc_ffmpeg_report *out);
 KC_API void* ffkmp_frame_hw_surface(kc_frame *f);
 enum kc_jvm_status { KC_JVM_OK = 0, KC_JVM_BAD_ARGUMENT = -1, KC_JVM_UNSUPPORTED = -2, KC_JVM_FFMPEG_REFUSED = -3 };
