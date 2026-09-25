@@ -1340,6 +1340,7 @@ final class io.github.yuroyami.kiteffmpeg/MediaSink : kotlin/AutoCloseable { // 
     final fun addCopyStream(io.github.yuroyami.kiteffmpeg/MediaSource, io.github.yuroyami.kiteffmpeg/StreamInfo): io.github.yuroyami.kiteffmpeg/CopyStream // io.github.yuroyami.kiteffmpeg/MediaSink.addCopyStream|addCopyStream(io.github.yuroyami.kiteffmpeg.MediaSource;io.github.yuroyami.kiteffmpeg.StreamInfo){}[0]
     final fun addVideoEncoder(io.github.yuroyami.kiteffmpeg/VideoEncoderSpec): io.github.yuroyami.kiteffmpeg/VideoEncoder // io.github.yuroyami.kiteffmpeg/MediaSink.addVideoEncoder|addVideoEncoder(io.github.yuroyami.kiteffmpeg.VideoEncoderSpec){}[0]
     final fun close() // io.github.yuroyami.kiteffmpeg/MediaSink.close|close(){}[0]
+    final fun setChapters(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/Chapter>) // io.github.yuroyami.kiteffmpeg/MediaSink.setChapters|setChapters(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.Chapter>){}[0]
     final fun setMetadata(kotlin.collections/Map<kotlin/String, kotlin/String>) // io.github.yuroyami.kiteffmpeg/MediaSink.setMetadata|setMetadata(kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
 
     final object Companion { // io.github.yuroyami.kiteffmpeg/MediaSink.Companion|null[0]

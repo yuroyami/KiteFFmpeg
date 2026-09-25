@@ -682,6 +682,7 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSink : java/lang/AutoClose
 	public final fun addCopyStream (Lio/github/yuroyami/kiteffmpeg/MediaSource;Lio/github/yuroyami/kiteffmpeg/StreamInfo;)Lio/github/yuroyami/kiteffmpeg/CopyStream;
 	public final fun addVideoEncoder (Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;)Lio/github/yuroyami/kiteffmpeg/VideoEncoder;
 	public fun close ()V
+	public final fun setChapters (Ljava/util/List;)V
 	public final fun setMetadata (Ljava/util/Map;)V
 }
 

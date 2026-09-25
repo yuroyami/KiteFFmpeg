@@ -314,6 +314,11 @@ public actual class MediaSink internal constructor(
         }
     }
 
+    // Wired in the next commit; until then it refuses rather than drops the chapters.
+    @Throws(FFmpegException::class)
+    public actual fun setChapters(chapters: List<Chapter>): Unit =
+        throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "writing chapters is not wired yet"))
+
     @Throws(FFmpegException::class)
     public actual fun setMetadata(metadata: Map<String, String>): Unit = synchronized(muxLock) {
         check(!headerWritten) { "Metadata must be set before the muxer writes its header." }

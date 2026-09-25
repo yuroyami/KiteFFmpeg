@@ -44,6 +44,16 @@ public expect class MediaSink : AutoCloseable {
     public fun setMetadata(metadata: Map<String, String>)
 
     /**
+     * Chapters for the output, each with its title and its other tags. Call this before any frame
+     * or packet is written. The bounds are on the output's own timeline, where the first written
+     * timestamp is zero, so a caller copying chapters from a [MediaSource] subtracts its
+     * [MediaSource.startTimeMicros] and the start of any trim. A chapter [Chapter.id] only has to
+     * be unique within the list.
+     */
+    @Throws(FFmpegException::class)
+    public fun setChapters(chapters: List<Chapter>)
+
+    /**
      * Flushes every encoder, writes the trailer, and frees the muxer.
      *
      * The flush matters: encoders buffer (x264's lookahead holds tens of frames), so closing

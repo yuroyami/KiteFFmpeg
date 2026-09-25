@@ -19,6 +19,10 @@ public actual class MediaSink private constructor() : AutoCloseable {
     public actual fun setMetadata(metadata: Map<String, String>): Unit =
         placeholderBackendUnavailable("Setting output metadata")
 
+    @Throws(FFmpegException::class)
+    public actual fun setChapters(chapters: List<Chapter>): Unit =
+        placeholderBackendUnavailable("Setting output chapters")
+
     actual override fun close(): Unit = Unit
 
     public actual companion object {
