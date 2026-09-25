@@ -171,11 +171,20 @@ KiteFFmpegWeb.load("/kite.mjs")     // or attach() a module the page already ins
 check(FFmpeg.identity.isAcceptable)
 ```
 
-Calls before that throw `KiteFFmpegWeb.NotLoaded`. Two things to know before choosing it: the
-module is not published with the artifact, so you build it yourself with
-`:kiteffmpeg:buildFFmpegForWasm*` (needs emscripten); and the Kotlin side is tested against a fake
-codec module, which proves the binding reads the right fields and proves nothing about the built
-artifact. A real browser run against a real module has not been recorded yet.
+Calls before that throw `KiteFFmpegWeb.NotLoaded`. The module is two files, `kite.mjs` and
+`kite.wasm`. Each release attaches them to the `wasmJs` publication as one zip with the `web`
+classifier (`kiteffmpeg-wasm-js-<version>-web.zip`), together with the FFmpeg licence texts that
+must travel with them:
+
+1. Download the zip for the version you depend on.
+2. Unpack it beside your page, so the page serves `kite.mjs`, `kite.wasm` and `licenses/`.
+3. Call `KiteFFmpegWeb.load()`, which fetches `./kite.mjs`. Under a bundler, instantiate the module
+   from a plain `<script type="module">` and pass it to `KiteFFmpegWeb.attach()` instead.
+
+To build the two files yourself, run `./gradlew :kiteffmpeg:kiteffmpegWebZip` (needs emscripten).
+Only the single-threaded build ships: the threaded one hangs on import on a page without
+cross-origin isolation. Most web tests run against a scripted fake module, which proves the
+binding reads the right fields and nothing about a built module.
 
 ## What it will not do
 

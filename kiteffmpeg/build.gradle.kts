@@ -790,6 +790,39 @@ tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.CompileKiteFFmpegCWasmTa
 registerBuildFFmpegWasm("simd", "Simd")
 registerBuildFFmpegWasm("mt", "Mt")
 
+// The codec module the web backend loads, kite.mjs and kite.wasm, and the `web` zip that carries it
+// with its licence texts. A browser distribution does not inherit a library's resources, so a web
+// app unpacks the zip beside its page. Only the single-threaded build ships: the threaded one hangs
+// on import without cross-origin isolation. -Pkiteffmpeg.web.module=true attaches the zip to the
+// wasmJs publication, which then needs emcc and the web FFmpeg tree to publish.
+val linkWasmModule =
+    tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.LinkKiteFFmpegWasmModuleTask>("linkKiteFFmpegWasmModule") {
+        group = "kiteffmpeg"
+        description = "Links kite.mjs and kite.wasm, the codec module the web backend loads."
+        dependsOn("compileKiteFFmpegCForWasm")
+        helperArchive.set(rootDir.resolve("native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"))
+        ffmpegLibDir.set(wasmFFmpegRoot.resolve("lib"))
+        signatureBaseline.set(rootDir.resolve("native/kitecodec-c/signature-baseline.txt"))
+        outputDir.set(layout.buildDirectory.dir("kite-web"))
+    }
+val kiteffmpegWebZip = tasks.register<Zip>("kiteffmpegWebZip") {
+    group = "kiteffmpeg"
+    description = "The web codec module as one zip, for the wasmJs publication."
+    from(linkWasmModule.map { it.outputDir })
+    from(project.file("src/jvmMain/resources/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1")) { into("licenses") }
+    from(project.file("web/licenses/THIRD-PARTY.txt")) { into("licenses") }
+    archiveBaseName.set("kiteffmpeg-wasm-js")
+    archiveClassifier.set("web")
+    destinationDirectory.set(layout.buildDirectory.dir("kite-web-zip"))
+}
+if (providers.gradleProperty("kiteffmpeg.web.module").orNull == "true") {
+    afterEvaluate {
+        extensions.findByType<PublishingExtension>()?.publications
+            ?.matching { it.name == "wasmJs" }
+            ?.configureEach { (this as MavenPublication).artifact(kiteffmpegWebZip) }
+    }
+}
+
 // Register the :buildDav1dFor<Target> tasks: cross-compile dav1d into
 // native-libs/deps/<target>, which is where a dav1d-enabled buildFFmpegFor<Target> looks.
 fun registerBuildDav1d(triple: TargetTriple) =
