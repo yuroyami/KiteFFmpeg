@@ -284,6 +284,13 @@ public final class io/github/yuroyami/kiteffmpeg/CorruptData : java/lang/Enum {
 	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/CorruptData;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/DemuxOpenKt {
+	public static final fun open (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public static final fun open (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSource;Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSource$Companion;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSource;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/Disposition {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Disposition$Companion;
 	public fun <init> ()V
@@ -1366,6 +1373,49 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/Deinterlacer : java/lang/En
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
 	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DemuxFlag : java/lang/Enum {
+	public static final field DiscardCorrupt Lio/github/yuroyami/kiteffmpeg/dsl/DemuxFlag;
+	public static final field GeneratePts Lio/github/yuroyami/kiteffmpeg/dsl/DemuxFlag;
+	public static final field IgnoreIndex Lio/github/yuroyami/kiteffmpeg/dsl/DemuxFlag;
+	public static final field NoBuffer Lio/github/yuroyami/kiteffmpeg/dsl/DemuxFlag;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/dsl/DemuxFlag;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/DemuxFlag;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DemuxOptions {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/Long;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/Long;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun compile ()Ljava/util/List;
+	public final fun component1 ()Ljava/lang/Long;
+	public final fun component2 ()Ljava/lang/Long;
+	public final fun component3 ()Ljava/lang/Integer;
+	public final fun component4 ()Ljava/util/Set;
+	public final fun component5 ()Ljava/util/Set;
+	public final fun component6 ()Ljava/util/Set;
+	public final fun component7 ()Ljava/lang/Long;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/Long;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/Long;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnalyzeDurationMicros ()Ljava/lang/Long;
+	public final fun getFlags ()Ljava/util/Set;
+	public final fun getFormatWhitelist ()Ljava/util/Set;
+	public final fun getFpsProbeFrames ()Ljava/lang/Integer;
+	public final fun getIoTimeoutMicros ()Ljava/lang/Long;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getProbeSizeBytes ()Ljava/lang/Long;
+	public final fun getProtocolWhitelist ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/dsl/DemuxOptions$Companion {
+	public final fun getLowLatency ()Lio/github/yuroyami/kiteffmpeg/dsl/DemuxOptions;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/dsl/DrawBox : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {

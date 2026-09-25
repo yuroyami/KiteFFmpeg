@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions
+import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_alloc
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_attached_pic
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_comment
@@ -545,7 +546,10 @@ public actual class MediaSource internal constructor(
             io: MediaByteSource,
             options: Map<String, String>,
             interrupt: OpenInterrupt?,
-        ): MediaSource = openUnderSingleThreaded(interrupt) { openIo(io, options) }
+        ): MediaSource {
+            refuseSeekBreakingOptions(options)
+            return openUnderSingleThreaded(interrupt) { openIo(io, options) }
+        }
 
         private fun openIo(io: MediaByteSource, options: Map<String, String>): MediaSource {
             val m = requireModule()
