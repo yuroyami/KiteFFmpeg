@@ -29,6 +29,10 @@ public actual class MediaSink private constructor() : AutoCloseable {
         @Throws(FFmpegException::class)
         public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink =
             placeholderBackendUnavailable("Opening a media sink")
+
+        @Throws(FFmpegException::class)
+        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink =
+            placeholderBackendUnavailable("Opening a media sink")
     }
 }
 

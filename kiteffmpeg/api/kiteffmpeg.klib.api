@@ -400,6 +400,15 @@ final enum class io.github.yuroyami.kiteffmpeg/Vp9Profile : kotlin/Enum<io.githu
     }
 }
 
+abstract interface io.github.yuroyami.kiteffmpeg/MediaByteSink : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/MediaByteSink|null[0]
+    abstract val seekable // io.github.yuroyami.kiteffmpeg/MediaByteSink.seekable|{}seekable[0]
+        abstract fun <get-seekable>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/MediaByteSink.seekable.<get-seekable>|<get-seekable>(){}[0]
+
+    abstract fun seek(kotlin/Long) // io.github.yuroyami.kiteffmpeg/MediaByteSink.seek|seek(kotlin.Long){}[0]
+    abstract fun write(kotlin/ByteArray, kotlin/Int, kotlin/Int) // io.github.yuroyami.kiteffmpeg/MediaByteSink.write|write(kotlin.ByteArray;kotlin.Int;kotlin.Int){}[0]
+    open fun flush() // io.github.yuroyami.kiteffmpeg/MediaByteSink.flush|flush(){}[0]
+}
+
 abstract interface io.github.yuroyami.kiteffmpeg/MediaByteSource : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/MediaByteSource|null[0]
     abstract val seekable // io.github.yuroyami.kiteffmpeg/MediaByteSource.seekable|{}seekable[0]
         abstract fun <get-seekable>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/MediaByteSource.seekable.<get-seekable>|<get-seekable>(){}[0]
@@ -1510,6 +1519,7 @@ final class io.github.yuroyami.kiteffmpeg/MediaSink : kotlin/AutoCloseable { // 
     final fun setMetadata(kotlin.collections/Map<kotlin/String, kotlin/String>) // io.github.yuroyami.kiteffmpeg/MediaSink.setMetadata|setMetadata(kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
 
     final object Companion { // io.github.yuroyami.kiteffmpeg/MediaSink.Companion|null[0]
+        final fun open(io.github.yuroyami.kiteffmpeg/MediaByteSink, kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/MediaSink // io.github.yuroyami.kiteffmpeg/MediaSink.Companion.open|open(io.github.yuroyami.kiteffmpeg.MediaByteSink;kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
         final fun open(kotlin/String, kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/MediaSink // io.github.yuroyami.kiteffmpeg/MediaSink.Companion.open|open(kotlin.String;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
     }
 }

@@ -367,6 +367,11 @@ public actual class MediaSink internal constructor(
     }
 
     public actual companion object {
+        // Wired in the next commit; until then it refuses rather than writes nowhere.
+        @Throws(FFmpegException::class)
+        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink =
+            throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "writing into a MediaByteSink is not wired yet"))
+
         @Throws(FFmpegException::class)
         public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink {
             Internals.requireCompatible()

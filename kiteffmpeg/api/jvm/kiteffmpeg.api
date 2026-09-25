@@ -716,6 +716,17 @@ public final class io/github/yuroyami/kiteffmpeg/MasteringDisplay {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class io/github/yuroyami/kiteffmpeg/MediaByteSink : java/lang/AutoCloseable {
+	public fun flush ()V
+	public abstract fun getSeekable ()Z
+	public abstract fun seek (J)V
+	public abstract fun write ([BII)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaByteSink$DefaultImpls {
+	public static fun flush (Lio/github/yuroyami/kiteffmpeg/MediaByteSink;)V
+}
+
 public abstract interface class io/github/yuroyami/kiteffmpeg/MediaByteSource : java/lang/AutoCloseable {
 	public abstract fun getSeekable ()Z
 	public abstract fun getSize ()Ljava/lang/Long;
@@ -785,7 +796,9 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSink : java/lang/AutoClose
 }
 
 public final class io/github/yuroyami/kiteffmpeg/MediaSink$Companion {
+	public final fun open (Lio/github/yuroyami/kiteffmpeg/MediaByteSink;Ljava/lang/String;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaSink;
 	public final fun open (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/MediaSink;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSink$Companion;Lio/github/yuroyami/kiteffmpeg/MediaByteSink;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSink;
 	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/MediaSink$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaSink;
 }
 

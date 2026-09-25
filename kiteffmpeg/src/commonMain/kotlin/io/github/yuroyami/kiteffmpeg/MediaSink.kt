@@ -78,6 +78,19 @@ public expect class MediaSink : AutoCloseable {
          */
         @Throws(FFmpegException::class)
         public fun open(path: String, format: String? = null, options: Map<String, String> = emptyMap()): MediaSink
+
+        /**
+         * Open a sink writing into [sink], application-owned bytes, instead of a path.
+         *
+         * The returned [MediaSink] owns [sink] and closes it. A container that has to seek on a
+         * sink that cannot is refused when the header is written, with [FFmpegError.InvalidArgument].
+         *
+         * @param format container short name (`mp4`, `matroska`, `mpegts`, …). There is no path
+         *               to infer it from, so it is required.
+         * @param options muxer private options, as for the path variant
+         */
+        @Throws(FFmpegException::class)
+        public fun open(sink: MediaByteSink, format: String, options: Map<String, String> = emptyMap()): MediaSink
     }
 }
 
