@@ -96,6 +96,9 @@ Each line is something that bit someone. Delete a line when it stops being true.
 - The generated wasm binding has two copies, the generator's output and the committed one, and
   `checkWasmBindingMirror` keeps them identical; if it fires, regenerate and commit both rather
   than hand-editing the committed copy.
+- The corpus replay and fuzz jobs build the C layer against Ubuntu 24.04's own FFmpeg 6.1, not
+  the pinned release, so FFmpeg 7 or later API needs a version check in the C source. Nothing on
+  this Mac notices; an `ubuntu:24.04` container with `libavformat-dev` and `clang-18` does.
 
 ### Kotlin and language
 
