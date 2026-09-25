@@ -19,7 +19,7 @@ ffkmp_packet_ref deleted
 ffkmp_packet_flags deleted
 ffkmp_codecpar_video_delay deleted
 ffkmp_codecctx_sample_fmt deleted
-ffkmp_codec_name deleted
+ffkmp_codec_name resurrected-in-33
 ffkmp_fmt_bit_rate resurrected-in-K2
 ffkmp_fmt_alloc_output deleted
 ffkmp_stream_duration deleted
