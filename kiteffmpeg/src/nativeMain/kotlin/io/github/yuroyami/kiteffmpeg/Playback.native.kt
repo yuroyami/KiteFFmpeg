@@ -235,7 +235,7 @@ public actual class PacketReader internal constructor(
         while (true) {
             val rc = ffkmp_fmt_read_frame(ctx, scratch)
             if (rc == FFErrors.EOF) return null
-            if (rc < 0) throw FFmpegException(avError(rc))
+            if (rc < 0) throw source.demuxFailure(rc)
 
             val index = ffkmp_packet_stream_index(scratch)
             val timeBase = timeBaseByStream[index]
@@ -292,7 +292,7 @@ public actual class PacketReader internal constructor(
             SeekDirection.Any -> ffkmp_avseek_flag_any()
         }
         val rc = ffkmp_fmt_seek_file(ctx, -1, min, target, max, flags)
-        if (rc < 0) throw FFmpegException(avError(rc))
+        if (rc < 0) throw source.demuxFailure(rc)
     }
 
     @Throws(FFmpegException::class)

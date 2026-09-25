@@ -3,7 +3,6 @@ package io.github.yuroyami.kiteffmpeg
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
-import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -13,7 +12,7 @@ import kotlin.test.assertTrue
 
 /**
  * An exception thrown by a caller's [MediaByteSource] reaches the caller as the cause of the
- * [FFmpegException] it produced.
+ * [FFmpegException] it produced, on the JVM and on the native backends alike.
  *
  * FFmpeg only receives an error code from the bridge, so without the cause the caller catches a
  * bare I/O error and the exception that actually happened is lost. Each test fails one path: the
@@ -21,7 +20,7 @@ import kotlin.test.assertTrue
  * exception FFmpeg recovered from must not become the cause of a later, unrelated error.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
-class JvmByteSourceFailureTest {
+class ByteSourceFailureContractTest {
 
     /** Thrown by the test source, so `assertSame` proves that this exact object arrived. */
     private class SourceFailure(message: String) : RuntimeException(message)
@@ -174,9 +173,9 @@ class JvmByteSourceFailureTest {
 
         /** Six seconds of MPEG-TS video, larger than what the open reads ahead. */
         val fixture: ByteArray by lazy {
-            val file = File.createTempFile("kiteffmpeg-source-failure-", ".ts")
+            val path = contractOutputPath("ts")
             try {
-                MediaSink.open(file.absolutePath).use { sink ->
+                MediaSink.open(path).use { sink ->
                     val encoder = sink.addVideoEncoder(
                         VideoEncoderSpec(
                             codec = CodecId("mpeg4"),
@@ -194,9 +193,9 @@ class JvmByteSourceFailureTest {
                         )
                     }
                 }
-                file.readBytes()
+                readContractBytes(path)
             } finally {
-                file.delete()
+                deleteContractPath(path)
             }
         }
 

@@ -139,7 +139,17 @@ public actual class MediaSource internal constructor(
      * and this runs AFTER it to dispose the StableRef and close the caller's byte source.
      */
     private val ioCleanup: (() -> Unit)? = null,
+    /** The bridge state of a custom-io open, whose parked exception explains a failed read. */
+    private val ioState: ByteSourceState? = null,
 ) : AutoCloseable {
+
+    /**
+     * The exception for a read, seek or probe on this source that failed with [code]. When the
+     * source reads a [MediaByteSource], the exception that source threw becomes the cause, because
+     * FFmpeg itself only received an error code.
+     */
+    internal fun demuxFailure(code: Int): FFmpegException =
+        FFmpegException(avError(code), ioState?.takeFailure())
 
     /** Absolute timestamp [ts] (in [timeBase]) → media-relative microseconds. */
     internal fun toRelativeMicros(ts: Long, timeBase: Rational): Long =
@@ -323,7 +333,7 @@ public actual class MediaSource internal constructor(
             currentCoroutineContext().ensureActive()
             val readRc = ffkmp_fmt_read_frame(ctx, packet)
             if (readRc == eof) break
-            if (readRc < 0) throw FFmpegException(avError(readRc))
+            if (readRc < 0) throw demuxFailure(readRc)
             val index = ffkmp_packet_stream_index(packet)
             val decoder = decoderByIndex[index]
             val copyInfo = if (decoder == null) copyByIndex[index] else null
@@ -430,7 +440,7 @@ public actual class MediaSource internal constructor(
         // AV_TIME_BASE timestamp. On a container that starts at a nonzero time (MPEG-TS) the
         // two differ by exactly startTimeMicros.
         val rc = ffkmp_fmt_seek_micros(ctx, -1, toAbsoluteMicros(micros))
-        if (rc < 0) throw FFmpegException(avError(rc))
+        if (rc < 0) throw demuxFailure(rc)
     }
 
     /**
@@ -718,7 +728,7 @@ internal fun openMediaSource(path: String, options: Map<String, String> = emptyM
         ?: run { arena.clear(); throw FFmpegException(FFmpegError.Internal("open_input returned NULL")) }
     arena.clear()  // ctxVar was just used to read out the ctx; the ctx pointer is now standalone.
 
-    return assembleMediaSource(ctx, unusedKeys, ioCleanup = null)
+    return assembleMediaSource(ctx, unusedKeys, ioCleanup = null, ioState = null)
 }
 
 /** Everything between a successfully opened ctx and a constructed MediaSource, shared by the
@@ -727,6 +737,7 @@ private fun assembleMediaSource(
     ctx: CPointer<kc_fmt_ctx>,
     unusedKeys: List<String>,
     ioCleanup: (() -> Unit)?,
+    ioState: ByteSourceState?,
 ): MediaSource {
     /** Closes the container and the caller's byte source, in that order. */
     fun unwind() {
@@ -740,7 +751,7 @@ private fun assembleMediaSource(
     val infoRc = ffkmp_fmt_find_stream_info(ctx)
     if (infoRc < 0) {
         unwind()
-        throw FFmpegException(avError(infoRc))
+        throw FFmpegException(avError(infoRc), ioState?.takeFailure())
     }
 
     // Everything from here to the constructor can throw, and until it was wrapped a probe that had
@@ -769,14 +780,24 @@ private fun assembleMediaSource(
         chapters = chapters,
         unusedOpenOptions = unusedKeys,
         ioCleanup = ioCleanup,
+        ioState = ioState,
     )
 }
 
 /** The per-open state the AVIO trampolines reach through the C bridge's opaque. */
-private class ByteSourceState(val io: MediaByteSource) {
+internal class ByteSourceState(val io: MediaByteSource) {
     var position: Long = 0
     val scratch = ByteArray(64 * 1024)
+
+    /**
+     * The exception the last read or seek swallowed, kept for the error it causes. FFmpeg can
+     * report that error one call later, so it waits here until [takeFailure] takes it. A read that
+     * delivers bytes clears it: FFmpeg recovered, so it no longer explains a later error.
+     */
     var failure: Throwable? = null
+
+    /** The parked exception, once. */
+    fun takeFailure(): Throwable? = failure.also { failure = null }
 }
 
 /* The C-callable trampolines. Non-capturing by staticCFunction's rule: all state arrives
@@ -803,6 +824,7 @@ private val byteSourceRead = staticCFunction { opaque: COpaquePointer?, buf: CPo
                     i++
                 }
                 state.position += r
+                state.failure = null
                 r
             }
             r < 0 -> -1
@@ -865,9 +887,8 @@ internal fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>
             // caller a close. Disposing the StableRef alone left the source open for ever
             // (audit P1-01).
             cleanup()
-            // The byte source's own exception is the truer diagnosis than FFmpeg's EIO shell.
-            state.failure?.let { throw FFmpegException(FFmpegError.Internal("custom io failed: ${it.message}")) }
-            throw FFmpegException(avError(rc))
+            // The byte source's own exception is the cause, because FFmpeg only saw an error code.
+            throw FFmpegException(avError(rc), state.takeFailure())
         }
         val dict = unusedVar.value
         if (dict != null) {
@@ -885,7 +906,7 @@ internal fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>
             throw FFmpegException(FFmpegError.Internal("open_input_io returned NULL"))
         }
     }
-    return assembleMediaSource(ctx, unusedKeys, ioCleanup = cleanup)
+    return assembleMediaSource(ctx, unusedKeys, ioCleanup = cleanup, ioState = state)
 }
 
 /** KD-5: the chapter table, bounds already in microseconds from the C side. */

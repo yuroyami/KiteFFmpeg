@@ -160,7 +160,19 @@ public sealed class FFmpegError(public val code: Int, public val message: String
  * The single exception type KiteFFmpeg throws for FFmpeg-related failures. Inspect [error]
  * for the semantic category and [code] for the raw `AVERROR_*` value.
  */
-public class FFmpegException(public val error: FFmpegError) : RuntimeException(error.message) {
+public class FFmpegException : RuntimeException {
+    /** The semantic category of the failure. */
+    public val error: FFmpegError
+
+    public constructor(error: FFmpegError) : super(error.message) {
+        this.error = error
+    }
+
+    /** With [cause], for example the exception a caller's [MediaByteSource] threw. */
+    internal constructor(error: FFmpegError, cause: Throwable?) : super(error.message, cause) {
+        this.error = error
+    }
+
     /** The raw `AVERROR_*` code, or 0 for internal errors. */
     public val code: Int get() = error.code
 }
