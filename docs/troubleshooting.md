@@ -45,7 +45,8 @@ Pass `allow_sw` to let VideoToolbox fall back to its software path instead of fa
 
 ```kotlin
 VideoEncoderSpec(
-    codec = CodecId.H264VideoToolbox,
+    codec = CodecId.H264,
+    encoder = EncoderId.H264VideoToolbox,
     width = 1280, height = 720,
     frameRate = Rational(30, 1),
     options = mapOf("allow_sw" to "1"),
@@ -112,7 +113,7 @@ FFmpeg's MediaCodec wrapper is selected only by an FFmpeg codec name after
 the Android loader accepts the linked FFmpeg identity and attaches the VM; KiteFFmpeg does not call
 the platform codec API directly.
 
-## "libx264 not found" / `CodecId.Libx264` encoder missing at runtime
+## "libx264 not found" / `EncoderId.Libx264` encoder missing at runtime
 
 libx264 only exists in GPL-flavour FFmpeg builds. A system FFmpeg from Homebrew or apt usually has
 it; **no KiteFFmpeg artifact does, and no KiteFFmpeg task builds one.** The GPL build tasks were
@@ -120,8 +121,9 @@ deleted on 2026-08-21.
 
 Two ways forward:
 
-- **Use an encoder that is actually there.** `CodecId.H264VideoToolbox` or
-  `CodecId.HevcVideoToolbox` on macOS, `h264_mediacodec` on Android, or the universal `mpeg4`
+- **Use an encoder that is actually there.** `FFmpeg.encodersFor(CodecId.H264)` lists them:
+  `EncoderId.H264VideoToolbox` or `EncoderId.HevcVideoToolbox` on macOS, `h264_mediacodec` on
+  Android, or the universal `mpeg4`
   baseline, which every profile carries. The Android MediaCodec names are present in the profile,
   but the current evidence does not qualify device encoding.
 - **Link an FFmpeg tree you built.** Put it under `native-libs/gpl/<target>/` and select it with

@@ -88,11 +88,13 @@ suspend fun transcode(
 ```kotlin
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.PixelFormat
 import io.github.yuroyami.kiteffmpeg.Rational
 
 val spec = VideoEncoderSpec(
-    codec = CodecId.Libx264,            // codec selector
+    codec = CodecId.H264,
+    encoder = EncoderId.Libx264,    // codec selector
     width = 1280,
     height = 720,
     pixelFormat = PixelFormat.Yuv420p,  // default
@@ -139,26 +141,27 @@ val sdr = videoSpec.copy(
 )
 ```
 
-### Choosing a codec
+### Choosing a format and an encoder
 
-`CodecId` is a thin value class wrapping the FFmpeg codec name. Pick whichever the linked FFmpeg build provides:
+A spec names two different things with two types:
 
-- Always present, every profile: `CodecId("mpeg4")`, `CodecId.Mjpeg`, `CodecId.Png`
-- Software video encoders: `CodecId.Libx264`, `CodecId.Libx265`, both GPL-only and in neither published artifact. The software video encoder every KiteFFmpeg build carries is `mpeg4`.
-- Generic codec ids: `CodecId.H264`, `CodecId.Hevc`, `CodecId.Av1`, `CodecId.Vp9`
-- Hardware video encoders with standing runtime evidence: `CodecId.H264VideoToolbox`, `CodecId.HevcVideoToolbox` on the qualified macOS profile. MediaCodec names exist in the Android FFmpeg profile, but this stage only claims named-decoder selection through `openDecoder`, not Android encoder or playback qualification.
+- `codec: CodecId` is the **format** the stream carries: `CodecId.H264`, `CodecId.Hevc`, `CodecId.Av1`, `CodecId.Mpeg4`, `CodecId.Aac`.
+- `encoder: EncoderId?` is the **implementation** that writes it: `EncoderId.Libx264`, `EncoderId.H264VideoToolbox`, `EncoderId.Mpeg4`. Leave it null to get the encoder FFmpeg picks for the format.
+
+An encoder that writes another format than `codec` is refused with `FFmpegError.InvalidArgument`. What exists depends on the build:
+
+- Always present, every profile: the `mpeg4`, `mjpeg` and `png` encoders. `mpeg4` is the software video encoder every KiteFFmpeg build carries.
+- Software H.264 and H.265 encoders: `EncoderId.Libx264` and `EncoderId.Libx265`, both GPL-only and in neither published artifact.
+- Hardware video encoders with standing runtime evidence: `EncoderId.H264VideoToolbox` and `EncoderId.HevcVideoToolbox` on the qualified macOS profile. MediaCodec encoders exist in the Android FFmpeg profile, but this stage only claims named-decoder selection through `openDecoder`, not Android encoder or playback qualification.
 
 !!! tip "Probe before you encode"
-    Whether a given encoder is present depends on how FFmpeg was built. Check at runtime rather than hard-coding a name:
+    Whether a given encoder is present depends on how FFmpeg was built. Ask the build rather than hard-coding a name. `FFmpeg.encodersFor` lists what it has for a format, FFmpeg's default first, and `FFmpeg.codecOf` gives the format an encoder writes:
 
     ```kotlin
     import io.github.yuroyami.kiteffmpeg.FFmpeg
 
-    val codec = listOf(
-        CodecId.H264VideoToolbox,
-        CodecId.Libx264,
-        CodecId("mpeg4"),
-    ).first { FFmpeg.hasEncoder(it.name) }
+    val h264 = FFmpeg.encodersFor(CodecId.H264)           // empty when the build has none
+    val format = FFmpeg.codecOf(EncoderId.H264VideoToolbox) // CodecId.H264, or null when absent
     ```
 
     `libx264` and `libx265` exist only in a GPL-flavour FFmpeg, and no published KiteFFmpeg artifact carries one, so asking for either throws `FFmpegException` from `addVideoEncoder` before a frame is read. There is no task that will build one for you: point the build at your own GPL tree under `native-libs/gpl/<target>/` with `-Pkiteffmpeg.ffmpeg.license=gpl`. Read [Licensing](licensing.md) first, because that choice makes your whole application GPL.
@@ -405,6 +408,7 @@ import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 suspend fun makeClip() {
@@ -412,7 +416,8 @@ suspend fun makeClip() {
         input  = "input.mkv",
         output = "clip.mp4",
         spec = VideoEncoderSpec(
-            codec = CodecId.Libx264,
+            codec = CodecId.H264,
+            encoder = EncoderId.Libx264,
             width = 1280, height = 720,
             frameRate = Rational.Fps30,
             bitrateBps = 3_000_000,

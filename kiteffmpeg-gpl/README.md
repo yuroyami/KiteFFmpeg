@@ -28,7 +28,7 @@ Implementation plan:
 1. ~~Flip the FFmpeg build default from GPL to LGPL~~. Done: `BuildFFmpegTask` defaults to LGPL; GPL is an explicit opt-in via the `Gpl` task variants.
 2. This module's `build.gradle.kts` will declare the same Kotlin Multiplatform targets as `kiteffmpeg` and pull native libs from `native-libs/gpl/<target>/` instead of `native-libs/lgpl/<target>/`.
 3. Re-export the entire `kiteffmpeg` public API by depending on `kiteffmpeg` as an `api(project(":kiteffmpeg"))`. Consumers should be able to swap `kiteffmpeg` for `kiteffmpeg-gpl` in their Gradle deps without touching any Kotlin code.
-4. The only API difference: `kiteffmpeg-gpl` registers `libx264` and `libx265` as available encoders. Consumer code uses `CodecId.Libx264` etc. exactly as today; in `kiteffmpeg` builds that codec name won't be resolvable at runtime and the encoder factory throws.
+4. The only API difference: `kiteffmpeg-gpl` registers `libx264` and `libx265` as available encoders. Consumer code names them with `EncoderId.Libx264` and `EncoderId.Libx265`; in `kiteffmpeg` builds those encoders do not exist at runtime and `addVideoEncoder` throws.
 
 ## Coordinates (once published)
 

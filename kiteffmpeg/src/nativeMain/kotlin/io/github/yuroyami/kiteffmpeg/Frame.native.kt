@@ -259,8 +259,8 @@ public actual class Frame internal constructor(
         if (width <= 0 || height <= 0 || format < 0) {
             throw FFmpegException(FFmpegError.Internal("Frame carries no image data"))
         }
-        val encoder = ffkmp_find_encoder_by_name(codec.name)
-            ?: throw FFmpegException(FFmpegError.EncoderNotFound(0, "No encoder named '${codec.name}'"))
+        val encoder = ffkmp_find_encoder_by_name(codecLookups.encoderFor(codec, null))
+            ?: throw FFmpegException(FFmpegError.EncoderNotFound(0, "This build has no encoder for '${codec.name}'"))
 
         // Image codecs are picky about input pixel format (png: rgb*, mjpeg: yuvj*), so
         // convert when the frame's own format isn't accepted.

@@ -135,6 +135,12 @@ KC_API int ffkmp_codec_id(const kc_codec *codec) {
    "libdav1d"/"libopus" and would answer NOTHING at all for streams with no decoder compiled
    in (subtitles, attachments, data). Never returns NULL; unknown ids yield "none". */
 KC_API const char* ffkmp_codec_id_name(int id) { return avcodec_get_name((enum AVCodecID)id); }
+KC_API int ffkmp_codec_id_by_name(const char *name) {
+    const AVCodecDescriptor *d = name ? avcodec_descriptor_get_by_name(name) : NULL;
+    return d ? (int)d->id : 0;
+}
+KC_API const AVCodec* ffkmp_find_encoder_by_id(int id) { return KC_GATE_OPEN() ? avcodec_find_encoder((enum AVCodecID)id) : NULL; }
+KC_API const char* ffkmp_codec_name(const AVCodec *codec) { return codec ? codec->name : NULL; }
 KC_API int ffkmp_codecctx_set_color(AVCodecContext *c, int primaries, int transfer, int matrix,
                                     int range, int chroma_location) {
     if (!c || primaries < 0 || primaries >= AVCOL_PRI_NB || transfer < 0 || transfer >= AVCOL_TRC_NB ||

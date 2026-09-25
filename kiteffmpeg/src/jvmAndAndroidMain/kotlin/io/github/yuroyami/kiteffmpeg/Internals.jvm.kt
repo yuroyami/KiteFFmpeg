@@ -173,6 +173,9 @@ internal object Internals {
     private external fun nativeFindEncoderByName(name: String): Long
     private external fun nativeCodecId(token: Long): Int
     private external fun nativeCodecIdName(id: Int): String
+    private external fun nativeCodecIdByName(name: String): Int
+    private external fun nativeFindEncoderById(id: Int): Long
+    private external fun nativeCodecName(token: Long): String?
     private external fun nativeCodecRelease(token: Long)
     private external fun nativeCodecCtxAlloc(codec: Long): Long
     private external fun nativeCodecCtxFree(token: Long)
@@ -338,6 +341,9 @@ internal object Internals {
     internal fun sampleFormatName(value: Int) = checked { nativeSampleFormatName(value) }
     internal fun sampleFormatValue(name: String) = checked { nativeSampleFormatValue(name) }
     internal fun codecIdName(id: Int) = checked { nativeCodecIdName(id) }
+    internal fun codecIdByName(name: String) = checked { nativeCodecIdByName(name) }
+    internal fun findEncoderById(id: Int) = checked { nativeFindEncoderById(id) }
+    internal fun codecName(token: Long): String? = checked { nativeCodecName(token) }
     internal fun strerror(code: Int) = checked { nativeStrerror(code) }
 
     internal fun packetAlloc() = token("packet allocation") { nativePacketAlloc() }

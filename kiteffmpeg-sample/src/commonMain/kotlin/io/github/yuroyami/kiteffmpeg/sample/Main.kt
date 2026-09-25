@@ -163,13 +163,9 @@ internal fun pickAudioEncoder(): EncoderId {
         ?: error("The linked FFmpeg has no usable audio encoder (tried ${candidates.joinToString { it.name }}).")
 }
 
-/** The `codec_name` ffprobe reports for a stream written by [encoder]. */
-internal fun outputCodecNameFor(encoder: EncoderId): String = when (encoder.name) {
-    "libx264", "h264_videotoolbox", "h264_mediacodec" -> "h264"
-    "libx265", "hevc_videotoolbox", "hevc_mediacodec" -> "hevc"
-    "libsvtav1" -> "av1"
-    else -> encoder.name
-}
+/** The `codec_name` ffprobe reports for a stream written by [encoder]: its format, from FFmpeg. */
+internal fun outputCodecNameFor(encoder: EncoderId): String =
+    (FFmpeg.codecOf(encoder) ?: error("The linked FFmpeg has no encoder named '${encoder.name}'.")).name
 
 private fun probe(path: String) {
     MediaSource.open(path).use { src ->

@@ -168,7 +168,7 @@ public actual class MediaSink internal constructor(
         requireNoTypedVideoOptionCollision(spec)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
-        val codecCtx = newEncoderContext(spec.encoder?.name ?: spec.codec.name) { codec, cc ->
+        val codecCtx = newEncoderContext(codecLookups.encoderFor(spec.codec, spec.encoder)) { codec, cc ->
             ffkmp_codecctx_set_video(
                 cc,
                 spec.width, spec.height,
@@ -245,11 +245,11 @@ public actual class MediaSink internal constructor(
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         var negotiatedFormat = spec.sampleFormat
-        val codecCtx = newEncoderContext(spec.encoder?.name ?: spec.codec.name) { codec, cc ->
+        val codecCtx = newEncoderContext(codecLookups.encoderFor(spec.codec, spec.encoder)) { codec, cc ->
             if (negotiatedFormat == SampleFormat.None) {
                 val first = ffkmp_codec_first_sample_fmt(codec)
                 if (first < 0) throw FFmpegException(
-                    FFmpegError.Internal("Encoder '${spec.encoder?.name ?: spec.codec.name}' does not advertise sample formats; set AudioEncoderSpec.sampleFormat explicitly")
+                    FFmpegError.Internal("Encoder for '${spec.codec.name}' does not advertise sample formats; set AudioEncoderSpec.sampleFormat explicitly")
                 )
                 negotiatedFormat = sampleFormatFromAv(first)
             }

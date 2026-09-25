@@ -14,12 +14,8 @@ val v = FFmpeg.versions
 println("avcodec ${v.avcodec}, avformat ${v.avformat}, avfilter ${v.avfilter}")
 println("build config: ${FFmpeg.buildConfiguration}")
 
-// Pick a codec that is actually present in this build.
-val codec = when {
-    FFmpeg.hasEncoder("h264_videotoolbox") -> CodecId.H264VideoToolbox
-    FFmpeg.hasEncoder("libx264")           -> CodecId.Libx264
-    else                                   -> CodecId.H264
-}
+// Pick an H.264 encoder this build actually has; the first is FFmpeg's own default.
+val encoder = FFmpeg.encodersFor(CodecId.H264).firstOrNull()
 ```
 
 Builds differ. A hardware encoder like `h264_videotoolbox` exists on macOS but not in a Linux VM, so check `hasEncoder` / `hasDecoder` / `hasFilter` at runtime before you commit to a codec or filter.
@@ -46,13 +42,15 @@ MediaSource.open("input.mp4").use { src ->
 import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
     output = "clip.mp4",
     spec = VideoEncoderSpec(
-        codec = CodecId.Libx264,
+        codec = CodecId.H264,
+        encoder = EncoderId.Libx264,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     ),
@@ -107,13 +105,15 @@ Passing `spec = null` runs an audio-only pipeline. AAC's fixed 1024-sample frame
 import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
     output = "output.mp4",
     spec = VideoEncoderSpec(
-        codec = CodecId.Libx264,
+        codec = CodecId.H264,
+        encoder = EncoderId.Libx264,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     ),
@@ -135,13 +135,15 @@ import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
     output = "output.mp4",
     spec = VideoEncoderSpec(
-        codec = CodecId.Libx264,
+        codec = CodecId.H264,
+        encoder = EncoderId.Libx264,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     ),

@@ -206,14 +206,16 @@ fun main() = runBlocking {
 ```
 
 !!! tip "Pick the video encoder by probing"
-    `mpeg4` is used above because it is in every profile. For H.264 or H.265, ask the linked build what it has rather than hard-coding a name. `CodecId.Libx264` only resolves in a GPL FFmpeg. The vendored default is LGPL, and asking for it there throws `FFmpegException` from `addVideoEncoder`.
+    `mpeg4` is used above because it is in every profile. For H.264 or H.265, ask the linked build what it has rather than hard-coding a name. `EncoderId.Libx264` only exists in a GPL FFmpeg. The vendored default is LGPL, and asking for it there throws `FFmpegException` from `addVideoEncoder`.
 
     ```kotlin
-    val codec = listOf(
-        CodecId.H264VideoToolbox,   // macOS desktop profile, LGPL-safe
-        CodecId.Libx264,            // GPL builds only
-        CodecId("mpeg4"),           // always present
-    ).first { FFmpeg.hasEncoder(it.name) }
+    val encoders = FFmpeg.encodersFor(CodecId.H264)   // the ones this build has, its default first
+    val spec = if (encoders.isEmpty()) null else VideoEncoderSpec(
+        codec = CodecId.H264,
+        encoder = encoders.first(),
+        width = 1280, height = 720,
+        frameRate = Rational(30, 1),
+    )
     ```
 
     See [Platform support](platforms.md#licensing) and [Licensing](licensing.md).

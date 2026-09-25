@@ -78,6 +78,27 @@ static void case_every_family_lists_what_a_build_has(void)
     }
 }
 
+static void case_format_and_implementation_lookups(void)
+{
+    int h264 = ffkmp_codec_id_by_name("h264");
+    int mpeg4 = ffkmp_codec_id_by_name("mpeg4");
+    const kc_codec *encoder;
+
+    kc_case("a format name maps to its codec id, an encoder name does not, and the default encoder has its own name");
+    KC_CHECK(h264 > 0);
+    KC_CHECK(mpeg4 > 0 && mpeg4 != h264);
+    KC_EQ_STR(ffkmp_codec_id_name(h264), "h264");
+    KC_EQ_INT(ffkmp_codec_id_by_name("libx264"), 0);
+    KC_EQ_INT(ffkmp_codec_id_by_name("no_such_format"), 0);
+    KC_EQ_INT(ffkmp_codec_id_by_name(NULL), 0);
+    encoder = ffkmp_find_encoder_by_id(mpeg4);
+    KC_NOT_NULL(encoder);
+    KC_EQ_STR(ffkmp_codec_name(encoder), "mpeg4");
+    KC_EQ_INT(ffkmp_codec_id(encoder), mpeg4);
+    KC_NULL(ffkmp_find_encoder_by_id(0));
+    KC_NULL(ffkmp_codec_name(NULL));
+}
+
 int main(void)
 {
     kc_suite_begin("test_build");
@@ -85,6 +106,8 @@ int main(void)
     case_refusals();
     case_a_short_buffer_is_ended_and_sized();
     case_every_family_lists_what_a_build_has();
+
+    case_format_and_implementation_lookups();
 
     return kc_suite_end();
 }

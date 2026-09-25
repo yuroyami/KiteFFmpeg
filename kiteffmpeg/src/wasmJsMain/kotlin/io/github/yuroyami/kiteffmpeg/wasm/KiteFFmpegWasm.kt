@@ -33,6 +33,9 @@ internal external fun kc_verdict_name(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_codec_id_name(a0)")
 internal external fun ffkmp_codec_id_name(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_codec_name(a0)")
+internal external fun ffkmp_codec_name(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_dict_entry_key(a0)")
 internal external fun ffkmp_dict_entry_key(module: JsAny, a0: Int): Int
 
@@ -57,6 +60,9 @@ internal external fun ffkmp_find_decoder_by_id(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_find_decoder_by_name(a0)")
 internal external fun ffkmp_find_decoder_by_name(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_find_encoder_by_id(a0)")
+internal external fun ffkmp_find_encoder_by_id(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_find_encoder_by_name(a0)")
 internal external fun ffkmp_find_encoder_by_name(module: JsAny, a0: Int): Int
 
@@ -80,6 +86,9 @@ internal external fun ffkmp_codec_first_sample_fmt(module: JsAny, a0: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_codec_id(a0)")
 internal external fun ffkmp_codec_id(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0) => m._ffkmp_codec_id_by_name(a0)")
+internal external fun ffkmp_codec_id_by_name(module: JsAny, a0: Int): Int
 
 @JsFun("(m, a0, a1) => m._ffkmp_codec_supports_pix_fmt(a0, a1)")
 internal external fun ffkmp_codec_supports_pix_fmt(module: JsAny, a0: Int, a1: Int): Int

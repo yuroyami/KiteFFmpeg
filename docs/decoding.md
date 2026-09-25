@@ -302,7 +302,7 @@ the macOS arm64 library. Android and iOS decode real media on real phones as the
 the repository-local path.
 
 The low-level decoder API also accepts an exact FFmpeg decoder name. On an Android FFmpeg build,
-`source.openDecoder(stream, decoder = CodecId("h264_mediacodec"))` selects FFmpeg's named
+`source.openDecoder(stream, decoder = DecoderId.H264MediaCodec)` selects FFmpeg's named
 MediaCodec decoder after the bridge has attached the app VM. It verifies that the named decoder
 matches the stream before opening. KiteFFmpeg does not call Android's codec API directly, and this
 selection seam is not by itself a device playback result.

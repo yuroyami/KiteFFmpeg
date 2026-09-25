@@ -341,6 +341,19 @@ KC_API const kc_codec* ffkmp_find_decoder_by_name(const char *name);
  * context, instead of using avcodec_open2 as a compatibility probe. */
 KC_API int ffkmp_codec_id(const kc_codec *codec);
 KC_API const char* ffkmp_codec_id_name(int id);
+
+/* The codec id of a format by FFmpeg's codec name ("h264", "aac"): the inverse of
+ * ffkmp_codec_id_name. 0, AV_CODEC_ID_NONE, for NULL or a name that is not a format, such as an
+ * encoder's name ("libx264"). */
+KC_API int ffkmp_codec_id_by_name(const char *name);
+
+/* The encoder FFmpeg picks by default for codec id, as avcodec_find_encoder does; NULL when this
+ * build has none. The decoder twin is ffkmp_find_decoder_by_id. */
+KC_API const kc_codec* ffkmp_find_encoder_by_id(int id);
+
+/* An implementation's own name ("libx264", "aac"), which may differ from the name of the format
+ * it implements; NULL for NULL. */
+KC_API const char* ffkmp_codec_name(const kc_codec *codec);
 KC_API int ffkmp_codecctx_pix_fmt(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_width(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_height(kc_codec_ctx *c);

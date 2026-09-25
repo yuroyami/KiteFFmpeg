@@ -47,6 +47,31 @@ JNIEXPORT jstring JNICALL kj_codec_id_name(JNIEnv *env, jclass cls, jint id)
     return kj_string_new(env, ffkmp_codec_id_name((int)id));
 }
 
+JNIEXPORT jint JNICALL kj_codec_id_by_name(JNIEnv *env, jclass cls, jstring name)
+{
+    char *c = kj_string_dup(env, name);
+    int id;
+    (void)cls;
+    if (c == NULL) return 0;
+    id = ffkmp_codec_id_by_name(c);
+    free(c);
+    return (jint)id;
+}
+
+JNIEXPORT jlong JNICALL kj_find_encoder_by_id(JNIEnv *env, jclass cls, jint id)
+{
+    const kc_codec *c = ffkmp_find_encoder_by_id((int)id);
+    (void)cls;
+    return c ? kj_handle_put_checked(env, KJ_KIND_CODEC, (void *)c) : 0;
+}
+
+JNIEXPORT jstring JNICALL kj_codec_name(JNIEnv *env, jclass cls, jlong token)
+{
+    const kc_codec *codec = (const kc_codec *)kj_handle_get(env, token, KJ_KIND_CODEC);
+    (void)cls;
+    return codec ? kj_string_new(env, ffkmp_codec_name(codec)) : NULL;
+}
+
 JNIEXPORT void JNICALL kj_codec_release(JNIEnv *env, jclass cls, jlong token)
 { (void)env; (void)cls; kj_handle_release(token, KJ_KIND_CODEC); }
 

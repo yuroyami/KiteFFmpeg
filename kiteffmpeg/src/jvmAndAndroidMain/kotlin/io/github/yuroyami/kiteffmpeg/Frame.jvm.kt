@@ -141,9 +141,9 @@ public actual class Frame internal constructor(
             throw FFmpegException(FFmpegError.Internal("Frame carries no image data"))
         }
 
-        val encoder = Internals.findEncoderByName(codec.name)
+        val encoder = Internals.findEncoderByName(codecLookups.encoderFor(codec, null))
         if (encoder == 0L) {
-            throw FFmpegException(FFmpegError.EncoderNotFound(0, "No encoder named '${codec.name}'"))
+            throw FFmpegException(FFmpegError.EncoderNotFound(0, "This build has no encoder for '${codec.name}'"))
         }
         var converted = 0L
         try {

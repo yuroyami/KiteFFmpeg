@@ -60,7 +60,8 @@ class NativeBackendParityTest {
             val failure = assertFailsWith<FFmpegException> {
                 sink.addVideoEncoder(
                     VideoEncoderSpec(
-                        codec = CodecId("no_such_encoder_exists"),
+                        codec = CodecId.Mpeg4,
+                        encoder = EncoderId("no_such_encoder_exists"),
                         width = 64, height = 64,
                         frameRate = Rational(25, 1),
                         bitrateBps = 200_000,
@@ -79,7 +80,7 @@ class NativeBackendParityTest {
     fun aMissingAudioEncoderIsTypedAndNotInternal() {
         MediaSink.open(tmp("missing-audio.mkv")).use { sink ->
             val failure = assertFailsWith<FFmpegException> {
-                sink.addAudioEncoder(AudioEncoderSpec(codec = CodecId("no_such_encoder_exists")))
+                sink.addAudioEncoder(AudioEncoderSpec(codec = CodecId.Aac, encoder = EncoderId("no_such_encoder_exists")))
             }
             assertIs<FFmpegError.EncoderNotFound>(
                 failure.error,

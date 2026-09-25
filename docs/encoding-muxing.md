@@ -16,12 +16,14 @@ A `MediaSink` is a muxer over an open output file. The workflow is always the sa
 import io.github.yuroyami.kiteffmpeg.MediaSink
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 MediaSink.open("output.mp4").use { sink ->
     val video = sink.addVideoEncoder(
         VideoEncoderSpec(
-            codec = CodecId.Libx264,
+            codec = CodecId.H264,
+            encoder = EncoderId.Libx264,
             width = 1280, height = 720,
             frameRate = Rational(30, 1),
             bitrateBps = 4_000_000,
@@ -42,7 +44,8 @@ The output format is inferred from the file extension. `.mp4`, `.mkv`, `.mov` an
 
 ```kotlin
 val spec = VideoEncoderSpec(
-    codec = CodecId.Libx264,
+    codec = CodecId.H264,
+    encoder = EncoderId.Libx264,
     width = 1920, height = 1080,
     pixelFormat = PixelFormat.Yuv420p,       // default
     frameRate = Rational(30, 1),
@@ -71,7 +74,8 @@ A `ColorInfo` read from a stream or a frame fills what the source did not declar
 
 ```kotlin
 val spec = VideoEncoderSpec(
-    codec = CodecId.HevcVideoToolbox,
+    codec = CodecId.Hevc,
+    encoder = EncoderId.HevcVideoToolbox,
     width = 3840, height = 2160,
     pixelFormat = PixelFormat.P010le,
     frameRate = Rational(24000, 1001),
@@ -88,7 +92,8 @@ The `options` map is passed through verbatim to the underlying encoder. The keys
 
 ```kotlin
 VideoEncoderSpec(
-    codec = CodecId.Libx264,
+    codec = CodecId.H264,
+    encoder = EncoderId.Libx264,
     width = 1280, height = 720,
     frameRate = Rational(30, 1),
     options = mapOf(
@@ -239,7 +244,8 @@ Hardware encoders are selected by `CodecId`, the same way software encoders are.
 
     ```kotlin
     val spec = VideoEncoderSpec(
-        codec = CodecId.H264VideoToolbox,   // or HevcVideoToolbox
+        codec = CodecId.H264,
+        encoder = EncoderId.H264VideoToolbox, // or HevcVideoToolbox
         width = 1920, height = 1080,
         frameRate = Rational(30, 1),
         bitrateBps = 8_000_000,
@@ -253,7 +259,8 @@ Hardware encoders are selected by `CodecId`, the same way software encoders are.
 
     ```kotlin
     val spec = VideoEncoderSpec(
-        codec = CodecId.H264MediaCodec,     // or HevcMediaCodec
+        codec = CodecId.H264,
+        encoder = EncoderId.H264MediaCodec, // or HevcMediaCodec
         width = 1920, height = 1080,
         frameRate = Rational(30, 1),
         bitrateBps = 8_000_000,
@@ -269,7 +276,8 @@ VideoToolbox refuses to run when there is no hardware encode block available, wh
 
 ```kotlin
 VideoEncoderSpec(
-    codec = CodecId.H264VideoToolbox,
+    codec = CodecId.H264,
+    encoder = EncoderId.H264VideoToolbox,
     width = 1280, height = 720,
     frameRate = Rational(30, 1),
     options = mapOf("allow_sw" to "1"),
@@ -278,21 +286,19 @@ VideoEncoderSpec(
 
 ### Check before you commit
 
-Hardware encoder availability is a runtime property of the machine and the FFmpeg build. Probe it with [`FFmpeg.hasEncoder`](https://yuroyami.github.io/KiteFFmpeg/api/) before you choose:
+Hardware encoder availability is a runtime property of the machine and the FFmpeg build. Ask the build which encoders it has for a format with [`FFmpeg.encodersFor`](https://yuroyami.github.io/KiteFFmpeg/api/) before you choose. The first one is the encoder FFmpeg picks when the spec names none:
 
 ```kotlin
-import io.github.yuroyami.kiteffmpeg.FFmpeg
 import io.github.yuroyami.kiteffmpeg.CodecId
+import io.github.yuroyami.kiteffmpeg.EncoderId
+import io.github.yuroyami.kiteffmpeg.FFmpeg
 
-val codec = if (FFmpeg.hasEncoder(CodecId.H264VideoToolbox.name)) {
-    CodecId.H264VideoToolbox
-} else {
-    CodecId.Libx264
-}
+val available = FFmpeg.encodersFor(CodecId.H264)
+val encoder = EncoderId.H264VideoToolbox.takeIf { it in available } ?: available.firstOrNull()
 ```
 
 !!! tip "One encode core for hardware and software"
-    The same EAGAIN-correct encode loop drives software and hardware encoders. There is no separate code path and no separate API: pick the `CodecId`, build the spec, call `drive`. Everything downstream is identical.
+    The same EAGAIN-correct encode loop drives software and hardware encoders. There is no separate code path and no separate API: pick the format and the encoder, build the spec, call `drive`. Everything downstream is identical.
 
 ## Both streams in one sink
 
@@ -302,7 +308,8 @@ A real output usually carries video and audio together. Add both encoders up fro
 MediaSink.open("output.mp4").use { sink ->
     val video = sink.addVideoEncoder(
         VideoEncoderSpec(
-            codec = CodecId.Libx264,
+            codec = CodecId.H264,
+            encoder = EncoderId.Libx264,
             width = 1280, height = 720,
             frameRate = Rational(30, 1),
         )

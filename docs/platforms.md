@@ -199,7 +199,7 @@ It is deliberately different from the desktop one:
 !!! warning "Named Android codecs and the JavaVM"
     The regular Android loader checks the complete FFmpeg identity before attaching the app's
     `JavaVM`. The low-level API can then request an exact FFmpeg decoder name, for example
-    `source.openDecoder(stream, decoder = CodecId("h264_mediacodec"))`, and verifies that decoder
+    `source.openDecoder(stream, decoder = DecoderId.H264MediaCodec)`, and verifies that decoder
     against the stream before open. This is not a direct platform-codec call. The present evidence
     is source, host tests, three JNI link arms and packaging checks; it does not qualify device
     playback or a hardware encoder.
@@ -251,7 +251,8 @@ The Android profile contains MediaCodec wrappers, but this stage does not qualif
     ```kotlin
     // macOS desktop profile: VideoToolbox
     VideoEncoderSpec(
-        codec = CodecId.H264VideoToolbox,
+        codec = CodecId.H264,
+        encoder = EncoderId.H264VideoToolbox,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     )
@@ -261,21 +262,19 @@ The Android profile contains MediaCodec wrappers, but this stage does not qualif
 
     ```kotlin
     VideoEncoderSpec(
-        codec = CodecId.Libx264,
+        codec = CodecId.H264,
+        encoder = EncoderId.Libx264,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
         options = mapOf("preset" to "medium", "crf" to "20"),
     )
     ```
 
-Encoder availability is resolved at runtime. Probe before you commit to a codec:
+Encoder availability is resolved at runtime. Ask the build which encoders it has for a format before you commit to one:
 
 ```kotlin
-val codec = listOf(
-    CodecId.H264VideoToolbox,   // macOS desktop profile, LGPL-safe
-    CodecId.Libx264,            // GPL builds only
-    CodecId("mpeg4"),           // always present, every profile
-).first { FFmpeg.hasEncoder(it.name) }
+FFmpeg.encodersFor(CodecId.H264)   // [h264_videotoolbox] on the macOS desktop profile, [libx264, ...] on a GPL build
+FFmpeg.encodersFor(CodecId.Mpeg4)  // [mpeg4], present in every profile
 ```
 
 ## Related

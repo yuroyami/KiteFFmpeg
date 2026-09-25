@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.6
+# abi-version 3.7
 #
-# Exact scope: 229 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 232 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 252 records.
+# records are sorted without deduplication. There must be exactly 255 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -16,6 +16,7 @@ KC_API const char *kc_ffmpeg_configuration(void);
 KC_API const char *kc_ffmpeg_library_name(int index);
 KC_API const char *kc_verdict_name(int verdict);
 KC_API const char* ffkmp_codec_id_name(int id);
+KC_API const char* ffkmp_codec_name(const kc_codec *codec);
 KC_API const char* ffkmp_dict_entry_key(kc_dict_entry *e);
 KC_API const char* ffkmp_dict_entry_value(kc_dict_entry *e);
 KC_API const char* ffkmp_fmt_iformat_name(kc_fmt_ctx *c);
@@ -24,6 +25,7 @@ KC_API const char* ffkmp_sample_fmt_name(int fmt);
 KC_API const char* ffkmp_strerror(int errnum);
 KC_API const kc_codec* ffkmp_find_decoder_by_id(int id);
 KC_API const kc_codec* ffkmp_find_decoder_by_name(const char *name);
+KC_API const kc_codec* ffkmp_find_encoder_by_id(int id);
 KC_API const kc_codec* ffkmp_find_encoder_by_name(const char *name);
 KC_API int ffkmp_averror_eagain(void);
 KC_API int ffkmp_averror_eof(void);
@@ -32,6 +34,7 @@ KC_API int ffkmp_avseek_flag_backward(void);
 KC_API int ffkmp_codec_first_pix_fmt(const kc_codec *codec);
 KC_API int ffkmp_codec_first_sample_fmt(const kc_codec *codec);
 KC_API int ffkmp_codec_id(const kc_codec *codec);
+KC_API int ffkmp_codec_id_by_name(const char *name);
 KC_API int ffkmp_codec_supports_pix_fmt(const kc_codec *codec, int fmt);
 KC_API int ffkmp_codecctx_add_content_light(kc_codec_ctx *c, int max_cll, int max_fall);
 KC_API int ffkmp_codecctx_add_mastering_display(kc_codec_ctx *c, const int *q, int flags);
