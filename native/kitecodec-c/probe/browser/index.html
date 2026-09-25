@@ -1,5 +1,5 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>KitePlayer web</title>
+<html><head><meta charset="utf-8"><title>KiteFFmpeg web</title>
 <style>
  html,body{margin:0;height:100%;background:#0b0b0f;color:#ddd;font:13px system-ui}
  #wrap{display:flex;flex-direction:column;height:100%}
@@ -12,36 +12,49 @@ import factory from "./kite.mjs";
 const hud = document.getElementById("hud");
 const canvas = document.getElementById("c");
 const say = (t) => { hud.textContent = t; };
+const KC_IO_EOF = -1, KC_IO_ERR = -2;
 try {
   const M = await factory();
+  const cstring = (s) => { const n = M.lengthBytesUTF8(s) + 1, p = M._malloc(n); M.stringToUTF8(s, p, n); return p; };
   const bytes = new Uint8Array(await (await fetch("clip.mp4")).arrayBuffer());
+
+  // The byte source: at most len bytes per read, KC_IO_EOF at the end, the new position after a seek.
   let pos = 0;
-  const readFn = M.addFunction((op, buf, len) => {
-    if (pos >= bytes.length) return -541478725;
+  const readFn = M.addFunction((opaque, buf, len) => {
+    if (pos >= bytes.length) return KC_IO_EOF;
     const n = Math.min(len, bytes.length - pos);
     M.HEAPU8.set(bytes.subarray(pos, pos + n), buf); pos += n; return n;
   }, "iiii");
-  const seekFn = M.addFunction((op, off, wh) => {
-    const o = Number(off), w = Number(wh);
-    if (w === 0x10000) return BigInt(bytes.length);
-    if (w === 0) pos = o; else if (w === 1) pos += o; else if (w === 2) pos = bytes.length + o; else return -1n;
+  const seekFn = M.addFunction((opaque, off, whence) => {
+    const o = Number(off);
+    if (whence === 0) pos = o; else if (whence === 1) pos += o; else if (whence === 2) pos = bytes.length + o;
+    else return BigInt(KC_IO_ERR);
     return BigInt(pos);
   }, "jiji");
 
   const outPtr = M._malloc(4);
-  if (M._ffkmp_fmt_open_input_io(outPtr, 0, readFn, seekFn, BigInt(bytes.length), 0, 0, 0, 0) < 0) throw new Error("open failed");
+  if (M._ffkmp_fmt_open_input_io(outPtr, 0, readFn, seekFn, BigInt(bytes.length), 0, 0, 0, 0, 0) < 0) throw new Error("open failed");
   const ctx = M.HEAPU32[outPtr >> 2];
   M._ffkmp_fmt_find_stream_info(ctx);
   const n = M._ffkmp_fmt_nb_streams(ctx);
-  let vi = -1, par = 0;
-  for (let i = 0; i < n; i++) {
-    const p = M._ffkmp_stream_codecpar(M._ffkmp_fmt_stream(ctx, i));
-    if (M._ffkmp_codecpar_codec_type(p) === M._ffkmp_media_type_video()) { vi = i; par = p; break; }
-  }
-  const codec = M._ffkmp_find_decoder_by_id(M._ffkmp_codecpar_codec_id(par));
-  const dec = M._ffkmp_codecctx_alloc(codec);
-  M._ffkmp_codecctx_from_par(dec, par);
-  M._ffkmp_codecctx_open(dec, codec);
+  const streamOf = (type) => {
+    for (let i = 0; i < n; i++) {
+      const p = M._ffkmp_stream_codecpar(M._ffkmp_fmt_stream(ctx, i));
+      if (M._ffkmp_codecpar_codec_type(p) === type) return [i, p];
+    }
+    return [-1, 0];
+  };
+  const openDecoder = (par) => {
+    const codec = M._ffkmp_find_decoder_by_id(M._ffkmp_codecpar_codec_id(par));
+    const dec = M._ffkmp_codecctx_alloc(codec);
+    M._ffkmp_codecctx_from_par(dec, par);
+    if (M._ffkmp_codecctx_open(dec, codec) < 0) throw new Error("decoder open failed");
+    return dec;
+  };
+
+  const [vi, par] = streamOf(M._ffkmp_media_type_video());
+  if (vi < 0) throw new Error("no video stream");
+  const dec = openDecoder(par);
   const W = M._ffkmp_codecpar_width(par), H = M._ffkmp_codecpar_height(par);
   canvas.width = W; canvas.height = H;
   const g = canvas.getContext("2d");
@@ -51,93 +64,92 @@ try {
   const image = g.createImageData(W, H);
   const pkt = M._ffkmp_packet_alloc(), frame = M._ffkmp_frame_alloc();
 
-  // ---- Audio: decode, then resample through a filter graph to the one format Web Audio takes.
-  // The graph is deliberate rather than reading planes raw: it guarantees planar float at a fixed
-  // rate whatever the source was, which is what a player must do, and it exercises the avfilter
-  // build the web profile had to add back.
-  let ai = -1, apar = 0;
-  for (let i = 0; i < n; i++) {
-    const p = M._ffkmp_stream_codecpar(M._ffkmp_fmt_stream(ctx, i));
-    if (M._ffkmp_codecpar_codec_type(p) === M._ffkmp_media_type_audio()) { ai = i; apar = p; break; }
+  // ---- Audio: decode, then convert through a filter graph to the one format Web Audio takes,
+  // planar float at a fixed rate. The graph is built from the first decoded frame, because its
+  // source must declare that frame's own sample format and channel layout.
+  const RATE = 48000, CH = 2;
+  const fltp = M.ccall("ffkmp_sample_fmt_from_name", "number", ["string"], ["fltp"]);
+  const [ai, apar] = streamOf(M._ffkmp_media_type_audio());
+  const adec = ai >= 0 ? openDecoder(apar) : 0;
+  const aframe = M._ffkmp_frame_alloc(), aout = M._ffkmp_frame_alloc();
+  const audioCtx = adec ? new AudioContext({ sampleRate: RATE }) : null;
+  // A browser starts every audio context suspended until a user gesture.
+  document.addEventListener("click", () => audioCtx?.resume());
+  let graphSrc = 0, graphSink = 0, audioNote = "";
+  function buildAudioGraph(f) {
+    const rate = M._ffkmp_frame_sample_rate(f);
+    const gp = M._malloc(12), desc = cstring("anull");
+    const rc = M._ffkmp_graph_build_audio(gp, gp + 4, gp + 8, desc,
+      rate, M._ffkmp_frame_format(f), M._ffkmp_frame_channels(f), 1, rate,
+      fltp, RATE, CH, M._ffkmp_frame_ch_layout_mask(f), 0n);
+    if (rc >= 0) { graphSrc = M.HEAPU32[(gp + 4) >> 2]; graphSink = M.HEAPU32[(gp + 8) >> 2]; }
+    else audioNote = `  audio graph refused (${rc})`;
+    M._free(desc); M._free(gp);
   }
-  let adec = 0, graphSrc = 0, graphSink = 0, aframe = 0, audioCtx = null;
-  let audioFrames = 0, audioSamples = 0, peak = 0, RATE = 48000, CH = 2;
-  if (ai >= 0) {
-    const acodec = M._ffkmp_find_decoder_by_id(M._ffkmp_codecpar_codec_id(apar));
-    adec = M._ffkmp_codecctx_alloc(acodec);
-    M._ffkmp_codecctx_from_par(adec, apar);
-    M._ffkmp_codecctx_open(adec, acodec);
-    const fltp = M.ccall("ffkmp_sample_fmt_from_name", "number", ["string"], ["fltp"]);
-    const srcRate = M._ffkmp_codecpar_sample_rate(apar);
-    const srcCh = M._ffkmp_codecpar_channels(apar);
-    const srcFmt = M._ffkmp_codecctx_sample_fmt ? M._ffkmp_codecctx_sample_fmt(adec) : fltp;
-    const gp = M._malloc(12);
-    const rc2 = M.ccall("ffkmp_graph_build_audio", "number",
-      ["number","number","number","string","number","number","number","number","number","number","number","number"],
-      [gp, gp + 4, gp + 8, "anull", srcRate, srcFmt, srcCh, 1, srcRate, fltp, RATE, CH]);
-    if (rc2 >= 0) {
-      graphSrc = M.HEAPU32[(gp + 4) >> 2];
-      graphSink = M.HEAPU32[(gp + 8) >> 2];
-      aframe = M._ffkmp_frame_alloc();
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: RATE });
-    }
-    M._free(gp);
-  }
-  let audioTime = 0;
-  function pushAudio() {
-    if (!graphSink || !audioCtx) return;
-    while (M._ffkmp_graph_receive(graphSink, aframe) >= 0) {
-      const ns = M._ffkmp_frame_nb_samples(aframe);
-      if (ns <= 0) { M._ffkmp_frame_unref(aframe); continue; }
-      const ab = audioCtx.createBuffer(CH, ns, RATE);
-      for (let c = 0; c < CH; c++) {
-        const plane = M._ffkmp_frame_plane(aframe, c);
-        const src = new Float32Array(M.HEAPU8.buffer, plane, ns);
-        ab.getChannelData(c).set(src);
-        for (let k = 0; k < ns; k += 97) { const v = Math.abs(src[k]); if (v > peak) peak = v; }
+  let audioTime = 0, audioFrames = 0, audioSamples = 0, peak = 0;
+  function playAudio() {
+    while (M._ffkmp_graph_receive(graphSink, aout) >= 0) {
+      const ns = M._ffkmp_frame_nb_samples(aout);
+      if (ns > 0) {
+        const ab = audioCtx.createBuffer(CH, ns, RATE);
+        for (let c = 0; c < CH; c++) {
+          const src = new Float32Array(M.HEAPU8.buffer, M._ffkmp_frame_plane(aout, c), ns);
+          ab.getChannelData(c).set(src);
+          for (let k = 0; k < ns; k += 97) peak = Math.max(peak, Math.abs(src[k]));
+        }
+        const node = audioCtx.createBufferSource();
+        node.buffer = ab; node.connect(audioCtx.destination);
+        const at = Math.max(audioCtx.currentTime, audioTime);
+        node.start(at); audioTime = at + ns / RATE;
+        audioFrames++; audioSamples += ns;
       }
-      const node = audioCtx.createBufferSource();
-      node.buffer = ab; node.connect(audioCtx.destination);
-      const at = Math.max(audioCtx.currentTime, audioTime);
-      node.start(at); audioTime = at + ns / RATE;
-      audioFrames++; audioSamples += ns;
-      M._ffkmp_frame_unref(aframe);
+      M._ffkmp_frame_unref(aout);
     }
   }
 
   let frames = 0, t0 = performance.now(), convMs = 0, drawMs = 0, done = false;
+  // Each takes a packet, or 0 to drain the decoder at the end of the file.
+  function decodeAudio(p) {
+    if (!adec || audioNote || M._ffkmp_codecctx_send_packet(adec, p) < 0) return;
+    while (M._ffkmp_codecctx_receive_frame(adec, aframe) >= 0) {
+      if (!graphSrc && !audioNote) buildAudioGraph(aframe);
+      if (graphSrc && M._ffkmp_graph_send(graphSrc, aframe) >= 0) playAudio();
+      M._ffkmp_frame_unref(aframe);
+    }
+  }
+  function decodeVideo(p) {
+    let drew = false;
+    if (M._ffkmp_codecctx_send_packet(dec, p) < 0) return drew;
+    while (M._ffkmp_codecctx_receive_frame(dec, frame) >= 0) {
+      const a = performance.now();
+      const conv = M._ffkmp_frame_convert_pixfmt(frame, rgbaFmt);
+      M._ffkmp_frame_copy_to_buffer(conv, buf, size);
+      M._ffkmp_frame_free(conv);
+      const b = performance.now();
+      image.data.set(M.HEAPU8.subarray(buf, buf + size));
+      g.putImageData(image, 0, 0);
+      convMs += b - a; drawMs += performance.now() - b; frames++; drew = true;
+    }
+    return drew;
+  }
   function pump() {
     if (done) return;
     const deadline = performance.now() + 12;
-    while (performance.now() < deadline) {
-      if (M._ffkmp_fmt_read_frame(ctx, pkt) < 0) { done = true; break; }
+    let drew = false;
+    while (!drew && performance.now() < deadline) {
+      if (M._ffkmp_fmt_read_frame(ctx, pkt) < 0) {
+        decodeAudio(0); decodeVideo(0);
+        done = true; break;
+      }
       const si = M._ffkmp_packet_stream_index(pkt);
-      if (si === ai && adec && M._ffkmp_codecctx_send_packet(adec, pkt) >= 0) {
-        while (M._ffkmp_codecctx_receive_frame(adec, aframe ? frame : frame) >= 0) {
-          if (graphSrc) { M._ffkmp_graph_send(graphSrc, frame); pushAudio(); }
-          M._ffkmp_frame_unref(frame);
-        }
-      }
-      const isV = si === vi;
-      if (isV && M._ffkmp_codecctx_send_packet(dec, pkt) >= 0) {
-        while (M._ffkmp_codecctx_receive_frame(dec, frame) >= 0) {
-          const a = performance.now();
-          const conv = M._ffkmp_frame_convert_pixfmt(frame, rgbaFmt);
-          M._ffkmp_frame_copy_to_buffer(conv, buf, size);
-          M._ffkmp_frame_free(conv);
-          const b = performance.now();
-          image.data.set(M.HEAPU8.subarray(buf, buf + size));
-          g.putImageData(image, 0, 0);
-          const c = performance.now();
-          convMs += b - a; drawMs += c - b; frames++;
-        }
-      }
+      if (si === ai) decodeAudio(pkt);
+      if (si === vi) drew = decodeVideo(pkt);
       M._ffkmp_packet_unref(pkt);
-      if (frames > 0) break;
     }
-    const secs = (performance.now() - t0) / 1000;
+    const hint = audioCtx?.state === "suspended" ? "  click to hear it" : "";
     say(`video ${frames}f  convert ${(convMs/Math.max(frames,1)).toFixed(1)}ms  draw ${(drawMs/Math.max(frames,1)).toFixed(2)}ms  ${W}x${H}\n` +
-        `audio ${audioFrames}f  ${audioSamples} samples  ${(audioSamples/RATE).toFixed(2)}s  peak ${peak.toFixed(3)}  ${RATE}Hz x${CH}` + (done ? "  [end]" : ""));
+        `audio ${audioFrames}f  ${audioSamples} samples  ${(audioSamples/RATE).toFixed(2)}s  peak ${peak.toFixed(3)}  ${RATE}Hz x${CH}` +
+        audioNote + hint + (done ? "  [end]" : ""));
     requestAnimationFrame(pump);
   }
   requestAnimationFrame(pump);

@@ -93,10 +93,11 @@ public object KiteFFmpegWeb {
      * heap read, naming neither the cause nor the build flag that fixes it.
      */
     public class IncompleteModule internal constructor(missing: String) : IllegalArgumentException(
-        "This codec module is missing $missing. Link it with " +
-            "-sEXPORTED_RUNTIME_METHODS='[\"ccall\",\"UTF8ToString\",\"stringToUTF8\"," +
-            "\"lengthBytesUTF8\",\"addFunction\",\"removeFunction\",\"HEAP32\",\"HEAPU8\"]' " +
-            "and -sALLOW_TABLE_GROWTH=1, which is what scripts/wasm-browser-demo.sh passes.",
+        "This codec module is missing $missing. Link it with the linkKiteFFmpegWasmModule Gradle " +
+            "task, or use kite.mjs and kite.wasm from the published web zip. A module linked by hand " +
+            "needs -sEXPORTED_RUNTIME_METHODS='[\"ccall\",\"UTF8ToString\",\"stringToUTF8\"," +
+            "\"lengthBytesUTF8\",\"addFunction\",\"removeFunction\",\"HEAP32\",\"HEAPU8\"]', " +
+            "_malloc and _free among its exported functions, and -sALLOW_TABLE_GROWTH=1.",
     )
 
     /** Thrown when the codec is used before [load] has completed. Names the fix, not the symptom. */

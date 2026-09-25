@@ -1,40 +1,34 @@
 #!/usr/bin/env bash
 # Builds and serves the browser playback proof.
 #
-# Decodes a real clip with FFmpeg in wasm and draws it to a 2d canvas with putImageData. This is
-# the path a web measurement picked: the converted RGBA already lives in emscripten linear memory,
-# which IS a JS-visible ArrayBuffer, so the frame never crosses the Kotlin heap the web probe measured
-# at 107 to 153 ms per frame.
+# index.html decodes a clip with FFmpeg in wasm and draws it to a 2d canvas with putImageData. The
+# converted RGBA already lives in the module's linear memory, which JavaScript reads directly, so a
+# frame never crosses the Kotlin heap. hardware.html sends the same demuxed packets to the
+# browser's WebCodecs decoder.
 #
 #   ./scripts/wasm-browser-demo.sh [port]     then open the printed URL
+#
+# KITE_DEMO_CLIP names an H.264 MP4 clip to serve. Without it, the ffmpeg command line makes a
+# ten second 1080p H.264 and AAC test clip.
 set -euo pipefail
 PORT="${1:-8713}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FF="$ROOT/native-libs/lgpl/wasm32"
-KC="$ROOT/native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"
-CLIP="${KITE_DEMO_CLIP:-$ROOT/../KitePlayer/testmedia/sync1080p30.mp4}"
+MODULE="$ROOT/kiteffmpeg/build/kite-web"
 OUT="$ROOT/build/wasm-browser-demo"
-[ -f "$KC" ] || { echo "run :kiteffmpeg:compileKiteFFmpegCForWasm first" >&2; exit 1; }
-[ -f "$CLIP" ] || { echo "no clip at $CLIP" >&2; exit 1; }
+
+# The same module the web backend loads, linked by the same task that ships it.
+"$ROOT/gradlew" -p "$ROOT" :kiteffmpeg:linkKiteFFmpegWasmModule
 
 rm -rf "$OUT"; mkdir -p "$OUT"
-python3 - "$ROOT/native-libs/deps/wasm32/binding/kiteffmpeg-exports.json" "$OUT/exports.json" <<'PY'
-import json, sys
-names = json.load(open(sys.argv[1]))
-# open_input_io is the hand-written callback entry the generator excludes; the demo needs it.
-for extra in ("_ffkmp_fmt_open_input_io", "_malloc", "_free"):
-    if extra not in names: names.append(extra)
-json.dump(names, open(sys.argv[2], "w"))
-PY
-emcc -O3 -I"$ROOT/native/kitecodec-c/include" -I"$ROOT/native/kitecodec-handles" -I"$FF/include" \
-  "$KC" "$FF"/lib/libav{filter,format,codec,util}.a "$FF"/lib/libsw{scale,resample}.a \
-  -sEXPORTED_FUNCTIONS=@"$OUT/exports.json" \
-  -sEXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToUTF8","lengthBytesUTF8","addFunction","removeFunction","HEAP32","HEAPU8","HEAPU32"]' \
-  -sALLOW_TABLE_GROWTH=1 -sMODULARIZE=1 -sEXPORT_ES6=1 -sALLOW_MEMORY_GROWTH=1 \
-  -o "$OUT/kite.mjs"
-cp "$ROOT/native/kitecodec-c/probe/browser/index.html" "$OUT/index.html"
-cp "$ROOT/native/kitecodec-c/probe/browser/hardware.html" "$OUT/hardware.html"
-cp "$CLIP" "$OUT/clip.mp4"
+cp "$MODULE/kite.mjs" "$MODULE/kite.wasm" "$OUT/"
+if [ -n "${KITE_DEMO_CLIP:-}" ]; then
+  cp "$KITE_DEMO_CLIP" "$OUT/clip.mp4"
+else
+  command -v ffmpeg >/dev/null || { echo "set KITE_DEMO_CLIP, or install the ffmpeg command line to make a clip" >&2; exit 1; }
+  ffmpeg -loglevel error -f lavfi -i testsrc2=size=1920x1080:rate=30 -f lavfi -i sine=frequency=440:sample_rate=48000 \
+    -t 10 -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart "$OUT/clip.mp4"
+fi
+cp "$ROOT/native/kitecodec-c/probe/browser/index.html" "$ROOT/native/kitecodec-c/probe/browser/hardware.html" "$OUT/"
 echo "serving http://localhost:$PORT/index.html   software decode + audio"
 echo "        http://localhost:$PORT/hardware.html  WebCodecs hardware decode"
 cd "$OUT" && exec python3 -m http.server "$PORT"

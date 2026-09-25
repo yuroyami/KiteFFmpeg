@@ -1,5 +1,5 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>KitePlayer web hardware decode</title>
+<html><head><meta charset="utf-8"><title>KiteFFmpeg web hardware decode</title>
 <style>html,body{margin:0;height:100%;background:#0b0b0f;color:#ddd;font:13px system-ui}
 canvas{width:100%;background:#000}#hud{padding:8px 12px;white-space:pre;font-variant-numeric:tabular-nums}</style>
 </head><body><canvas id="c"></canvas><div id="hud">loading…</div>
@@ -8,29 +8,37 @@ import factory from "./kite.mjs";
 const hud = document.getElementById("hud"), canvas = document.getElementById("c");
 const say = t => hud.textContent = t;
 const log = [];
+const KC_IO_EOF = -1, KC_IO_ERR = -2;
 try {
   const M = await factory();
   const bytes = new Uint8Array(await (await fetch("clip.mp4")).arrayBuffer());
   let pos = 0;
-  const readFn = M.addFunction((o,b,l)=>{ if(pos>=bytes.length) return -541478725;
+  const readFn = M.addFunction((o,b,l)=>{ if(pos>=bytes.length) return KC_IO_EOF;
     const n=Math.min(l,bytes.length-pos); M.HEAPU8.set(bytes.subarray(pos,pos+n),b); pos+=n; return n; },"iiii");
-  const seekFn = M.addFunction((o,off,wh)=>{ const x=Number(off),w=Number(wh);
-    if(w===0x10000) return BigInt(bytes.length);
-    if(w===0)pos=x; else if(w===1)pos+=x; else if(w===2)pos=bytes.length+x; else return -1n;
+  const seekFn = M.addFunction((o,off,w)=>{ const x=Number(off);
+    if(w===0)pos=x; else if(w===1)pos+=x; else if(w===2)pos=bytes.length+x; else return BigInt(KC_IO_ERR);
     return BigInt(pos); },"jiji");
 
   const outPtr = M._malloc(4);
-  if (M._ffkmp_fmt_open_input_io(outPtr,0,readFn,seekFn,BigInt(bytes.length),0,0,0,0) < 0) throw new Error("open failed");
+  if (M._ffkmp_fmt_open_input_io(outPtr,0,readFn,seekFn,BigInt(bytes.length),0,0,0,0,0) < 0) throw new Error("open failed");
   const ctx = M.HEAPU32[outPtr>>2];
   M._ffkmp_fmt_find_stream_info(ctx);
   const n = M._ffkmp_fmt_nb_streams(ctx);
-  let vi=-1, par=0;
-  for (let i=0;i<n;i++){ const p=M._ffkmp_stream_codecpar(M._ffkmp_fmt_stream(ctx,i));
-    if (M._ffkmp_codecpar_codec_type(p)===M._ffkmp_media_type_video()){vi=i;par=p;break;} }
+  let vi=-1, par=0, stream=0;
+  for (let i=0;i<n;i++){ const s=M._ffkmp_fmt_stream(ctx,i), p=M._ffkmp_stream_codecpar(s);
+    if (M._ffkmp_codecpar_codec_type(p)===M._ffkmp_media_type_video()){vi=i;par=p;stream=s;break;} }
+  if (vi < 0) throw new Error("no video stream");
   const W = M._ffkmp_codecpar_width(par), H = M._ffkmp_codecpar_height(par);
   const profile = M._ffkmp_codecpar_profile(par), level = M._ffkmp_codecpar_level(par);
   canvas.width = W; canvas.height = H;
   const g = canvas.getContext("2d");
+
+  // WebCodecs timestamps are microseconds; packet timestamps count ticks of the stream time base.
+  const tb = M._malloc(8);
+  M._ffkmp_stream_time_base(stream, tb, tb + 4);
+  const tbNum = M.HEAP32[tb>>2], tbDen = M.HEAP32[(tb+4)>>2];
+  M._free(tb);
+  const micros = ticks => Math.round(Number(ticks) * 1e6 * tbNum / tbDen);
 
   // avcC extradata, which WebCodecs needs as `description` for the avc1 (length-prefixed) format.
   const extraSize = M._ffkmp_codecpar_extradata(par, 0, 0);
@@ -41,10 +49,12 @@ try {
     description = M.HEAPU8.slice(p, p + extraSize);
     M._free(p);
   }
-  // The codec string the browser wants, built from what the stream actually says.
+  // The codec string the browser wants: the avcC record's profile, compatibility and level bytes.
   const hex = v => v.toString(16).padStart(2,"0");
-  const codecStr = `avc1.${hex(profile & 0xff)}00${hex(level & 0xff)}`;
-  log.push(`stream ${W}x${H} profile=${profile} level=${level} -> ${codecStr}`);
+  const codecStr = description && description[0] === 1
+    ? `avc1.${hex(description[1])}${hex(description[2])}${hex(description[3])}`
+    : `avc1.${hex(profile & 0xff)}00${hex(level & 0xff)}`;
+  log.push(`stream ${W}x${H} profile=${profile} level=${level} time base ${tbNum}/${tbDen} -> ${codecStr}`);
   log.push(`extradata ${extraSize} bytes ${description ? "present" : "MISSING"}`);
 
   const support = await VideoDecoder.isConfigSupported({ codec: codecStr, codedWidth: W, codedHeight: H, description });
@@ -71,7 +81,7 @@ try {
       const size = M._ffkmp_packet_size(pkt);
       const data = M.HEAPU8.slice(M._ffkmp_packet_data(pkt), M._ffkmp_packet_data(pkt) + size);
       const ptsRaw = M._ffkmp_packet_pts(pkt);
-      const pts = ptsRaw === -9223372036854775808n ? sent * 33333 : Number(ptsRaw) * 33333;
+      const pts = ptsRaw === -9223372036854775808n ? Math.round(sent * 1e6 / 30) : micros(ptsRaw);
       dec.decode(new EncodedVideoChunk({
         type: M._ffkmp_packet_is_keyframe(pkt) ? "key" : "delta",
         timestamp: pts, data,
