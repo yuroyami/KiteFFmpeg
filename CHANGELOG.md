@@ -76,7 +76,8 @@ for every backend. The breaking changes come first.
 - Every web playback ended with an I/O error at the end of the file instead of ending the stream.
 - An all-zero display matrix reports an upright rotation on every architecture.
 - A closed packet, reader, decoder or source throws `IllegalStateException` on the web too.
-- A byte source's exception is the cause of the resulting error on the native backends too.
+- A byte source's exception is the cause of the resulting error on the native backends and the
+  web too. On the web it used to reach the caller bare instead of inside an `FFmpegException`.
 - On the JVM, every handle close scanned the whole handle table while a filter graph was open.
 
 ### Internal
@@ -86,6 +87,10 @@ for every backend. The breaking changes come first.
   from its descriptor.
 - Comments and docs no longer cite internal plan codes, and the C layer README describes the layer as
   it is.
+- One decode contract runs on the JVM, macOS and the web against the same H.264 and AAC file, with
+  every expected value pinned. A new CI job links the real web codec module and runs the web tests
+  against it, so the web backend is tested on real media and not only on a fake module.
+- The browser demo links the same module that ships, and the Android device tests build again.
 
 ## [0.2.0] - 2026-09-04
 

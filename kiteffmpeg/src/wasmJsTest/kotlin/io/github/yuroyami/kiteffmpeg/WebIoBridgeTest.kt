@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -83,7 +84,9 @@ class WebIoBridgeTest {
     fun theSourceIsClosedWhenStagingFailsPartWay() {
         attachFake()
         val source = FakeByteSource(ByteArray(200_000) { it.toByte() }, failAfterBytes = 65_536)
-        assertFailsWith<IllegalStateException> { WebIoBridge.install(source) }
+        val failure = assertFailsWith<FFmpegException> { WebIoBridge.install(source) }
+        assertTrue(failure.error is FFmpegError.Io, "a source that throws is an I/O error, as on the other backends")
+        assertIs<IllegalStateException>(failure.cause, "the source's own exception is the cause")
         assertEquals(1, source.closeCount, "a source that threw mid-stage must still be closed once")
     }
 

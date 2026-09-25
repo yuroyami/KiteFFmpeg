@@ -213,8 +213,14 @@ kotlin {
                 // Mocha's per-test default is 2000 ms, the same ceiling timeouts.js raises for the
                 // browser. The real bound stays each test's own timeout.
                 useMocha { timeout = "20s" }
-                // RealCodecModuleTest loads this module when linkKiteFFmpegWasmModule has built it.
+                // The tests that need a real codec load this module when linkKiteFFmpegWasmModule has
+                // built it, and pass without it. -Pkiteffmpeg.web.requireModule=true makes a missing
+                // module fail them instead, so a run that means to test the module cannot pass without it.
                 environment("KITEFFMPEG_WEB_MODULE", layout.buildDirectory.file("kite-web/kite.mjs").get().asFile.absolutePath)
+                environment(
+                    "KITEFFMPEG_WEB_MODULE_REQUIRED",
+                    providers.gradleProperty("kiteffmpeg.web.requireModule").getOrElse("false"),
+                )
             }
         }
     }
@@ -615,6 +621,8 @@ kotlin {
                 dependencies {
                     implementation(kotlin("test"))
                     implementation(kotlin("test-junit"))
+                    // The mirrored common tests use runTest, as the published commonTest does.
+                    implementation(libs.kotlinx.coroutines.test)
                 }
             }
             val jniHarnessContractTest = maybeCreate("jniHarnessContractTest").apply {

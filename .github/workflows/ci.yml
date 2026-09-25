@@ -349,6 +349,64 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # The web backend against the codec module it ships with. The identity gate runs the web tests
+  # against a fake module; this job links the real one, from a web FFmpeg built here, and runs the
+  # same tests under Node. -Pkiteffmpeg.web.requireModule=true makes the decode contract fail
+  # instead of skip when the module is missing, so this job cannot pass without decoding real
+  # media. Node only, because a browser test cannot read the module's path from the environment.
+  web-codec-module:
+    name: Web backend against the linked codec module (node)
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-web-codec-module-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-web-codec-module-
+      - name: Install emscripten
+        id: emscripten
+        run: |
+          brew install emscripten
+          echo "version=$(emcc --version | head -1 | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
+      # A web FFmpeg is only as good as the compiler that built it, so the key carries the emcc
+      # version as well as the build task and the FFmpeg tag.
+      - name: Cache the web FFmpeg build
+        id: ffmpeg-web
+        uses: actions/cache@v4
+        with:
+          path: native-libs/lgpl/wasm32
+          key: ffmpeg-wasm32-lgpl-n9.0.2-emcc-${{ steps.emscripten.outputs.version }}-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegWasmTask.kt') }}
+      - name: Build the web FFmpeg from source
+        if: steps.ffmpeg-web.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          ./gradlew :kiteffmpeg:buildFFmpegForWasm --stacktrace
+      # -x keeps a restored tree: a fresh runner has no task history, so Gradle would rebuild it.
+      - name: Link the codec module
+        run: ./gradlew :kiteffmpeg:linkKiteFFmpegWasmModule -x buildFFmpegForWasm --stacktrace
+      - name: Web tests against the linked module (node)
+        run: |
+          ./gradlew :kiteffmpeg:wasmJsNodeTest -Pkiteffmpeg.web.requireModule=true \
+            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+      - name: Upload build reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-web-codec-module
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+          retention-days: 7
+          if-no-files-found: ignore
+
   linux-x64:
     name: Linux x64 (prebuilt static FFmpeg, the shipped profile)
     runs-on: ubuntu-24.04

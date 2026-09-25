@@ -11,8 +11,8 @@ import kotlin.test.assertTrue
 /**
  * The codec module that linkKiteFFmpegWasmModule builds, loaded the way a page loads it and asked
  * to decode a real clip. Every other web test runs against a scripted fake, which proves that the
- * binding reads the right fields and nothing about a built module. The build points
- * KITEFFMPEG_WEB_MODULE at the linked kite.mjs; when there is none, the test says so and passes.
+ * binding reads the right fields and nothing about a built module. [useLinkedCodecModule] says
+ * when there is no module to load.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 class RealCodecModuleTest {
@@ -83,8 +83,7 @@ class RealCodecModuleTest {
 
     @Test
     fun theLinkedModuleDecodesAnH264Clip() = runTest {
-        val url = linkedModuleUrl() ?: return@runTest println("real codec module test skipped: no linked kite.mjs")
-        KiteFFmpegWeb.load(url)
+        if (!useLinkedCodecModule()) return@runTest
         assertTrue(FFmpeg.identity.isAcceptable, FFmpeg.identity.describe())
         MediaSource.open(BytesSource(CLIP), emptyMap()).use { source ->
             val video = source.streams.single()
@@ -105,18 +104,3 @@ class RealCodecModuleTest {
         }
     }
 }
-
-/** A file URL for the linked module the build named, or null when there is none. */
-@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-@JsFun(
-    """() => {
-        const p = globalThis.process;
-        const file = p && p.env ? p.env.KITEFFMPEG_WEB_MODULE : undefined;
-        if (!file) return null;
-        if (!p.getBuiltinModule) return null;
-        if (!p.getBuiltinModule("node:fs").existsSync(file)) return null;
-        // pathToFileURL encodes a '#' in the path, which a plain "file://" + path reads as a fragment.
-        return p.getBuiltinModule("node:url").pathToFileURL(file).href;
-    }""",
-)
-private external fun linkedModuleUrl(): String?

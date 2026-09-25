@@ -106,10 +106,10 @@ internal class WebIoBridge private constructor(
             // Only a source that says it is seekable may be rewound. `MediaByteSource` promises
             // seek is never called otherwise, and a non-seekable source that is mid-stream is
             // CORRUPTED by a rewind rather than merely unhelped by one; it stages from where it is.
-            if (io.seekable) io.seek(0)
+            if (io.seekable) callSource { io.seek(0) }
             while (written < total) {
                 val want = minOf(CHUNK, total - written)
-                val got = io.read(chunk, 0, want)
+                val got = callSource { io.read(chunk, 0, want) }
                 if (got <= 0) {
                     throw FFmpegException(
                         FFmpegError.InvalidData(0, "the byte source ended at $written of $total bytes"),
@@ -118,6 +118,16 @@ internal class WebIoBridge private constructor(
                 writeBytes(module, buffer + written, chunk, got)
                 written += got
             }
+        }
+
+        /**
+         * Runs one call into the caller's source. An exception it throws becomes the cause of an
+         * I/O error, which is what the JVM and native backends report when their source fails.
+         */
+        private inline fun <T> callSource(call: () -> T): T = try {
+            call()
+        } catch (failure: Throwable) {
+            throw FFmpegException(FFmpegError.Io(0, "the byte source failed while its bytes were staged"), failure)
         }
 
         private const val CHUNK = 1 shl 16
