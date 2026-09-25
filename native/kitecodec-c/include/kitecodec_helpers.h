@@ -425,9 +425,6 @@ KC_API int ffkmp_swr_create(kc_swr **out,
  * refused with AVERROR_INPUT_CHANGED. */
 KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in);
 
-/* The samples the resampler holds, in 1/base units; 0 for NULL. */
-KC_API int64_t ffkmp_swr_delay(kc_swr *s, int64_t base);
-
 /* Ownership. Frees *s and writes NULL through the pointer; safe on NULL either way. */
 KC_API void ffkmp_swr_free(kc_swr **s);
 

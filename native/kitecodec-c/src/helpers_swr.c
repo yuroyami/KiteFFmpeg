@@ -101,10 +101,6 @@ KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in)
     return rc;
 }
 
-KC_API int64_t ffkmp_swr_delay(kc_swr *s, int64_t base) {
-    return s ? swr_get_delay(s->ctx, base) : 0;
-}
-
 KC_API void ffkmp_swr_free(kc_swr **s) {
     if (!s || !*s) return;
     swr_free(&(*s)->ctx);

@@ -46,7 +46,6 @@ static void case_refusals(void)
     KC_EQ_INT(ffkmp_swr_create(&s, 48000, 2, AV_SAMPLE_FMT_NB, 44100, 2, AV_SAMPLE_FMT_S16, 0, 0), AVERROR(EINVAL));
     KC_EQ_INT(ffkmp_swr_create(&s, 48000, 2, AV_SAMPLE_FMT_FLTP, 44100, 2, -1, 0, 0), AVERROR(EINVAL));
     KC_EQ_INT(ffkmp_swr_convert_frame(NULL, NULL, NULL), AVERROR(EINVAL));
-    KC_EQ_INT((int)ffkmp_swr_delay(NULL, 48000), 0);
     ffkmp_swr_free(&none);
     ffkmp_swr_free(NULL);
 }

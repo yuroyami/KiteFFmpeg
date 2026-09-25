@@ -528,9 +528,6 @@ internal external fun ffkmp_stream_duration_micros(module: JsAny, a0: Int): Long
 @JsFun("(m, a0) => m._ffkmp_stream_start_time(a0)")
 internal external fun ffkmp_stream_start_time(module: JsAny, a0: Int): Long
 
-@JsFun("(m, a0, a1) => m._ffkmp_swr_delay(a0, a1)")
-internal external fun ffkmp_swr_delay(module: JsAny, a0: Int, a1: Long): Long
-
 @JsFun("(m, a0) => m._ffkmp_codecctx_alloc(a0)")
 internal external fun ffkmp_codecctx_alloc(module: JsAny, a0: Int): Int
 
