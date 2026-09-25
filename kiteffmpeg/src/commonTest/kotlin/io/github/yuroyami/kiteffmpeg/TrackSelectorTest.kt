@@ -44,6 +44,28 @@ class TrackSelectorTest {
     }
 
     @Test
+    fun audioDescriptionNeverBeatsAnOrdinarySibling() {
+        val described = stream(1, MediaType.Audio, disposition = Disposition(descriptions = true))
+        val alsoDescribed = stream(2, MediaType.Audio, disposition = Disposition(visualImpaired = true))
+        val ordinary = stream(3, MediaType.Audio)
+        assertEquals(ordinary, TrackSelector.Default.selectAudio(listOf(described, alsoDescribed, ordinary)))
+    }
+
+    @Test
+    fun commentaryAndAHearingImpairedMixNeverBeatAnOrdinarySibling() {
+        val commentary = stream(1, MediaType.Audio, disposition = Disposition(comment = true))
+        val clearDialogue = stream(2, MediaType.Audio, disposition = Disposition(hearingImpaired = true))
+        val ordinary = stream(3, MediaType.Audio)
+        assertEquals(ordinary, TrackSelector.Default.selectAudio(listOf(commentary, clearDialogue, ordinary)))
+    }
+
+    @Test
+    fun aSpecialStreamIsStillPickedWhenItIsTheOnlyAudio() {
+        val commentary = stream(1, MediaType.Audio, disposition = Disposition(comment = true))
+        assertEquals(commentary, TrackSelector.Default.selectAudio(listOf(stream(0, MediaType.Video), commentary)))
+    }
+
+    @Test
     fun noStreamOfTheKindAnswersNull() {
         assertNull(TrackSelector.Default.selectVideo(listOf(stream(0, MediaType.Audio))))
         assertNull(TrackSelector.Default.selectAudio(listOf(stream(0, MediaType.Video))))

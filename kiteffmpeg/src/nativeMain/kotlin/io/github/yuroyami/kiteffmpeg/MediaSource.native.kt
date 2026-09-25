@@ -74,6 +74,8 @@ import ffmpeg.ffkmp_stream_disposition
 import ffmpeg.ffkmp_stream_rotation_degrees
 import ffmpeg.ffkmp_stream_start_time
 import ffmpeg.ffkmp_disposition_attached_pic
+import ffmpeg.ffkmp_disposition_comment
+import ffmpeg.ffkmp_disposition_descriptions
 import ffmpeg.ffkmp_disposition_default
 import ffmpeg.ffkmp_disposition_forced
 import ffmpeg.ffkmp_disposition_hearing_impaired
@@ -1027,6 +1029,8 @@ private fun readDisposition(flags: Int): Disposition = Disposition(
     hearingImpaired = flags and ffkmp_disposition_hearing_impaired() != 0,
     visualImpaired = flags and ffkmp_disposition_visual_impaired() != 0,
     attachedPicture = flags and ffkmp_disposition_attached_pic() != 0,
+    descriptions = flags and ffkmp_disposition_descriptions() != 0,
+    comment = flags and ffkmp_disposition_comment() != 0,
 )
 
 /** Call [block] with two IntVar out-params, return the resulting [Rational]. */

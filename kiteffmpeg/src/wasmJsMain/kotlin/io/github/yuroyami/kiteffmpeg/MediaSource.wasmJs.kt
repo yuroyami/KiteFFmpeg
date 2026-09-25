@@ -3,6 +3,8 @@ package io.github.yuroyami.kiteffmpeg
 import io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_alloc
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_attached_pic
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_comment
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_descriptions
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_default
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_forced
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_disposition_hearing_impaired
@@ -599,6 +601,8 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
     val dispositionHearingImpaired = ffkmp_disposition_hearing_impaired(m)
     val dispositionVisualImpaired = ffkmp_disposition_visual_impaired(m)
     val dispositionAttachedPic = ffkmp_disposition_attached_pic(m)
+    val dispositionDescriptions = ffkmp_disposition_descriptions(m)
+    val dispositionComment = ffkmp_disposition_comment(m)
     return (0 until ffkmp_fmt_nb_streams(m, context)).map { i ->
         val native = ffkmp_fmt_stream(m, context, i)
         val par = ffkmp_stream_codecpar(m, native)
@@ -656,6 +660,8 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                     hearingImpaired = flags and dispositionHearingImpaired != 0,
                     visualImpaired = flags and dispositionVisualImpaired != 0,
                     attachedPicture = flags and dispositionAttachedPic != 0,
+                    descriptions = flags and dispositionDescriptions != 0,
+                    comment = flags and dispositionComment != 0,
                 )
             },
             metadata = readMetadata(m, ffkmp_stream_metadata(m, native)),

@@ -651,6 +651,8 @@ private fun readDisposition(flags: Int): Disposition = Disposition(
     hearingImpaired = flags and Internals.dispositionHearingImpaired != 0,
     visualImpaired = flags and Internals.dispositionVisualImpaired != 0,
     attachedPicture = flags and Internals.dispositionAttachedPic != 0,
+    descriptions = flags and Internals.dispositionDescriptions != 0,
+    comment = flags and Internals.dispositionComment != 0,
 )
 
 private fun readMetadata(dictionary: Long): Map<String, String> {

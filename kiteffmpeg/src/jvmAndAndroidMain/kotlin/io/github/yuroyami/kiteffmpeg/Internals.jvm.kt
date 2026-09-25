@@ -33,6 +33,8 @@ internal object Internals {
     private external fun nativeDispositionHearingImpaired(): Int
     private external fun nativeDispositionVisualImpaired(): Int
     private external fun nativeDispositionAttachedPic(): Int
+    private external fun nativeDispositionDescriptions(): Int
+    private external fun nativeDispositionComment(): Int
 
     private external fun nativePacketAlloc(): Long
     private external fun nativePacketFree(token: Long)
@@ -257,6 +259,8 @@ internal object Internals {
     internal val dispositionHearingImpaired: Int get() = checked { nativeDispositionHearingImpaired() }
     internal val dispositionVisualImpaired: Int get() = checked { nativeDispositionVisualImpaired() }
     internal val dispositionAttachedPic: Int get() = checked { nativeDispositionAttachedPic() }
+    internal val dispositionDescriptions: Int get() = checked { nativeDispositionDescriptions() }
+    internal val dispositionComment: Int get() = checked { nativeDispositionComment() }
 
     internal fun requireCompatible() {
         val state = initialization

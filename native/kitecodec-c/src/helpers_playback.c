@@ -101,6 +101,8 @@ KC_API int ffkmp_disposition_forced(void)            { return AV_DISPOSITION_FOR
 KC_API int ffkmp_disposition_hearing_impaired(void)  { return AV_DISPOSITION_HEARING_IMPAIRED; }
 KC_API int ffkmp_disposition_visual_impaired(void)   { return AV_DISPOSITION_VISUAL_IMPAIRED; }
 KC_API int ffkmp_disposition_attached_pic(void)      { return AV_DISPOSITION_ATTACHED_PIC; }
+KC_API int ffkmp_disposition_descriptions(void)      { return AV_DISPOSITION_DESCRIPTIONS; }
+KC_API int ffkmp_disposition_comment(void)           { return AV_DISPOSITION_COMMENT; }
 
 /* Rotation, in degrees, from the display matrix a phone writes into its recordings. Without this
    every video shot in portrait plays on its side. av_display_rotation_get returns the angle the

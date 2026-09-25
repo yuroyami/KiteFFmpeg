@@ -127,14 +127,17 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         m._ffkmp_media_type_audio = () => 1;
         m._ffkmp_media_type_subtitle = () => 3;
 
-        // Real AV_DISPOSITION_* bit values, so the fake cannot drift from the header:
-        // stream 0 is default+forced (1|64), stream 1 is hearing-impaired (128).
-        m._ffkmp_stream_disposition = (stream) => stream === STREAM ? 65 : 128;
+        // Real AV_DISPOSITION_* bit values, so the fake cannot drift from the header: stream 0 is
+        // default+forced (1|64), stream 1 is hearing-impaired, commentary and descriptions
+        // (128|8|131072).
+        m._ffkmp_stream_disposition = (stream) => stream === STREAM ? 65 : 131208;
         m._ffkmp_disposition_default = () => 1;
         m._ffkmp_disposition_forced = () => 64;
         m._ffkmp_disposition_hearing_impaired = () => 128;
         m._ffkmp_disposition_visual_impaired = () => 256;
         m._ffkmp_disposition_attached_pic = () => 1024;
+        m._ffkmp_disposition_descriptions = () => 131072;
+        m._ffkmp_disposition_comment = () => 8;
 
         // The container MODEL: this base fake declares a container that carries none of it, which
         // is a legitimate answer and keeps these entries honest. A fake that simply omitted them

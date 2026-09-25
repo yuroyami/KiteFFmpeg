@@ -59,6 +59,8 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDispositionForced","
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDispositionHearingImpaired","()I",         kj_abi_disposition_hearing)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDispositionVisualImpaired","()I",          kj_abi_disposition_visual)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDispositionAttachedPic","()I",             kj_abi_disposition_attached)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDispositionDescriptions","()I",            kj_abi_disposition_descriptions)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDispositionComment","()I",                 kj_abi_disposition_comment)
 
 // ── packet (kj_packet.c) ─ COMPLETE ─────────────────────────────────────────────────────────
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketAlloc",      "()J",                    kj_packet_alloc)

@@ -186,8 +186,14 @@ internal external fun ffkmp_codecpar_width(module: JsAny, a0: Int): Int
 @JsFun("(m) => m._ffkmp_disposition_attached_pic()")
 internal external fun ffkmp_disposition_attached_pic(module: JsAny): Int
 
+@JsFun("(m) => m._ffkmp_disposition_comment()")
+internal external fun ffkmp_disposition_comment(module: JsAny): Int
+
 @JsFun("(m) => m._ffkmp_disposition_default()")
 internal external fun ffkmp_disposition_default(module: JsAny): Int
+
+@JsFun("(m) => m._ffkmp_disposition_descriptions()")
+internal external fun ffkmp_disposition_descriptions(module: JsAny): Int
 
 @JsFun("(m) => m._ffkmp_disposition_forced()")
 internal external fun ffkmp_disposition_forced(module: JsAny): Int

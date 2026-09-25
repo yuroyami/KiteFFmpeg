@@ -28,9 +28,9 @@ class StreamDispositionWasmTest {
                 "stream 0 carries AV_DISPOSITION_DEFAULT or AV_DISPOSITION_FORCED and lost it",
             )
             assertEquals(
-                Disposition(hearingImpaired = true),
+                Disposition(hearingImpaired = true, descriptions = true, comment = true),
                 source.streams[1].disposition,
-                "stream 1 carries AV_DISPOSITION_HEARING_IMPAIRED and lost it",
+                "stream 1 carries AV_DISPOSITION_HEARING_IMPAIRED, _DESCRIPTIONS and _COMMENT and lost one",
             )
         } finally {
             source.close()

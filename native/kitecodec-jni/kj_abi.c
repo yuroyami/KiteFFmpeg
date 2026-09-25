@@ -202,3 +202,7 @@ JNIEXPORT jint JNICALL kj_abi_disposition_visual(JNIEnv *env, jclass cls)
 { (void)env; (void)cls; return (jint)ffkmp_disposition_visual_impaired(); }
 JNIEXPORT jint JNICALL kj_abi_disposition_attached(JNIEnv *env, jclass cls)
 { (void)env; (void)cls; return (jint)ffkmp_disposition_attached_pic(); }
+JNIEXPORT jint JNICALL kj_abi_disposition_descriptions(JNIEnv *env, jclass cls)
+{ (void)env; (void)cls; return (jint)ffkmp_disposition_descriptions(); }
+JNIEXPORT jint JNICALL kj_abi_disposition_comment(JNIEnv *env, jclass cls)
+{ (void)env; (void)cls; return (jint)ffkmp_disposition_comment(); }

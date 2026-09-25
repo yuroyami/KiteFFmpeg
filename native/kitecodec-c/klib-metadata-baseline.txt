@@ -924,6 +924,14 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_disposition_attached_pic(): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_descriptions")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_disposition_descriptions(): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_comment")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_disposition_comment(): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_stream_rotation_degrees")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_stream_rotation_degrees(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVStream /* = ffmpeg/kc_stream^ */>?): kotlin/Int
@@ -1009,7 +1017,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 8 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 9 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

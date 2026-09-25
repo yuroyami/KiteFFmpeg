@@ -32,11 +32,17 @@ public data class TrackSelector(
             ?: streams.firstOrNull { it.type == MediaType.Video }
 
     /** The audio stream to play from [streams], or null when there is none. */
-    public fun selectAudio(streams: List<StreamInfo>): StreamInfo? =
-        streams.firstOrNull { it.type == MediaType.Audio }
+    public fun selectAudio(streams: List<StreamInfo>): StreamInfo? {
+        val audio = streams.filter { it.type == MediaType.Audio }
+        return audio.firstOrNull { !it.disposition.isForSpecialAudience } ?: audio.firstOrNull()
+    }
 
     public companion object {
         /** The selector with no language preference. */
         public val Default: TrackSelector = TrackSelector()
     }
 }
+
+/** Audio description, commentary or a hearing-impaired mix: never picked over ordinary audio. */
+private val Disposition.isForSpecialAudience: Boolean
+    get() = descriptions || visualImpaired || comment || hearingImpaired

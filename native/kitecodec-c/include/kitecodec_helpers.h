@@ -613,6 +613,8 @@ KC_API int ffkmp_disposition_forced(void);
 KC_API int ffkmp_disposition_hearing_impaired(void);
 KC_API int ffkmp_disposition_visual_impaired(void);
 KC_API int ffkmp_disposition_attached_pic(void);
+KC_API int ffkmp_disposition_descriptions(void);
+KC_API int ffkmp_disposition_comment(void);
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);
 
 /* Ownership. Moves every reference from src to dst and leaves src blank, so exactly one of
