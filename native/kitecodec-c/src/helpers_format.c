@@ -221,11 +221,14 @@ KC_API int ffkmp_fmt_io_open(AVFormatContext *ctx, const char *path) {
 }
 /* Timestamps handed to the muxer are rebased against a base SHARED by every stream of the sink
    (MediaSink.claimBaseMicros), which keeps the relative A/V offset intact but lets a stream that
-   starts earlier than the claiming one go negative (AAC priming samples are the common case).
-   Pin the policy instead of inheriting each muxer's default: MAKE_ZERO shifts the whole output
-   up so nothing is negative, applying the SAME shift to every stream, so the offset survives. */
+   starts earlier than the claiming one go negative. AAC priming samples are the common case, and
+   their negative start is exactly what tells a decoder to drop them. So the policy is AUTO, each
+   muxer's own: MP4 and Ogg keep the negative start (an edit list, a pre-skip), Matroska keeps it
+   down to the codec delay it writes, and every other muxer shifts all streams by one common
+   amount so nothing is negative and the offset survives. MAKE_ZERO used to shift the priming up
+   to zero, so every AAC file played 1024 extra samples at its start. */
 KC_API void ffkmp_fmt_avoid_negative_ts(AVFormatContext *ctx) {
-    if (ctx) ctx->avoid_negative_ts = AVFMT_AVOID_NEG_TS_MAKE_ZERO;
+    if (ctx) ctx->avoid_negative_ts = AVFMT_AVOID_NEG_TS_AUTO;
 }
 KC_API int ffkmp_fmt_write_header(AVFormatContext *ctx)         { return ctx ? avformat_write_header(ctx, NULL) : AVERROR(EINVAL); }
 KC_API int ffkmp_fmt_write_frame(AVFormatContext *ctx, AVPacket *p) {

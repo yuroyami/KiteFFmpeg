@@ -434,9 +434,8 @@ public actual class MediaSink internal constructor(
             if (ctx == null) throw FFmpegException(FFmpegError.Internal("alloc_output returned NULL"))
             // Streams are rebased against ONE shared origin (claimBaseMicros), which preserves the
             // relative A/V offset but lets a stream that begins before the claiming one land at a
-            // negative timestamp (AAC priming samples are the usual source). Pin the muxer policy
-            // rather than inherit each format's default: MAKE_ZERO shifts the whole output by one
-            // common amount, so nothing is negative and the offset survives.
+            // negative timestamp. AAC priming is the usual source, and its negative start is what
+            // tells a decoder to drop it, so each muxer keeps its own policy (see the C helper).
             ffkmp_fmt_avoid_negative_ts(ctx)
             try {
                 options.forEach { (k, v) ->
