@@ -470,7 +470,14 @@ typedef struct kc_io_writer {
     kc_io_seek_fn  seek_fn;
 } kc_io_writer;
 
-static int kc_io_write_packet(void *opaque, const uint8_t *buf, int len) {
+/* FFmpeg 7 made the write callback's buffer const; FFmpeg 6.1 still passes it mutable. */
+#if LIBAVFORMAT_VERSION_MAJOR >= 61
+#define KC_AVIO_WRITE_BUFFER const uint8_t *
+#else
+#define KC_AVIO_WRITE_BUFFER uint8_t *
+#endif
+
+static int kc_io_write_packet(void *opaque, KC_AVIO_WRITE_BUFFER buf, int len) {
     kc_io_writer *w = (kc_io_writer *)opaque;
     return w->write_fn(w->opaque, buf, len) < 0 ? AVERROR(EIO) : len;
 }

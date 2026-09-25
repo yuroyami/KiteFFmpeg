@@ -317,11 +317,13 @@ KC_API int64_t ffkmp_codecctx_ch_layout_mask(kc_codec_ctx *c);
  * writes it into the stream's side data when it opens, and an encoder that embeds it in the
  * bitstream does that too. A second call replaces the first. A NULL context or array, flags with
  * neither half, or a pair with a denominator that is not positive is refused with
- * AVERROR(EINVAL). */
+ * AVERROR(EINVAL). Built against FFmpeg older than 7, which has no way to do this, it answers
+ * AVERROR(ENOSYS) after those checks. */
 KC_API int ffkmp_codecctx_add_mastering_display(kc_codec_ctx *c, const int *q, int flags);
 
 /* Gives an encoder a content light level (CTA-861.3), in candelas per square metre, the same way.
- * A NULL context or a negative level is refused with AVERROR(EINVAL). */
+ * A NULL context or a negative level is refused with AVERROR(EINVAL), and FFmpeg older than 7
+ * answers AVERROR(ENOSYS) the same way. */
 KC_API int ffkmp_codecctx_add_content_light(kc_codec_ctx *c, int max_cll, int max_fall);
 KC_API const kc_codec* ffkmp_find_decoder_by_id(int id);
 

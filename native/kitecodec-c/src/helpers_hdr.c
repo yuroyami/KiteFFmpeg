@@ -12,6 +12,10 @@
 #include <libavutil/frame.h>
 #include <libavutil/mastering_display_metadata.h>
 
+/* An encoder's decoded side data and av_frame_side_data_new arrived in FFmpeg 7. Built against
+ * older headers, the two calls that give HDR metadata to an encoder answer AVERROR(ENOSYS). */
+#define KC_ENCODER_TAKES_SIDE_DATA (LIBAVCODEC_VERSION_MAJOR >= 61)
+
 /* The ten rationals in the order the header describes, and back. */
 static void kc_mastering_to_ints_(const AVMasteringDisplayMetadata *m, int *q, int *flags) {
     const AVRational order[10] = {
@@ -90,6 +94,7 @@ KC_API int ffkmp_codecctx_add_mastering_display(AVCodecContext *c, const int *q,
     AVMasteringDisplayMetadata parsed = { 0 };
     int rc = kc_mastering_from_ints_(&parsed, q, flags);
     if (rc < 0) return rc;
+#if KC_ENCODER_TAKES_SIDE_DATA
     AVFrameSideData *sd = av_frame_side_data_new(&c->decoded_side_data, &c->nb_decoded_side_data,
                                                  AV_FRAME_DATA_MASTERING_DISPLAY_METADATA,
                                                  sizeof(AVMasteringDisplayMetadata),
@@ -97,10 +102,14 @@ KC_API int ffkmp_codecctx_add_mastering_display(AVCodecContext *c, const int *q,
     if (!sd) return AVERROR(ENOMEM);
     *(AVMasteringDisplayMetadata *)sd->data = parsed;
     return 0;
+#else
+    return AVERROR(ENOSYS);
+#endif
 }
 
 KC_API int ffkmp_codecctx_add_content_light(AVCodecContext *c, int max_cll, int max_fall) {
     if (!c || max_cll < 0 || max_fall < 0) return AVERROR(EINVAL);
+#if KC_ENCODER_TAKES_SIDE_DATA
     AVFrameSideData *sd = av_frame_side_data_new(&c->decoded_side_data, &c->nb_decoded_side_data,
                                                  AV_FRAME_DATA_CONTENT_LIGHT_LEVEL,
                                                  sizeof(AVContentLightMetadata),
@@ -110,4 +119,7 @@ KC_API int ffkmp_codecctx_add_content_light(AVCodecContext *c, int max_cll, int 
     light->MaxCLL = (unsigned)max_cll;
     light->MaxFALL = (unsigned)max_fall;
     return 0;
+#else
+    return AVERROR(ENOSYS);
+#endif
 }
