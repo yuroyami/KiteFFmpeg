@@ -61,39 +61,42 @@ JNIEXPORT jboolean JNICALL kj_frame_is_keyframe(JNIEnv *env, jclass cls, jlong t
  * the frame's tightly packed planes as a byte array. Video frames size through
  * ffkmp_image_get_buffer_size at align 1 (tightly packed is the documented Frame.kt layout);
  * audio frames size through ffkmp_samples_get_buffer_size. */
+/* Which frame a byte copy reads or writes, and whether it holds a picture or samples. */
+typedef struct kj_frame_bytes {
+    kc_frame *frame;
+    int video;
+} kj_frame_bytes;
+
+static int kj_frame_bytes_out(void *ctx, uint8_t *dst, int32_t len)
+{
+    const kj_frame_bytes *fb = (const kj_frame_bytes *)ctx;
+    return fb->video ? ffkmp_frame_copy_to_buffer(fb->frame, dst, len)
+                     : ffkmp_samples_copy_to_buffer(fb->frame, dst, len);
+}
+
+static int kj_frame_bytes_in(void *ctx, const uint8_t *src, int32_t len)
+{
+    const kj_frame_bytes *fb = (const kj_frame_bytes *)ctx;
+    return fb->video ? ffkmp_frame_fill_video(fb->frame, src, len)
+                     : ffkmp_frame_fill_audio(fb->frame, src, len);
+}
+
+/* One copy, straight into the Java array, where a scratch buffer and SetByteArrayRegion made two. */
 JNIEXPORT jbyteArray JNICALL kj_frame_copy_planes(JNIEnv *env, jclass cls, jlong token)
 {
-    kc_frame *f = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
-    int size, rc, video;
+    kj_frame_bytes fb;
+    int size, rc = 0;
     jbyteArray out;
-    void *dst;
     (void)cls;
-    if (f == NULL) return NULL;
-    video = ffkmp_frame_width(f) > 0;
-    if (video) {
-        size = ffkmp_image_get_buffer_size(ffkmp_frame_format(f),
-                                           ffkmp_frame_width(f), ffkmp_frame_height(f), 1);
-    } else {
-        size = ffkmp_samples_get_buffer_size(f);
-    }
-    if (size == 0) {
-        static const uint8_t empty = 0;
-        return kj_bytes_new(env, &empty, 0);
-    }
+    fb.frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    if (fb.frame == NULL) return NULL;
+    fb.video = ffkmp_frame_width(fb.frame) > 0;
+    size = fb.video ? ffkmp_image_get_buffer_size(ffkmp_frame_format(fb.frame), ffkmp_frame_width(fb.frame),
+                                                  ffkmp_frame_height(fb.frame), 1)
+                    : ffkmp_samples_get_buffer_size(fb.frame);
     if (size < 0) { kj_throw_ffmpeg(env, size, "frame_copy_planes size"); return NULL; }
-    /* One copy, straight into the Java array, where a scratch buffer and SetByteArrayRegion made
-       two. The critical region holds only the copy: no JNI call, no lock, nothing that blocks. */
-    out = (*env)->NewByteArray(env, (jsize)size);
-    if (out == NULL) return NULL; /* OOM already thrown */
-    dst = (*env)->GetPrimitiveArrayCritical(env, out, NULL);
-    if (dst == NULL) return NULL; /* OOM already thrown */
-    rc = video ? ffkmp_frame_copy_to_buffer(f, (uint8_t *)dst, size)
-               : ffkmp_samples_copy_to_buffer(f, (uint8_t *)dst, size);
-    (*env)->ReleasePrimitiveArrayCritical(env, out, dst, 0);
-    if (rc < 0) {
-        kj_throw_ffmpeg(env, rc, "frame_copy_planes copy");
-        return NULL;
-    }
+    out = kj_bytes_filled_in_place(env, size, kj_frame_bytes_out, &fb, &rc);
+    if (out == NULL && rc < 0) kj_throw_ffmpeg(env, rc, "frame_copy_planes copy");
     return out;
 }
 
@@ -310,18 +313,15 @@ JNIEXPORT jint JNICALL kj_frame_get_buffer(JNIEnv *env, jclass cls, jlong token,
     return frame ? (jint)ffkmp_frame_get_buffer(frame, (int)align) : -1;
 }
 
+/* One copy, from the Java array straight into the frame's buffers, where a Kotlin copyOf and a
+   malloc'd duplicate made three. */
 static jint kj_frame_fill(JNIEnv *env, jlong token, jbyteArray bytes, int audio)
 {
-    kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
-    uint8_t *copy = NULL;
-    int32_t len = 0;
-    int rc;
-    if (frame == NULL) return -1;
-    if (kj_bytes_dup(env, bytes, &copy, &len) != 0) return -1;
-    rc = audio ? ffkmp_frame_fill_audio(frame, copy, len)
-               : ffkmp_frame_fill_video(frame, copy, len);
-    free(copy);
-    return (jint)rc;
+    kj_frame_bytes fb;
+    fb.frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    if (fb.frame == NULL) return -1;
+    fb.video = !audio;
+    return (jint)kj_bytes_read_in_place(env, bytes, kj_frame_bytes_in, &fb);
 }
 
 JNIEXPORT jint JNICALL kj_frame_fill_video(JNIEnv *env, jclass cls, jlong token, jbyteArray bytes)

@@ -97,9 +97,17 @@ jintArray kj_ints_new(JNIEnv *env, const jint *values, int32_t count);
 #define KJ_HDR_INTS 24
 jintArray kj_hdr_new(JNIEnv *env, int display_rc, const int *q, int flags, int light_rc, int max_cll, int max_fall);
 
-/* Copy a Java byte array into malloc-owned bytes. This is the sole Java-to-C byte-array conversion
- * unit. Empty arrays succeed with *out_len == 0 and a non-NULL allocation; caller frees *out. */
-int kj_bytes_dup(JNIEnv *env, jbyteArray bytes, uint8_t **out, int32_t *out_len);
+/* Hands use() the Java array's bytes in place, then releases them unchanged, so a frame is copied
+ * once. use runs inside a critical region: no JNI call, no lock, nothing that blocks. Returns use's
+ * result, or -1 with an exception pending when the array cannot be read. */
+int kj_bytes_read_in_place(JNIEnv *env, jbyteArray bytes,
+                           int (*use)(void *ctx, const uint8_t *src, int32_t len), void *ctx);
+
+/* A new Java array of len bytes that fill() writes in place, under the same rules as use() above.
+ * When fill fails, *rc holds its result and NULL comes back; NULL with *rc == 0 means an exception
+ * is pending. */
+jbyteArray kj_bytes_filled_in_place(JNIEnv *env, int32_t len,
+                                    int (*fill)(void *ctx, uint8_t *dst, int32_t len), void *ctx, int *rc);
 
 /* ── Registration (kj_registration.c) ─────────────────────────────────────────────────────── */
 

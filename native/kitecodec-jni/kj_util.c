@@ -348,29 +348,45 @@ jintArray kj_hdr_new(JNIEnv *env, int display_rc, const int *q, int flags, int l
     return kj_ints_new(env, packed, KJ_HDR_INTS);
 }
 
-int kj_bytes_dup(JNIEnv *env, jbyteArray bytes, uint8_t **out, int32_t *out_len)
+int kj_bytes_read_in_place(JNIEnv *env, jbyteArray bytes,
+                           int (*use)(void *ctx, const uint8_t *src, int32_t len), void *ctx)
 {
     jsize len;
-    uint8_t *copy;
-    if (out == NULL || out_len == NULL || bytes == NULL) {
-        kj_throw_handle(env, "byte copy into native memory refused: NULL argument");
+    void *src;
+    int rc;
+    if (bytes == NULL || use == NULL) {
+        kj_throw_handle(env, "byte read across the JNI boundary refused: NULL argument");
         return -1;
     }
-    *out = NULL;
-    *out_len = 0;
     len = (*env)->GetArrayLength(env, bytes);
-    copy = (uint8_t *)malloc(len > 0 ? (size_t)len : 1u);
-    if (copy == NULL) {
-        kj_throw_handle(env, "out of memory copying a Java byte array");
-        return -1;
+    src = (*env)->GetPrimitiveArrayCritical(env, bytes, NULL);
+    if (src == NULL) return -1; /* OOM already thrown */
+    rc = use(ctx, (const uint8_t *)src, (int32_t)len);
+    (*env)->ReleasePrimitiveArrayCritical(env, bytes, src, JNI_ABORT);
+    return rc;
+}
+
+jbyteArray kj_bytes_filled_in_place(JNIEnv *env, int32_t len,
+                                    int (*fill)(void *ctx, uint8_t *dst, int32_t len), void *ctx, int *rc)
+{
+    jbyteArray out;
+    void *dst;
+    *rc = 0;
+    if (len < 0 || fill == NULL) {
+        kj_throw_handle(env, "byte copy across the JNI boundary refused: negative length or no filler");
+        return NULL;
     }
-    if (len > 0) {
-        (*env)->GetByteArrayRegion(env, bytes, 0, len, (jbyte *)copy);
-        if ((*env)->ExceptionCheck(env)) { free(copy); return -1; }
+    out = (*env)->NewByteArray(env, (jsize)len);
+    if (out == NULL || len == 0) return out; /* NULL: OOM already thrown */
+    dst = (*env)->GetPrimitiveArrayCritical(env, out, NULL);
+    if (dst == NULL) return NULL; /* OOM already thrown */
+    *rc = fill(ctx, (uint8_t *)dst, len);
+    (*env)->ReleasePrimitiveArrayCritical(env, out, dst, 0);
+    if (*rc < 0) {
+        (*env)->DeleteLocalRef(env, out);
+        return NULL;
     }
-    *out = copy;
-    *out_len = (int32_t)len;
-    return 0;
+    return out;
 }
 
 int kj_longs_dup(JNIEnv *env, jlongArray values, jlong **out, int32_t *out_len)

@@ -5,8 +5,9 @@ import kotlin.test.assertContentEquals
 import kotlin.time.measureTime
 
 /**
- * What reading a frame's bytes costs, and that the bytes are right. The cost is printed and never
- * asserted, because a busy machine moves it; compare runs of this class alone.
+ * What moving a frame's bytes costs, out of a frame and into a new one, and that the bytes are
+ * right. The cost is printed and never asserted, because a busy machine moves it; compare runs of
+ * this class alone.
  */
 internal class FrameCopyCostContractTest {
 
@@ -24,6 +25,20 @@ internal class FrameCopyCostContractTest {
         Frame.ofVideo(bytes, width, height, PixelFormat.Yuv420p, ptsMicros = 0L).use { frame ->
             assertContentEquals(bytes, frame.copyPlanesToByteArray())
             reportCost("1080p yuv420p", rounds = 200) { frame.copyPlanesToByteArray() }
+        }
+    }
+
+    @Test
+    fun aFrameBuiltFromBytesHoldsThemAndReportsItsCost() {
+        val width = 1920
+        val height = 1080
+        val bytes = ByteArray(width * height * 3 / 2) { (it * 13).toByte() }
+        Frame.ofVideo(bytes, width, height, PixelFormat.Yuv420p, ptsMicros = 0L).use { frame ->
+            assertContentEquals(bytes, frame.copyPlanesToByteArray())
+        }
+        reportCost("1080p yuv420p built from bytes", rounds = 200) {
+            Frame.ofVideo(bytes, width, height, PixelFormat.Yuv420p, ptsMicros = 0L).close()
+            bytes
         }
     }
 

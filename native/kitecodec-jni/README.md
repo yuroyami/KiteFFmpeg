@@ -37,8 +37,9 @@ tree before FFmpeg frees it. Static codecs are explicitly released without freei
 Every close/release path decrements the live-handle ledger at most once.
 
 `kj_util.c` is the sole Java-array conversion unit. Outbound bytes are copied into a fresh Java
-array; inbound `Frame.ofVideo`/`Frame.ofAudio` bytes are copied to owned C memory there and consumed
-by `kj_frame.c`. No native pointer or direct byte buffer is public.
+array. Frame bytes move in place in both directions: `kj_util.c` hands `kj_frame.c` the Java
+array's memory inside a critical region, so a frame is copied once. No native pointer or direct
+byte buffer is public.
 
 The leaf loader calls `System.load` from the test-only `kiteffmpeg.jni.path` override on JVM or
 `System.loadLibrary("kitecodec_jni")` otherwise. Only after dynamic registration succeeds does the

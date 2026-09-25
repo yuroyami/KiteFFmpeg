@@ -253,7 +253,7 @@ public actual class Frame internal constructor(
                 Internals.frameSetFormat(token, format)
                 check0(Internals.frameGetBuffer(token, 0), "av_frame_get_buffer (video)")
                 check0(
-                    Internals.frameFillVideo(token, bytes.copyOf()),
+                    Internals.frameFillVideo(token, bytes),
                     "frame_fill_video (need packed ${pixelFormat.name} planes for ${width}x$height)",
                 )
                 Internals.frameSetPts(token, ptsMicros)
@@ -289,7 +289,7 @@ public actual class Frame internal constructor(
                 Internals.frameSetChannels(token, channels)
                 check0(Internals.frameGetBuffer(token, 0), "av_frame_get_buffer (audio)")
                 check0(
-                    Internals.frameFillAudio(token, bytes.copyOf()),
+                    Internals.frameFillAudio(token, bytes),
                     "frame_fill_audio (need $sampleCount ${sampleFormat.name} samples x $channels ch)",
                 )
                 Internals.frameSetPts(token, ptsMicros)
