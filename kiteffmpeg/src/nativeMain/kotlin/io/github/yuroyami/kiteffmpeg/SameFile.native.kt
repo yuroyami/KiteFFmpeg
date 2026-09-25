@@ -1,9 +1,14 @@
 package io.github.yuroyami.kiteffmpeg
 
-import kotlinx.cinterop.alloc
-import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.ptr
-import platform.posix.stat
+/** A file's device and inode. Windows reports an inode of zero for every file. */
+internal data class FileIdentity(val device: Long, val inode: Long)
+
+/**
+ * [path]'s device and inode, or null when it does not exist. There is one actual per platform
+ * family, because `stat`'s field types differ between them and the shared native code cannot read
+ * those fields.
+ */
+internal expect fun fileIdentity(path: String): FileIdentity?
 
 /**
  * Refuses an output that names the input, before either is opened. The JVM twin says why.
@@ -14,14 +19,12 @@ import platform.posix.stat
  * input that does not exist is left for the source open to report.
  */
 internal fun refuseSameFile(input: String, output: String) {
-    val same = memScoped {
-        val a = alloc<stat>()
-        val b = alloc<stat>()
-        when {
-            stat(input, a.ptr) != 0 || stat(output, b.ptr) != 0 -> false
-            a.st_ino.toLong() == 0L && b.st_ino.toLong() == 0L -> input == output
-            else -> a.st_dev == b.st_dev && a.st_ino == b.st_ino
-        }
+    val a = fileIdentity(input)
+    val b = fileIdentity(output)
+    val same = when {
+        a == null || b == null -> false
+        a.inode == 0L && b.inode == 0L -> input == output
+        else -> a == b
     }
     if (same) {
         throw FFmpegException(
