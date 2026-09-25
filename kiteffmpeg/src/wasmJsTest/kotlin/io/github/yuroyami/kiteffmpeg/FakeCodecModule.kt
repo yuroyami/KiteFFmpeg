@@ -44,6 +44,8 @@ import kotlin.js.JsAny
         const libs = ["libavutil", "libavcodec", "libavformat", "libavfilter", "libswscale", "libswresample"].map(cstr);
         const verdicts = ["ok", "header_newer", "runtime_newer", "incompatible"].map(cstr);
         const stage = malloc(2176);
+        // A scripted build, one list per KC_COMPONENT_* kind, deliberately out of order.
+        const components = [["libdav1d", "h264", "aac"], ["aac"], ["mov,mp4,m4a,3gp,3g2,mj2", "matroska,webm"], [], ["scale"], ["file"], ["null"]];
         return {
             HEAPU8: HEAPU8,
             HEAP32: HEAP32,
@@ -71,6 +73,16 @@ import kotlin.js.JsAny
             _kc_ffmpeg_report_get: (p) => { HEAPU8.copyWithin(p, stage, stage + 2176); },
             _kc_ffmpeg_library_name: (i) => (i >= 0 && i < libs.length) ? libs[i] : 0,
             _kc_verdict_name: (v) => (v >= 0 && v < verdicts.length) ? verdicts[v] : 0,
+            _ffkmp_component_names: (kind, buf, cap) => {
+                if (kind < 0 || kind >= components.length || cap < 0) return -22;
+                const b = new TextEncoder().encode(components[kind].join("\n"));
+                if (cap > 0) {
+                    const k = Math.min(b.length, cap - 1);
+                    HEAPU8.set(b.subarray(0, k), buf);
+                    HEAPU8[buf + k] = 0;
+                }
+                return b.length;
+            },
         };
     }""",
 )

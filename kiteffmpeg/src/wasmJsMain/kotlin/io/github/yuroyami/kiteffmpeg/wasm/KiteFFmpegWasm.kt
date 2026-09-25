@@ -183,6 +183,9 @@ internal external fun ffkmp_codecpar_sample_rate(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_codecpar_width(a0)")
 internal external fun ffkmp_codecpar_width(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_component_names(a0, a1, a2)")
+internal external fun ffkmp_component_names(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m) => m._ffkmp_disposition_attached_pic()")
 internal external fun ffkmp_disposition_attached_pic(module: JsAny): Int
 

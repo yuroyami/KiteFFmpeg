@@ -206,3 +206,19 @@ JNIEXPORT jint JNICALL kj_abi_disposition_descriptions(JNIEnv *env, jclass cls)
 { (void)env; (void)cls; return (jint)ffkmp_disposition_descriptions(); }
 JNIEXPORT jint JNICALL kj_abi_disposition_comment(JNIEnv *env, jclass cls)
 { (void)env; (void)cls; return (jint)ffkmp_disposition_comment(); }
+
+/* Every component of one KC_COMPONENT_* kind the linked FFmpeg contains, newline separated. */
+JNIEXPORT jstring JNICALL kj_component_names(JNIEnv *env, jclass cls, jint kind)
+{
+    int needed = ffkmp_component_names(kind, NULL, 0);
+    char *buf;
+    jstring names;
+    (void)cls;
+    if (needed < 0) { kj_throw_ffmpeg(env, needed, "component_names"); return NULL; }
+    buf = (char *)malloc((size_t)needed + 1);
+    if (buf == NULL) { kj_throw_handle(env, "component_names: out of memory"); return NULL; }
+    ffkmp_component_names(kind, buf, needed + 1);
+    names = kj_string_new(env, buf);
+    free(buf);
+    return names;
+}

@@ -320,6 +320,23 @@ KC_API int  ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
  */
 KC_API void ffkmp_fmt_close_input(kc_fmt_ctx **ctx);
 
+/* The component families ffkmp_component_names lists. */
+#define KC_COMPONENT_DECODERS 0
+#define KC_COMPONENT_ENCODERS 1
+#define KC_COMPONENT_DEMUXERS 2
+#define KC_COMPONENT_MUXERS 3
+#define KC_COMPONENT_FILTERS 4
+#define KC_COMPONENT_INPUT_PROTOCOLS 5
+#define KC_COMPONENT_BITSTREAM_FILTERS 6
+
+/* The names of every component of kind (a KC_COMPONENT_* value) the linked FFmpeg contains, in
+ * FFmpeg's registry order, separated by newlines and ended by a NUL, written into buf when it
+ * holds cap bytes. Returns the length the whole list needs without the NUL, so a caller whose
+ * buffer was too short calls again with that length plus one; the truncated list is still
+ * NUL-ended. cap may be 0 with a NULL buf to ask for the length alone. An unknown kind, a negative
+ * cap, or a NULL buf with a positive cap is refused with AVERROR(EINVAL). */
+KC_API int ffkmp_component_names(int kind, char *buf, int cap);
+
 /* The audio resampler, libswresample behind one opaque handle. Channel layouts are FFmpeg's
  * default for each channel count; sample formats are AVSampleFormat values, as
  * ffkmp_sample_fmt_from_name answers them.

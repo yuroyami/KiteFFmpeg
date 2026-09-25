@@ -1,10 +1,13 @@
 package io.github.yuroyami.kiteffmpeg
 
+import ffmpeg.ffkmp_component_names
 import ffmpeg.ffkmp_filter_exists
 import ffmpeg.ffkmp_find_decoder_by_name
 import ffmpeg.ffkmp_find_encoder_by_name
 import ffmpeg.kc_ffmpeg_configuration
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.toKString
+import kotlinx.cinterop.usePinned
 
 public actual object FFmpeg {
 
@@ -48,7 +51,14 @@ public actual object FFmpeg {
         return ffkmp_filter_exists(name) != 0
     }
 
-    // Wired in the next commit; until then every backend refuses rather than answers empty.
-    public actual fun components(kind: FFmpegComponent): List<String> =
-        throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "listing FFmpeg components is not wired yet"))
+    public actual fun components(kind: FFmpegComponent): List<String> {
+        requireCompatibleFFmpeg()
+        val code = componentCode(kind)
+        val needed = ffkmp_component_names(code, null, 0)
+        if (needed < 0) throw FFmpegException(avError(needed))
+        val bytes = ByteArray(needed + 1)
+        val written = bytes.usePinned { ffkmp_component_names(code, it.addressOf(0), bytes.size) }
+        if (written < 0) throw FFmpegException(avError(written))
+        return componentList(bytes.decodeToString(0, minOf(written, needed)))
+    }
 }

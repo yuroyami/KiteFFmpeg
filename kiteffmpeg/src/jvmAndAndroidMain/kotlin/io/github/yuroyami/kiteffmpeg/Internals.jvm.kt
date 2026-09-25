@@ -84,6 +84,7 @@ internal object Internals {
     ): Long
     private external fun nativeSwrConvertFrame(swrToken: Long, outToken: Long, inToken: Long): Int
     private external fun nativeSwrFree(token: Long)
+    private external fun nativeComponentNames(kind: Int): String
     private external fun nativeFmtCloseInputIo(token: Long)
     private external fun nativeFmtChapterCount(token: Long): Int
     private external fun nativeFmtChapterGet(token: Long, index: Int, outFields: LongArray): Int
@@ -353,6 +354,7 @@ internal object Internals {
     internal fun swrConvertFrame(swrToken: Long, outToken: Long, inToken: Long) =
         checked { nativeSwrConvertFrame(swrToken, outToken, inToken) }
     internal fun swrFree(token: Long) = checked { nativeSwrFree(token) }
+    internal fun componentNames(kind: Int): String = checked { nativeComponentNames(kind) }
     internal fun fmtCloseInputIo(token: Long) = checked { nativeFmtCloseInputIo(token) }
     internal fun fmtInterrupt(token: Long) = checked { nativeFmtInterrupt(token) }
     internal fun fmtChapterCount(token: Long) = checked { nativeFmtChapterCount(token) }

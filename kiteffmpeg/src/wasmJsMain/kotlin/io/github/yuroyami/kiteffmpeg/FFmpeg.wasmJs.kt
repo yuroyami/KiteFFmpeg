@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_component_names
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_filter_exists
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_find_decoder_by_name
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_find_encoder_by_name
@@ -49,7 +50,18 @@ public actual object FFmpeg {
     public actual fun hasFilter(name: String): Boolean =
         withCString(name) { ptr -> ffkmp_filter_exists(requireModule(), ptr) != 0 }
 
-    // Wired in the next commit; until then every backend refuses rather than answers empty.
-    public actual fun components(kind: FFmpegComponent): List<String> =
-        throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "listing FFmpeg components is not wired yet"))
+    public actual fun components(kind: FFmpegComponent): List<String> {
+        val m = requireModule()
+        val code = componentCode(kind)
+        val needed = ffkmp_component_names(m, code, 0, 0)
+        if (needed < 0) throw FFmpegException(FFmpegError.fromCode(needed, "listing components failed with $needed"))
+        val buffer = wasmAlloc(m, needed + 1)
+        try {
+            val written = ffkmp_component_names(m, code, buffer, needed + 1)
+            if (written < 0) throw FFmpegException(FFmpegError.fromCode(written, "listing components failed with $written"))
+            return componentList(utf8OrNull(m, buffer).orEmpty())
+        } finally {
+            wasmFree(m, buffer)
+        }
+    }
 }

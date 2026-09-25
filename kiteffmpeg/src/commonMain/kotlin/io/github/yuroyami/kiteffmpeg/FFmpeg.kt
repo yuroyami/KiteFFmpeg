@@ -45,6 +45,20 @@ public expect object FFmpeg {
     public fun components(kind: FFmpegComponent): List<String>
 }
 
+/** The C layer's code for [kind], a KC_COMPONENT_* value. */
+internal fun componentCode(kind: FFmpegComponent): Int = when (kind) {
+    FFmpegComponent.Decoders -> 0
+    FFmpegComponent.Encoders -> 1
+    FFmpegComponent.Demuxers -> 2
+    FFmpegComponent.Muxers -> 3
+    FFmpegComponent.Filters -> 4
+    FFmpegComponent.InputProtocols -> 5
+    FFmpegComponent.BitstreamFilters -> 6
+}
+
+/** The newline-separated list the C layer writes, as a sorted list of names. */
+internal fun componentList(joined: String): List<String> = joined.split('\n').filter { it.isNotEmpty() }.sorted()
+
 /** A family of FFmpeg components that [FFmpeg.components] lists. */
 public enum class FFmpegComponent {
     /** Decoders, such as `h264` and `libdav1d`. */
