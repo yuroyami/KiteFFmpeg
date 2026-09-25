@@ -66,6 +66,57 @@ class TrackSelectorTest {
     }
 
     @Test
+    fun aPreferredLanguageBeatsContainerOrder() {
+        val english = stream(1, MediaType.Audio, language = "eng")
+        val japanese = stream(2, MediaType.Audio, language = "jpn")
+        assertEquals(japanese, TrackSelector(listOf("jpn")).selectAudio(listOf(english, japanese)))
+    }
+
+    @Test
+    fun preferredLanguagesAreRankedBestFirst() {
+        val english = stream(1, MediaType.Audio, language = "eng")
+        val japanese = stream(2, MediaType.Audio, language = "jpn")
+        val french = stream(3, MediaType.Audio, language = "fre")
+        assertEquals(french, TrackSelector(listOf("fre", "jpn")).selectAudio(listOf(english, japanese, french)))
+    }
+
+    @Test
+    fun aLanguageMatchesOnItsPrimarySubtagAndWithoutRegardToCase() {
+        val british = stream(1, MediaType.Audio, language = "en-GB")
+        val japanese = stream(2, MediaType.Audio, language = "JPN")
+        assertEquals(british, TrackSelector(listOf("EN")).selectAudio(listOf(japanese, british)))
+        assertEquals(japanese, TrackSelector(listOf("jpn")).selectAudio(listOf(british, japanese)))
+    }
+
+    @Test
+    fun twoLetterAndThreeLetterCodesAreDifferentStrings() {
+        val english = stream(1, MediaType.Audio, language = "eng")
+        val japanese = stream(2, MediaType.Audio, language = "jpn")
+        assertEquals(english, TrackSelector(listOf("ja")).selectAudio(listOf(english, japanese)))
+    }
+
+    @Test
+    fun theDefaultFlagBeatsContainerOrder() {
+        val first = stream(1, MediaType.Audio)
+        val marked = stream(2, MediaType.Audio, disposition = Disposition(default = true))
+        assertEquals(marked, TrackSelector.Default.selectAudio(listOf(first, marked)))
+    }
+
+    @Test
+    fun aPreferredLanguageBeatsTheDefaultFlag() {
+        val english = stream(1, MediaType.Audio, language = "eng", disposition = Disposition(default = true))
+        val japanese = stream(2, MediaType.Audio, language = "jpn")
+        assertEquals(japanese, TrackSelector(listOf("jpn")).selectAudio(listOf(english, japanese)))
+    }
+
+    @Test
+    fun aPreferredLanguageNeverPromotesAudioForASpecialAudience() {
+        val describedJapanese = stream(1, MediaType.Audio, language = "jpn", disposition = Disposition(visualImpaired = true))
+        val english = stream(2, MediaType.Audio, language = "eng")
+        assertEquals(english, TrackSelector(listOf("jpn")).selectAudio(listOf(describedJapanese, english)))
+    }
+
+    @Test
     fun noStreamOfTheKindAnswersNull() {
         assertNull(TrackSelector.Default.selectVideo(listOf(stream(0, MediaType.Audio))))
         assertNull(TrackSelector.Default.selectAudio(listOf(stream(0, MediaType.Video))))

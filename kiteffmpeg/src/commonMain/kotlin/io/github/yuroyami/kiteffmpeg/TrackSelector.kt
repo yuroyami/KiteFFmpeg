@@ -34,7 +34,22 @@ public data class TrackSelector(
     /** The audio stream to play from [streams], or null when there is none. */
     public fun selectAudio(streams: List<StreamInfo>): StreamInfo? {
         val audio = streams.filter { it.type == MediaType.Audio }
-        return audio.firstOrNull { !it.disposition.isForSpecialAudience } ?: audio.firstOrNull()
+        val candidates = audio.filter { !it.disposition.isForSpecialAudience }.ifEmpty { audio }
+        // minWithOrNull keeps the first of equal streams, so container order breaks every tie.
+        return candidates.minWithOrNull(
+            compareBy<StreamInfo>({ languageRank(it) }, { if (it.disposition.default) 0 else 1 }),
+        )
+    }
+
+    /** The position of [stream]'s language in [preferredAudioLanguages], or past its end. */
+    private fun languageRank(stream: StreamInfo): Int {
+        val tag = stream.language?.lowercase() ?: return preferredAudioLanguages.size
+        val primary = tag.substringBefore('-')
+        preferredAudioLanguages.forEachIndexed { rank, wanted ->
+            val want = wanted.lowercase()
+            if (tag == want || primary == want.substringBefore('-')) return rank
+        }
+        return preferredAudioLanguages.size
     }
 
     public companion object {
