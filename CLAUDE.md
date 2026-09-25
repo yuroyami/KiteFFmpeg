@@ -105,6 +105,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
 - A backtick test name containing a comma compiles on the JVM and breaks every Kotlin/Native
   target with "Name contains illegal characters", so a green JVM run says nothing; it has bitten
   twice.
+- A test name with a space stops the Android device test APK at the dex step, because D8 takes a
+  space in a method name only from minimum SDK 30 and this module's is 26. The device tests
+  include `commonTest` and `codecContractTest`, and neither the host tests nor CI dex, so name
+  those tests in camel case and check with `assembleAndroidDeviceTest`.
 - Kotlin/Native creates and then permanently disables the Linux test tasks on a macOS host, so
   naming them is green by definition; Linux evidence is the container script or the CI Linux
   job, and Windows native evidence on a Mac is a link claim only.

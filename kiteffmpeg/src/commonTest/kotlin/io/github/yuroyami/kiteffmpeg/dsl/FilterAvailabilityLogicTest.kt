@@ -25,7 +25,7 @@ class FilterAvailabilityLogicTest {
     }
 
     @Test
-    fun `every missing filter is named once and in the order it appears`() {
+    fun everyMissingFilterIsNamedOnceAndInTheOrderItAppears() {
         val missing = chain.missingFilters { false }
         assertEquals(
             listOf("bwdif", "scale"),
@@ -35,7 +35,7 @@ class FilterAvailabilityLogicTest {
     }
 
     @Test
-    fun `a raw step is never reported missing`() {
+    fun aRawStepIsNeverReportedMissing() {
         // A raw step carries no filter name this side can check, which is its whole bargain.
         val onlyRaw = videoFilters { raw("nosuchfilter=1") }
         assertEquals(emptyList(), onlyRaw.missingFilters { false })
@@ -43,18 +43,18 @@ class FilterAvailabilityLogicTest {
     }
 
     @Test
-    fun `nothing is missing when the build has everything`() {
+    fun nothingIsMissingWhenTheBuildHasEverything() {
         assertEquals(emptyList(), chain.missingFilters { true })
         chain.requireAvailable { true }
     }
 
     @Test
-    fun `only the absent ones are named`() {
+    fun onlyTheAbsentOnesAreNamed() {
         assertEquals(listOf("bwdif"), chain.missingFilters { it != "bwdif" })
     }
 
     @Test
-    fun `the refusal is typed and names every missing filter at once`() {
+    fun theRefusalIsTypedAndNamesEveryMissingFilterAtOnce() {
         val failure = assertFailsWith<FFmpegException> { chain.requireAvailable { false } }
         assertTrue(
             failure.error is FFmpegError.FilterNotFound,
@@ -66,7 +66,7 @@ class FilterAvailabilityLogicTest {
     }
 
     @Test
-    fun `one missing filter reads as one and not as a list`() {
+    fun oneMissingFilterReadsAsOneAndNotAsAList() {
         val failure = assertFailsWith<FFmpegException> { chain.requireAvailable { it != "bwdif" } }
         val message = failure.message.orEmpty()
         assertTrue("bwdif" in message && "scale" !in message, message)
