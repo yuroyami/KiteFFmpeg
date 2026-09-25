@@ -239,13 +239,8 @@ public actual class MediaSource internal constructor(
     public actual val bitrateBps: Long? = ffkmp_fmt_bit_rate(ctx).takeIf { it > 0L }
     public actual val isSeekable: Boolean = ffkmp_fmt_is_seekable(ctx) != 0
 
-    // Attached pictures (album art) are excluded first: they are video streams by type but not
-    // moving pictures, and "primary video" choosing the cover of an mp3 was the defect. A file
-    // whose ONLY video is its art still returns it, because a picture beats nothing.
-    public actual val primaryVideo: StreamInfo?
-        get() = streams.firstOrNull { it.type == MediaType.Video && !it.disposition.attachedPicture }
-            ?: streams.firstOrNull { it.type == MediaType.Video }
-    public actual val primaryAudio: StreamInfo? get() = streams.firstOrNull { it.type == MediaType.Audio }
+    public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)
+    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams)
 
     public actual var corruptData: CorruptData = CorruptData.Skip
 

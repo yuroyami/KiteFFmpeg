@@ -159,12 +159,8 @@ public actual class MediaSource internal constructor(
     public actual val isSeekable: Boolean
         get() = ffkmp_fmt_is_seekable(requireModule(), alive()) != 0
 
-    // Cover art is skipped first, as on the JVM and native backends: it is a video stream by type
-    // but not a moving picture. A file whose only video is its cover art still returns that picture.
-    public actual val primaryVideo: StreamInfo?
-        get() = streams.firstOrNull { it.type == MediaType.Video && !it.disposition.attachedPicture }
-            ?: streams.firstOrNull { it.type == MediaType.Video }
-    public actual val primaryAudio: StreamInfo? get() = streams.firstOrNull { it.type == MediaType.Audio }
+    public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)
+    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams)
 
     /**
      * True while a packet reader holds the demux cursor.

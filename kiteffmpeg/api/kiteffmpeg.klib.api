@@ -1023,12 +1023,16 @@ final class io.github.yuroyami.kiteffmpeg/CopyStream { // io.github.yuroyami.kit
 }
 
 final class io.github.yuroyami.kiteffmpeg/Disposition { // io.github.yuroyami.kiteffmpeg/Disposition|null[0]
-    constructor <init>(kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // io.github.yuroyami.kiteffmpeg/Disposition.<init>|<init>(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // io.github.yuroyami.kiteffmpeg/Disposition.<init>|<init>(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
     final val attachedPicture // io.github.yuroyami.kiteffmpeg/Disposition.attachedPicture|{}attachedPicture[0]
         final fun <get-attachedPicture>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.attachedPicture.<get-attachedPicture>|<get-attachedPicture>(){}[0]
+    final val comment // io.github.yuroyami.kiteffmpeg/Disposition.comment|{}comment[0]
+        final fun <get-comment>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.comment.<get-comment>|<get-comment>(){}[0]
     final val default // io.github.yuroyami.kiteffmpeg/Disposition.default|{}default[0]
         final fun <get-default>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.default.<get-default>|<get-default>(){}[0]
+    final val descriptions // io.github.yuroyami.kiteffmpeg/Disposition.descriptions|{}descriptions[0]
+        final fun <get-descriptions>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.descriptions.<get-descriptions>|<get-descriptions>(){}[0]
     final val forced // io.github.yuroyami.kiteffmpeg/Disposition.forced|{}forced[0]
         final fun <get-forced>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.forced.<get-forced>|<get-forced>(){}[0]
     final val hearingImpaired // io.github.yuroyami.kiteffmpeg/Disposition.hearingImpaired|{}hearingImpaired[0]
@@ -1041,7 +1045,9 @@ final class io.github.yuroyami.kiteffmpeg/Disposition { // io.github.yuroyami.ki
     final fun component3(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.component3|component3(){}[0]
     final fun component4(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.component4|component4(){}[0]
     final fun component5(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.component5|component5(){}[0]
-    final fun copy(kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): io.github.yuroyami.kiteffmpeg/Disposition // io.github.yuroyami.kiteffmpeg/Disposition.copy|copy(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    final fun component6(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.component6|component6(){}[0]
+    final fun component7(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.component7|component7(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): io.github.yuroyami.kiteffmpeg/Disposition // io.github.yuroyami.kiteffmpeg/Disposition.copy|copy(kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Disposition.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Disposition.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/Disposition.toString|toString(){}[0]
@@ -1527,6 +1533,26 @@ final class io.github.yuroyami.kiteffmpeg/StreamInfo { // io.github.yuroyami.kit
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/StreamInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/StreamInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/StreamInfo.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/TrackSelector { // io.github.yuroyami.kiteffmpeg/TrackSelector|null[0]
+    constructor <init>(kotlin.collections/List<kotlin/String> = ...) // io.github.yuroyami.kiteffmpeg/TrackSelector.<init>|<init>(kotlin.collections.List<kotlin.String>){}[0]
+
+    final val preferredAudioLanguages // io.github.yuroyami.kiteffmpeg/TrackSelector.preferredAudioLanguages|{}preferredAudioLanguages[0]
+        final fun <get-preferredAudioLanguages>(): kotlin.collections/List<kotlin/String> // io.github.yuroyami.kiteffmpeg/TrackSelector.preferredAudioLanguages.<get-preferredAudioLanguages>|<get-preferredAudioLanguages>(){}[0]
+
+    final fun component1(): kotlin.collections/List<kotlin/String> // io.github.yuroyami.kiteffmpeg/TrackSelector.component1|component1(){}[0]
+    final fun copy(kotlin.collections/List<kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/TrackSelector // io.github.yuroyami.kiteffmpeg/TrackSelector.copy|copy(kotlin.collections.List<kotlin.String>){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/TrackSelector.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/TrackSelector.hashCode|hashCode(){}[0]
+    final fun selectAudio(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/TrackSelector.selectAudio|selectAudio(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
+    final fun selectVideo(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/TrackSelector.selectVideo|selectVideo(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/TrackSelector.toString|toString(){}[0]
+
+    final object Companion { // io.github.yuroyami.kiteffmpeg/TrackSelector.Companion|null[0]
+        final val Default // io.github.yuroyami.kiteffmpeg/TrackSelector.Companion.Default|{}Default[0]
+            final fun <get-Default>(): io.github.yuroyami.kiteffmpeg/TrackSelector // io.github.yuroyami.kiteffmpeg/TrackSelector.Companion.Default.<get-Default>|<get-Default>(){}[0]
+    }
 }
 
 final class io.github.yuroyami.kiteffmpeg/TranscodeProgress { // io.github.yuroyami.kiteffmpeg/TranscodeProgress|null[0]

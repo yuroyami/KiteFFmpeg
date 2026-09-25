@@ -97,11 +97,8 @@ public actual class MediaSource internal constructor(
 
     public actual val bitrateBps: Long? = Internals.fmtBitrate(formatToken).takeIf { it > 0L }
     public actual val isSeekable: Boolean = Internals.fmtIsSeekable(formatToken)
-    // Attached pictures (album art) are excluded first, exactly as the native side does.
-    public actual val primaryVideo: StreamInfo?
-        get() = streams.firstOrNull { it.type == MediaType.Video && !it.disposition.attachedPicture }
-            ?: streams.firstOrNull { it.type == MediaType.Video }
-    public actual val primaryAudio: StreamInfo? get() = streams.firstOrNull { it.type == MediaType.Audio }
+    public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)
+    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams)
 
     @Volatile
     public actual var corruptData: CorruptData = CorruptData.Skip

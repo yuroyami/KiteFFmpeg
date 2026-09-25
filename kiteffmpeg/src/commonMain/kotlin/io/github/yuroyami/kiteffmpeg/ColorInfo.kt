@@ -186,7 +186,9 @@ public enum class ChromaLocation(public val avValue: Int) {
  * A track menu needs this. Without [forced] a player cannot mark or auto-select forced subtitles,
  * which is the difference between showing a translation of one foreign line and showing every
  * subtitle in the film. Without [attachedPicture] album art is treated as a one frame video stream
- * and the player tries to synchronise to it.
+ * and the player tries to synchronise to it. Without [descriptions] and [comment] an audio
+ * description for blind viewers or a director's commentary looks like an ordinary audio track,
+ * and can be picked for someone who did not ask for it.
  */
 public data class Disposition(
     val default: Boolean = false,
@@ -195,6 +197,14 @@ public data class Disposition(
     val visualImpaired: Boolean = false,
     /** Cover art, not video. Exactly one frame, and never the synchronisation master. */
     val attachedPicture: Boolean = false,
+    /**
+     * The stream describes what is on screen, for viewers who cannot see it: audio description,
+     * or subtitles that describe sounds. MPEG-TS and some Matroska files mark the same audio as
+     * [visualImpaired] instead, so a caller looking for descriptive audio checks both.
+     */
+    val descriptions: Boolean = false,
+    /** A commentary track, such as a director's commentary, not the programme's own sound. */
+    val comment: Boolean = false,
 ) {
     public companion object {
         public val None: Disposition = Disposition()
