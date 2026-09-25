@@ -5,7 +5,7 @@
 #                    (public API, cinterop coupling, klib metadata, deleted surface), and as of
 #                    2026-08-23 it reads the vendored tree rather than Homebrew. It used to assert
 #                    an exact Homebrew libavutil version, which is a calendar rather than a gate:
-#                    the formula moved and the job went red. The vendored tree is pinned at n8.1.2 by
+#                    the formula moved and the job went red. The vendored tree is pinned at n9.0.2 by
 #                    the build, so the frozen metadata constants now describe the FFmpeg the
 #                    project actually ships.
 #   - Linux x64    → the prebuilt static tree from this repo's own companion release. It used to
@@ -52,9 +52,9 @@ env:
   # when a new companion release is published. Conflating the two is what broke CI from 2026-08-29:
   # the 8.1.2 bump moved buildSrc and publish.yml, the clone literals here stayed at n8.0, and the
   # drift check could not see them because it only read this line.
-  FFMPEG_VERSION: n8.1.2
+  FFMPEG_VERSION: n9.0.2
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
-  # Both name n8.1.2 today; they are still two settings, because they came apart once and will
+  # Both name n9.0.2 today; they are still two settings, because they came apart once and will
   # again. The ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as
   # the LGPL source offer for kitecodec-core artifacts already on Maven Central, and Central cannot
   # withdraw a version. What follows is the record of why they parted in 2026-08.
@@ -64,7 +64,7 @@ env:
   # than over ffmpeg-n8.0, because NOTICE names that release as the LGPL source offer for artifacts
   # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
   # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
-  FFMPEG_ASSET_TAG: ffmpeg-n8.1.2
+  FFMPEG_ASSET_TAG: ffmpeg-n9.0.2
 
 jobs:
   macos-arm64:
@@ -106,7 +106,7 @@ jobs:
       # calendar, not a gate. Homebrew has no formula pinned to one release (ffmpeg@8 is an alias of
       # the moving main formula, checked 2026-08-10).
       #
-      # The vendored LGPL tree is pinned at n8.1.2 by the build itself, and its libavutil version is what the frozen metadata records,
+      # The vendored LGPL tree is pinned at n9.0.2 by the build itself, and its libavutil version is what the frozen metadata records,
       # so the committed baseline matches it with zero drift (verified: all six counters read 0).
       # It is also the FFmpeg this project actually ships, which is what the frozen constants ought
       # to have been describing all along. FFmpegPaths prefers native-libs/ over any system install,
@@ -124,11 +124,11 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n8.1.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
           ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 --stacktrace
       # The ratchets below read this tree. If it is missing they would silently fall back to the
@@ -502,11 +502,11 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n8.1.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
           ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 --stacktrace
       - name: Confirm the vendored tree is what gets linked
@@ -573,7 +573,7 @@ jobs:
           path: |
             native-libs/lgpl/${{ matrix.triple }}
             native-libs/deps/${{ matrix.triple }}
-          key: ffmpeg-${{ matrix.triple }}-lgpl-n8.1.2-api24-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+          key: ffmpeg-${{ matrix.triple }}-lgpl-n9.0.2-api24-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
       - name: Install the dav1d build tools
         if: steps.ffmpeg-android.outputs.cache-hit != 'true'
         run: |
@@ -582,7 +582,7 @@ jobs:
       - name: Build FFmpeg and dav1d for Android (NDK)
         if: steps.ffmpeg-android.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch n8.1.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} --stacktrace
@@ -804,8 +804,8 @@ jobs:
       - name: Fetch the prebuilt static FFmpeg (mingw-x64)
         shell: pwsh
         env:
-          FFMPEG_VERSION: n8.1.2
-          FFMPEG_ASSET_TAG: ffmpeg-n8.1.2
+          FFMPEG_VERSION: n9.0.2
+          FFMPEG_ASSET_TAG: ffmpeg-n9.0.2
         run: |
           $base = "https://github.com/${{ github.repository }}/releases/download/$env:FFMPEG_ASSET_TAG"
           $asset = "ffmpeg-$env:FFMPEG_VERSION-lgpl-mingw-x64.zip"

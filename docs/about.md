@@ -163,7 +163,7 @@ A consumer provides nothing: FFmpeg is compiled into every published artifact. T
     Cross-compiles a minimal FFmpeg from source through a Gradle task, with a pinned codec and filter set, and drops `.a` libraries under `native-libs/<license>/<target>/` (`lgpl` by default; `gpl` for the opt-in `Gpl` task variants). The build notices them, compiles the C archive against their headers and switches the final link to the static libraries, so the resulting binary carries everything it needs.
 
     ```bash
-    git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+    git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
     ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64   # or :buildFFmpegForAll
     ```
 

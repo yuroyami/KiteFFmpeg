@@ -66,7 +66,7 @@ header set does not use it. Your users need FFmpeg installed at runtime.
 For a self-contained binary, build a minimal FFmpeg from source. The build expects the FFmpeg source tree at `vendor/ffmpeg`, so clone it first:
 
 ```bash
-git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 
 ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64
 # or build every configured target at once:
@@ -80,13 +80,13 @@ Configure and make never see the checkout path or final output path. The task co
 The static profile is **LGPL by default**: no `--enable-gpl`, no libx264 / libx265. That is the App-Store- and closed-source-safe flavor.
 
 The READ side of the profile is wide by class: every decoder, demuxer, parser, bitstream filter
-and hwaccel FFmpeg `n8.0` can build without extra libraries is compiled, so what FFmpeg can play,
+and hwaccel FFmpeg `n9.0.2` can build without extra libraries is compiled, so what FFmpeg can play,
 a vendored build can play. Note the boundary of that sentence: components FFmpeg gates behind an
 external library (software AV1 via libdav1d/libaom on mobile profiles, for example) exist only in
 the flavors that link those libraries. The WRITE side and the protocol list remain deliberately
 small. If an encoder, muxer, filter or protocol is not listed here, it is not in the generated
 profile. This table describes compiled profile contents, not per-target runtime qualification.
-The authoritative list is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yuroyami/KiteFFmpeg/blob/main/buildSrc/src/main/kotlin/BuildFFmpegTask.kt); as of `n8.0`:
+The authoritative list is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yuroyami/KiteFFmpeg/blob/main/buildSrc/src/main/kotlin/BuildFFmpegTask.kt); as of `n9.0.2`:
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
@@ -162,8 +162,8 @@ place, which is why the Windows job tests the SHIPPED profile rather than somebo
 
 ```powershell
 # Tag and asset are pinned, never "latest", and the checksum is verified before use.
-$tag  = "ffmpeg-n8.1.2"
-$name = "ffmpeg-n8.1.2-lgpl-mingw-x64.zip"
+$tag  = "ffmpeg-n9.0.2"
+$name = "ffmpeg-n9.0.2-lgpl-mingw-x64.zip"
 Invoke-WebRequest -Uri "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$name" -OutFile $name
 Expand-Archive $name -DestinationPath native-libs\lgpl\mingw-x64
 ```
@@ -183,7 +183,7 @@ Windows builds, tests, and e2e-transcodes in CI via Option A, against a BtbN tag
 Kotlin/Native treats the Android NDK as just another native family, so the entire decode → filter → encode → mux pipeline (and `Remuxer`) compiles untouched for `androidNativeArm64`, `androidNativeArm32`, and `androidNativeX64`.
 
 ```bash
-git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 export ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/<version>
 ./gradlew :kiteffmpeg:buildFFmpegForAndroidArm64       # NDK cross-compile, ~6 min
 ./gradlew :kiteffmpeg:compileKotlinAndroidNativeArm64  # the klib

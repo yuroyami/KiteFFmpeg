@@ -53,7 +53,7 @@ macOS arm64 is the reference development target. It is the one verified end-to-e
 To work on the static-linking path or the FFmpeg build tasks themselves:
 
 ```bash
-git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 brew install nasm meson ninja                             # nasm for x86_64 asm, meson/ninja for dav1d
 ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64        # LGPL, and the only flavour built here
 ```

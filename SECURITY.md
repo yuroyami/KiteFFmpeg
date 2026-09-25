@@ -35,6 +35,6 @@ already on Central stay exactly as they are.
 
 ## Hardening notes for integrators
 
-- The published artifacts EMBED a pinned FFmpeg (`n8.0`, minimal codec/filter set) plus dav1d, so your exposure is exactly what the artifact version names and is auditable from it. There is no download step and no checksum for a consumer to verify or bypass.
+- The published artifacts EMBED a pinned FFmpeg (`n9.0.2`, minimal codec/filter set) plus dav1d, so your exposure is exactly what the artifact version names and is auditable from it. There is no download step and no checksum for a consumer to verify or bypass.
 - Keep the KiteFFmpeg version fresh: FFmpeg regularly fixes parsing CVEs, and since FFmpeg ships inside the artifact, picking up such a fix means bumping KiteFFmpeg.
 - Sandbox or isolate the process that parses fully untrusted input where your platform allows it.

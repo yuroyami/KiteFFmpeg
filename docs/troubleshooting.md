@@ -59,7 +59,7 @@ The `buildFFmpegFor<Target>` tasks compile FFmpeg from source. They fail early w
 **1. The FFmpeg source tree.** The task expects it at `vendor/ffmpeg` and stops with this exact instruction otherwise:
 
 ```bash
-git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 ```
 
 **2. Build tools.** `make`, a C toolchain (clang/gcc) and `nasm` (x86 assembly: configure fails without it on x86 targets). The dav1d flavour additionally needs `meson` and `ninja`:

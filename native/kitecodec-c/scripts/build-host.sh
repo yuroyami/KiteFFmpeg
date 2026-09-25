@@ -27,6 +27,9 @@
 #   KC_AR             archiver to use, default /usr/bin/ar
 #   KC_FFMPEG_PREFIX  when set, FFmpeg include and library flags are derived from it instead
 #                     of from pkg-config. Expects <prefix>/include and <prefix>/lib.
+#                     A vendored static tree (native-libs/lgpl/<triple>) also carries dav1d,
+#                     so its dav1d archive, zlib and the macOS media frameworks are added
+#                     when <prefix>/lib/libdav1d.a exists.
 #   KC_BUILD_REF      the FFmpeg ref this build claims to target, default n8.0. Reaches the
 #   KC_BUILD_LICENSE  identity report of src/kitecodec_abi.c as -D defines, the same three the
 #                     shipped archive gets from CompileKiteFFmpegCTask.buildDefines. They are
@@ -69,6 +72,13 @@ if [ -n "${KC_FFMPEG_PREFIX:-}" ]; then
     FF_CFLAGS="-I$KC_FFMPEG_PREFIX/include"
     FF_LDFLAGS="-L$KC_FFMPEG_PREFIX/lib"
     FF_LIBS="-lavformat -lavcodec -lavfilter -lavutil -lswscale -lswresample"
+    if [ -f "$KC_FFMPEG_PREFIX/lib/libdav1d.a" ]; then
+        FF_LIBS="$FF_LIBS -ldav1d -lz"
+        if [ "$(uname -s)" = "Darwin" ]; then
+            FF_LIBS="$FF_LIBS -framework AudioToolbox -framework VideoToolbox -framework CoreFoundation"
+            FF_LIBS="$FF_LIBS -framework CoreMedia -framework CoreVideo -framework CoreServices"
+        fi
+    fi
     FF_ORIGIN="KC_FFMPEG_PREFIX=$KC_FFMPEG_PREFIX"
 else
     command -v pkg-config >/dev/null 2>&1 || {

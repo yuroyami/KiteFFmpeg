@@ -43,7 +43,7 @@ KiteFFmpeg links against FFmpeg's libav* libraries. You need them present before
     The task expects the FFmpeg source tree at `vendor/ffmpeg`. Cloning it is a **mandatory first step**:
 
     ```bash
-    git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+    git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
 
     ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64
     # or build every target you have toolchains for:

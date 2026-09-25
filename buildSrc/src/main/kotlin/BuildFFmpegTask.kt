@@ -881,7 +881,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         }
 
         /** The FFmpeg tag `vendor/ffmpeg` is expected to be checked out at. */
-        const val DEFAULT_SOURCE_REF = "n8.1.2"
+        const val DEFAULT_SOURCE_REF = "n9.0.2"
 
         /**
          * Normalises an FFmpeg release reference so a git tag and a release file can be compared.
