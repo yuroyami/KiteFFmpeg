@@ -106,7 +106,7 @@ int kc_fuzz_open_media(kc_fmt_ctx **out, kc_fuzz_media *media, int seekable) {
     int rc = ffkmp_fmt_open_input_io(out, media, kc_fuzz_media_read,
                                      seekable ? kc_fuzz_media_seek : NULL,
                                      seekable ? (int64_t)media->size : -1,
-                                     keys, values, 1, &unused);
+                                     keys, values, 1, &unused, NULL);
     if (rc < 0) {
         /* A failed open hands nothing over: no context and no dictionary. */
         if (*out != NULL || unused != NULL) abort();

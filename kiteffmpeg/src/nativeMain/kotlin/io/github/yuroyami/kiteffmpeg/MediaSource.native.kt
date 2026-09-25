@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import cnames.structs.kc_interrupt
 import ffmpeg.ffkmp_codec_id_name
 import ffmpeg.ffkmp_codecctx_alloc
 import ffmpeg.ffkmp_codecctx_free
@@ -55,6 +56,9 @@ import ffmpeg.ffkmp_fmt_chapter_count
 import ffmpeg.ffkmp_fmt_chapter_get
 import ffmpeg.ffkmp_fmt_chapter_metadata
 import ffmpeg.ffkmp_fmt_open_input2
+import ffmpeg.ffkmp_interrupt_free
+import ffmpeg.ffkmp_interrupt_new
+import ffmpeg.ffkmp_interrupt_raise
 import ffmpeg.ffkmp_fmt_metadata
 import ffmpeg.ffkmp_fmt_nb_streams
 import ffmpeg.ffkmp_fmt_open_input
@@ -595,13 +599,11 @@ public actual class MediaSource internal constructor(
         ffkmp_fmt_interrupt(ctx)
     }
 
-    /** The request [adoptOpenInterrupt] bound, and the target it runs, unbound at [close]. */
-    private var openInterrupt: OpenInterrupt? = null
-    private val interruptTarget: () -> Unit = { interrupt() }
+    /** What [releaseAtClose] registered, run after [close] frees the context. */
+    private var releases: List<() -> Unit> = emptyList()
 
-    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt) {
-        openInterrupt = interrupt
-        interrupt.bind(interruptTarget)
+    internal actual fun releaseAtClose(release: () -> Unit) {
+        releases = releases + release
     }
 
     actual override fun close() {
@@ -617,14 +619,13 @@ public actual class MediaSource internal constructor(
             }
             closed = true
         }
-        // Before the context goes: unbind waits for a request that is raising it right now.
-        openInterrupt?.unbind(interruptTarget)
         memScoped {
             val pp = alloc<CPointerVar<kc_fmt_ctx>>()
             pp.value = ctx
             if (ioCleanup != null) ffkmp_fmt_close_input_io(pp.ptr) else ffkmp_fmt_close_input(pp.ptr)
         }
         ioCleanup?.invoke()
+        releases.forEach { it() }
     }
 
     public actual companion object {
@@ -644,7 +645,9 @@ public actual class MediaSource internal constructor(
             interrupt: OpenInterrupt?,
         ): MediaSource {
             requireCompatibleFFmpeg()
-            return openUnder(interrupt) { openMediaSource(path, options) }
+            return openUnder(interrupt, ::newInterruptCell, { ffkmp_interrupt_raise(it) }, ::freeInterruptCell) { cell ->
+                openMediaSource(path, options, cell)
+            }
         }
 
         @Throws(FFmpegException::class)
@@ -654,7 +657,9 @@ public actual class MediaSource internal constructor(
             interrupt: OpenInterrupt?,
         ): MediaSource {
             requireCompatibleFFmpeg()
-            return openUnder(interrupt) { openMediaSourceIo(io, options) }
+            return openUnder(interrupt, ::newInterruptCell, { ffkmp_interrupt_raise(it) }, ::freeInterruptCell) { cell ->
+                openMediaSourceIo(io, options, cell)
+            }
         }
 
         /**
@@ -705,11 +710,25 @@ private class DecoderState(
     }
 }
 
-internal fun openMediaSource(path: String, options: Map<String, String> = emptyMap()): MediaSource {
+/** A new interrupt cell; the caller frees it with [freeInterruptCell]. */
+private fun newInterruptCell(): CPointer<kc_interrupt> =
+    ffkmp_interrupt_new() ?: throw FFmpegException(FFmpegError.Internal("interrupt cell allocation failed"))
+
+private fun freeInterruptCell(cell: CPointer<kc_interrupt>) = memScoped {
+    val slot = alloc<CPointerVar<kc_interrupt>>()
+    slot.value = cell
+    ffkmp_interrupt_free(slot.ptr)
+}
+
+internal fun openMediaSource(
+    path: String,
+    options: Map<String, String> = emptyMap(),
+    interrupt: CPointer<kc_interrupt>? = null,
+): MediaSource {
     val arena = Arena()
     val ctxVar = arena.allocPointerTo<kc_fmt_ctx>()
     var unusedKeys: List<String> = emptyList()
-    val openRc = if (options.isEmpty()) {
+    val openRc = if (options.isEmpty() && interrupt == null) {
         ffkmp_fmt_open_input(ctxVar.ptr, path)
     } else {
         // KD-4: pairs applied between allocation and open; the unconsumed remainder comes back
@@ -722,7 +741,7 @@ internal fun openMediaSource(path: String, options: Map<String, String> = emptyM
                 values[index] = value.cstr.ptr
             }
             val unusedVar = allocPointerTo<ffmpeg.kc_dict>()
-            val rc = ffkmp_fmt_open_input2(ctxVar.ptr, path, keys, values, options.size, unusedVar.ptr)
+            val rc = ffkmp_fmt_open_input2(ctxVar.ptr, path, keys, values, options.size, unusedVar.ptr, interrupt)
             if (rc >= 0) {
                 val dict = unusedVar.value
                 if (dict != null) {
@@ -871,7 +890,11 @@ private val byteSourceSeek = staticCFunction { opaque: COpaquePointer?, offset: 
     }
 }
 
-internal fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String> = emptyMap()): MediaSource {
+internal fun openMediaSourceIo(
+    io: MediaByteSource,
+    options: Map<String, String> = emptyMap(),
+    interrupt: CPointer<kc_interrupt>? = null,
+): MediaSource {
     val state = ByteSourceState(io)
     val stableRef = StableRef.create(state)
     val cleanup: () -> Unit = {
@@ -895,7 +918,7 @@ internal fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>
             byteSourceRead,
             if (io.seekable) byteSourceSeek else null,
             io.size ?: -1L,
-            keys, values, n, unusedVar.ptr,
+            keys, values, n, unusedVar.ptr, interrupt,
         )
         if (rc < 0) {
             // The FULL cleanup, not just the reference: ownership of the byte source transfers to

@@ -428,7 +428,7 @@ static jlong open_with_unused_option(jobjectArray unused_out, int fail_report)
     keys->elements[0] = fake_string("kc_test_unused_option");
     values->elements[0] = fake_string("1");
     fail_next_string = fail_report;
-    token = kj_fmt_open_input2(env, NULL, path, keys, values, unused_out);
+    token = kj_fmt_open_input2(env, NULL, path, keys, values, unused_out, 0);
     fail_next_string = 0;
     fake_free(keys->elements[0]);
     fake_free(values->elements[0]);

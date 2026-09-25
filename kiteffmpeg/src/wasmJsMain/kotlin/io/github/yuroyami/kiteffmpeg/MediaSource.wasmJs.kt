@@ -511,25 +511,23 @@ public actual class MediaSource internal constructor(
         ffkmp_fmt_interrupt(requireModule(), context)
     }
 
-    /** The request [adoptOpenInterrupt] bound, and the target it runs, unbound at [close]. */
-    private var openInterrupt: OpenInterrupt? = null
-    private val interruptTarget: () -> Unit = { interrupt() }
+    /** What [releaseAtClose] registered, run after [close] frees the context. */
+    private var releases: List<() -> Unit> = emptyList()
 
-    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt) {
-        openInterrupt = interrupt
-        interrupt.bind(interruptTarget)
+    internal actual fun releaseAtClose(release: () -> Unit) {
+        releases = releases + release
     }
 
     actual override fun close() {
         if (closed) return
         closed = true
-        openInterrupt?.unbind(interruptTarget)
         // Before the context goes: every reader and decoder holding it raw must stop using it.
         lifetime.closed()
         val m = requireModule()
         ffkmp_fmt_close_input_io(m, contextSlot)
         wasmFree(m, contextSlot)
         bridge.release()
+        releases.forEach { it() }
     }
 
     public actual companion object {
@@ -547,7 +545,7 @@ public actual class MediaSource internal constructor(
             io: MediaByteSource,
             options: Map<String, String>,
             interrupt: OpenInterrupt?,
-        ): MediaSource = openUnder(interrupt) { openIo(io, options) }
+        ): MediaSource = openUnderSingleThreaded(interrupt) { openIo(io, options) }
 
         private fun openIo(io: MediaByteSource, options: Map<String, String>): MediaSource {
             val m = requireModule()
@@ -729,7 +727,7 @@ private inline fun readRational(
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
     "(m, out, readFn, seekFn, size, keys, values, n, unused) => " +
-        "m._ffkmp_fmt_open_input_io(out, 0, readFn, seekFn, BigInt(size), keys, values, n, unused)",
+        "m._ffkmp_fmt_open_input_io(out, 0, readFn, seekFn, BigInt(size), keys, values, n, unused, 0)",
 )
 private external fun openInputIo(
     module: kotlin.js.JsAny,

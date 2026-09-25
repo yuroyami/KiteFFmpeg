@@ -51,6 +51,7 @@ enum {
     KJ_KIND_FRAME,
     KJ_KIND_PACKET,
     KJ_KIND_STREAM,
+    KJ_KIND_INTERRUPT,
     KJ_KIND_COUNT
 };
 

@@ -100,7 +100,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         const codecName = m._malloc(9);
         m.stringToUTF8("webvtt", codecName, 9);
 
-        m._ffkmp_fmt_open_input_io = (out, opaque, readFn, seekFn, size, keys, values, n, unused) => {
+        m._ffkmp_fmt_open_input_io = (out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt) => {
             m.HEAP32[out >> 2] = CONTEXT;
             m.HEAP32[unused >> 2] = 0;
             openCount++;

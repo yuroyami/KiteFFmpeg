@@ -66,19 +66,50 @@ public class OpenInterrupt {
 }
 
 /**
- * Runs [open] under [interrupt]: a request raised before the open fails it at once, a request
- * raised while it ran closes the new source and fails it, and a request raised later reaches the
- * source through [MediaSource.adoptOpenInterrupt].
+ * Runs [open] with a native interrupt cell that [interrupt] raises.
+ *
+ * The cell is bound before the open starts, so a request raised while the open waits reaches
+ * FFmpeg's poll, and it stays bound until the returned source has closed its context. A failed
+ * open, including one the request stopped, unbinds and frees the cell before it rethrows. The
+ * cell is freed only after the context that polls it is gone.
  */
-internal inline fun openUnder(interrupt: OpenInterrupt?, open: () -> MediaSource): MediaSource {
+internal inline fun <Cell : Any> openUnder(
+    interrupt: OpenInterrupt?,
+    newCell: () -> Cell,
+    crossinline raise: (Cell) -> Unit,
+    crossinline freeCell: (Cell) -> Unit,
+    open: (Cell?) -> MediaSource,
+): MediaSource {
+    if (interrupt == null) return open(null)
+    if (interrupt.isInterrupted) throw interruptedOpen("before it started")
+    val cell = newCell()
+    val target: () -> Unit = { raise(cell) }
+    interrupt.bind(target)
+    val source = try {
+        open(cell)
+    } catch (failure: Throwable) {
+        interrupt.unbind(target)
+        freeCell(cell)
+        throw failure
+    }
+    source.releaseAtClose {
+        interrupt.unbind(target)
+        freeCell(cell)
+    }
+    return source
+}
+
+/**
+ * The web's form of [openUnder]. Nothing can run while an open runs there, so the request is
+ * checked before the open and bound to the returned source after it.
+ */
+internal inline fun openUnderSingleThreaded(interrupt: OpenInterrupt?, open: () -> MediaSource): MediaSource {
     if (interrupt == null) return open()
     if (interrupt.isInterrupted) throw interruptedOpen("before it started")
     val source = open()
-    if (interrupt.isInterrupted) {
-        source.close()
-        throw interruptedOpen("while it ran")
-    }
-    source.adoptOpenInterrupt(interrupt)
+    val target: () -> Unit = { source.interrupt() }
+    interrupt.bind(target)
+    source.releaseAtClose { interrupt.unbind(target) }
     return source
 }
 

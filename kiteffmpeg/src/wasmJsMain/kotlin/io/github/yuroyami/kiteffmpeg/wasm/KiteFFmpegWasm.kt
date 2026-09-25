@@ -231,8 +231,8 @@ internal external fun ffkmp_fmt_is_seekable(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_open_input(a0, a1)")
 internal external fun ffkmp_fmt_open_input(module: JsAny, a0: Int, a1: Int): Int
 
-@JsFun("(m, a0, a1, a2, a3, a4, a5) => m._ffkmp_fmt_open_input2(a0, a1, a2, a3, a4, a5)")
-internal external fun ffkmp_fmt_open_input2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int): Int
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6) => m._ffkmp_fmt_open_input2(a0, a1, a2, a3, a4, a5, a6)")
+internal external fun ffkmp_fmt_open_input2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int): Int
 
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_read_frame(a0, a1)")
 internal external fun ffkmp_fmt_read_frame(module: JsAny, a0: Int, a1: Int): Int
@@ -468,6 +468,9 @@ internal external fun ffkmp_frame_clone(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1) => m._ffkmp_frame_convert_pixfmt(a0, a1)")
 internal external fun ffkmp_frame_convert_pixfmt(module: JsAny, a0: Int, a1: Int): Int
 
+@JsFun("(m) => m._ffkmp_interrupt_new()")
+internal external fun ffkmp_interrupt_new(module: JsAny): Int
+
 @JsFun("(m) => m._ffkmp_packet_alloc()")
 internal external fun ffkmp_packet_alloc(module: JsAny): Int
 
@@ -581,6 +584,12 @@ internal external fun ffkmp_frame_use_best_effort_ts(module: JsAny, a0: Int): Un
 
 @JsFun("(m, a0) => m._ffkmp_graph_free(a0)")
 internal external fun ffkmp_graph_free(module: JsAny, a0: Int): Unit
+
+@JsFun("(m, a0) => m._ffkmp_interrupt_free(a0)")
+internal external fun ffkmp_interrupt_free(module: JsAny, a0: Int): Unit
+
+@JsFun("(m, a0) => m._ffkmp_interrupt_raise(a0)")
+internal external fun ffkmp_interrupt_raise(module: JsAny, a0: Int): Unit
 
 @JsFun("(m, a0) => m._ffkmp_packet_free(a0)")
 internal external fun ffkmp_packet_free(module: JsAny, a0: Int): Unit

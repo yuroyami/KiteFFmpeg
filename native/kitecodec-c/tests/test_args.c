@@ -134,14 +134,14 @@ static int invalid_fmt_find_stream_info(void)
 
 static int invalid_fmt_open_input2(void)
 {
-    return ffkmp_fmt_open_input2(NULL, "/definitely/not/a/kiteffmpeg-input", NULL, NULL, 0, NULL);
+    return ffkmp_fmt_open_input2(NULL, "/definitely/not/a/kiteffmpeg-input", NULL, NULL, 0, NULL, NULL);
 }
 
 static int invalid_fmt_open_input2_pairs(void)
 {
     kc_fmt_ctx *out = NULL;
     /* n > 0 with NULL arrays must be refused before anything is allocated. */
-    return ffkmp_fmt_open_input2(&out, "/definitely/not/a/kiteffmpeg-input", NULL, NULL, 2, NULL);
+    return ffkmp_fmt_open_input2(&out, "/definitely/not/a/kiteffmpeg-input", NULL, NULL, 2, NULL, NULL);
 }
 
 static int invalid_fmt_chapter_count(void)

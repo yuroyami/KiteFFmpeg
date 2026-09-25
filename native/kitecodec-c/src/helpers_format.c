@@ -26,20 +26,59 @@ static int kc_interrupt_check(void *opaque) {
     return opaque ? *(volatile int *)opaque : 0;
 }
 
+/* The same poll over a cell the CALLER owns (kc_interrupt). A separate function only so that
+   the close can tell the two apart: a borrowed cell is never this layer's to free. */
+static int kc_interrupt_check_borrowed(void *opaque) {
+    return opaque ? *(volatile int *)opaque : 0;
+}
+
+/* The caller-owned cell. `raised` is first, so the cell reads as the plain int both polls
+   expect. */
+struct kc_interrupt {
+    volatile int raised;
+};
+
+KC_API kc_interrupt *ffkmp_interrupt_new(void) {
+    if (!KC_GATE_OPEN()) return NULL;
+    return av_mallocz(sizeof(kc_interrupt));
+}
+KC_API void ffkmp_interrupt_raise(kc_interrupt *cell) {
+    if (cell) cell->raised = 1;
+}
+KC_API void ffkmp_interrupt_free(kc_interrupt **cell) {
+    if (cell) av_freep(cell);
+}
+
+/* True when the context polls one of this layer's cells, owned or borrowed. */
+static int kc_ctx_has_cell(const AVFormatContext *s) {
+    return s && s->interrupt_callback.opaque &&
+        (s->interrupt_callback.callback == kc_interrupt_check ||
+         s->interrupt_callback.callback == kc_interrupt_check_borrowed);
+}
+
 /* Entry-point poll. FFmpeg itself only polls the seam inside find_stream_info and the URL
    protocol IO loop, so a fully buffered read never sees it; the fail-fast half of the
    contract is therefore checked HERE, at our own entry points. Every context this layer
    opens carries an int cell as the opaque, so the read is safe by construction. */
 static int kc_ctx_interrupted(AVFormatContext *s) {
-    return s && s->interrupt_callback.callback == kc_interrupt_check
-        && s->interrupt_callback.opaque
-        && *(volatile int *)s->interrupt_callback.opaque;
+    return kc_ctx_has_cell(s) && *(volatile int *)s->interrupt_callback.opaque;
 }
 
 KC_API void ffkmp_fmt_interrupt(AVFormatContext *ctx) {
-    if (!ctx || ctx->interrupt_callback.callback != kc_interrupt_check) return;
-    volatile int *cell = (volatile int *)ctx->interrupt_callback.opaque;
-    if (cell) *cell = 1;
+    if (!kc_ctx_has_cell(ctx)) return;
+    *(volatile int *)ctx->interrupt_callback.opaque = 1;
+}
+
+/* Installs the interrupt poll on c: over the caller's cell when there is one, else over
+   *own, which the caller of this function allocates and frees. */
+static void kc_install_interrupt(AVFormatContext *c, kc_interrupt *borrowed, int *own) {
+    if (borrowed) {
+        c->interrupt_callback.callback = kc_interrupt_check_borrowed;
+        c->interrupt_callback.opaque = (void *)&borrowed->raised;
+    } else {
+        c->interrupt_callback.callback = kc_interrupt_check;
+        c->interrupt_callback.opaque = own;
+    }
 }
 
 KC_API int  ffkmp_fmt_open_input(AVFormatContext **out, const char *path) {
@@ -79,7 +118,7 @@ KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
  * debugging session (law 4) and the S4 diagnostics echo names every unused key. */
 KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
                                  const char *const *keys, const char *const *values,
-                                 int n, AVDictionary **unused) {
+                                 int n, AVDictionary **unused, kc_interrupt *interrupt) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
@@ -87,6 +126,7 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
     if (!path) return AVERROR(EINVAL);
     if (n < 0) return AVERROR(EINVAL);
     if (n > 0 && (!keys || !values)) return AVERROR(EINVAL);
+    if (interrupt && interrupt->raised) return AVERROR_EXIT;
     AVDictionary *options = NULL;
     for (int i = 0; i < n; i++) {
         if (!keys[i] || !values[i]) { av_dict_free(&options); return AVERROR(EINVAL); }
@@ -95,10 +135,12 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
     }
     AVFormatContext *c = avformat_alloc_context();
     if (!c) { av_dict_free(&options); return AVERROR(ENOMEM); }
-    int *cell = av_mallocz(sizeof(int));
-    if (!cell) { avformat_free_context(c); av_dict_free(&options); return AVERROR(ENOMEM); }
-    c->interrupt_callback.callback = kc_interrupt_check;
-    c->interrupt_callback.opaque = cell;
+    int *cell = NULL;
+    if (!interrupt) {
+        cell = av_mallocz(sizeof(int));
+        if (!cell) { avformat_free_context(c); av_dict_free(&options); return AVERROR(ENOMEM); }
+    }
+    kc_install_interrupt(c, interrupt, cell);
     int rc = avformat_open_input(&c, path, NULL, &options);
     if (rc < 0) { av_freep(&cell); av_dict_free(&options); return rc; }
     if (unused) *unused = options;    /* the caller owns the remainder, possibly NULL */
@@ -255,9 +297,11 @@ typedef struct kc_io_bridge {
     kc_io_read_fn read_fn;
     kc_io_seek_fn seek_fn;
     int64_t       size;
-    /* The interrupt cell for this open, pointed at by the context's
-       interrupt_callback and freed with the bridge. */
+    /* The bridge's own interrupt cell, freed with the bridge. */
     volatile int  interrupted;
+    /* The cell every read and seek checks and the context's interrupt_callback polls: the
+       caller's kc_interrupt when the open was given one, else &interrupted. */
+    volatile int *cell;
 } kc_io_bridge;
 
 /* FFmpeg's read_packet: >0 bytes, AVERROR_EOF at end, never 0 since n7. The caller contract
@@ -266,7 +310,7 @@ static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
     /* FFmpeg's own poll sites never see a custom AVIO, so an interrupted long scan
        is broken here, between caller reads, which is exactly where a network stall spins. */
-    if (b->interrupted) return AVERROR_EXIT;
+    if (*b->cell) return AVERROR_EXIT;
     int r = b->read_fn(b->opaque, buf, len);
     if (r > 0) return r;
     if (r == KC_IO_EOF) return AVERROR_EOF;
@@ -275,7 +319,7 @@ static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
 
 static int64_t kc_io_seek(void *opaque, int64_t offset, int whence) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
-    if (b->interrupted) return AVERROR_EXIT;
+    if (*b->cell) return AVERROR_EXIT;
     if (whence & AVSEEK_SIZE) return b->size >= 0 ? b->size : AVERROR(ENOSYS);
     whence &= ~AVSEEK_FORCE;
     if (!b->seek_fn) return AVERROR(ENOSYS);
@@ -291,7 +335,7 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
                                    void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
                                    int64_t size,
                                    const char *const *keys, const char *const *values,
-                                   int n, AVDictionary **unused) {
+                                   int n, AVDictionary **unused, kc_interrupt *interrupt) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
@@ -299,6 +343,7 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     if (!read_fn) return AVERROR(EINVAL);
     if (n < 0) return AVERROR(EINVAL);
     if (n > 0 && (!keys || !values)) return AVERROR(EINVAL);
+    if (interrupt && interrupt->raised) return AVERROR_EXIT;
 
     kc_io_bridge *bridge = av_mallocz(sizeof(kc_io_bridge));
     if (!bridge) return AVERROR(ENOMEM);
@@ -307,6 +352,7 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     bridge->read_fn = read_fn;
     bridge->seek_fn = seek_fn;
     bridge->size = size;
+    bridge->cell = interrupt ? &interrupt->raised : &bridge->interrupted;
 
     unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
     if (!buffer) { av_freep(&bridge); return AVERROR(ENOMEM); }
@@ -327,8 +373,10 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     }
     c->pb = pb;
     c->flags |= AVFMT_FLAG_CUSTOM_IO;
-    c->interrupt_callback.callback = kc_interrupt_check;
-    c->interrupt_callback.opaque = (void *)&bridge->interrupted;
+    /* The bridge's own cell is interior to the bridge, freed with it by the IO close; the
+       path close never frees a custom-io context's cell, whichever poll it carries. */
+    c->interrupt_callback.callback = interrupt ? kc_interrupt_check_borrowed : kc_interrupt_check;
+    c->interrupt_callback.opaque = (void *)bridge->cell;
 
     AVDictionary *options = NULL;
     for (int i = 0; i < n; i++) {

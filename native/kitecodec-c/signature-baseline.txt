@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 2.9
+# abi-version 3.0
 #
-# Exact scope: 197 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 200 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 219 records.
+# records are sorted without deduplication. There must be exactly 222 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -82,8 +82,8 @@ KC_API int ffkmp_fmt_free_output(kc_fmt_ctx **ctx);
 KC_API int ffkmp_fmt_io_open(kc_fmt_ctx *ctx, const char *path);
 KC_API int ffkmp_fmt_is_seekable(kc_fmt_ctx *c);
 KC_API int ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
-KC_API int ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path, const char *const *keys, const char *const *values, int n, kc_dict **unused);
-KC_API int ffkmp_fmt_open_input_io(kc_fmt_ctx **out, void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn, int64_t size, const char *const *keys, const char *const *values, int n, kc_dict **unused);
+KC_API int ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path, const char *const *keys, const char *const *values, int n, kc_dict **unused, kc_interrupt *interrupt);
+KC_API int ffkmp_fmt_open_input_io(kc_fmt_ctx **out, void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn, int64_t size, const char *const *keys, const char *const *values, int n, kc_dict **unused, kc_interrupt *interrupt);
 KC_API int ffkmp_fmt_read_frame(kc_fmt_ctx *c, kc_packet *p);
 KC_API int ffkmp_fmt_seek_file(kc_fmt_ctx *ctx, int stream_index, int64_t min_ts, int64_t ts, int64_t max_ts, int flags);
 KC_API int ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t micros);
@@ -163,6 +163,7 @@ KC_API kc_dict_entry* ffkmp_dict_get(kc_dict *d, kc_dict_entry *prev);
 KC_API kc_frame* ffkmp_frame_alloc(void);
 KC_API kc_frame* ffkmp_frame_clone(const kc_frame *f);
 KC_API kc_frame* ffkmp_frame_convert_pixfmt(const kc_frame *src, int dst_fmt);
+KC_API kc_interrupt *ffkmp_interrupt_new(void);
 KC_API kc_packet* ffkmp_packet_alloc(void);
 KC_API kc_packet* ffkmp_packet_clone(const kc_packet *packet);
 KC_API kc_stream* ffkmp_fmt_new_stream(kc_fmt_ctx *ctx, const kc_codec *codec);
@@ -201,6 +202,8 @@ KC_API void ffkmp_frame_set_width(kc_frame *f, int v);
 KC_API void ffkmp_frame_unref(kc_frame *f);
 KC_API void ffkmp_frame_use_best_effort_ts(kc_frame *f);
 KC_API void ffkmp_graph_free(kc_filter_graph **g);
+KC_API void ffkmp_interrupt_free(kc_interrupt **cell);
+KC_API void ffkmp_interrupt_raise(kc_interrupt *cell);
 KC_API void ffkmp_packet_free(kc_packet *p);
 KC_API void ffkmp_packet_move_ref(kc_packet *dst, kc_packet *src);
 KC_API void ffkmp_packet_rescale_ts(kc_packet *p, int sn, int sd, int dn, int dd);

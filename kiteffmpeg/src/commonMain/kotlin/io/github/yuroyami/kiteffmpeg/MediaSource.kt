@@ -197,8 +197,8 @@ public expect class MediaSource : AutoCloseable {
      */
     public fun interrupt()
 
-    /** Keeps [interrupt] bound to this source until [close], so a later request reaches it. */
-    internal fun adoptOpenInterrupt(interrupt: OpenInterrupt)
+    /** Runs [release] once, after [close] has freed the container context. */
+    internal fun releaseAtClose(release: () -> Unit)
 
     override fun close()
 

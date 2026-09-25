@@ -320,18 +320,38 @@ KC_API int  ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
  */
 KC_API void ffkmp_fmt_close_input(kc_fmt_ctx **ctx);
 
-/* KD-4. Like ffkmp_fmt_open_input, with n option pairs applied between allocation and open,
- * which is the only moment pre-open options (probesize, fflags, format forcing) can act.
- * Ownership of *out matches ffkmp_fmt_open_input exactly. keys/values must each hold n
- * non-NULL strings; n may be 0 with NULL arrays. When unused is non-NULL it receives the
- * dictionary of pairs FFmpeg did NOT consume (possibly NULL when all were), which the caller
- * OWNS and releases with ffkmp_dict_free after walking it with ffkmp_dict_get, so an ignored
- * option is a named key, never a mystery. NULL out or path, negative n, or a NULL entry
- * inside the arrays is refused with AVERROR(EINVAL).
+/* An interrupt cell a caller creates BEFORE an open, so another thread can stop the open while
+ * it runs: ffkmp_fmt_open_input2 and ffkmp_fmt_open_input_io poll it instead of allocating a
+ * cell of their own, and the context they return keeps polling it. No close ever frees it. The
+ * caller frees it with ffkmp_interrupt_free once every context using it is closed, or after an
+ * open that failed.
+ */
+typedef struct kc_interrupt kc_interrupt;
+
+/* Ownership. A new cell, not raised, that the caller owns; NULL when the identity gate refused
+ * this build or allocation failed. */
+KC_API kc_interrupt *ffkmp_interrupt_new(void);
+
+/* Raises cell, one-way. Safe from any thread while cell is live; no-op on NULL. */
+KC_API void ffkmp_interrupt_raise(kc_interrupt *cell);
+
+/* Ownership. Frees *cell and writes NULL through the pointer; safe on NULL either way. */
+KC_API void ffkmp_interrupt_free(kc_interrupt **cell);
+
+/* Like ffkmp_fmt_open_input, with n option pairs applied between allocation and open, which
+ * is the only moment pre-open options (probesize, fflags, format forcing) can act. Ownership
+ * of *out matches ffkmp_fmt_open_input exactly. keys/values must each hold n non-NULL strings;
+ * n may be 0 with NULL arrays. When unused is non-NULL it receives the dictionary of pairs
+ * FFmpeg did NOT consume (possibly NULL when all were), which the caller OWNS and releases
+ * with ffkmp_dict_free after walking it with ffkmp_dict_get, so an ignored option is a named
+ * key, never a mystery. interrupt may be NULL; when it is not, the open and the context poll
+ * that cell (see kc_interrupt), and an already raised cell fails the open with AVERROR_EXIT
+ * before anything is read. NULL out or path, negative n, or a NULL entry inside the arrays is
+ * refused with AVERROR(EINVAL).
  */
 KC_API int  ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path,
                                   const char *const *keys, const char *const *values,
-                                  int n, kc_dict **unused);
+                                  int n, kc_dict **unused, kc_interrupt *interrupt);
 
 /* Ownership. Releases a dictionary ffkmp_fmt_open_input2 handed over, and only such a
  * dictionary: the metadata accessors return BORROWED dictionaries this must never touch.
@@ -360,15 +380,15 @@ typedef int64_t (*kc_io_seek_fn)(void *opaque, int64_t offset, int whence);
  * ffkmp_fmt_close_input_io and NOTHING ELSE: this open installs a custom AVIOContext whose
  * buffer and bridge state only that close knows how to free. opaque must stay valid until
  * that close returns. size is the total byte length, or a negative value when unknown (a
- * live stream). Option pairs behave exactly like ffkmp_fmt_open_input2, unused included.
- * NULL out or read_fn, negative n, or a NULL entry inside the arrays is refused with
- * AVERROR(EINVAL).
+ * live stream). Option pairs and interrupt behave exactly like ffkmp_fmt_open_input2, unused
+ * included; the bridge checks the interrupt cell before every read and seek. NULL out or
+ * read_fn, negative n, or a NULL entry inside the arrays is refused with AVERROR(EINVAL).
  */
 KC_API int  ffkmp_fmt_open_input_io(kc_fmt_ctx **out,
                                     void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
                                     int64_t size,
                                     const char *const *keys, const char *const *values,
-                                    int n, kc_dict **unused);
+                                    int n, kc_dict **unused, kc_interrupt *interrupt);
 
 /* Ownership. The one close for ffkmp_fmt_open_input_io contexts: closes the demuxer, then
  * frees the custom AVIOContext, its buffer and the bridge state, and writes NULL through

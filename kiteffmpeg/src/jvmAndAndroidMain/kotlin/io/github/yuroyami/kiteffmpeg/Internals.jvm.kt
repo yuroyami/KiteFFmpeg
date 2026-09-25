@@ -60,6 +60,7 @@ internal object Internals {
         keys: Array<String>?,
         values: Array<String>?,
         unusedKeysOut: Array<String?>?,
+        interruptToken: Long,
     ): Long
     private external fun nativeFmtOpenInputIo(
         io: JniByteIo,
@@ -68,7 +69,11 @@ internal object Internals {
         keys: Array<String>?,
         values: Array<String>?,
         unusedKeysOut: Array<String?>?,
+        interruptToken: Long,
     ): Long
+    private external fun nativeInterruptNew(): Long
+    private external fun nativeInterruptRaise(token: Long)
+    private external fun nativeInterruptFree(token: Long)
     private external fun nativeFmtCloseInputIo(token: Long)
     private external fun nativeFmtChapterCount(token: Long): Int
     private external fun nativeFmtChapterGet(token: Long, index: Int, outFields: LongArray): Int
@@ -314,8 +319,13 @@ internal object Internals {
     internal fun packetBytes(token: Long) = checked { nativePacketBytes(token) }
 
     internal fun fmtOpenInput(path: String) = token("input open") { nativeFmtOpenInput(path) }
-    internal fun fmtOpenInput2(path: String, keys: Array<String>?, values: Array<String>?, unusedKeysOut: Array<String?>?) =
-        token("input open with options") { nativeFmtOpenInput2(path, keys, values, unusedKeysOut) }
+    internal fun fmtOpenInput2(
+        path: String,
+        keys: Array<String>?,
+        values: Array<String>?,
+        unusedKeysOut: Array<String?>?,
+        interruptToken: Long = 0L,
+    ) = token("input open with options") { nativeFmtOpenInput2(path, keys, values, unusedKeysOut, interruptToken) }
     internal fun fmtOpenInputIo(
         io: JniByteIo,
         seekable: Boolean,
@@ -323,7 +333,11 @@ internal object Internals {
         keys: Array<String>?,
         values: Array<String>?,
         unusedKeysOut: Array<String?>?,
-    ) = token("custom io open") { nativeFmtOpenInputIo(io, seekable, size, keys, values, unusedKeysOut) }
+        interruptToken: Long = 0L,
+    ) = token("custom io open") { nativeFmtOpenInputIo(io, seekable, size, keys, values, unusedKeysOut, interruptToken) }
+    internal fun interruptNew() = token("interrupt cell") { nativeInterruptNew() }
+    internal fun interruptRaise(token: Long) = checked { nativeInterruptRaise(token) }
+    internal fun interruptFree(token: Long) = checked { nativeInterruptFree(token) }
     internal fun fmtCloseInputIo(token: Long) = checked { nativeFmtCloseInputIo(token) }
     internal fun fmtInterrupt(token: Long) = checked { nativeFmtInterrupt(token) }
     internal fun fmtChapterCount(token: Long) = checked { nativeFmtChapterCount(token) }

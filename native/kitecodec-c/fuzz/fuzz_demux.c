@@ -208,7 +208,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     /* The documented refusal of a missing read callback, asserted on every input. */
     kc_fmt_ctx *refused = NULL;
-    if (ffkmp_fmt_open_input_io(&refused, NULL, NULL, NULL, -1, NULL, NULL, 0, NULL) != AVERROR(EINVAL)) {
+    if (ffkmp_fmt_open_input_io(&refused, NULL, NULL, NULL, -1, NULL, NULL, 0, NULL, NULL) != AVERROR(EINVAL)) {
         abort();
     }
     if (refused != NULL) abort();

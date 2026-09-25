@@ -25,12 +25,44 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input(JNIEnv *env, jclass cls, jstring path)
 }
 
 
-/* KD-4 (S4.b window): open with pre-open option pairs. The unused count crosses through a
- * one-slot array because the token is the return value; -1 in that slot means "not counted"
- * and never happens on a successful open. */
+/* The caller-owned interrupt cell behind OpenInterrupt: minted before an open, raised from any
+ * thread, freed by its owner after the context that polls it is closed. */
+JNIEXPORT jlong JNICALL kj_interrupt_new(JNIEnv *env, jclass cls)
+{
+    kc_interrupt *cell = ffkmp_interrupt_new();
+    jlong token;
+    (void)cls;
+    if (cell == NULL) { kj_throw_handle(env, "interrupt cell allocation failed"); return 0; }
+    token = kj_handle_put_checked(env, KJ_KIND_INTERRUPT, cell);
+    if (token == 0) ffkmp_interrupt_free(&cell);
+    return token;
+}
+JNIEXPORT void JNICALL kj_interrupt_raise(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_interrupt *cell = (kc_interrupt *)kj_handle_get(env, token, KJ_KIND_INTERRUPT);
+    (void)cls;
+    ffkmp_interrupt_raise(cell); /* NULL-safe; a refused token already threw */
+}
+JNIEXPORT void JNICALL kj_interrupt_free(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_interrupt *cell = (kc_interrupt *)kj_handle_close(token, KJ_KIND_INTERRUPT);
+    (void)env; (void)cls;
+    ffkmp_interrupt_free(&cell); /* NULL-safe; double close resolved to NULL by the table */
+}
+
+/* The cell an open polls: NULL for a zero token, the resolved cell otherwise. NULL with a
+ * pending exception when the token was refused, which the caller checks. */
+static kc_interrupt *kj_interrupt_for_open(JNIEnv *env, jlong token)
+{
+    return token == 0 ? NULL : (kc_interrupt *)kj_handle_get(env, token, KJ_KIND_INTERRUPT);
+}
+
+/* Open with pre-open option pairs. The unused count crosses through a one-slot array because
+ * the token is the return value; -1 in that slot means "not counted" and never happens on a
+ * successful open. */
 JNIEXPORT jlong JNICALL kj_fmt_open_input2(JNIEnv *env, jclass cls, jstring path,
                                            jobjectArray keys, jobjectArray values,
-                                           jobjectArray unused_keys_out)
+                                           jobjectArray unused_keys_out, jlong interrupt_token)
 {
     char *c = kj_string_dup(env, path);
     kc_fmt_ctx *ctx = NULL;
@@ -41,7 +73,9 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input2(JNIEnv *env, jclass cls, jstring path
     kc_dict *unused = NULL;
     int rc;
     jsize i;
+    kc_interrupt *interrupt = kj_interrupt_for_open(env, interrupt_token);
     (void)cls;
+    if (interrupt == NULL && interrupt_token != 0) { free(c); return 0; }
     if (c == NULL) { kj_throw_handle(env, "open refused: NULL path"); return 0; }
     if ((keys == NULL) != (values == NULL)) {
         free(c);
@@ -72,7 +106,7 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input2(JNIEnv *env, jclass cls, jstring path
     }
     rc = ffkmp_fmt_open_input2(&ctx, c,
                                (const char *const *)ckeys, (const char *const *)cvalues,
-                               (int)n, &unused);
+                               (int)n, &unused, interrupt);
 
     goto done;
 oom:
@@ -564,7 +598,7 @@ static void kj_io_state_free(JNIEnv *env, kj_io_state *st)
 JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb,
                                              jboolean seekable, jlong size,
                                              jobjectArray keys, jobjectArray values,
-                                             jobjectArray unused_keys_out)
+                                             jobjectArray unused_keys_out, jlong interrupt_token)
 {
     kj_io_state *st = NULL;
     kc_fmt_ctx *ctx = NULL;
@@ -577,7 +611,9 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
     jbyteArray local_buffer;
     int rc;
     jsize i;
+    kc_interrupt *interrupt = kj_interrupt_for_open(env, interrupt_token);
     (void)cls;
+    if (interrupt == NULL && interrupt_token != 0) return 0;
     if (cb == NULL) { kj_throw_handle(env, "custom io open refused: NULL callback"); return 0; }
     if ((keys == NULL) != (values == NULL)) {
         kj_throw_handle(env, "custom io open refused: keys and values must both exist or both be absent");
@@ -637,7 +673,7 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
                                  seekable == JNI_TRUE ? kj_io_seek_cb : NULL,
                                  (int64_t)size,
                                  (const char *const *)ckeys, (const char *const *)cvalues,
-                                 (int)n, &unused);
+                                 (int)n, &unused, interrupt);
     goto done;
 oom:
     rc = -12;

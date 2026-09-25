@@ -65,7 +65,7 @@ public actual class MediaSource private constructor() : AutoCloseable {
 
     public actual fun interrupt(): Unit = Unit
 
-    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt): Unit = Unit
+    internal actual fun releaseAtClose(release: () -> Unit): Unit = Unit
 
     actual override fun close(): Unit = Unit
 

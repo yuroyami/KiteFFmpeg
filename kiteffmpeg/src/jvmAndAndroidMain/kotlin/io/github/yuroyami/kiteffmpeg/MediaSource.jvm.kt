@@ -387,18 +387,12 @@ public actual class MediaSource internal constructor(
         Internals.fmtInterrupt(formatToken)
     }
 
-    /** The request [adoptOpenInterrupt] bound, and the target it runs, unbound at [close]. */
-    private var openInterrupt: OpenInterrupt? = null
-    private var interruptTarget: (() -> Unit)? = null
+    /** What [releaseAtClose] registered, run after [close] frees the context. */
+    @Volatile
+    private var releases: List<() -> Unit> = emptyList()
 
-    internal actual fun adoptOpenInterrupt(interrupt: OpenInterrupt) {
-        // The token is captured: close zeroes formatToken before it unbinds, and the context
-        // stays valid until the unbind returns.
-        val token = formatToken
-        val target = { Internals.fmtInterrupt(token) }
-        openInterrupt = interrupt
-        interruptTarget = target
-        interrupt.bind(target)
+    internal actual fun releaseAtClose(release: () -> Unit) {
+        releases = releases + release
     }
 
     actual override fun close() {
@@ -412,14 +406,13 @@ public actual class MediaSource internal constructor(
             }
             formatToken.also { formatToken = 0L }
         }
-        // Before the context goes: unbind waits for a request that is raising it right now.
-        interruptTarget?.let { openInterrupt?.unbind(it) }
         if (jniIo != null) {
             Internals.fmtCloseInputIo(context)
             jniIo.closeSource()
         } else {
             Internals.fmtCloseInput(context)
         }
+        releases.forEach { it() }
     }
 
     public actual companion object {
@@ -436,7 +429,9 @@ public actual class MediaSource internal constructor(
             interrupt: OpenInterrupt?,
         ): MediaSource {
             Internals.requireCompatible()
-            return openUnder(interrupt) { openMediaSource(path, options) }
+            return openUnder(interrupt, Internals::interruptNew, { Internals.interruptRaise(it) }, { Internals.interruptFree(it) }) { cell ->
+                openMediaSource(path, options, cell ?: 0L)
+            }
         }
 
         @Throws(FFmpegException::class)
@@ -446,7 +441,9 @@ public actual class MediaSource internal constructor(
             interrupt: OpenInterrupt?,
         ): MediaSource {
             Internals.requireCompatible()
-            return openUnder(interrupt) { openMediaSourceIo(io, options) }
+            return openUnder(interrupt, Internals::interruptNew, { Internals.interruptRaise(it) }, { Internals.interruptFree(it) }) { cell ->
+                openMediaSourceIo(io, options, cell ?: 0L)
+            }
         }
 
         private const val DECODE_SEEK_BACKOFF_MICROS = 5_000_000L
@@ -495,18 +492,23 @@ private class DecoderState(val stream: StreamInfo, var context: Long) {
     }
 }
 
-private fun openMediaSource(path: String, options: Map<String, String> = emptyMap()): MediaSource {
+private fun openMediaSource(
+    path: String,
+    options: Map<String, String> = emptyMap(),
+    interruptToken: Long = 0L,
+): MediaSource {
     var unusedKeys: List<String> = emptyList()
-    val context = if (options.isEmpty()) {
+    val context = if (options.isEmpty() && interruptToken == 0L) {
         Internals.fmtOpenInput(path)
     } else {
-        // KD-4: the unconsumed remainder crosses the bridge as one unit-separated string.
+        // The unconsumed remainder crosses the bridge as one unit-separated string.
         val unusedSlot = arrayOfNulls<String>(1)
         val token = Internals.fmtOpenInput2(
             path,
-            options.keys.toTypedArray(),
-            options.values.toTypedArray(),
+            options.keys.toTypedArray().takeIf { it.isNotEmpty() },
+            options.values.toTypedArray().takeIf { it.isNotEmpty() },
             unusedSlot,
+            interruptToken,
         )
         unusedKeys = unusedSlot[0]?.takeIf { it.isNotEmpty() }?.split('\u001f') ?: emptyList()
         token
@@ -531,7 +533,11 @@ private fun openMediaSource(path: String, options: Map<String, String> = emptyMa
 
 /** M1: the custom AVIO open. The JNI bridge holds global refs to [JniByteIo] until the paired
  *  close, so the adapter object outlives any Kotlin-side reference by construction. */
-private fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>): MediaSource {
+private fun openMediaSourceIo(
+    io: MediaByteSource,
+    options: Map<String, String>,
+    interruptToken: Long = 0L,
+): MediaSource {
     val adapter = JniByteIo(io)
     var unusedKeys: List<String> = emptyList()
     val unusedSlot = arrayOfNulls<String>(1)
@@ -546,6 +552,7 @@ private fun openMediaSourceIo(io: MediaByteSource, options: Map<String, String>)
             options.keys.toTypedArray().takeIf { it.isNotEmpty() },
             options.values.toTypedArray().takeIf { it.isNotEmpty() },
             unusedSlot,
+            interruptToken,
         )
     } catch (error: Throwable) {
         if (error is FFmpegException) adapter.explain(error)
