@@ -194,6 +194,42 @@ Callback-style APIs are different. A frame handed to `FilterGraph.feedInput`'s `
 !!! note
     The native `AVFrame*` pointer is deliberately not exposed in common code. You interact with frames only through `info`, `copyPlanesToByteArray()`, `copy()`, and `encodeImage()`.
 
+## Subtitles
+
+`openSubtitleDecoder(stream)` decodes a subtitle stream. Blu-ray (PGS), DVB and DVD subtitles decode to images, and the text formats decode to text. It belongs to the low-level API, so opt in with `@OptIn(KiteFFmpegLowLevelApi::class)`. Read the packets with a `PacketReader` and hand each one to `decode`:
+
+```kotlin
+@OptIn(KiteFFmpegLowLevelApi::class)
+fun showSubtitles(path: String) = MediaSource.open(path).use { source ->
+    val stream = source.streams.first { it.type == MediaType.Subtitle }
+    source.openSubtitleDecoder(stream).use { decoder ->
+        source.openPacketReader(listOf(stream)).use { reader ->
+            while (true) {
+                val packet = reader.read() ?: break
+                val subtitle = packet.use { decoder.decode(it) } ?: continue
+                subtitle.images.forEach { draw(it.x, it.y, it.width, it.height, it.rgba) }
+            }
+        }
+    }
+}
+```
+
+A `Subtitle` holds:
+
+| Field | Meaning |
+|---|---|
+| `startMicros` | When it starts, on the stream's own timeline. Null when the packet had no timestamp. |
+| `endMicros` | When it ends. Null when the stream does not say: a Blu-ray subtitle stays until the next one. |
+| `canvasWidth`, `canvasHeight` | The picture the subtitle was authored for. 0 means the video's own size. |
+| `images` | Positioned images in canvas pixels, as premultiplied RGBA with no row padding. |
+| `texts` | For a text format, each rectangle as an ASS event: ReadOrder, Layer, Style, Name, MarginL, MarginR, MarginV, Effect, Text. |
+
+Three rules to know:
+
+- `decode` returns null for a packet that completes no subtitle. A Blu-ray stream sends its palette and its image as separate packets before the one that shows them.
+- A subtitle with no images and no texts clears the screen. That is how a Blu-ray stream ends a line.
+- Scale the canvas onto your output to place the images, and call `flush()` after a seek.
+
 ## Seeking
 
 `seekMicros(micros)` is a `suspend` function that repositions the demuxer to (approximately) the requested time, so call it from a coroutine. FFmpeg seeks to the nearest keyframe at or before the target, so the next frames you decode may start slightly earlier than the exact microsecond you asked for:

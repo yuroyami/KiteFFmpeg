@@ -684,3 +684,71 @@ internal fun fakeCoverArtCodecModule(realVideoFollows: Boolean): JsAny =
     }""",
 )
 private external fun installFakeCoverArtSurface(module: JsAny, realVideoFollows: Boolean): JsAny
+
+/**
+ * The packet-reader fake plus a scripted subtitle decoder: the first packet completes nothing,
+ * the second completes one subtitle with an image rectangle and an ASS rectangle. Every value is
+ * odd enough that a wrong offset or a wrong width in the web marshalling reads as a mismatch.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun fakeSubtitleCodecModule(): JsAny = installFakeSubtitleSurface(fakePacketReaderCodecModule())
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        const DECODER = 0x900;
+        const SUBTITLE = 0xA00;
+        let decodes = 0;
+        let subtitleFrees = 0;
+        let contextFrees = 0;
+        const text = m._malloc(32);
+        m.stringToUTF8("0,0,Default,,0,0,0,,Hi", text, 32);
+        const view = () => new DataView(m.HEAPU8.buffer);
+        m._ffkmp_subtitle_decoder_open = (ctx, index, out) => {
+            m.HEAP32[out >> 2] = DECODER + index;
+            return 0;
+        };
+        m._ffkmp_subtitle_decode = (c, p, out) => {
+            decodes++;
+            m.HEAP32[out >> 2] = decodes === 2 ? SUBTITLE : 0;
+            return 0;
+        };
+        m._ffkmp_subtitle_times = (s, start, end) => {
+            view().setBigInt64(start, 1500000n, true);
+            view().setBigInt64(end, -9223372036854775808n, true);
+            return 0;
+        };
+        m._ffkmp_subtitle_rect_count = (s) => s === SUBTITLE ? 2 : 0;
+        m._ffkmp_subtitle_rect = (s, i, type, x, y, w, h, forced) => {
+            const fields = i === 0 ? [1, 10, 20, 2, 1, 1] : [3, 0, 0, 0, 0, 0];
+            [type, x, y, w, h, forced].forEach((p, k) => { m.HEAP32[p >> 2] = fields[k]; });
+            return 0;
+        };
+        m._ffkmp_subtitle_rect_rgba = (s, i, dst, size) => {
+            if (i !== 0 || size !== 8) return -22;
+            m.HEAPU8.set([255, 0, 0, 255, 0, 0, 255, 128], dst);
+            return 0;
+        };
+        m._ffkmp_subtitle_rect_text = (s, i) => i === 1 ? text : 0;
+        m._ffkmp_subtitle_free = (slot) => {
+            if (m.HEAP32[slot >> 2] === SUBTITLE) subtitleFrees++;
+            m.HEAP32[slot >> 2] = 0;
+        };
+        m._ffkmp_codecctx_width = (c) => c >= DECODER ? 720 : 0;
+        m._ffkmp_codecctx_height = (c) => c >= DECODER ? 576 : 0;
+        m._ffkmp_codecctx_flush = () => {};
+        m._ffkmp_codecctx_free = (c) => { if (c >= DECODER) contextFrees++; };
+        m.__subtitleFrees = () => subtitleFrees;
+        m.__subtitleContextFrees = () => contextFrees;
+        return m;
+    }""",
+)
+private external fun installFakeSubtitleSurface(module: JsAny): JsAny
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__subtitleFrees()")
+internal external fun fakeSubtitleFrees(module: JsAny): Int
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__subtitleContextFrees()")
+internal external fun fakeSubtitleContextFrees(module: JsAny): Int

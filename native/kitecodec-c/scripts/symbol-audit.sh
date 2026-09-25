@@ -64,8 +64,8 @@ NM="${KC_NM:-/usr/bin/nm}"
 
 # The exact number of normalized public declarations check 7 expects, and how many of them are
 # helper prototypes. Both move deliberately, in the commit that changes the C surface.
-SIGNATURE_SCOPE=240
-HELPER_PROTOTYPES=218
+SIGNATURE_SCOPE=249
+HELPER_PROTOTYPES=226
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -262,8 +262,9 @@ while read -r symbol; do
     # The libav and libsw entry points. `_swscale_*` and `_swresample_*` are the library-level
     # queries (swscale_version, swscale_configuration and their siblings); the helper layer only ever
     # called `_sws_*` and `_swr_*`, so B1.6's identity gate is what made those two prefixes appear.
+    # `_avsubtitle_free` is libavcodec's own subtitle release, under a prefix of its own.
     case "$symbol" in
-        _av_*|_avcodec_*|_avformat_*|_avfilter_*|_avutil_*|_avio_*) continue ;;
+        _av_*|_avcodec_*|_avformat_*|_avfilter_*|_avutil_*|_avio_*|_avsubtitle_*) continue ;;
         _sws_*|_swr_*|_swscale_*|_swresample_*) continue ;;
     esac
     allowed=0

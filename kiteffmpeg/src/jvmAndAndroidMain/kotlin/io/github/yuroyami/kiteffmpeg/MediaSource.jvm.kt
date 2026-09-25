@@ -382,7 +382,13 @@ public actual class MediaSource internal constructor(
 
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
-    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = throw notWired()
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder {
+        require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
+        requireOwnStream(stream)
+        return synchronized(stateLock) {
+            SubtitleDecoder(stream, Internals.subtitleDecoderOpen(checkOpen(), stream.index))
+        }
+    }
 
     public actual fun interrupt() {
         /* Deliberately NOT under the demux lock: the whole point is reaching a context another

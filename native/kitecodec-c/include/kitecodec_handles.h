@@ -41,4 +41,7 @@ typedef struct AVPacket kc_packet;
 struct AVStream;
 typedef struct AVStream kc_stream;
 
+struct AVSubtitle;
+typedef struct AVSubtitle kc_subtitle;
+
 #endif

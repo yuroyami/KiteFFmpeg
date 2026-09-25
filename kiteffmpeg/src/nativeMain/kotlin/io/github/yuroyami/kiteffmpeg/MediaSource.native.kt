@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import cnames.structs.kc_interrupt
+import ffmpeg.ffkmp_subtitle_decoder_open
 import ffmpeg.ffkmp_codec_id_name
 import ffmpeg.ffkmp_codecctx_alloc
 import ffmpeg.ffkmp_codecctx_free
@@ -605,7 +606,18 @@ public actual class MediaSource internal constructor(
 
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
-    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = throw notWired()
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder {
+        check(!isClosed) { "MediaSource is closed" }
+        require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
+        requireOwnStream(stream)
+        val codecCtx = memScoped {
+            val slot = alloc<CPointerVar<kc_codec_ctx>>()
+            val rc = ffkmp_subtitle_decoder_open(ctx, stream.index, slot.ptr)
+            if (rc < 0) throw FFmpegException(avError(rc))
+            slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle decoder open returned no context"))
+        }
+        return SubtitleDecoder(stream, codecCtx)
+    }
 
     public actual fun interrupt() {
         /* Deliberately NOT under stateLock: the whole point is reaching a context another thread

@@ -197,6 +197,13 @@ internal object Internals {
     private external fun nativeCodecCtxTimeBase(context: Long): Long
     private external fun nativeCodecCtxGlobalHeader(context: Long)
     private external fun nativeCodecCtxFullRange(context: Long)
+    private external fun nativeSubtitleDecoderOpen(fmtToken: Long, streamIndex: Int): Long
+    private external fun nativeSubtitleDecode(context: Long, packet: Long): Long
+    private external fun nativeSubtitleInfo(token: Long): LongArray
+    private external fun nativeSubtitleRect(token: Long, index: Int): IntArray
+    private external fun nativeSubtitleRectRgba(token: Long, index: Int): ByteArray
+    private external fun nativeSubtitleRectText(token: Long, index: Int): String?
+    private external fun nativeSubtitleFree(token: Long)
     private external fun nativeCodecCtxSetColor(context: Long, primaries: Int, transfer: Int, matrix: Int, range: Int, chromaLocation: Int): Int
     private external fun nativeCodecCtxSetSar(context: Long, num: Int, den: Int): Int
     private external fun nativeCodecCtxSetChannelLayout(context: Long, mask: Long): Int
@@ -501,6 +508,14 @@ internal object Internals {
     internal fun codecCtxSampleRate(context: Long) = checked { nativeCodecCtxSampleRate(context) }
     internal fun codecCtxChannels(context: Long) = checked { nativeCodecCtxChannels(context) }
     internal fun codecCtxTimeBase(context: Long) = unpackRational(checked { nativeCodecCtxTimeBase(context) })
+    internal fun subtitleDecoderOpen(fmtToken: Long, streamIndex: Int) =
+        token("subtitle decoder") { nativeSubtitleDecoderOpen(fmtToken, streamIndex) }
+    internal fun subtitleDecode(context: Long, packet: Long) = checked { nativeSubtitleDecode(context, packet) }
+    internal fun subtitleInfo(token: Long) = checked { nativeSubtitleInfo(token) }
+    internal fun subtitleRect(token: Long, index: Int) = checked { nativeSubtitleRect(token, index) }
+    internal fun subtitleRectRgba(token: Long, index: Int) = checked { nativeSubtitleRectRgba(token, index) }
+    internal fun subtitleRectText(token: Long, index: Int) = checked { nativeSubtitleRectText(token, index) }
+    internal fun subtitleFree(token: Long) = checked { nativeSubtitleFree(token) }
     internal fun codecCtxSetColor(context: Long, primaries: Int, transfer: Int, matrix: Int, range: Int, chromaLocation: Int) =
         checked { nativeCodecCtxSetColor(context, primaries, transfer, matrix, range, chromaLocation) }
     internal fun codecCtxSetSar(context: Long, sar: Rational) = checked { nativeCodecCtxSetSar(context, sar.num, sar.den) }

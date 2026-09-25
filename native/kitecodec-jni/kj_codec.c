@@ -228,3 +228,127 @@ JNIEXPORT jint JNICALL kj_codecctx_width(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;return c?ffkmp_codecctx_width(c):0;}
 JNIEXPORT jint JNICALL kj_codecctx_height(JNIEnv *env,jclass cls,jlong token)
 {kc_codec_ctx*c=(kc_codec_ctx*)kj_handle_get(env,token,KJ_KIND_CODEC_CTX);(void)cls;return c?ffkmp_codecctx_height(c):0;}
+
+/* ── Subtitle decoding ── */
+
+/* A decoder for subtitle stream stream_index of the source behind fmt_token: an owned context,
+ * freed with kj_codecctx_free like any other. */
+JNIEXPORT jlong JNICALL kj_subtitle_decoder_open(JNIEnv *env, jclass cls, jlong fmt_token, jint stream_index)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, fmt_token, KJ_KIND_FMT_CTX);
+    kc_codec_ctx *c = NULL;
+    jlong token;
+    int rc;
+    (void)cls;
+    if (ctx == NULL) return 0;
+    rc = ffkmp_subtitle_decoder_open(ctx, stream_index, &c);
+    if (rc < 0 || c == NULL) {
+        kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "subtitle_decoder_open");
+        return 0;
+    }
+    token = kj_handle_put_checked(env, KJ_KIND_CODEC_CTX, c);
+    if (token == 0) ffkmp_codecctx_free(c);
+    return token;
+}
+
+/* Decodes the packet behind packet_token: 0 when it completed no subtitle, else a subtitle token
+ * the caller frees with kj_subtitle_free. */
+JNIEXPORT jlong JNICALL kj_subtitle_decode(JNIEnv *env, jclass cls, jlong ctx_token, jlong packet_token)
+{
+    kc_codec_ctx *c = (kc_codec_ctx *)kj_handle_get(env, ctx_token, KJ_KIND_CODEC_CTX);
+    kc_packet *p;
+    kc_subtitle *s = NULL;
+    jlong token;
+    int rc;
+    (void)cls;
+    if (c == NULL) return 0;
+    p = (kc_packet *)kj_handle_get(env, packet_token, KJ_KIND_PACKET);
+    if (p == NULL) return 0;
+    rc = ffkmp_subtitle_decode(c, p, &s);
+    if (rc < 0) {
+        kj_throw_ffmpeg(env, rc, "subtitle_decode");
+        return 0;
+    }
+    if (s == NULL) return 0;
+    token = kj_handle_put_checked(env, KJ_KIND_SUBTITLE, s);
+    if (token == 0) ffkmp_subtitle_free(&s);
+    return token;
+}
+
+/* { start, end, rectangle count }, with INT64_MIN for a time that is not known. */
+JNIEXPORT jlongArray JNICALL kj_subtitle_info(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_subtitle *s = (kc_subtitle *)kj_handle_get(env, token, KJ_KIND_SUBTITLE);
+    jlong info[3];
+    int64_t start = 0, end = 0;
+    (void)cls;
+    if (s == NULL) return NULL;
+    ffkmp_subtitle_times(s, &start, &end);
+    info[0] = (jlong)start;
+    info[1] = (jlong)end;
+    info[2] = (jlong)ffkmp_subtitle_rect_count(s);
+    return kj_longs_new(env, info, 3);
+}
+
+/* { type, x, y, width, height, forced } of rectangle i. */
+JNIEXPORT jintArray JNICALL kj_subtitle_rect(JNIEnv *env, jclass cls, jlong token, jint i)
+{
+    kc_subtitle *s = (kc_subtitle *)kj_handle_get(env, token, KJ_KIND_SUBTITLE);
+    int v[6] = { 0 };
+    jint out[6];
+    int rc, k;
+    (void)cls;
+    if (s == NULL) return NULL;
+    rc = ffkmp_subtitle_rect(s, i, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]);
+    if (rc < 0) {
+        kj_throw_ffmpeg(env, rc, "subtitle_rect");
+        return NULL;
+    }
+    for (k = 0; k < 6; k++) out[k] = (jint)v[k];
+    return kj_ints_new(env, out, 6);
+}
+
+/* The premultiplied RGBA of image rectangle i. */
+JNIEXPORT jbyteArray JNICALL kj_subtitle_rect_rgba(JNIEnv *env, jclass cls, jlong token, jint i)
+{
+    kc_subtitle *s = (kc_subtitle *)kj_handle_get(env, token, KJ_KIND_SUBTITLE);
+    int type, x, y, w, h, forced;
+    int64_t size;
+    uint8_t *pixels;
+    jbyteArray result;
+    int rc;
+    (void)cls;
+    if (s == NULL) return NULL;
+    rc = ffkmp_subtitle_rect(s, i, &type, &x, &y, &w, &h, &forced);
+    size = (int64_t)w * h * 4;
+    if (rc < 0 || type != KC_SUBTITLE_BITMAP || w <= 0 || h <= 0 || size > INT32_MAX) {
+        kj_throw_ffmpeg(env, rc < 0 ? rc : -22, "subtitle_rect_rgba");
+        return NULL;
+    }
+    pixels = (uint8_t *)malloc((size_t)size);
+    if (pixels == NULL) {
+        kj_throw_handle(env, "out of memory converting a subtitle image");
+        return NULL;
+    }
+    rc = ffkmp_subtitle_rect_rgba(s, i, pixels, (int)size);
+    result = rc < 0 ? NULL : kj_bytes_new(env, pixels, (int32_t)size);
+    free(pixels);
+    if (rc < 0) kj_throw_ffmpeg(env, rc, "subtitle_rect_rgba");
+    return result;
+}
+
+/* The text of text or ASS rectangle i, or null for an image. */
+JNIEXPORT jstring JNICALL kj_subtitle_rect_text(JNIEnv *env, jclass cls, jlong token, jint i)
+{
+    kc_subtitle *s = (kc_subtitle *)kj_handle_get(env, token, KJ_KIND_SUBTITLE);
+    (void)cls;
+    if (s == NULL) return NULL;
+    return kj_string_new(env, ffkmp_subtitle_rect_text(s, i));
+}
+
+JNIEXPORT void JNICALL kj_subtitle_free(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_subtitle *s = (kc_subtitle *)kj_handle_close(token, KJ_KIND_SUBTITLE);
+    (void)env; (void)cls;
+    if (s != NULL) ffkmp_subtitle_free(&s);
+}

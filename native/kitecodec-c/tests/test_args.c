@@ -204,6 +204,33 @@ static int invalid_frame_content_light(void)
     return ffkmp_frame_content_light(NULL, NULL, NULL);
 }
 
+static int invalid_subtitle_decoder_open(void)
+{
+    kc_codec_ctx *c = NULL;
+    return ffkmp_subtitle_decoder_open(NULL, 0, &c);
+}
+
+static int invalid_subtitle_decode(void)
+{
+    kc_subtitle *s = NULL;
+    return ffkmp_subtitle_decode(NULL, NULL, &s);
+}
+
+static int invalid_subtitle_times(void)
+{
+    return ffkmp_subtitle_times(NULL, NULL, NULL);
+}
+
+static int invalid_subtitle_rect(void)
+{
+    return ffkmp_subtitle_rect(NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
+}
+
+static int invalid_subtitle_rect_rgba(void)
+{
+    return ffkmp_subtitle_rect_rgba(NULL, 0, NULL, 0);
+}
+
 static int invalid_fmt_add_chapter(void)
 {
     return ffkmp_fmt_add_chapter(NULL, 1, 0, 1000, NULL, NULL, 0);
@@ -522,6 +549,11 @@ static const invalid_case invalid_cases[] = {
     { "invalid_frame_mastering_display", "ffkmp_frame_mastering_display refuses NULL arguments", invalid_frame_mastering_display },
     { "invalid_codecpar_content_light", "ffkmp_codecpar_content_light refuses NULL arguments", invalid_codecpar_content_light },
     { "invalid_frame_content_light", "ffkmp_frame_content_light refuses NULL arguments", invalid_frame_content_light },
+    { "invalid_subtitle_decoder_open", "ffkmp_subtitle_decoder_open refuses a NULL context", invalid_subtitle_decoder_open },
+    { "invalid_subtitle_decode", "ffkmp_subtitle_decode refuses NULL arguments", invalid_subtitle_decode },
+    { "invalid_subtitle_times", "ffkmp_subtitle_times refuses NULL arguments", invalid_subtitle_times },
+    { "invalid_subtitle_rect", "ffkmp_subtitle_rect refuses NULL arguments", invalid_subtitle_rect },
+    { "invalid_subtitle_rect_rgba", "ffkmp_subtitle_rect_rgba refuses NULL arguments", invalid_subtitle_rect_rgba },
     { "invalid_fmt_add_chapter", "ffkmp_fmt_add_chapter refuses a NULL context", invalid_fmt_add_chapter },
     { "invalid_fmt_add_chapter_backwards", "ffkmp_fmt_add_chapter refuses an end before the start", invalid_fmt_add_chapter_backwards },
     { "invalid_fmt_chapter_get", "ffkmp_fmt_chapter_get refuses NULL arguments", invalid_fmt_chapter_get },

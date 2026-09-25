@@ -1,16 +1,17 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.4
+# abi-version 3.5
 #
-# Exact scope: 218 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 226 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 240 records.
+# records are sorted without deduplication. There must be exactly 249 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
 # --write-signature-baseline in the same commit, and name every changed record in
 # that commit message. --write-baseline is separate and changes export names.
+KC_API const char *ffkmp_subtitle_rect_text(const kc_subtitle *s, int i);
 KC_API const char *kc_ffmpeg_configuration(void);
 KC_API const char *kc_ffmpeg_library_name(int index);
 KC_API const char *kc_verdict_name(int verdict);
@@ -149,6 +150,12 @@ KC_API int ffkmp_stream_disposition(kc_stream *s);
 KC_API int ffkmp_stream_index(kc_stream *s);
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);
 KC_API int ffkmp_stream_set_sample_aspect_ratio(kc_stream *s, int num, int den);
+KC_API int ffkmp_subtitle_decode(kc_codec_ctx *c, const kc_packet *p, kc_subtitle **out);
+KC_API int ffkmp_subtitle_decoder_open(kc_fmt_ctx *ctx, int stream_index, kc_codec_ctx **out);
+KC_API int ffkmp_subtitle_rect(const kc_subtitle *s, int i, int *type, int *x, int *y, int *w, int *h, int *forced);
+KC_API int ffkmp_subtitle_rect_count(const kc_subtitle *s);
+KC_API int ffkmp_subtitle_rect_rgba(const kc_subtitle *s, int i, uint8_t *dst, int dst_size);
+KC_API int ffkmp_subtitle_times(const kc_subtitle *s, int64_t *start_us, int64_t *end_us);
 KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in);
 KC_API int ffkmp_swr_create(kc_swr **out, int in_rate, int in_channels, int in_format, int out_rate, int out_channels, int out_format, int64_t in_mask, int64_t out_mask);
 KC_API int kc_init(void);
@@ -233,6 +240,7 @@ KC_API void ffkmp_stream_discard_all(kc_stream *s);
 KC_API void ffkmp_stream_discard_none(kc_stream *s);
 KC_API void ffkmp_stream_set_time_base(kc_stream *s, int n, int d);
 KC_API void ffkmp_stream_time_base(kc_stream *s, int *n, int *d);
+KC_API void ffkmp_subtitle_free(kc_subtitle **s);
 KC_API void ffkmp_swr_free(kc_swr **s);
 KC_API void kc_ffmpeg_report_get(kc_ffmpeg_report *out);
 KC_API void* ffkmp_frame_hw_surface(kc_frame *f);
@@ -250,4 +258,5 @@ typedef struct AVFormatContext kc_fmt_ctx;
 typedef struct AVFrame kc_frame;
 typedef struct AVPacket kc_packet;
 typedef struct AVStream kc_stream;
+typedef struct AVSubtitle kc_subtitle;
 typedef struct kc_ffmpeg_report { int32_t status; int32_t bypassed; int32_t abi_major; int32_t abi_minor; int32_t header_major[KC_FFMPEG_LIBRARY_COUNT]; int32_t header_minor[KC_FFMPEG_LIBRARY_COUNT]; int32_t header_micro[KC_FFMPEG_LIBRARY_COUNT]; int32_t runtime_major[KC_FFMPEG_LIBRARY_COUNT]; int32_t runtime_minor[KC_FFMPEG_LIBRARY_COUNT]; int32_t runtime_micro[KC_FFMPEG_LIBRARY_COUNT]; int32_t verdict[KC_FFMPEG_LIBRARY_COUNT]; int32_t configuration_agrees; int32_t configuration_disagreed_count; char configuration_disagreed[KC_TEXT_LIST]; char build_ffmpeg_ref[KC_TEXT_REF]; char build_license_flavour[KC_TEXT_REF]; char build_provisioning_dir[KC_TEXT_PATH]; char runtime_version_info[KC_TEXT_NAME]; char runtime_license[KC_TEXT_NAME]; char provisioning[KC_TEXT_SENTENCE]; } kc_ffmpeg_report;

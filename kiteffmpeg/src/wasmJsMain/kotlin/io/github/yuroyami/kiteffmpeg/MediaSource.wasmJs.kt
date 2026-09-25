@@ -2,6 +2,7 @@ package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions
 import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_subtitle_decoder_open
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_content_light
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_mastering_display
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_alloc
@@ -508,7 +509,23 @@ public actual class MediaSource internal constructor(
     }
 
     @KiteFFmpegLowLevelApi
-    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = throw notWired()
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder {
+        val m = requireModule()
+        require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
+        // The same identity rule the packet reader applies: a StreamInfo can be forged.
+        canonicalPacketSelection(streams, listOf(stream))
+        val slot = wasmAlloc(m, 4)
+        try {
+            val rc = ffkmp_subtitle_decoder_open(m, alive(), stream.index, slot)
+            if (rc == FFmpegError.AVERROR_DECODER_NOT_FOUND) {
+                throw FFmpegException(FFmpegError.DecoderNotFound(rc, decoderNotFoundMessage(stream.codec, requested = null)))
+            }
+            if (rc < 0) throw FFmpegException(FFmpegError.Internal("opening the subtitle decoder failed with $rc"))
+            return SubtitleDecoder(readInt32(m, slot), stream, lifetime)
+        } finally {
+            wasmFree(m, slot)
+        }
+    }
 
     public actual fun interrupt() {
         /* Single-threaded runtime: nothing can be blocked while this runs, so the flag only

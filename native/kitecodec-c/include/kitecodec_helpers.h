@@ -418,6 +418,52 @@ KC_API int64_t ffkmp_swr_delay(kc_swr *s, int64_t base);
 /* Ownership. Frees *s and writes NULL through the pointer; safe on NULL either way. */
 KC_API void ffkmp_swr_free(kc_swr **s);
 
+/* Subtitle decoding. A decoded subtitle is FFmpeg's AVSubtitle behind kc_subtitle: its times, and
+ * rectangles that are images or text. */
+#define KC_SUBTITLE_BITMAP 1
+#define KC_SUBTITLE_TEXT 2
+#define KC_SUBTITLE_ASS 3
+
+/* Ownership. Opens a decoder for subtitle stream `stream_index` of ctx into *out, a context the
+ * caller frees with ffkmp_codecctx_free. Its packet time base is the stream's, so decoded times
+ * are exact. A NULL out or context, an index outside the context or a stream that is not a
+ * subtitle stream is refused with AVERROR(EINVAL); a codec this build cannot decode with
+ * AVERROR_DECODER_NOT_FOUND. *out is NULL on every failure. */
+KC_API int ffkmp_subtitle_decoder_open(kc_fmt_ctx *ctx, int stream_index, kc_codec_ctx **out);
+
+/* Ownership. Decodes packet p into *out, a subtitle the caller frees with ffkmp_subtitle_free.
+ * *out is NULL when the packet completed no subtitle, which is not an error. NULL arguments are
+ * refused with AVERROR(EINVAL). */
+KC_API int ffkmp_subtitle_decode(kc_codec_ctx *c, const kc_packet *p, kc_subtitle **out);
+
+/* When the subtitle starts and ends, in microseconds on the stream's own timeline. Either is
+ * INT64_MIN when it is not known: the start when the packet had no timestamp, the end when the
+ * stream does not say, as with Blu-ray subtitles. NULL arguments are refused with AVERROR(EINVAL). */
+KC_API int ffkmp_subtitle_times(const kc_subtitle *s, int64_t *start_us, int64_t *end_us);
+
+/* How many rectangles the subtitle has; 0 for NULL or a subtitle that clears the screen. */
+KC_API int ffkmp_subtitle_rect_count(const kc_subtitle *s);
+
+/* Rectangle i: its KC_SUBTITLE_* type, its position and size in canvas pixels, and 1 in forced
+ * when the stream marks it forced. A NULL argument or an index outside the subtitle is refused
+ * with AVERROR(EINVAL). */
+KC_API int ffkmp_subtitle_rect(const kc_subtitle *s, int i, int *type, int *x, int *y, int *w, int *h,
+                               int *forced);
+
+/* Converts image rectangle i to premultiplied RGBA in dst, which holds dst_size bytes and needs
+ * w * h * 4 of them, rows top to bottom with no padding. A palette index outside the palette is
+ * transparent. A NULL argument, an index outside the subtitle, a rectangle that is not an image or
+ * a dst that is too small is refused with AVERROR(EINVAL). */
+KC_API int ffkmp_subtitle_rect_rgba(const kc_subtitle *s, int i, uint8_t *dst, int dst_size);
+
+/* The text of text or ASS rectangle i, owned by the subtitle; NULL for an image rectangle, an
+ * index outside the subtitle or NULL. */
+KC_API const char *ffkmp_subtitle_rect_text(const kc_subtitle *s, int i);
+
+/* Ownership. Frees *s with every rectangle in it and writes NULL through the pointer; safe on
+ * NULL either way. */
+KC_API void ffkmp_subtitle_free(kc_subtitle **s);
+
 /* An interrupt cell a caller creates BEFORE an open, so another thread can stop the open while
  * it runs: ffkmp_fmt_open_input2 and ffkmp_fmt_open_input_io poll it instead of allocating a
  * cell of their own, and the context they return keeps polling it. No close ever frees it. The

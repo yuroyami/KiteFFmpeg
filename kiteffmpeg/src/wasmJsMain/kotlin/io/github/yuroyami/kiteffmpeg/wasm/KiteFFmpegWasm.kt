@@ -18,6 +18,9 @@ import kotlin.js.JsAny
  * to a surface that exists only because the codec lives in another wasm module.
  */
 
+@JsFun("(m, a0, a1) => m._ffkmp_subtitle_rect_text(a0, a1)")
+internal external fun ffkmp_subtitle_rect_text(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m) => m._kc_ffmpeg_configuration()")
 internal external fun kc_ffmpeg_configuration(module: JsAny): Int
 
@@ -429,6 +432,24 @@ internal external fun ffkmp_stream_rotation_degrees(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1, a2) => m._ffkmp_stream_set_sample_aspect_ratio(a0, a1, a2)")
 internal external fun ffkmp_stream_set_sample_aspect_ratio(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_subtitle_decode(a0, a1, a2)")
+internal external fun ffkmp_subtitle_decode(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
+@JsFun("(m, a0, a1, a2) => m._ffkmp_subtitle_decoder_open(a0, a1, a2)")
+internal external fun ffkmp_subtitle_decoder_open(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7) => m._ffkmp_subtitle_rect(a0, a1, a2, a3, a4, a5, a6, a7)")
+internal external fun ffkmp_subtitle_rect(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int): Int
+
+@JsFun("(m, a0) => m._ffkmp_subtitle_rect_count(a0)")
+internal external fun ffkmp_subtitle_rect_count(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0, a1, a2, a3) => m._ffkmp_subtitle_rect_rgba(a0, a1, a2, a3)")
+internal external fun ffkmp_subtitle_rect_rgba(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int): Int
+
+@JsFun("(m, a0, a1, a2) => m._ffkmp_subtitle_times(a0, a1, a2)")
+internal external fun ffkmp_subtitle_times(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_swr_convert_frame(a0, a1, a2)")
 internal external fun ffkmp_swr_convert_frame(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
@@ -677,6 +698,9 @@ internal external fun ffkmp_stream_set_time_base(module: JsAny, a0: Int, a1: Int
 
 @JsFun("(m, a0, a1, a2) => m._ffkmp_stream_time_base(a0, a1, a2)")
 internal external fun ffkmp_stream_time_base(module: JsAny, a0: Int, a1: Int, a2: Int): Unit
+
+@JsFun("(m, a0) => m._ffkmp_subtitle_free(a0)")
+internal external fun ffkmp_subtitle_free(module: JsAny, a0: Int): Unit
 
 @JsFun("(m, a0) => m._ffkmp_swr_free(a0)")
 internal external fun ffkmp_swr_free(module: JsAny, a0: Int): Unit

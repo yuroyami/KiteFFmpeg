@@ -153,6 +153,9 @@ library {
       public typealias kc_stream = cnames/structs/AVStream /* = cnames/structs/AVStream */
 
       @kotlinx/cinterop/ExperimentalForeignApi
+      public typealias kc_subtitle = cnames/structs/AVSubtitle /* = cnames/structs/AVSubtitle */
+
+      @kotlinx/cinterop/ExperimentalForeignApi
       public typealias kc_io_read_fnVar = kotlinx/cinterop/CPointerVarOf<ffmpeg/kc_io_read_fn^> /* = kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<kotlinx/cinterop/CFunction<kotlin/Function3<kotlinx/cinterop/CPointer<out kotlinx/cinterop/CPointed>? /* = kotlinx/cinterop/COpaquePointer^? */, kotlinx/cinterop/CPointer<kotlinx/cinterop/UByteVarOf<kotlin/UByte> /* = kotlinx/cinterop/UByteVar^ */>?, kotlin/Int, kotlin/Int>>> /* = ffmpeg/kc_io_read_fn^ */> */
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -724,6 +727,38 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_swr_free(s: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/kc_swr>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/kc_swr> */>?): kotlin/Unit
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_decoder_open")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_decoder_open(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?, stream_index: kotlin/Int, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */> */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_decode")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_decode(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, p: kotlinx/cinterop/CValuesRef<cnames/structs/AVPacket /* = ffmpeg/kc_packet^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */> */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_times")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_times(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>?, start_us: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/LongVarOf<kotlin/Long> /* = platform/posix/int64_tVar^ */>?, end_us: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/LongVarOf<kotlin/Long> /* = platform/posix/int64_tVar^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_rect_count")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_rect_count(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_rect")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_rect(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>?, i: kotlin/Int, type: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?, x: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?, y: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?, w: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?, h: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?, forced: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_rect_rgba")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_rect_rgba(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>?, i: kotlin/Int, dst: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/UByteVarOf<kotlin/UByte> /* = platform/posix/uint8_tVar^ */>?, dst_size: kotlin/Int): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_rect_text")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_rect_text(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>?, i: kotlin/Int): kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_free")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_free(s: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */> */>?): kotlin/Unit
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_interrupt_new")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_interrupt_new(): kotlinx/cinterop/CPointer<cnames/structs/kc_interrupt>?
@@ -1101,7 +1136,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 4 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 5 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1187,9 +1222,28 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_COMPONENT_INPUT_PROTOCOLS: kotlin/Int /* = 5 */
         public final get
+    }
+  }
+
+  library fragment {
+    // package name: ffmpeg
+
+    package {
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_COMPONENT_BITSTREAM_FILTERS: kotlin/Int /* = 6 */
+        public final get
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_SUBTITLE_BITMAP: kotlin/Int /* = 1 */
+        public final get
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_SUBTITLE_TEXT: kotlin/Int /* = 2 */
+        public final get
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_SUBTITLE_ASS: kotlin/Int /* = 3 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1219,13 +1273,6 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_VERDICT_OK: kotlin/UInt /* = ffmpeg/kc_verdict^ */ /* = 0u */
         public final get
-    }
-  }
-
-  library fragment {
-    // package name: ffmpeg
-
-    package {
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_VERDICT_MAJOR_MISMATCH: kotlin/UInt /* = ffmpeg/kc_verdict^ */ /* = 1u */
