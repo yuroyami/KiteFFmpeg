@@ -294,9 +294,9 @@ try {
 ## Status and platforms
 
 The decoding contracts have Kotlin/Native, JVM/Android and `wasmJs` actuals. Native uses cinterop;
-JVM and Android use opaque, generation-tagged JNI handles. A JVM consumer on a host other than
-macOS arm64 gets no capabilities and typed `FFmpegError.Unsupported`, because the jar bundles only
-the macOS arm64 library. Android and iOS decode real media on real phones as the engine under
+JVM and Android use opaque, generation-tagged JNI handles. The JVM jar bundles the library for
+macOS arm64, Linux x64, Linux arm64 and Windows x64; on any other host a JVM consumer gets no
+capabilities and a typed `FFmpegError.Unsupported`. Android and iOS decode real media on real phones as the engine under
 [KitePlayer](https://github.com/yuroyami/KitePlayer). See
 [Platform support](platforms.md) for the exact matrix and [Getting started](getting-started.md) for
 the repository-local path.

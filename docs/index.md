@@ -1,6 +1,6 @@
 # KiteFFmpeg
 
-**One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; JVM and Android use a narrow JNI bridge; `wasmJs` uses a generated binding over a wasm module you load. The JVM jar carries a macOS arm64 library only, so JVM consumers on other hosts, along with `js`, get an invariant unsupported placeholder contract. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
+**One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; JVM and Android use a narrow JNI bridge; `wasmJs` uses a generated binding over a wasm module you load. The JVM jar carries native libraries for macOS arm64, Linux x64, Linux arm64 and Windows x64, and `js` is an invariant unsupported placeholder. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
 
 ```kotlin
 // One call: demux -> decode -> filter -> encode -> mux, in a single pass.
@@ -42,7 +42,7 @@ Everything routes through one demux pass. When you decode several streams, or co
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.2.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.3.0")
 }
 ```
 

@@ -6,7 +6,7 @@ FFmpeg's libav* libraries.
 
 !!! warning "Before you start"
 
-    KiteFFmpeg is on Maven Central: `io.github.yuroyami:kiteffmpeg:0.2.0`, one dependency line,
+    KiteFFmpeg is on Maven Central: `io.github.yuroyami:kiteffmpeg:0.3.0`, one dependency line,
     with FFmpeg embedded inside the artifacts. The Android AAR is real, declares `minSdkVersion 26`
     and carries `arm64-v8a`, `armeabi-v7a` and `x86_64` JNI libraries. The JVM jar carries a
     native library for macOS arm64, Linux x64, Linux arm64 and Windows x64; the Linux and Windows
@@ -85,7 +85,7 @@ inside the published artifacts:
 
 ```kotlin
 sourceSets.commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.2.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.3.0")
 }
 ```
 
