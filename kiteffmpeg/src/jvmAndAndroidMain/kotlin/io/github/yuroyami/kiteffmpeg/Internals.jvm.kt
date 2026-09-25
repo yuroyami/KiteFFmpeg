@@ -71,6 +71,8 @@ internal object Internals {
         unusedKeysOut: Array<String?>?,
         interruptToken: Long,
     ): Long
+    private external fun nativeFmtAllocOutputIo(cb: JniByteSink, format: String, seekable: Boolean): Long
+    private external fun nativeFmtFreeOutputIo(token: Long): Int
     private external fun nativeInterruptNew(): Long
     private external fun nativeInterruptRaise(token: Long)
     private external fun nativeInterruptFree(token: Long)
@@ -373,6 +375,9 @@ internal object Internals {
         unusedKeysOut: Array<String?>?,
         interruptToken: Long = 0L,
     ) = token("custom io open") { nativeFmtOpenInputIo(io, seekable, size, keys, values, unusedKeysOut, interruptToken) }
+    internal fun fmtAllocOutputIo(cb: JniByteSink, format: String) =
+        token("custom io output") { nativeFmtAllocOutputIo(cb, format, cb.seekable) }
+    internal fun fmtFreeOutputIo(token: Long) = checked { nativeFmtFreeOutputIo(token) }
     internal fun interruptNew() = token("interrupt cell") { nativeInterruptNew() }
     internal fun interruptRaise(token: Long) = checked { nativeInterruptRaise(token) }
     internal fun interruptFree(token: Long) = checked { nativeInterruptFree(token) }

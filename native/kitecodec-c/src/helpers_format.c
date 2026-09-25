@@ -468,3 +468,90 @@ KC_API void *ffkmp_fmt_io_opaque(AVFormatContext *ctx) {
     if (!bridge || bridge->magic != KC_IO_BRIDGE_MAGIC) return NULL;
     return bridge->opaque;
 }
+
+/* ── The custom output bridge: the bytes a muxer writes go to the caller instead of a path. ── */
+
+#define KC_IO_WRITER_MAGIC 0x4B43494Eu /* "KCIN", distinct from the input bridge magic */
+typedef struct kc_io_writer {
+    uint32_t       magic;
+    void          *opaque;
+    kc_io_write_fn write_fn;
+    kc_io_seek_fn  seek_fn;
+} kc_io_writer;
+
+static int kc_io_write_packet(void *opaque, const uint8_t *buf, int len) {
+    kc_io_writer *w = (kc_io_writer *)opaque;
+    return w->write_fn(w->opaque, buf, len) < 0 ? AVERROR(EIO) : len;
+}
+
+/* avio turns a relative seek into an absolute one before it calls this, so SEEK_SET is the only
+   request a caller's seek_fn has to answer. The size probe has no answer: the sink is still being
+   written. */
+static int64_t kc_io_write_seek(void *opaque, int64_t offset, int whence) {
+    kc_io_writer *w = (kc_io_writer *)opaque;
+    whence &= ~AVSEEK_FORCE;
+    if (whence != SEEK_SET || !w->seek_fn) return AVERROR(ENOSYS);
+    int64_t r = w->seek_fn(w->opaque, offset, SEEK_SET);
+    return r < 0 ? AVERROR(EIO) : r;
+}
+
+KC_API int ffkmp_fmt_alloc_output_io(AVFormatContext **out, const char *format,
+                                     void *opaque, kc_io_write_fn write_fn, kc_io_seek_fn seek_fn) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
+    if (!out) return AVERROR(EINVAL);
+    *out = NULL;
+    if (!format || !format[0] || !write_fn) return AVERROR(EINVAL);
+
+    AVFormatContext *c = NULL;
+    int rc = avformat_alloc_output_context2(&c, NULL, format, NULL);
+    if (rc < 0 || !c) return rc < 0 ? rc : AVERROR_UNKNOWN;
+    kc_io_writer *writer = av_mallocz(sizeof(kc_io_writer));
+    unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
+    AVIOContext *pb = (writer && buffer)
+        ? avio_alloc_context(buffer, KC_IO_BUFFER_SIZE, 1, writer, NULL, kc_io_write_packet,
+                             seek_fn ? kc_io_write_seek : NULL)
+        : NULL;
+    if (!pb) {
+        av_free(buffer);
+        av_free(writer);
+        avformat_free_context(c);
+        return AVERROR(ENOMEM);
+    }
+    writer->magic = KC_IO_WRITER_MAGIC;
+    writer->opaque = opaque;
+    writer->write_fn = write_fn;
+    writer->seek_fn = seek_fn;
+    /* What a muxer that has to go back reads to decide whether it can. */
+    pb->seekable = seek_fn ? AVIO_SEEKABLE_NORMAL : 0;
+    c->pb = pb;
+    c->flags |= AVFMT_FLAG_CUSTOM_IO;
+    *out = c;
+    return 0;
+}
+
+KC_API int ffkmp_fmt_free_output_io(AVFormatContext **ctx) {
+    if (!ctx || !*ctx) return 0;
+    AVFormatContext *c = *ctx;
+    AVIOContext *pb = (c->flags & AVFMT_FLAG_CUSTOM_IO) ? c->pb : NULL;
+    int rc = 0;
+    if (pb) {
+        /* The last bytes leave here, and a write that fails now is the last chance to say so. */
+        avio_flush(pb);
+        rc = pb->error;
+        kc_io_writer *writer = (kc_io_writer *)pb->opaque;
+        if (writer && writer->magic == KC_IO_WRITER_MAGIC) av_freep(&pb->opaque);
+        av_freep(&pb->buffer);
+        avio_context_free(&pb);
+        c->pb = NULL;
+    }
+    avformat_free_context(c);
+    *ctx = NULL;
+    return rc;
+}
+
+KC_API void *ffkmp_fmt_output_io_opaque(AVFormatContext *ctx) {
+    if (!ctx || !(ctx->flags & AVFMT_FLAG_CUSTOM_IO) || !ctx->pb) return NULL;
+    kc_io_writer *writer = (kc_io_writer *)ctx->pb->opaque;
+    if (!writer || writer->magic != KC_IO_WRITER_MAGIC) return NULL;
+    return writer->opaque;
+}

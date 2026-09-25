@@ -240,6 +240,9 @@ internal external fun ffkmp_fmt_add_chapter(module: JsAny, a0: Int, a1: Long, a2
 @JsFun("(m, a0, a1, a2) => m._ffkmp_fmt_alloc_output2(a0, a1, a2)")
 internal external fun ffkmp_fmt_alloc_output2(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m, a0, a1, a2, a3, a4) => m._ffkmp_fmt_alloc_output_io(a0, a1, a2, a3, a4)")
+internal external fun ffkmp_fmt_alloc_output_io(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_fmt_chapter_count(a0)")
 internal external fun ffkmp_fmt_chapter_count(module: JsAny, a0: Int): Int
 
@@ -251,6 +254,9 @@ internal external fun ffkmp_fmt_find_stream_info(module: JsAny, a0: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_fmt_free_output(a0)")
 internal external fun ffkmp_fmt_free_output(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0) => m._ffkmp_fmt_free_output_io(a0)")
+internal external fun ffkmp_fmt_free_output_io(module: JsAny, a0: Int): Int
 
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_io_open(a0, a1)")
 internal external fun ffkmp_fmt_io_open(module: JsAny, a0: Int, a1: Int): Int
@@ -569,6 +575,9 @@ internal external fun ffkmp_fmt_nb_streams(module: JsAny, a0: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_fmt_io_opaque(a0)")
 internal external fun ffkmp_fmt_io_opaque(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0) => m._ffkmp_fmt_output_io_opaque(a0)")
+internal external fun ffkmp_fmt_output_io_opaque(module: JsAny, a0: Int): Int
 
 @JsFun("(m, a0, a1) => m._ffkmp_buffersink_set_frame_size(a0, a1)")
 internal external fun ffkmp_buffersink_set_frame_size(module: JsAny, a0: Int, a1: Int): Unit

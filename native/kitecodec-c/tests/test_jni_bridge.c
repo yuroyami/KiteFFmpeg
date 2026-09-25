@@ -223,6 +223,14 @@ static void env_get_bytes(JNIEnv *caller, jbyteArray array, jsize start, jsize l
     memcpy(buf, array->bytes + start, (size_t)length);
 }
 
+static void env_set_bytes(JNIEnv *caller, jbyteArray array, jsize start, jsize length, const jbyte *buf)
+{
+    (void)caller;
+    KC_CHECK(array != NULL && array->kind == FAKE_BYTES);
+    KC_CHECK(start >= 0 && length >= 0 && start + length <= array->length);
+    memcpy(array->bytes + start, buf, (size_t)length);
+}
+
 /* The members no case in this suite reaches. Each one fails loudly rather than guessing. */
 static jint env_unexpected_get_vm(JNIEnv *env, JavaVM **vm)
 {
@@ -283,6 +291,7 @@ static const struct JNINativeInterface_ fake_env_functions = {
     .SetObjectArrayElement = env_array_set,
     .NewByteArray = env_unexpected_new_bytes,
     .GetByteArrayRegion = env_get_bytes,
+    .SetByteArrayRegion = env_set_bytes,
     .SetLongArrayRegion = env_unexpected_set_longs,
 };
 

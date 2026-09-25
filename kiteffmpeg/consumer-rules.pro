@@ -20,3 +20,9 @@
     int read(byte[], int);
     long seek(long, int);
 }
+
+# The output twin: kj_format.c resolves these two the same way at custom-io output open time.
+-keep class io.github.yuroyami.kiteffmpeg.JniByteSink {
+    int write(byte[], int);
+    long seek(long);
+}

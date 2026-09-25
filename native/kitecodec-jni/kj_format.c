@@ -533,23 +533,23 @@ typedef struct kj_io_state {
  * this one callback and *attached says so; kj_io_release then detaches it before the callback
  * returns, because an attachment nobody detaches keeps the thread's Java peer alive after the
  * thread has ended. */
-static JNIEnv *kj_io_env(kj_io_state *st, int *attached)
+static JNIEnv *kj_io_env(JavaVM *vm, int *attached)
 {
     JNIEnv *env = NULL;
     *attached = 0;
-    if ((*st->vm)->GetEnv(st->vm, (void **)&env, JNI_VERSION_1_6) == JNI_OK && env != NULL) return env;
+    if ((*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6) == JNI_OK && env != NULL) return env;
 #ifdef __ANDROID__
-    if ((*st->vm)->AttachCurrentThread(st->vm, &env, NULL) != JNI_OK) return NULL;
+    if ((*vm)->AttachCurrentThread(vm, &env, NULL) != JNI_OK) return NULL;
 #else
-    if ((*st->vm)->AttachCurrentThread(st->vm, (void **)&env, NULL) != JNI_OK) return NULL;
+    if ((*vm)->AttachCurrentThread(vm, (void **)&env, NULL) != JNI_OK) return NULL;
 #endif
     *attached = 1;
     return env;
 }
 
-static void kj_io_release(kj_io_state *st, int attached)
+static void kj_io_release(JavaVM *vm, int attached)
 {
-    if (attached) (*st->vm)->DetachCurrentThread(st->vm);
+    if (attached) (*vm)->DetachCurrentThread(vm);
 }
 
 /* The read callback's work, on a thread that has a JNIEnv. Every return path ends in kj_io_read,
@@ -574,9 +574,9 @@ static int kj_io_read(void *opaque, unsigned char *buf, int len)
 {
     kj_io_state *st = (kj_io_state *)opaque;
     int attached;
-    JNIEnv *env = kj_io_env(st, &attached);
+    JNIEnv *env = kj_io_env(st->vm, &attached);
     int result = env != NULL ? kj_io_read_with(env, st, buf, len) : KC_IO_ERR;
-    kj_io_release(st, attached);
+    kj_io_release(st->vm, attached);
     return result;
 }
 
@@ -592,9 +592,9 @@ static int64_t kj_io_seek_cb(void *opaque, int64_t offset, int whence)
 {
     kj_io_state *st = (kj_io_state *)opaque;
     int attached;
-    JNIEnv *env = kj_io_env(st, &attached);
+    JNIEnv *env = kj_io_env(st->vm, &attached);
     int64_t result = env != NULL ? kj_io_seek_with(env, st, offset, whence) : KC_IO_ERR;
-    kj_io_release(st, attached);
+    kj_io_release(st->vm, attached);
     return result;
 }
 
@@ -742,6 +742,139 @@ JNIEXPORT void JNICALL kj_fmt_close_input_io(JNIEnv *env, jclass cls, jlong toke
     st = (kj_io_state *)ffkmp_fmt_io_opaque(ctx);
     ffkmp_fmt_close_input_io(&ctx);
     kj_io_state_free(env, st);
+}
+
+/* ── The custom output bridge ───────────────────────────────────────────────────────────────────
+ * The bytes a muxer writes go to a Kotlin JniByteSink instead of a path. Same parking as the
+ * input bridge: the VM, the callback's global refs and the transfer array sit behind the C
+ * bridge's opaque and come back at the free through ffkmp_fmt_output_io_opaque. Method names and
+ * signatures are the other half of JniByteSink.kt's pinned contract. */
+
+typedef struct kj_out_state {
+    JavaVM   *vm;
+    jobject   cb;      /* global ref: the JniByteSink */
+    jobject   buffer;  /* global ref: the reusable jbyteArray */
+    jmethodID write;   /* ([BI)I */
+    jmethodID seek;    /* (J)J */
+} kj_out_state;
+
+/* Hands len bytes over in transfer-array sized pieces; any failure fails the whole write. */
+static int kj_out_write_with(JNIEnv *env, kj_out_state *st, const unsigned char *buf, int len)
+{
+    int done = 0;
+    while (done < len) {
+        jint piece = (len - done) < KJ_IO_BUFFER_SIZE ? (jint)(len - done) : (jint)KJ_IO_BUFFER_SIZE;
+        jint r;
+        (*env)->SetByteArrayRegion(env, (jbyteArray)st->buffer, 0, piece, (const jbyte *)(buf + done));
+        if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return KC_IO_ERR; }
+        r = (*env)->CallIntMethod(env, st->cb, st->write, st->buffer, piece);
+        if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return KC_IO_ERR; }
+        if (r != 0) return KC_IO_ERR;
+        done += piece;
+    }
+    return 0;
+}
+
+static int kj_out_write(void *opaque, const unsigned char *buf, int len)
+{
+    kj_out_state *st = (kj_out_state *)opaque;
+    int attached;
+    JNIEnv *env = kj_io_env(st->vm, &attached);
+    int result = env != NULL ? kj_out_write_with(env, st, buf, len) : KC_IO_ERR;
+    kj_io_release(st->vm, attached);
+    return result;
+}
+
+static int64_t kj_out_seek(void *opaque, int64_t offset, int whence)
+{
+    kj_out_state *st = (kj_out_state *)opaque;
+    int attached;
+    JNIEnv *env;
+    jlong r = KC_IO_ERR;
+    (void)whence; /* always SEEK_SET: the C bridge answers nothing else */
+    env = kj_io_env(st->vm, &attached);
+    if (env != NULL) {
+        r = (*env)->CallLongMethod(env, st->cb, st->seek, (jlong)offset);
+        if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); r = KC_IO_ERR; }
+    }
+    kj_io_release(st->vm, attached);
+    return r < 0 ? KC_IO_ERR : (int64_t)r;
+}
+
+static void kj_out_state_free(JNIEnv *env, kj_out_state *st)
+{
+    if (st == NULL) return;
+    if (st->cb != NULL) (*env)->DeleteGlobalRef(env, st->cb);
+    if (st->buffer != NULL) (*env)->DeleteGlobalRef(env, st->buffer);
+    free(st);
+}
+
+JNIEXPORT jlong JNICALL kj_fmt_alloc_output_io(JNIEnv *env, jclass cls, jobject cb, jstring format, jboolean seekable)
+{
+    kj_out_state *st;
+    kc_fmt_ctx *ctx = NULL;
+    char *cformat;
+    jclass cb_class;
+    jbyteArray local_buffer;
+    jlong token;
+    int rc;
+    (void)cls;
+    if (cb == NULL) { kj_throw_handle(env, "custom io output refused: NULL callback"); return 0; }
+    st = (kj_out_state *)calloc(1, sizeof(kj_out_state));
+    if (st == NULL) { kj_throw_handle(env, "custom io output: out of memory"); return 0; }
+    if ((*env)->GetJavaVM(env, &st->vm) != 0) {
+        free(st);
+        kj_throw_handle(env, "custom io output: GetJavaVM failed");
+        return 0;
+    }
+    cb_class = (*env)->GetObjectClass(env, cb);
+    st->write = (*env)->GetMethodID(env, cb_class, "write", "([BI)I");
+    st->seek = (*env)->GetMethodID(env, cb_class, "seek", "(J)J");
+    (*env)->DeleteLocalRef(env, cb_class);
+    if (st->write == NULL || st->seek == NULL) {
+        if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+        free(st);
+        kj_throw_handle(env, "custom io output: JniByteSink methods not found (keep rules?)");
+        return 0;
+    }
+    st->cb = (*env)->NewGlobalRef(env, cb);
+    local_buffer = (*env)->NewByteArray(env, KJ_IO_BUFFER_SIZE);
+    st->buffer = local_buffer != NULL ? (*env)->NewGlobalRef(env, local_buffer) : NULL;
+    if (local_buffer != NULL) (*env)->DeleteLocalRef(env, local_buffer);
+    if (st->cb == NULL || st->buffer == NULL) {
+        kj_out_state_free(env, st);
+        kj_throw_handle(env, "custom io output: global ref allocation failed");
+        return 0;
+    }
+    cformat = kj_string_dup(env, format);
+    if ((*env)->ExceptionCheck(env)) { kj_out_state_free(env, st); return 0; }
+    rc = ffkmp_fmt_alloc_output_io(&ctx, cformat, st, kj_out_write, seekable == JNI_TRUE ? kj_out_seek : NULL);
+    free(cformat);
+    if (rc < 0 || ctx == NULL) {
+        kj_out_state_free(env, st);
+        kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "fmt_alloc_output_io");
+        return 0;
+    }
+    token = kj_handle_put_checked(env, KJ_KIND_FMT_CTX, ctx);
+    if (token == 0) {
+        ffkmp_fmt_free_output_io(&ctx);
+        kj_out_state_free(env, st);
+    }
+    return token;
+}
+
+/* Frees the output and its bridge; returns the first write error the bridge met, or 0. */
+JNIEXPORT jint JNICALL kj_fmt_free_output_io(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_close(token, KJ_KIND_FMT_CTX);
+    kj_out_state *st;
+    int rc;
+    (void)cls;
+    if (ctx == NULL) return 0;
+    st = (kj_out_state *)ffkmp_fmt_output_io_opaque(ctx);
+    rc = ffkmp_fmt_free_output_io(&ctx);
+    kj_out_state_free(env, st);
+    return rc;
 }
 
 JNIEXPORT jint JNICALL kj_stream_set_sar(JNIEnv *env, jclass cls, jlong token, jint num, jint den)

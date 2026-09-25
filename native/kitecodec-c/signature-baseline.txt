@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg (S1.a.8).
 #
-# abi-version 3.5
+# abi-version 3.6
 #
-# Exact scope: 226 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 229 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 249 records.
+# records are sorted without deduplication. There must be exactly 252 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -85,10 +85,12 @@ KC_API int ffkmp_disposition_visual_impaired(void);
 KC_API int ffkmp_filter_exists(const char *name);
 KC_API int ffkmp_fmt_add_chapter(kc_fmt_ctx *ctx, int64_t id, int64_t start_us, int64_t end_us, const char *const *keys, const char *const *values, int n);
 KC_API int ffkmp_fmt_alloc_output2(kc_fmt_ctx **out, const char *path, const char *format);
+KC_API int ffkmp_fmt_alloc_output_io(kc_fmt_ctx **out, const char *format, void *opaque, kc_io_write_fn write_fn, kc_io_seek_fn seek_fn);
 KC_API int ffkmp_fmt_chapter_count(const kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_chapter_get(const kc_fmt_ctx *ctx, int index, int64_t *out_id, int64_t *out_start_us, int64_t *out_end_us);
 KC_API int ffkmp_fmt_find_stream_info(kc_fmt_ctx *c);
 KC_API int ffkmp_fmt_free_output(kc_fmt_ctx **ctx);
+KC_API int ffkmp_fmt_free_output_io(kc_fmt_ctx **ctx);
 KC_API int ffkmp_fmt_io_open(kc_fmt_ctx *ctx, const char *path);
 KC_API int ffkmp_fmt_is_seekable(kc_fmt_ctx *c);
 KC_API int ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
@@ -197,6 +199,7 @@ KC_API uint8_t* ffkmp_frame_plane(kc_frame *f, int p);
 KC_API uint8_t* ffkmp_packet_data(kc_packet *p);
 KC_API unsigned ffkmp_fmt_nb_streams(kc_fmt_ctx *c);
 KC_API void *ffkmp_fmt_io_opaque(kc_fmt_ctx *ctx);
+KC_API void *ffkmp_fmt_output_io_opaque(kc_fmt_ctx *ctx);
 KC_API void ffkmp_buffersink_set_frame_size(kc_filter_ctx *sink, unsigned n);
 KC_API void ffkmp_buffersink_time_base(kc_filter_ctx *sink, int *n, int *d);
 KC_API void ffkmp_codecctx_flush(kc_codec_ctx *c);

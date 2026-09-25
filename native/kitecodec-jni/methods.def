@@ -84,6 +84,8 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketBytes",      "
 // ── format, borrowed views and codec parameters (kj_format.c) ─ COMPLETE ────────────────────
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtOpenInput",     "(Ljava/lang/String;)J",  kj_fmt_open_input)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtOpenInput2",    "(Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;J)J", kj_fmt_open_input2)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtAllocOutputIo", "(Lio/github/yuroyami/kiteffmpeg/JniByteSink;Ljava/lang/String;Z)J", kj_fmt_alloc_output_io)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtFreeOutputIo",  "(J)I",                    kj_fmt_free_output_io)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtOpenInputIo",   "(Lio/github/yuroyami/kiteffmpeg/JniByteIo;ZJ[Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;J)J", kj_fmt_open_input_io)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeInterruptNew",     "()J",                           kj_interrupt_new)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeInterruptRaise",   "(J)V",                          kj_interrupt_raise)

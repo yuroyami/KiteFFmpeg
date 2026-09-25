@@ -323,6 +323,29 @@ The muxer interleaves packets from both encoders into the container. `close()` w
 
 For the common case of demux one file, re-encode, and mux, the [Transcoder](transcoding.md) already orchestrates this interleaving for you, including the AAC frame-size wiring and the trim rebasing. Use raw `MediaSink` when your frames come from a source a single input file cannot describe.
 
+## Writing into your own bytes
+
+`MediaSink.open(sink, format, options)` writes the output into a `MediaByteSink` instead of a path: an in-memory buffer, encrypted storage, a virtual file system or an upload stream. It is the output twin of `MediaByteSource`. The format is required, because there is no path to infer it from.
+
+```kotlin
+class MemorySink : MediaByteSink {
+    val bytes = ByteArrayOutputStream()   // any growable buffer
+    override val seekable = false
+    override fun write(bytes: ByteArray, offset: Int, length: Int) = this.bytes.write(bytes, offset, length)
+    override fun seek(position: Long) = error("not seekable")
+    override fun close() = Unit
+}
+
+val sink = MediaSink.open(MemorySink(), "mp4", mapOf("movflags" to "frag_keyframe+empty_moov"))
+```
+
+The rules:
+
+- Every call arrives on the thread that writes the output, one at a time. A `write` that blocks holds the muxer, so a slow consumer bounds the buffering to the 64 KiB the muxer holds.
+- `write` takes all the bytes or throws. The exception becomes the cause of the `FFmpegException` that fails the write, and the sink cannot write again after it.
+- A container that has to seek back, such as MP4 without fragments, refuses a sink whose `seekable` is false with `FFmpegError.InvalidArgument` when the header is written. Pass `"movflags" to "frag_keyframe+empty_moov"` to write fragmented MP4, or make the sink seekable.
+- The `MediaSink` owns the sink: after the last byte it calls `flush()` once, then `close()` once.
+
 ## Container metadata
 
 Tag the output before the first frame:

@@ -4,7 +4,9 @@ import kotlinx.coroutines.flow.Flow
 
 public actual class MediaSink internal constructor(
     private var formatToken: Long,
-    private val outputPath: String,
+    /** Where the output goes; null when [byteSink] takes the bytes instead. */
+    private val outputPath: String?,
+    private val byteSink: JniByteSink? = null,
 ) : AutoCloseable {
     private enum class HeaderState { NotWritten, Written, Failed }
 
@@ -291,8 +293,10 @@ public actual class MediaSink internal constructor(
         }
         headerState = HeaderState.Failed
         val format = formatToken
-        check0(Internals.fmtIoOpen(format, outputPath), "avio_open")
-        check0(Internals.fmtWriteHeader(format), "avformat_write_header")
+        // A byte sink's output is already open: its bytes go to the caller, not to a path.
+        outputPath?.let { path -> check0(Internals.fmtIoOpen(format, path), "avio_open") }
+        val rc = Internals.fmtWriteHeader(format)
+        if (rc < 0) throw explained(headerFailure(rc, byteSink?.seekable, avError(rc)))
         headerState = HeaderState.Written
     }
 
@@ -303,8 +307,11 @@ public actual class MediaSink internal constructor(
         check(formatToken != 0L) { "MediaSink is closed" }
         ensureHeaderWritten()
         val rc = Internals.fmtWriteFrame(formatToken, packet)
-        if (rc < 0) throw FFmpegException(avError(rc))
+        if (rc < 0) throw explained(FFmpegException(avError(rc)))
     }
+
+    /** [error] with the exception the byte sink threw, when it threw one, as its cause. */
+    private fun explained(error: FFmpegException): FFmpegException = byteSink?.explain(error) ?: error
 
     actual override fun close() {
         // Cores are finished and closed BEFORE muxLock is taken for the trailer. An encode on
@@ -357,20 +364,39 @@ public actual class MediaSink internal constructor(
                 // The output file's own close, which is the last thing that can fail and the place
                 // a full disk reports itself. Kept and raised below rather than discarded, so a
                 // truncated file is not reported as a written one.
-                closeRc = Internals.fmtFreeOutput(format)
+                closeRc = if (byteSink != null) Internals.fmtFreeOutputIo(format) else Internals.fmtFreeOutput(format)
             }
             result
         }
-        firstFailure?.let { throw it }
-        if (trailerRc < 0) throw FFmpegException(avError(trailerRc))
-        if (closeRc < 0) throw FFmpegException(avError(closeRc))
+        // The byte sink's own flush and close, once the muxer let go of it; a failure there is the
+        // last word on whether the bytes arrived.
+        val finishFailure = byteSink?.let { sink -> runCatching { sink.finish() }.exceptionOrNull() }
+        firstFailure?.let { failure ->
+            finishFailure?.let(failure::addSuppressed)
+            throw failure
+        }
+        if (trailerRc < 0) throw explained(FFmpegException(avError(trailerRc)))
+        if (closeRc < 0) throw explained(FFmpegException(avError(closeRc)))
+        finishFailure?.let { throw it }
     }
 
     public actual companion object {
-        // Wired in the next commit; until then it refuses rather than writes nowhere.
         @Throws(FFmpegException::class)
-        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink =
-            throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "writing into a MediaByteSink is not wired yet"))
+        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink {
+            Internals.requireCompatible()
+            val bridge = JniByteSink(sink)
+            val token = Internals.fmtAllocOutputIo(bridge, format)
+            try {
+                Internals.fmtAvoidNegativeTs(token)
+                options.forEach { (key, value) ->
+                    check0(Internals.fmtSetOpt(token, key, value), "av_opt_set (muxer option '$key')")
+                }
+                return MediaSink(token, outputPath = null, byteSink = bridge)
+            } catch (error: Throwable) {
+                Internals.fmtFreeOutputIo(token)
+                throw error
+            }
+        }
 
         @Throws(FFmpegException::class)
         public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink {

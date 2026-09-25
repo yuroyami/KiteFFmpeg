@@ -558,6 +558,35 @@ KC_API void ffkmp_fmt_interrupt(kc_fmt_ctx *ctx);
  */
 KC_API void *ffkmp_fmt_io_opaque(kc_fmt_ctx *ctx);
 
+/* The custom output bridge: muxing whose bytes go to the caller instead of a path.
+ *
+ * write_fn contract: take all len bytes at the current position and return 0, or KC_IO_ERR on
+ * any failure, which fails the muxer operation that wrote them. It is called from whatever
+ * thread drives the muxer, one call at a time, and blocking in it holds the muxer.
+ *
+ * seek_fn contract: move the position to offset, which is always absolute (whence SEEK_SET),
+ * and return it, or KC_IO_ERR. A NULL seek_fn declares the output unseekable, and a muxer that
+ * has to go back then refuses to write its header.
+ */
+typedef int (*kc_io_write_fn)(void *opaque, const unsigned char *buf, int len);
+
+/* Ownership. On success *out is a new output context the caller owns and must release with
+ * ffkmp_fmt_free_output_io and NOTHING ELSE: its AVIOContext is the bridge's, so no path is ever
+ * opened for it and ffkmp_fmt_io_open must not be called. opaque must stay valid until that free
+ * returns. A NULL out, format or write_fn, or an empty format, is refused with AVERROR(EINVAL);
+ * an unknown format with FFmpeg's own error. *out is NULL on every failure. */
+KC_API int ffkmp_fmt_alloc_output_io(kc_fmt_ctx **out, const char *format,
+                                     void *opaque, kc_io_write_fn write_fn, kc_io_seek_fn seek_fn);
+
+/* Ownership. The one free for ffkmp_fmt_alloc_output_io contexts: hands over the bytes still
+ * buffered, frees the bridge and the context, and writes NULL through ctx. Returns the first
+ * write error the bridge met, or 0. Safe on NULL and on an already-NULL pointer. */
+KC_API int ffkmp_fmt_free_output_io(kc_fmt_ctx **ctx);
+
+/* The opaque the caller gave ffkmp_fmt_alloc_output_io, or NULL for any other context. Borrowed;
+ * the JNI adapter recovers its callback state here before the free. */
+KC_API void *ffkmp_fmt_output_io_opaque(kc_fmt_ctx *ctx);
+
 /* KD-5. The chapter table. count answers AVERROR(EINVAL) on NULL; get writes the chapter's id
  * and its bounds rescaled to microseconds, refusing NULL outputs and out-of-range indices.
  * The metadata accessor returns a borrowed dictionary owned by the context (NULL on any bad

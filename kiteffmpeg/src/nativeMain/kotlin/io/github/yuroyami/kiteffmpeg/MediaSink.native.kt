@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import ffmpeg.ffkmp_fmt_free_output_io
 import ffmpeg.ffkmp_codec_first_sample_fmt
 import ffmpeg.ffkmp_codecctx_alloc
 import ffmpeg.ffkmp_codecctx_channels
@@ -84,7 +85,9 @@ import kotlinx.coroutines.flow.Flow
 
 public actual class MediaSink internal constructor(
     private val ctx: CPointer<kc_fmt_ctx>,
-    private val outputPath: String,
+    /** Where the output goes; null when [byteSink] takes the bytes instead. */
+    private val outputPath: String?,
+    private val byteSink: ByteSinkState? = null,
 ) : AutoCloseable {
 
     private enum class HeaderState { NotWritten, Written, Failed }
@@ -400,8 +403,10 @@ public actual class MediaSink internal constructor(
         // NOT call av_write_trailer on a context whose header never landed (undefined
         // behavior in FFmpeg). Only a successful write_header reaches Written.
         headerState = HeaderState.Failed
-        check0(ffkmp_fmt_io_open(ctx, outputPath), "avio_open")
-        check0(ffkmp_fmt_write_header(ctx), "avformat_write_header")
+        // A byte sink's output is already open: its bytes go to the caller, not to a path.
+        outputPath?.let { path -> check0(ffkmp_fmt_io_open(ctx, path), "avio_open") }
+        val rc = ffkmp_fmt_write_header(ctx)
+        if (rc < 0) throw explained(headerFailure(rc, byteSink?.sink?.seekable, avError(rc)).error)
         headerState = HeaderState.Written
     }
 
@@ -413,8 +418,11 @@ public actual class MediaSink internal constructor(
         check(!closed) { "MediaSink is closed" }
         ensureHeaderWritten()
         val rc = ffkmp_fmt_write_frame(ctx, packet)
-        if (rc < 0) throw FFmpegException(avError(rc))
+        if (rc < 0) throw explained(avError(rc))
     }
+
+    /** [error] as an exception, with what the byte sink threw, when it threw, as its cause. */
+    private fun explained(error: FFmpegError): FFmpegException = FFmpegException(error, byteSink?.takeFailure())
 
     actual override fun close() {
         var firstFailure: Throwable? = null
@@ -460,24 +468,53 @@ public actual class MediaSink internal constructor(
                     // when the final flush hits a full disk, and discarding this reported that
                     // file as written. The trailer's own error wins when both fail:
                     // it happened first and describes the container, not the medium.
-                    val closeRc = ffkmp_fmt_free_output(pp.ptr)
+                    val closeRc = if (byteSink != null) ffkmp_fmt_free_output_io(pp.ptr) else ffkmp_fmt_free_output(pp.ptr)
                     if (rc >= 0 && closeRc < 0) rc = closeRc
                 }
                 closed = true
             }
             rc
         }
-        firstFailure?.let { throw it }
+        // The byte sink's own flush and close, once the muxer let go of it; a failure there is the
+        // last word on whether the bytes arrived.
+        val finishFailure = byteSink?.let { sink -> runCatching { sink.finish() }.exceptionOrNull() }
+        firstFailure?.let { failure ->
+            finishFailure?.let(failure::addSuppressed)
+            throw failure
+        }
         // A failed trailer means the file on disk is broken (e.g. mp4 moov never written), and
         // surfacing that beats handing the caller a corrupt output with a green checkmark.
-        if (trailerRc < 0) throw FFmpegException(avError(trailerRc))
+        if (trailerRc < 0) throw explained(avError(trailerRc))
+        finishFailure?.let { throw it }
     }
 
     public actual companion object {
-        // Wired in the next commit; until then it refuses rather than writes nowhere.
         @Throws(FFmpegException::class)
-        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink =
-            throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "writing into a MediaByteSink is not wired yet"))
+        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink {
+            // The FFmpeg identity gate. Before the first allocation.
+            requireCompatibleFFmpeg()
+            val state = ByteSinkState(sink)
+            val ctx = try {
+                allocOutputIo(state, format)
+            } catch (error: Throwable) {
+                state.ref.dispose()
+                throw error
+            }
+            ffkmp_fmt_avoid_negative_ts(ctx)
+            try {
+                options.forEach { (k, v) ->
+                    check0(ffkmp_fmt_set_opt(ctx, k, v), "av_opt_set (muxer option '$k')")
+                }
+            } catch (t: Throwable) {
+                memScoped {
+                    val pp = alloc<CPointerVar<kc_fmt_ctx>>().also { it.value = ctx }
+                    ffkmp_fmt_free_output_io(pp.ptr)
+                }
+                state.ref.dispose()
+                throw t
+            }
+            return MediaSink(ctx, outputPath = null, byteSink = state)
+        }
 
         @Throws(FFmpegException::class)
         public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink {
