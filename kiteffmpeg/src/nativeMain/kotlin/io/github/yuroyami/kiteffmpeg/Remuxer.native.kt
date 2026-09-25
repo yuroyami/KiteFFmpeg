@@ -2,6 +2,9 @@ package io.github.yuroyami.kiteffmpeg
 
 import ffmpeg.ffkmp_packet_dts
 import ffmpeg.ffkmp_packet_pts
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 
 public actual object Remuxer {
 
@@ -12,13 +15,28 @@ public actual object Remuxer {
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
         onProgress: ((packetsWritten: Long) -> Unit)?,
     ) {
         // The FFmpeg identity gate. First statement of the entry point.
         requireCompatibleFFmpeg()
         require(startMicros >= 0 && endMicros > startMicros) { "Invalid trim window [$startMicros, $endMicros]" }
         refuseSameFile(input, output)
+        runTranscode(dispatcher ?: Dispatchers.IO, onProgress) { publish ->
+            remuxHere(input, output, streamIndices, startMicros, endMicros, metadata, publish)
+        }
+    }
 
+    /** The whole remux, on the calling thread, handing its packet counts to [publish]. */
+    private suspend fun remuxHere(
+        input: String,
+        output: String,
+        streamIndices: List<Int>?,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        publish: ((packetsWritten: Long) -> Unit)?,
+    ) {
         MediaSource.open(input).use { source ->
             val selected = if (streamIndices == null) {
                 source.streams.filter { it.type != MediaType.Unknown }
@@ -78,11 +96,11 @@ public actual object Remuxer {
                         } else {
                             copies.getValue(info.index).writeCopyPacket(packet)
                             written += 1
-                            if (onProgress != null && written % 100 == 0L) onProgress(written)
+                            if (publish != null && written % 100 == 0L) publish(written)
                         }
                     },
                 )
-                onProgress?.invoke(written)
+                publish?.invoke(written)
             }
         }
     }

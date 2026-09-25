@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.CoroutineDispatcher
+
 public actual object Remuxer {
     public actual suspend fun remux(
         input: String,
@@ -8,6 +10,7 @@ public actual object Remuxer {
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
         onProgress: ((packetsWritten: Long) -> Unit)?,
     ): Unit = placeholderBackendUnavailable("Remuxing media")
 }

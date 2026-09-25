@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.CoroutineDispatcher
+
 /**
  * Lossless container rewrite: `ffmpeg -c copy`. Packets move from input to output without
  * touching a decoder or encoder, so a full-length movie remuxes in seconds and bit-exact
@@ -22,8 +24,18 @@ public expect object Remuxer {
      * @param startMicros trim start, relative to the start of the content (see
      *                    [MediaSource.startTimeMicros])
      * @param endMicros trim end, on the same content-relative scale
+     * The copy loop runs on [dispatcher], so a call from an app's main thread does not block it.
+     * Cancelling the caller stops the loop before its next packet. Every native object is closed
+     * before this function returns or throws, and the output is finished with whatever was
+     * written up to that point.
+     *
      * @param metadata container tags written into the output header (`title`, `artist`, …)
-     * @param onProgress invoked every ~100 packets with the running packet count
+     * @param dispatcher where the blocking work runs. Null runs it on `Dispatchers.IO`, the pool
+     *                   for blocking calls.
+     * @param onProgress invoked every ~100 packets with the running packet count, in the caller's
+     *                   own coroutine context and never on [dispatcher]. A caller that is busy when
+     *                   a report arrives gets only the newest one, and the last report arrives
+     *                   before this function returns.
      */
     public suspend fun remux(
         input: String,
@@ -32,6 +44,7 @@ public expect object Remuxer {
         startMicros: Long = 0L,
         endMicros: Long = Long.MAX_VALUE,
         metadata: Map<String, String> = emptyMap(),
+        dispatcher: CoroutineDispatcher? = null,
         onProgress: ((packetsWritten: Long) -> Unit)? = null,
     )
 }

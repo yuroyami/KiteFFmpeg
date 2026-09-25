@@ -1963,7 +1963,7 @@ final object io.github.yuroyami.kiteffmpeg/FFmpeg { // io.github.yuroyami.kiteff
 }
 
 final object io.github.yuroyami.kiteffmpeg/Remuxer { // io.github.yuroyami.kiteffmpeg/Remuxer|null[0]
-    final suspend fun remux(kotlin/String, kotlin/String, kotlin.collections/List<kotlin/Int>? = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlin/Function1<kotlin/Long, kotlin/Unit>? = ...) // io.github.yuroyami.kiteffmpeg/Remuxer.remux|remux(kotlin.String;kotlin.String;kotlin.collections.List<kotlin.Int>?;kotlin.Long;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlin.Function1<kotlin.Long,kotlin.Unit>?){}[0]
+    final suspend fun remux(kotlin/String, kotlin/String, kotlin.collections/List<kotlin/Int>? = ..., kotlin/Long = ..., kotlin/Long = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ..., kotlinx.coroutines/CoroutineDispatcher? = ..., kotlin/Function1<kotlin/Long, kotlin/Unit>? = ...) // io.github.yuroyami.kiteffmpeg/Remuxer.remux|remux(kotlin.String;kotlin.String;kotlin.collections.List<kotlin.Int>?;kotlin.Long;kotlin.Long;kotlin.collections.Map<kotlin.String,kotlin.String>;kotlinx.coroutines.CoroutineDispatcher?;kotlin.Function1<kotlin.Long,kotlin.Unit>?){}[0]
 }
 
 final object io.github.yuroyami.kiteffmpeg/Transcoder { // io.github.yuroyami.kiteffmpeg/Transcoder|null[0]
