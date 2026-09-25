@@ -229,6 +229,22 @@ final enum class io.github.yuroyami.kiteffmpeg/DivergentField : kotlin/Enum<io.g
     final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/DivergentField> // io.github.yuroyami.kiteffmpeg/DivergentField.values|values#static(){}[0]
 }
 
+final enum class io.github.yuroyami.kiteffmpeg/FFmpegComponent : kotlin/Enum<io.github.yuroyami.kiteffmpeg/FFmpegComponent> { // io.github.yuroyami.kiteffmpeg/FFmpegComponent|null[0]
+    enum entry BitstreamFilters // io.github.yuroyami.kiteffmpeg/FFmpegComponent.BitstreamFilters|null[0]
+    enum entry Decoders // io.github.yuroyami.kiteffmpeg/FFmpegComponent.Decoders|null[0]
+    enum entry Demuxers // io.github.yuroyami.kiteffmpeg/FFmpegComponent.Demuxers|null[0]
+    enum entry Encoders // io.github.yuroyami.kiteffmpeg/FFmpegComponent.Encoders|null[0]
+    enum entry Filters // io.github.yuroyami.kiteffmpeg/FFmpegComponent.Filters|null[0]
+    enum entry InputProtocols // io.github.yuroyami.kiteffmpeg/FFmpegComponent.InputProtocols|null[0]
+    enum entry Muxers // io.github.yuroyami.kiteffmpeg/FFmpegComponent.Muxers|null[0]
+
+    final val entries // io.github.yuroyami.kiteffmpeg/FFmpegComponent.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.yuroyami.kiteffmpeg/FFmpegComponent> // io.github.yuroyami.kiteffmpeg/FFmpegComponent.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.yuroyami.kiteffmpeg/FFmpegComponent // io.github.yuroyami.kiteffmpeg/FFmpegComponent.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/FFmpegComponent> // io.github.yuroyami.kiteffmpeg/FFmpegComponent.values|values#static(){}[0]
+}
+
 final enum class io.github.yuroyami.kiteffmpeg/FieldOrder : kotlin/Enum<io.github.yuroyami.kiteffmpeg/FieldOrder> { // io.github.yuroyami.kiteffmpeg/FieldOrder|null[0]
     enum entry BottomFirst // io.github.yuroyami.kiteffmpeg/FieldOrder.BottomFirst|null[0]
     enum entry Progressive // io.github.yuroyami.kiteffmpeg/FieldOrder.Progressive|null[0]
@@ -2027,6 +2043,7 @@ final object io.github.yuroyami.kiteffmpeg/FFmpeg { // io.github.yuroyami.kiteff
     final val versions // io.github.yuroyami.kiteffmpeg/FFmpeg.versions|{}versions[0]
         final fun <get-versions>(): io.github.yuroyami.kiteffmpeg/Versions // io.github.yuroyami.kiteffmpeg/FFmpeg.versions.<get-versions>|<get-versions>(){}[0]
 
+    final fun components(io.github.yuroyami.kiteffmpeg/FFmpegComponent): kotlin.collections/List<kotlin/String> // io.github.yuroyami.kiteffmpeg/FFmpeg.components|components(io.github.yuroyami.kiteffmpeg.FFmpegComponent){}[0]
     final fun hasDecoder(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasDecoder|hasDecoder(kotlin.String){}[0]
     final fun hasEncoder(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasEncoder|hasEncoder(kotlin.String){}[0]
     final fun hasFilter(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasFilter|hasFilter(kotlin.String){}[0]

@@ -30,4 +30,8 @@ public actual object FFmpeg {
         Internals.requireCompatible()
         return Internals.hasFilter(name)
     }
+
+    // Wired in the next commit; until then every backend refuses rather than answers empty.
+    public actual fun components(kind: FFmpegComponent): List<String> =
+        throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "listing FFmpeg components is not wired yet"))
 }

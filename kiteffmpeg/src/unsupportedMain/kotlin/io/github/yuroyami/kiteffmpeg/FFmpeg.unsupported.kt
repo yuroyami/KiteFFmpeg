@@ -12,4 +12,6 @@ public actual object FFmpeg {
     public actual fun hasDecoder(name: String): Boolean = false
 
     public actual fun hasFilter(name: String): Boolean = false
+
+    public actual fun components(kind: FFmpegComponent): List<String> = emptyList()
 }

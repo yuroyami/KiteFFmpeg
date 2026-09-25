@@ -48,4 +48,8 @@ public actual object FFmpeg {
 
     public actual fun hasFilter(name: String): Boolean =
         withCString(name) { ptr -> ffkmp_filter_exists(requireModule(), ptr) != 0 }
+
+    // Wired in the next commit; until then every backend refuses rather than answers empty.
+    public actual fun components(kind: FFmpegComponent): List<String> =
+        throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "listing FFmpeg components is not wired yet"))
 }

@@ -33,6 +33,40 @@ public expect object FFmpeg {
 
     /** Whether the bound FFmpeg has a given filter compiled in. */
     public fun hasFilter(name: String): Boolean
+
+    /**
+     * Every component of [kind] the bound FFmpeg links, by FFmpeg's own name, sorted.
+     *
+     * A measurement of the build rather than of its recipe: a component that failed to compile is
+     * absent here even when the recipe asked for it. Where [hasDecoder] answers a yes or no about a
+     * name the caller already knows, this answers what the build has at all. On the web it lists
+     * what the loaded codec module links.
+     */
+    public fun components(kind: FFmpegComponent): List<String>
+}
+
+/** A family of FFmpeg components that [FFmpeg.components] lists. */
+public enum class FFmpegComponent {
+    /** Decoders, such as `h264` and `libdav1d`. */
+    Decoders,
+
+    /** Encoders, such as `aac` and `h264_videotoolbox`. */
+    Encoders,
+
+    /** Demuxers, the input formats, such as `matroska,webm` and `mov,mp4,m4a,3gp,3g2,mj2`. */
+    Demuxers,
+
+    /** Muxers, the output formats, such as `mp4` and `matroska`. */
+    Muxers,
+
+    /** Filters, such as `scale` and `aresample`. */
+    Filters,
+
+    /** Protocols FFmpeg can read from, such as `file` and `http`. */
+    InputProtocols,
+
+    /** Bitstream filters, such as `h264_mp4toannexb`. */
+    BitstreamFilters,
 }
 
 /**

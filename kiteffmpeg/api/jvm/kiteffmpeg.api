@@ -328,12 +328,26 @@ public final class io/github/yuroyami/kiteffmpeg/DivergentField : java/lang/Enum
 
 public final class io/github/yuroyami/kiteffmpeg/FFmpeg {
 	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/FFmpeg;
+	public final fun components (Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;)Ljava/util/List;
 	public final fun getBuildConfiguration ()Ljava/lang/String;
 	public final fun getIdentity ()Lio/github/yuroyami/kiteffmpeg/FFmpegIdentity;
 	public final fun getVersions ()Lio/github/yuroyami/kiteffmpeg/Versions;
 	public final fun hasDecoder (Ljava/lang/String;)Z
 	public final fun hasEncoder (Ljava/lang/String;)Z
 	public final fun hasFilter (Ljava/lang/String;)Z
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegComponent : java/lang/Enum {
+	public static final field BitstreamFilters Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static final field Decoders Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static final field Demuxers Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static final field Encoders Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static final field Filters Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static final field InputProtocols Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static final field Muxers Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;
 }
 
 public abstract class io/github/yuroyami/kiteffmpeg/FFmpegError {
