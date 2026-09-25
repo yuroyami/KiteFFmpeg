@@ -16,10 +16,12 @@ echo "source-discipline.sh (kitecodec-jni): four bans over $DIR"
 
 # Keep this deliberately exact. A broad "not libav" test would let a second native boundary enter
 # unnoticed, while a broad system-header wildcard would let platform policy creep into category
-# units. Add a header here only when the adapter has a reviewed, in-fence need for it.
+# units. Add a header here only when the adapter has a reviewed, in-fence need for it. The two
+# local headers are the adapter's own: kj_append.h is its bounded string formatter, and
+# kc_handles.h is the generation-tagged handle table under native/kitecodec-handles.
 HITS=$(awk '
     /^[[:space:]]*#[[:space:]]*include[[:space:]]*/ {
-        if ($0 !~ /^[[:space:]]*#[[:space:]]*include[[:space:]]*(<jni\.h>|<stdint\.h>|<pthread\.h>|<stdio\.h>|<stdlib\.h>|<string\.h>|"kj_internal\.h"|"kitecodec_abi\.h"|"kitecodec_handles\.h"|"kitecodec_helpers\.h"|"methods\.def")[[:space:]]*$/) {
+        if ($0 !~ /^[[:space:]]*#[[:space:]]*include[[:space:]]*(<jni\.h>|<stdarg\.h>|<stddef\.h>|<stdint\.h>|<pthread\.h>|<stdio\.h>|<stdlib\.h>|<string\.h>|"kj_internal\.h"|"kj_append\.h"|"kc_handles\.h"|"kitecodec_abi\.h"|"kitecodec_handles\.h"|"kitecodec_helpers\.h"|"methods\.def")[[:space:]]*$/) {
             print FILENAME ":" FNR ":" $0
         }
     }

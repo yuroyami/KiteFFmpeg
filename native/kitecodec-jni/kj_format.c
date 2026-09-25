@@ -467,7 +467,7 @@ JNIEXPORT jint JNICALL kj_codecpar_from_context(JNIEnv *env,jclass cls,jlong par
 JNIEXPORT jint JNICALL kj_codecpar_copy(JNIEnv *env,jclass cls,jlong dst_token,jlong src_token)
 {kc_codec_par*d=(kc_codec_par*)kj_handle_get(env,dst_token,KJ_KIND_CODEC_PAR);kc_codec_par*s;(void)cls;if(!d)return-1;s=(kc_codec_par*)kj_handle_get(env,src_token,KJ_KIND_CODEC_PAR);return s?ffkmp_codecpar_copy_for_mux(d,s):-1;}
 
-/* ── M1: the custom AVIO bridge ──────────────────────────────────────────────────────────────
+/* ── The custom input bridge ────────────────────────────────────────────────────────────────────
  * The bytes come from a Kotlin JniByteIo instead of a path. This unit parks the VM pointer,
  * the callback's global refs and the reusable transfer array behind the C bridge's opaque, and
  * recovers them at close through ffkmp_fmt_io_opaque. Method names and signatures here are the

@@ -310,6 +310,20 @@ echo
 # 3. The exported set is exactly the header's KC_API set.
 # ---------------------------------------------------------------------------------------------
 echo "3. exported symbols are exactly the KC_API declarations of the two headers"
+# Test-only seams. build-host.sh compiles them under KC_TESTING into the host test archive and into
+# nothing else, so a host audit sets them aside by name before checks 3 and 6. The same name in a
+# shipped archive is a failure: it would mean KC_TESTING reached a real build.
+TEST_SEAMS="_kc_test_force_gate_status"
+for seam in $TEST_SEAMS; do
+    grep -qx "$seam" "$WORK/external.txt" || continue
+    if [ "$HOST" = 1 ]; then
+        echo "  set aside: $seam, a KC_TESTING seam of the host test archive"
+    else
+        fail "$seam is a KC_TESTING seam and must never be exported by a shipped archive"
+    fi
+    grep -vx "$seam" "$WORK/external.txt" > "$WORK/external.kept" || true
+    mv "$WORK/external.kept" "$WORK/external.txt"
+done
 sed 's/^/_/' "$WORK/expected_exported.txt" | sort > "$WORK/expected_external_symbols.txt"
 comm -23 "$WORK/expected_external_symbols.txt" "$WORK/external.txt" > "$WORK/missing.txt"
 comm -13 "$WORK/expected_external_symbols.txt" "$WORK/external.txt" > "$WORK/extra.txt"

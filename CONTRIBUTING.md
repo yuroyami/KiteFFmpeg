@@ -90,6 +90,7 @@ and which rule selected it.
 ./gradlew checkCinteropCoupling
 ./gradlew :kiteffmpeg:checkFFmpegRecipes
 ./native/kitecodec-c/scripts/check-deleted-surface.sh
+./native/kitecodec-jni/scripts/source-discipline.sh
 ./native/kitecodec-c/scripts/run-c-tests.sh plain
 git ls-files -z | xargs -0 grep -n $'\u2014'   # em dash scan: printing nothing is the pass
 ```
