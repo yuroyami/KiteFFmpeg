@@ -647,6 +647,7 @@ private fun buildStreams(format: Long): List<StreamInfo> = buildList {
                         ?.let { Internals.rescaleQ(it, timeBase, Rational.Tb_us) }
                         ?: 0L,
                     codecExtradata = Internals.codecParExtradata(parameters),
+                    codecProfile = knownProfile(Internals.codecParProfile(parameters)),
                 ),
             )
         } finally {

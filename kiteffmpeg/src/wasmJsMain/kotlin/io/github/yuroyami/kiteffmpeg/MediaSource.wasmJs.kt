@@ -689,6 +689,7 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                 ?.let { ffkmp_rescale_q(m, it, timeBase.num, timeBase.den, 1, 1_000_000) }
                 ?: 0L,
             codecExtradata = readCodecExtradata(m, par),
+            codecProfile = knownProfile(ffkmp_codecpar_profile(m, par)),
         )
     }
 }

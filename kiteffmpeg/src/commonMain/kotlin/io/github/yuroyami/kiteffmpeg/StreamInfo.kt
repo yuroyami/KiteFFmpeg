@@ -28,6 +28,12 @@ public data class StreamInfo(
      * record. Null when the stream has no separate configuration record.
      */
     val codecExtradata: ByteArray? = null,
+    /**
+     * FFmpeg's profile number for this stream's codec, one of the `AV_PROFILE_*` values in
+     * `libavcodec/defs.h`: for example 30 for E-AC-3 with Atmos, 60 for DTS-HD Master Audio or
+     * 1 for AAC LC. Null when neither the container nor the probe determined one.
+     */
+    val codecProfile: Int? = null,
 ) {
     /** BCP 47 or the raw three letter code, whichever the container provided. Null when absent. */
     val language: String? get() = metadata["language"]
@@ -62,7 +68,8 @@ public data class StreamInfo(
             disposition == other.disposition &&
             rotationDegrees == other.rotationDegrees &&
             startTimeMicros == other.startTimeMicros &&
-            extradataEquals(codecExtradata, other.codecExtradata)
+            extradataEquals(codecExtradata, other.codecExtradata) &&
+            codecProfile == other.codecProfile
     }
 
     override fun hashCode(): Int {
@@ -79,6 +86,7 @@ public data class StreamInfo(
         result = 31 * result + rotationDegrees
         result = 31 * result + startTimeMicros.hashCode()
         result = 31 * result + (codecExtradata?.contentHashCode() ?: 0)
+        result = 31 * result + (codecProfile ?: 0)
         return result
     }
 
@@ -275,3 +283,9 @@ public data class FrameInfo(
         public const val NOPTS: Long = Long.MIN_VALUE
     }
 }
+
+/** FFmpeg's `AV_PROFILE_UNKNOWN`, the profile of a stream nothing determined. */
+private const val AV_PROFILE_UNKNOWN = -99
+
+/** [profile] as [StreamInfo.codecProfile] carries it: null for `AV_PROFILE_UNKNOWN`. */
+internal fun knownProfile(profile: Int): Int? = profile.takeIf { it != AV_PROFILE_UNKNOWN }

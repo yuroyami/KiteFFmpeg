@@ -1026,6 +1026,7 @@ private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> {
                 ?.let { ffkmp_rescale_q(it, timeBase.num, timeBase.den, 1, 1_000_000) }
                 ?: 0L,
             codecExtradata = readCodecExtradata(par),
+            codecProfile = knownProfile(ffkmp_codecpar_profile(par)),
         )
     }
     return out
