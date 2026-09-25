@@ -467,6 +467,40 @@ sealed interface io.github.yuroyami.kiteffmpeg.dsl/RateControl { // io.github.yu
     }
 }
 
+sealed interface io.github.yuroyami.kiteffmpeg/FeedResult { // io.github.yuroyami.kiteffmpeg/FeedResult|null[0]
+    abstract val produced // io.github.yuroyami.kiteffmpeg/FeedResult.produced|{}produced[0]
+        abstract fun <get-produced>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.produced.<get-produced>|<get-produced>(){}[0]
+
+    final class NeedsInput : io.github.yuroyami.kiteffmpeg/FeedResult { // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput|null[0]
+        constructor <init>(kotlin/Int, kotlin/Int) // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
+
+        final val index // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.index|{}index[0]
+            final fun <get-index>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.index.<get-index>|<get-index>(){}[0]
+        final val produced // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.produced|{}produced[0]
+            final fun <get-produced>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.produced.<get-produced>|<get-produced>(){}[0]
+
+        final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.component1|component1(){}[0]
+        final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.component2|component2(){}[0]
+        final fun copy(kotlin/Int = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.copy|copy(kotlin.Int;kotlin.Int){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/FeedResult.NeedsInput.toString|toString(){}[0]
+    }
+
+    final class Ready : io.github.yuroyami.kiteffmpeg/FeedResult { // io.github.yuroyami.kiteffmpeg/FeedResult.Ready|null[0]
+        constructor <init>(kotlin/Int) // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.<init>|<init>(kotlin.Int){}[0]
+
+        final val produced // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.produced|{}produced[0]
+            final fun <get-produced>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.produced.<get-produced>|<get-produced>(){}[0]
+
+        final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.component1|component1(){}[0]
+        final fun copy(kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/FeedResult.Ready // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.copy|copy(kotlin.Int){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/FeedResult.Ready.toString|toString(){}[0]
+    }
+}
+
 final class io.github.yuroyami.kiteffmpeg.dsl/Aresample : io.github.yuroyami.kiteffmpeg.dsl/FilterStep { // io.github.yuroyami.kiteffmpeg.dsl/Aresample|null[0]
     constructor <init>(kotlin/Int) // io.github.yuroyami.kiteffmpeg.dsl/Aresample.<init>|<init>(kotlin.Int){}[0]
 
@@ -1303,8 +1337,8 @@ final class io.github.yuroyami.kiteffmpeg/FilterGraph : kotlin/AutoCloseable { /
         final fun <get-outputTimeBase>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/FilterGraph.outputTimeBase.<get-outputTimeBase>|<get-outputTimeBase>(){}[0]
 
     final fun close() // io.github.yuroyami.kiteffmpeg/FilterGraph.close|close(){}[0]
-    final fun feedInput(kotlin/Int, io.github.yuroyami.kiteffmpeg/Frame, kotlin/Function1<io.github.yuroyami.kiteffmpeg/Frame, kotlin/Unit>) // io.github.yuroyami.kiteffmpeg/FilterGraph.feedInput|feedInput(kotlin.Int;io.github.yuroyami.kiteffmpeg.Frame;kotlin.Function1<io.github.yuroyami.kiteffmpeg.Frame,kotlin.Unit>){}[0]
-    final fun flushInput(kotlin/Int, kotlin/Function1<io.github.yuroyami.kiteffmpeg/Frame, kotlin/Unit>) // io.github.yuroyami.kiteffmpeg/FilterGraph.flushInput|flushInput(kotlin.Int;kotlin.Function1<io.github.yuroyami.kiteffmpeg.Frame,kotlin.Unit>){}[0]
+    final fun feedInput(kotlin/Int, io.github.yuroyami.kiteffmpeg/Frame, kotlin/Function1<io.github.yuroyami.kiteffmpeg/Frame, kotlin/Unit>): io.github.yuroyami.kiteffmpeg/FeedResult // io.github.yuroyami.kiteffmpeg/FilterGraph.feedInput|feedInput(kotlin.Int;io.github.yuroyami.kiteffmpeg.Frame;kotlin.Function1<io.github.yuroyami.kiteffmpeg.Frame,kotlin.Unit>){}[0]
+    final fun flushInput(kotlin/Int, kotlin/Function1<io.github.yuroyami.kiteffmpeg/Frame, kotlin/Unit>): io.github.yuroyami.kiteffmpeg/FeedResult // io.github.yuroyami.kiteffmpeg/FilterGraph.flushInput|flushInput(kotlin.Int;kotlin.Function1<io.github.yuroyami.kiteffmpeg.Frame,kotlin.Unit>){}[0]
     final fun process(kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/Frame>): kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/Frame> // io.github.yuroyami.kiteffmpeg/FilterGraph.process|process(kotlinx.coroutines.flow.Flow<io.github.yuroyami.kiteffmpeg.Frame>){}[0]
     final fun setOutputFrameSize(kotlin/Int) // io.github.yuroyami.kiteffmpeg/FilterGraph.setOutputFrameSize|setOutputFrameSize(kotlin.Int){}[0]
 

@@ -102,8 +102,16 @@ public actual class FilterGraph internal constructor(
         operation { ffkmp_buffersink_set_frame_size(sink, samples.toUInt()) }
     }
 
+    // The design step: the count is real, the wait is not measured yet, so the answer is Ready.
     @Throws(FFmpegException::class)
-    public actual fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit) {
+    public actual fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): FeedResult {
+        var produced = 0
+        val counting: (Frame) -> Unit = { produced++; onOutput(it) }
+        feedCounted(index, frame, counting)
+        return FeedResult.Ready(produced)
+    }
+
+    private fun feedCounted(index: Int, frame: Frame, onOutput: (Frame) -> Unit) {
         try {
             operation {
                 val src = srcs.getOrNull(index)
@@ -122,7 +130,14 @@ public actual class FilterGraph internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun flushInput(index: Int, onOutput: (Frame) -> Unit): Unit = operation {
+    public actual fun flushInput(index: Int, onOutput: (Frame) -> Unit): FeedResult {
+        var produced = 0
+        val counting: (Frame) -> Unit = { produced++; onOutput(it) }
+        flushCounted(index, counting)
+        return FeedResult.Ready(produced)
+    }
+
+    private fun flushCounted(index: Int, onOutput: (Frame) -> Unit): Unit = operation {
         val src = srcs.getOrNull(index)
             ?: throw IllegalArgumentException("Input $index out of range (graph has ${srcs.size} inputs)")
         // A pad already at EOF is done, not broken, so a second flush is a no-op.
@@ -179,7 +194,9 @@ public actual class FilterGraph internal constructor(
     }
 
     /** Single-input convenience used by Transcoder. */
-    internal fun feedFrame(frame: Frame, onOutput: (Frame) -> Unit) = feedInput(0, frame, onOutput)
+    internal fun feedFrame(frame: Frame, onOutput: (Frame) -> Unit) {
+        feedInput(0, frame, onOutput)
+    }
 
     /** Flush every input, then drain. After this the graph cannot accept more frames. */
     internal fun flushInto(onOutput: (Frame) -> Unit) {

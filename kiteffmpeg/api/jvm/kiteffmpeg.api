@@ -602,6 +602,34 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpegLibraryIdentity {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class io/github/yuroyami/kiteffmpeg/FeedResult {
+	public abstract fun getProduced ()I
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FeedResult$NeedsInput : io/github/yuroyami/kiteffmpeg/FeedResult {
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lio/github/yuroyami/kiteffmpeg/FeedResult$NeedsInput;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/FeedResult$NeedsInput;IIILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FeedResult$NeedsInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIndex ()I
+	public fun getProduced ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FeedResult$Ready : io/github/yuroyami/kiteffmpeg/FeedResult {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lio/github/yuroyami/kiteffmpeg/FeedResult$Ready;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/FeedResult$Ready;IILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/FeedResult$Ready;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getProduced ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/FieldOrder : java/lang/Enum {
 	public static final field BottomFirst Lio/github/yuroyami/kiteffmpeg/FieldOrder;
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FieldOrder$Companion;
@@ -620,8 +648,8 @@ public final class io/github/yuroyami/kiteffmpeg/FieldOrder$Companion {
 public final class io/github/yuroyami/kiteffmpeg/FilterGraph : java/lang/AutoCloseable {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/FilterGraph$Companion;
 	public fun close ()V
-	public final fun feedInput (ILio/github/yuroyami/kiteffmpeg/Frame;Lkotlin/jvm/functions/Function1;)V
-	public final fun flushInput (ILkotlin/jvm/functions/Function1;)V
+	public final fun feedInput (ILio/github/yuroyami/kiteffmpeg/Frame;Lkotlin/jvm/functions/Function1;)Lio/github/yuroyami/kiteffmpeg/FeedResult;
+	public final fun flushInput (ILkotlin/jvm/functions/Function1;)Lio/github/yuroyami/kiteffmpeg/FeedResult;
 	public final fun getInputCount ()I
 	public final fun getOutputTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
 	public final fun process (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;

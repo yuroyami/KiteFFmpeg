@@ -41,8 +41,15 @@ public actual class FilterGraph internal constructor(
         Internals.graphSetFrameSize(sinkToken, samples)
     }
 
+    // The design step: the count is real, the wait is not measured yet, so the answer is Ready.
     @Throws(FFmpegException::class)
-    public actual fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): Unit = synchronized(lock) {
+    public actual fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): FeedResult {
+        var produced = 0
+        feedCounted(index, frame) { produced++; onOutput(it) }
+        return FeedResult.Ready(produced)
+    }
+
+    private fun feedCounted(index: Int, frame: Frame, onOutput: (Frame) -> Unit): Unit = synchronized(lock) {
         try {
             checkOpen()
             val source = sources.getOrNull(index)
@@ -57,7 +64,13 @@ public actual class FilterGraph internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun flushInput(index: Int, onOutput: (Frame) -> Unit): Unit = synchronized(lock) {
+    public actual fun flushInput(index: Int, onOutput: (Frame) -> Unit): FeedResult {
+        var produced = 0
+        flushCounted(index) { produced++; onOutput(it) }
+        return FeedResult.Ready(produced)
+    }
+
+    private fun flushCounted(index: Int, onOutput: (Frame) -> Unit): Unit = synchronized(lock) {
         checkOpen()
         val source = sources.getOrNull(index)
             ?: throw IllegalArgumentException("Input $index out of range (graph has ${sources.size} inputs)")
@@ -96,7 +109,9 @@ public actual class FilterGraph internal constructor(
             "row, so retrying cannot make progress."
     }
 
-    internal fun feedFrame(frame: Frame, onOutput: (Frame) -> Unit): Unit = feedInput(0, frame, onOutput)
+    internal fun feedFrame(frame: Frame, onOutput: (Frame) -> Unit) {
+        feedInput(0, frame, onOutput)
+    }
 
     internal fun flushInto(onOutput: (Frame) -> Unit) {
         sources.indices.forEach { flushInput(it, onOutput) }

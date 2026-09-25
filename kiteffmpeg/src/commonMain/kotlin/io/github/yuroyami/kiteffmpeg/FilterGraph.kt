@@ -27,6 +27,22 @@ public data class AudioInput(
     val channelLayoutMask: Long? = null,
 )
 
+/** What a [FilterGraph.feedInput] or [FilterGraph.flushInput] call produced, and what the graph needs next. */
+public sealed interface FeedResult {
+    /** How many frames the call handed to its callback. */
+    public val produced: Int
+
+    /** The graph can take more on any input. */
+    public data class Ready(override val produced: Int) : FeedResult
+
+    /**
+     * The graph cannot produce more until input [index] gets a frame or a flush: a filter with
+     * several inputs, such as `overlay` or `amix`, waits for every one of them. A frame the graph
+     * could not take yet stays with it and goes in first on the next call for its input.
+     */
+    public data class NeedsInput(val index: Int, override val produced: Int) : FeedResult
+}
+
 /**
  * A compiled `libavfilter` graph. Build with [FilterGraph.buildVideo] / [FilterGraph.buildAudio]
  * (single input) or [buildVideoMulti] / [buildAudioMulti] (N inputs: overlay, amix, …).
@@ -58,22 +74,30 @@ public expect class FilterGraph : AutoCloseable {
      * Push one frame into input [index]; every output frame that becomes available is handed
      * to [onOutput]. Closes [frame] (the graph keeps its own reference). Output frames are
      * valid only for the duration of the callback; [Frame.copy] to keep one.
+     *
+     * @return how many frames came out, and whether the graph now waits for a particular input
      */
     @Throws(FFmpegException::class)
-    public fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit)
+    public fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): FeedResult
 
     /**
      * Signal EOF on input [index] and drain whatever the graph can produce. Filters like
      * `overlay` emit their final frames only once every input is flushed. Flush every input,
      * in any order. The last call delivers the remaining frames.
+     *
+     * @return how many frames came out, and whether the graph now waits for a particular input
      */
     @Throws(FFmpegException::class)
-    public fun flushInput(index: Int, onOutput: (Frame) -> Unit)
+    public fun flushInput(index: Int, onOutput: (Frame) -> Unit): FeedResult
 
     /**
      * Drive [input] through the graph (single-input graphs only), emitting each processed frame
-     * owned by the collector. Closes every input frame once consumed, and closes the graph when
-     * the flow ends.
+     * owned by the collector. Closes every input frame once consumed.
+     *
+     * One shot: the graph takes [input] to its end and is closed when the flow ends, because a
+     * graph that has seen its end of stream cannot take more. A second call, or a [feedInput]
+     * after it, fails with [IllegalStateException] naming the graph as spent. Build a new graph
+     * for another stream.
      *
      * @see Frame for the ownership rule every emitted frame is subject to
      */

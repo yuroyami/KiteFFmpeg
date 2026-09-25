@@ -13,11 +13,11 @@ public actual class FilterGraph private constructor() : AutoCloseable {
         placeholderBackendUnavailable("Setting filter output frame size")
 
     @Throws(FFmpegException::class)
-    public actual fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): Unit =
+    public actual fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): FeedResult =
         placeholderBackendUnavailable("Feeding a filter graph")
 
     @Throws(FFmpegException::class)
-    public actual fun flushInput(index: Int, onOutput: (Frame) -> Unit): Unit =
+    public actual fun flushInput(index: Int, onOutput: (Frame) -> Unit): FeedResult =
         placeholderBackendUnavailable("Flushing a filter graph")
 
     public actual fun process(input: Flow<Frame>): Flow<Frame> =
