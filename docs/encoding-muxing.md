@@ -212,19 +212,28 @@ The graph re-chunks the audio stream into exact 1024-sample frames before they r
 When a stream should pass through untouched, do not decode and re-encode it. `addCopyStream` declares a verbatim copy of one input stream into the output. This is FFmpeg's `-c copy`: no decode, no encode, only timestamp rescaling into the output's time-base.
 
 ```kotlin
+import io.github.yuroyami.kiteffmpeg.KiteFFmpegLowLevelApi
+import io.github.yuroyami.kiteffmpeg.MediaSink
 import io.github.yuroyami.kiteffmpeg.MediaSource
 
-val source = MediaSource.open("input.mp4")
-val audioStream = source.primaryAudio!!
-
-MediaSink.open("output.mp4").use { sink ->
-    val video = sink.addVideoEncoder(videoSpec)   // re-encode video
-    sink.addCopyStream(source, audioStream)        // copy audio bit-exact
-    // ... drive the video encoder; the copy stream is written too
+@OptIn(KiteFFmpegLowLevelApi::class)
+fun copyAudio(input: String, output: String) {
+    MediaSource.open(input).use { source ->
+        val audio = source.primaryAudio ?: error("no audio stream")
+        MediaSink.open(output).use { sink ->
+            val copy = sink.addCopyStream(source, audio)       // declares the output stream
+            source.openPacketReader(listOf(audio)).use { reader ->
+                while (true) {
+                    val packet = reader.read() ?: break
+                    packet.use { copy.write(it) }               // writes it, bit-exact
+                }
+            }
+        }
+    }
 }
 ```
 
-`addCopyStream` returns a `CopyStream`, an opaque handle that declares the mapping. The packets themselves are pulled by [Transcoder](transcoding.md) or [Remuxer](remuxing.md); the handle just tells the muxer that this output stream exists and where its packets come from. This is also how `audioCopy = true` is implemented inside `Transcoder`.
+`addCopyStream` returns a `CopyStream`, which only declares the output stream and where its packets come from. Nothing writes those packets until you do: read them with a `PacketReader` and write each one, as above. Driving an encoder on the same sink does not write them. [Transcoder](transcoding.md) with `audioCopy = true` and [Remuxer](remuxing.md) run this loop for you. To re-encode the video and copy the audio from one file, use `Transcoder`: it reads the file once and interleaves both.
 
 !!! note "Bitstream filters are automatic"
     A format pair that needs a bitstream filter, such as H.264 in MP4 going to MPEG-TS, needs nothing from you: libavformat inserts the filter when the copied packets are written.
