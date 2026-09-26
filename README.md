@@ -157,7 +157,8 @@ on every push.
 The JVM jar carries a native library for macOS arm64, Linux x64, Linux arm64 and Windows x64. The
 Linux and Windows ones are link-checked, and no Linux or Windows machine has run them yet. A JVM on
 any other platform resolves the artifact and then gets the typed unavailable placeholder.
-Per-target detail is in [Platform support](docs/platforms.md).
+The jar is Java 11 bytecode, so it runs on Java 11 and later. Per-target detail is in
+[Platform support](docs/platforms.md).
 
 `js` is a deliberate placeholder: a build that silently did nothing would be worse than one that
 tells you it cannot.

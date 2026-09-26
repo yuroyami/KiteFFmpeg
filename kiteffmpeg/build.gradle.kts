@@ -18,6 +18,7 @@ import io.github.yuroyami.kiteffmpeg.buildtools.KiteFFmpegJvmTestArgumentProvide
 import io.github.yuroyami.kiteffmpeg.buildtools.LinkKiteFFmpegJniTask
 import io.github.yuroyami.kiteffmpeg.buildtools.PrepareKiteFFmpegJniHarnessTask
 import org.gradle.api.tasks.PathSensitivity
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.Test
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.api.plugins.ExtensionAware
@@ -185,6 +186,12 @@ kotlin {
     // Kotlin placeholder from unsupportedMain. The phone proof adds an unpublished custom JVM
     // compilation for its JNI boundary tests; it never changes the consumer JVM artifact.
     val jvmTarget = jvm()
+    // Built with the JDK 21 toolchain, published as Java 11 bytecode checked against the Java 11
+    // API, so an application on Java 11 or 17 can load the jar (#103).
+    jvmTarget.compilerOptions {
+        this.jvmTarget.set(JvmTarget.JVM_11)
+        freeCompilerArgs.add("-Xjdk-release=11")
+    }
     val jniJvmCompilation = if (phoneTargetsOnly) {
         jvmTarget.compilations.create("jniHarness")
     } else {

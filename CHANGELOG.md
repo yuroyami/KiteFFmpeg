@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `DemuxOptions` gains `format`, which changes the generated data-class methods. Recompile. It
   names the demuxer to use, as `ffmpeg -f` does, so headerless input such as `s16le` or
   `rawvideo` opens (#82).
+- The JVM jar is Java 11 bytecode, checked against the Java 11 API, where it was Java 21. An
+  application on Java 11 or 17 can now load it. The API is unchanged (#103).
 
 ### Fixed
 
