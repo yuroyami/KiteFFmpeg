@@ -277,14 +277,7 @@ public actual class PacketReader internal constructor(
     ) {
         check(!closed) { "PacketReader is closed" }
         val target = source.toAbsoluteMicros(micros)
-        val min = notEarlierThan?.let { source.toAbsoluteMicros(it) } ?: Long.MIN_VALUE
-        // Any documents "the nearest indexed frame, whether or not it is a keyframe", which may
-        // sit AFTER the target; capping max at the target made a closer later frame unreachable
-        // and quietly turned Any into Backward-without-keyframes.
-        val max = when (direction) {
-            SeekDirection.Backward -> target
-            SeekDirection.Forward, SeekDirection.Any -> Long.MAX_VALUE
-        }
+        val (min, max) = seekWindow(target, direction, notEarlierThan?.let { source.toAbsoluteMicros(it) })
         val flags = when (direction) {
             SeekDirection.Backward -> ffkmp_avseek_flag_backward()
             SeekDirection.Forward -> 0

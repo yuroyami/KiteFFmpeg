@@ -91,12 +91,7 @@ public actual class PacketReader internal constructor(
     public actual fun seek(micros: Long, direction: SeekDirection, notEarlierThan: Long?): Unit = synchronized(lock) {
         check(scratch != 0L) { "PacketReader is closed" }
         val target = source.toAbsoluteMicros(micros)
-        val min = notEarlierThan?.let(source::toAbsoluteMicros) ?: Long.MIN_VALUE
-        // Same bound rule as the native actual: Any may land after the target by contract.
-        val max = when (direction) {
-            SeekDirection.Backward -> target
-            SeekDirection.Forward, SeekDirection.Any -> Long.MAX_VALUE
-        }
+        val (min, max) = seekWindow(target, direction, notEarlierThan?.let(source::toAbsoluteMicros))
         val flags = when (direction) {
             SeekDirection.Backward -> Internals.seekFlagBackward
             SeekDirection.Forward -> 0

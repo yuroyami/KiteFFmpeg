@@ -140,13 +140,7 @@ public actual class PacketReader internal constructor(
         // container's may not, so a file whose first timestamp is not zero was seeking to the wrong
         // place by exactly its start time: MPEG-TS captures above all.
         val target = micros + startTimeMicros
-        val min = notEarlierThan?.let { it + startTimeMicros } ?: Long.MIN_VALUE
-        // Backward promises never to land after the target, so the target IS the ceiling. Forward
-        // and Any may overshoot by contract. Same bound rule as the JVM and Native actuals.
-        val max = when (direction) {
-            SeekDirection.Backward -> target
-            SeekDirection.Forward, SeekDirection.Any -> Long.MAX_VALUE
-        }
+        val (min, max) = seekWindow(target, direction, notEarlierThan?.let { it + startTimeMicros })
         val rc = ffkmp_fmt_seek_file(m, context, -1, min, target, max, flags)
         if (rc < 0) throw FFmpegException(FFmpegError.Internal("seek to ${micros}us failed with $rc"))
     }

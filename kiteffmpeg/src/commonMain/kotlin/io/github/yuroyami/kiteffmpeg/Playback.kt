@@ -70,9 +70,30 @@ public expect enum class SeekDirection {
     /** At or after the target. */
     Forward,
 
-    /** The nearest indexed frame, whether or not it is a keyframe. */
+    /**
+     * The nearest indexed frame, whether or not it is a keyframe. A demuxer without its own
+     * two-sided seek, which includes MP4, Matroska, MPEG-TS, AVI and FLV, looks backward from the
+     * target only.
+     */
     Any,
 }
+
+/**
+ * The lowest and the highest container-absolute time a seek to [target] in [direction] may land on,
+ * as `avformat_seek_file` takes them.
+ *
+ * A demuxer without its own two-sided seek, which includes MP4, Matroska, MPEG-TS, AVI and FLV,
+ * picks its direction from which side of this window is nearer the target, so an unbounded floor
+ * turned every Forward seek backward. Forward is floored at the target itself.
+ */
+@OptIn(KiteFFmpegLowLevelApi::class)
+internal fun seekWindow(target: Long, direction: SeekDirection, notEarlierThan: Long?): Pair<Long, Long> =
+    when (direction) {
+        SeekDirection.Backward -> (notEarlierThan ?: Long.MIN_VALUE) to target
+        SeekDirection.Forward -> maxOf(target, notEarlierThan ?: target) to Long.MAX_VALUE
+        // Any. An expect enum cannot be matched exhaustively here, so it is the remainder.
+        else -> (notEarlierThan ?: Long.MIN_VALUE) to Long.MAX_VALUE
+    }
 
 /**
  * Reads owned packets from one [MediaSource] cursor under the caller's control. This is the

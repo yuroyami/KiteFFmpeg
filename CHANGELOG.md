@@ -40,6 +40,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   to the collector once its `emit` is called, as before (#115).
 - The interrupt flag behind `OpenInterrupt` is read and written atomically, so raising it from
   another thread while an open polls it is no longer a data race (#116).
+- `PacketReader.seek` with `SeekDirection.Forward` lands at or after the target on MP4, Matroska,
+  MPEG-TS, AVI and FLV. It landed on the keyframe before the target, because the window it passed
+  had no floor and those demuxers take the nearer side as the direction (#80).
 - A display matrix that mirrors the picture is reported as a mirror. A left-right mirror used to
   read as a half turn, so a renderer showed the video upside down. It now reads as no turn with
   `StreamInfo.mirrored` set (#81).
