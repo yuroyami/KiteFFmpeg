@@ -237,7 +237,7 @@ jobs:
         with:
           subject-path: dist/*.zip
       - name: Publish to the ${{ github.event.inputs.release_tag }} release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: KiteFFmpeg ${{ github.event.inputs.release_tag }}
