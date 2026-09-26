@@ -1,8 +1,11 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -79,6 +82,30 @@ class BufferFramesTest {
                     "standard library gained a hook it did not have, and bufferFrames can be " +
                     "reconsidered rather than assumed still necessary",
             )
+        } finally {
+            source.close()
+        }
+    }
+
+    @Test
+    fun aFrameTakenByACancelledCollectorIsClosed() = runTest {
+        val module = fakeDecodeCodecModule()
+        val source = openSource(module)
+        try {
+            val stream = source.streams[0]
+            var delivered = 0
+            val collecting = launch {
+                source.decodeStreams(listOf(stream)).bufferFrames(capacity = 16).collect { frame ->
+                    delivered++
+                    frame.close()
+                    // Cancelled without a suspension, so the loop takes the next frame from the
+                    // buffer before it meets the cancellation. That frame was the leak (#115).
+                    currentCoroutineContext().cancel()
+                }
+            }
+            collecting.join()
+            assertEquals(1, delivered, "a cancelled collector must be handed nothing more")
+            assertEquals(0, fakeFrameBalance(module), "the frame taken after the cancel was never closed")
         } finally {
             source.close()
         }

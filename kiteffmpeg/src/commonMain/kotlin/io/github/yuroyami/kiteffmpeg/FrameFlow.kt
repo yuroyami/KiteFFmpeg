@@ -3,7 +3,10 @@ package io.github.yuroyami.kiteffmpeg
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -33,7 +36,9 @@ import kotlin.coroutines.EmptyCoroutineContext
  * ```
  *
  * Frames that DO reach the collector are still the collector's to close, exactly as they are
- * without this operator. This changes what happens to the ones that do not arrive, nothing else.
+ * without this operator. A frame reaches the collector when the collector's `emit` is called with
+ * it, even if that call then throws: `first()` and `take()` end a flow that way after they have
+ * the frame. This changes what happens to the ones that do not arrive, nothing else.
  *
  * @param capacity the same values `buffer()` takes; [Channel.BUFFERED] is the default 64.
  * @param context where the upstream runs, the way `flowOn` would place it. Empty keeps it in the
@@ -42,15 +47,28 @@ import kotlin.coroutines.EmptyCoroutineContext
 public fun Flow<Frame>.bufferFrames(
     capacity: Int = Channel.BUFFERED,
     context: CoroutineContext = EmptyCoroutineContext,
-): Flow<Frame> = kotlinx.coroutines.flow.flow {
-    coroutineScope {
+): Flow<Frame> = FrameBufferFlow(this, capacity, context)
+
+/**
+ * Implements [Flow] directly rather than through the `flow` builder. The builder's `emit` checks
+ * for cancellation before it passes the value on, so a frame already taken from the channel could
+ * be refused there and reach no one (#115). Here the frame stays ours until the collector's own
+ * `emit` is called with it.
+ */
+private class FrameBufferFlow(
+    private val upstream: Flow<Frame>,
+    private val capacity: Int,
+    private val context: CoroutineContext,
+) : Flow<Frame> {
+
+    override suspend fun collect(collector: FlowCollector<Frame>): Unit = coroutineScope {
         // The whole point: a channel that is TOLD what an undelivered element costs. Everything
-        // below is the plumbing that guarantees this callback is the only way a frame can go
-        // missing, and that it runs on every abandonment path.
+        // below is the plumbing that guarantees each frame is either delivered or closed, on
+        // every abandonment path.
         val channel = Channel<Frame>(capacity, onUndeliveredElement = { it.close() })
-        val upstream = launch(context, start = CoroutineStart.ATOMIC) {
+        val producer = launch(context, start = CoroutineStart.ATOMIC) {
             try {
-                collect { channel.send(it) }
+                upstream.collect { channel.send(it) }
                 channel.close()
             } catch (failure: Throwable) {
                 // Carried to the collector rather than swallowed; the frames already queued are
@@ -59,14 +77,22 @@ public fun Flow<Frame>.bufferFrames(
             }
         }
         try {
-            for (frame in channel) emit(frame)
+            for (frame in channel) {
+                // A buffered frame is received without a suspension, so a cancelled collector
+                // can still take one. It is not delivered, so it is closed here.
+                if (!isActive) {
+                    frame.close()
+                    ensureActive()
+                }
+                collector.emit(frame)
+            }
         } finally {
             // Reached on EVERY exit, and the ordinary one is not an error: `take` ends a flow by
             // throwing out of `emit` once it has what it asked for. Cancelling releases whatever
             // is still queued through the callback above, and cancelling a channel already drained
             // by a normal completion has nothing to release.
             channel.cancel()
-            upstream.cancel()
+            producer.cancel()
         }
     }
 }

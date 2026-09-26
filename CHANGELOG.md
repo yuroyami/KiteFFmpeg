@@ -27,6 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   opens any decoder. Each refused call used to leave one decoder allocated (#113).
 - On the web, opening a `MediaByteSource` uses the byte count it staged and no longer reads
   `size` again after closing the source, so a source that refuses access after close opens (#114).
+- `bufferFrames` closes a frame that a cancelled collector took from its buffer. A frame belongs
+  to the collector once its `emit` is called, as before (#115).
 
 ## [0.3.0] - 2026-09-25
 
