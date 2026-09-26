@@ -438,13 +438,20 @@ public actual class MediaSink internal constructor(
                 // close reports success was a real defect, and one encoder failing is not a
                 // reason to skip draining the others or the trailer for what did land.
                 if (encoderCores.isNotEmpty()) {
-                    withPacket { packet ->
-                        encoderCores.forEach { core ->
-                            runCatching { core.finish(packet) }.exceptionOrNull()?.let { failure ->
-                                if (firstFailure == null) firstFailure = failure
-                                else firstFailure?.addSuppressed(failure)
+                    // The flush packet is borrowed, not owed: a failed allocation is one more
+                    // failure to report, and every cleanup below still runs (#112).
+                    runCatching {
+                        withPacket { packet ->
+                            encoderCores.forEach { core ->
+                                runCatching { core.finish(packet) }.exceptionOrNull()?.let { failure ->
+                                    if (firstFailure == null) firstFailure = failure
+                                    else firstFailure?.addSuppressed(failure)
+                                }
                             }
                         }
+                    }.exceptionOrNull()?.let { failure ->
+                        if (firstFailure == null) firstFailure = failure
+                        else firstFailure?.addSuppressed(failure)
                     }
                 }
                 encoderCores.forEach { runCatching { it.close() } }

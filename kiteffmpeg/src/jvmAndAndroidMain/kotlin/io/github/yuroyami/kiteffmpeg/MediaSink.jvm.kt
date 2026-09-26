@@ -333,13 +333,20 @@ public actual class MediaSink internal constructor(
         var firstFailure: Throwable? = null
         try {
             if (cores.isNotEmpty()) {
-                withPacket { packet ->
-                    cores.forEach { core ->
-                        runCatching { core.finish(packet) }.exceptionOrNull()?.let { failure ->
-                            if (firstFailure == null) firstFailure = failure
-                            else firstFailure?.addSuppressed(failure)
+                // The flush packet is borrowed, not owed: a failed allocation is one more failure
+                // to report, and the trailer, the muxer's free and the byte sink still run (#112).
+                runCatching {
+                    withPacket { packet ->
+                        cores.forEach { core ->
+                            runCatching { core.finish(packet) }.exceptionOrNull()?.let { failure ->
+                                if (firstFailure == null) firstFailure = failure
+                                else firstFailure?.addSuppressed(failure)
+                            }
                         }
                     }
+                }.exceptionOrNull()?.let { failure ->
+                    if (firstFailure == null) firstFailure = failure
+                    else firstFailure?.addSuppressed(failure)
                 }
             }
         } finally {

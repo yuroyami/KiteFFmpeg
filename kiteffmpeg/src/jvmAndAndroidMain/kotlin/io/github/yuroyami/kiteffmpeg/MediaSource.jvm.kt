@@ -420,13 +420,17 @@ public actual class MediaSource internal constructor(
             }
             formatToken.also { formatToken = 0L }
         }
+        // Every step runs whichever one throws: a throwing byte source close used to skip the
+        // releases after it, such as the open's interrupt cell (#112).
+        val failures = CloseFailures()
         if (jniIo != null) {
-            Internals.fmtCloseInputIo(context)
-            jniIo.closeSource()
+            failures.run { Internals.fmtCloseInputIo(context) }
+            failures.run { jniIo.closeSource() }
         } else {
-            Internals.fmtCloseInput(context)
+            failures.run { Internals.fmtCloseInput(context) }
         }
-        releases.forEach { it() }
+        releases.forEach { release -> failures.run(release) }
+        failures.rethrow()
     }
 
     public actual companion object {

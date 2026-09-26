@@ -546,10 +546,13 @@ public actual class MediaSource internal constructor(
         // Before the context goes: every reader and decoder holding it raw must stop using it.
         lifetime.closed()
         val m = requireModule()
-        ffkmp_fmt_close_input_io(m, contextSlot)
-        wasmFree(m, contextSlot)
-        bridge.release()
-        releases.forEach { it() }
+        // Every step runs whichever one throws, as on the other backends (#112).
+        val failures = CloseFailures()
+        failures.run { ffkmp_fmt_close_input_io(m, contextSlot) }
+        failures.run { wasmFree(m, contextSlot) }
+        failures.run { bridge.release() }
+        releases.forEach { release -> failures.run(release) }
+        failures.rethrow()
     }
 
     public actual companion object {

@@ -36,6 +36,9 @@ public class OpenInterrupt {
     /** True once [interrupt] was called. */
     public val isInterrupted: Boolean get() = synchronized(lock) { raised }
 
+    /** How many opens and sources this request is bound to now. For tests. */
+    internal val boundCount: Int get() = synchronized(lock) { targets.size }
+
     /** Requests that every open and source using this request stop. Safe from any thread. */
     public fun interrupt() {
         synchronized(lock) {

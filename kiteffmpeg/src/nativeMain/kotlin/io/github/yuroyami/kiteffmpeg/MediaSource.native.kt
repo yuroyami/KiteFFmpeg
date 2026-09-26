@@ -649,13 +649,19 @@ public actual class MediaSource internal constructor(
             }
             closed = true
         }
-        memScoped {
-            val pp = alloc<CPointerVar<kc_fmt_ctx>>()
-            pp.value = ctx
-            if (ioCleanup != null) ffkmp_fmt_close_input_io(pp.ptr) else ffkmp_fmt_close_input(pp.ptr)
+        // Every step runs whichever one throws: a throwing byte source close used to skip the
+        // releases after it, such as the open's interrupt cell (#112).
+        val failures = CloseFailures()
+        failures.run {
+            memScoped {
+                val pp = alloc<CPointerVar<kc_fmt_ctx>>()
+                pp.value = ctx
+                if (ioCleanup != null) ffkmp_fmt_close_input_io(pp.ptr) else ffkmp_fmt_close_input(pp.ptr)
+            }
         }
-        ioCleanup?.invoke()
-        releases.forEach { it() }
+        ioCleanup?.let { cleanup -> failures.run(cleanup) }
+        releases.forEach { release -> failures.run(release) }
+        failures.rethrow()
     }
 
     public actual companion object {
@@ -922,6 +928,7 @@ internal fun openMediaSourceIo(
     val state = ByteSourceState(io)
     val stableRef = StableRef.create(state)
     val cleanup: () -> Unit = {
+        // Disposed first, so a throwing close cannot keep the reference alive.
         stableRef.dispose()
         io.close()
     }

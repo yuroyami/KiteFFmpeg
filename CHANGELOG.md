@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   while that failure is pending, so Android's CheckJNI no longer aborts a debuggable app (#104).
 - A thread that converted a frame's pixel format no longer leaks its cached scaler when it ends
   (#105).
+- `MediaSource.close` and `MediaSink.close` run every release even when one step throws: a byte
+  source close that throws no longer leaves the open's interrupt bound, and a failed flush packet
+  allocation no longer skips the encoders, the trailer and the byte sink (#112).
 
 ## [0.3.0] - 2026-09-25
 
