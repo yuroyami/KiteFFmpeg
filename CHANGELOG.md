@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   did on the native and web backends (#75).
 - An open option key that is not a valid string fails with `FFmpegException` and makes no JNI call
   while that failure is pending, so Android's CheckJNI no longer aborts a debuggable app (#104).
+- A thread that converted a frame's pixel format no longer leaks its cached scaler when it ends
+  (#105).
 
 ## [0.3.0] - 2026-09-25
 

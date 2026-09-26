@@ -34,11 +34,11 @@
  *   ffkmp_fmt_new_stream        allocates and the parent AVFormatContext owns the result. The
  *                               blocks are still live when the helper returns, and they go away
  *                               when the parent is freed. Both halves are asserted.
- *   ffkmp_frame_convert_pixfmt  allocates and frees an SwsContext on every call and returns a
- *                               caller-owned frame. Asserted by freeing only the frame and
- *                               finding the window balanced, which is what proves no context
- *                               was retained, and by repeating the call so a per-call leak
- *                               would accumulate.
+ *   ffkmp_frame_convert_pixfmt  keeps one SwsContext per thread and returns a caller-owned
+ *                               frame. Asserted by freeing only the frame and finding the
+ *                               window balanced, by repeating the call so a per-call leak
+ *                               would accumulate, and by converting on a thread that then
+ *                               ends, whose context must end with it.
  *   ffkmp_fmt_free_output       closes ctx->pb only when one was opened and the muxer is not
  *                               AVFMT_NOFILE. Both branches have a case.
  *
@@ -57,6 +57,8 @@
  */
 
 #include "harness.h"
+
+#include <pthread.h>
 
 #include "kitecodec_helpers.h"
 
@@ -352,6 +354,30 @@ static void case_frame_convert_pixfmt_repeated_does_not_accumulate(int measure)
      * show up here as eight retained blocks rather than as one, which is what makes this row
      * stronger than the single call above. */
     OWN_LIVE_EXACTLY(measure, &before, 0, "after_eight");
+    ffkmp_frame_free(src);
+}
+
+static void *convert_on_this_thread(void *frame)
+{
+    AVFrame *dst = ffkmp_frame_convert_pixfmt((AVFrame *)frame, AV_PIX_FMT_RGB24);
+    if (dst == NULL) return NULL;
+    ffkmp_frame_free(dst);
+    return frame;
+}
+
+/* A thread that converts and then ends leaves nothing behind: its cached context is freed with
+ * the thread. A cache with no thread-exit hook kept one context per ended thread (#105). */
+static void case_frame_convert_pixfmt_cache_ends_with_its_thread(int measure)
+{
+    AVFrame *src = video_frame(48, 48, AV_PIX_FMT_YUV420P);
+    kc_alloc_counts before;
+    pthread_t thread;
+    void *converted = NULL;
+    kc_alloc_snapshot(&before);
+    KC_EQ_INT(pthread_create(&thread, NULL, convert_on_this_thread, src), 0);
+    KC_EQ_INT(pthread_join(thread, &converted), 0);
+    KC_NOT_NULL(converted);
+    OWN_LIVE_EXACTLY(measure, &before, 0, "after_join");
     ffkmp_frame_free(src);
 }
 
@@ -1109,6 +1135,7 @@ static const own_case cases[] = {
     { "frame_clone refuses NULL",                         case_frame_clone_refuses_null },
     { "frame_convert_pixfmt returns a caller owned frame", case_frame_convert_pixfmt_is_caller_owned },
     { "frame_convert_pixfmt repeated does not accumulate", case_frame_convert_pixfmt_repeated_does_not_accumulate },
+    { "frame_convert_pixfmt cache ends with its thread",  case_frame_convert_pixfmt_cache_ends_with_its_thread },
     { "frame_convert_pixfmt refuses bad input",           case_frame_convert_pixfmt_refuses_bad_input },
     { "frame_set_ch_layout_default over an existing layout", case_frame_set_ch_layout_default },
     { "packet_alloc then packet_free",                    case_packet_alloc_free },

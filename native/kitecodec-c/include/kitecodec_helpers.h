@@ -96,7 +96,7 @@ KC_API kc_frame* ffkmp_frame_clone(const kc_frame *f);
 /* Ownership. Returns a new caller-owned kc_frame with its own buffers, or NULL. Release it
  * with ffkmp_frame_free. The SwsContext is CACHED per calling thread and reused while the
  * geometry and formats match, so it outlives the call and nothing about it reaches the caller
- * either way. Both pixel formats are validated before swscale sees them: a value outside the
+ * either way. The cache is freed when its thread ends. Both pixel formats are validated before swscale sees them: a value outside the
  * enum, a hardware format, or one swscale cannot read or write returns NULL rather than
  * asserting inside libswscale. The colour tags on the result describe the OUTPUT,
  * not the source: an RGB destination is full range with an RGB matrix.
