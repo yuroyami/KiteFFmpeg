@@ -7,7 +7,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Runnable
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
@@ -81,19 +80,27 @@ internal class RemuxDispatchTest {
      * The caller cancels from its own thread as soon as the first report arrives. Red when the
      * remux runs on that thread: the cancel runs only after the whole file is copied. A cancelled
      * sink still writes its trailer, so the output shows how far the copy got.
+     *
+     * The input stops after a quarter of the file until the test has cancelled. A copy of small
+     * packets is so fast that, on a loaded machine, it used to finish before the cancel landed
+     * (#107). A remux on the caller's thread still copies every frame: it waits for the rest of the
+     * input on the only thread, and the input sends it after [PAUSE_LIMIT_MILLIS].
      */
     @Test
     fun cancellingFromTheCallersThreadStopsTheRemuxEarly() {
-        val input = longInput()
+        val bytes = readContractBytes(longInput())
+        val input = contractPausedInput(bytes, pauseAt = bytes.size / 4).also { paths += it.path }
         val output = path("mkv")
         val baseline = contractLiveHandleCount()
         onOneThread {
             val firstReport = CompletableDeferred<Long>()
             val remux = launch {
-                Remuxer.remux(input = input, output = output, onProgress = { firstReport.complete(it) })
+                Remuxer.remux(input = input.path, output = output, onProgress = { firstReport.complete(it) })
             }
             withTimeout(60_000L) { firstReport.await() }
-            remux.cancelAndJoin()
+            remux.cancel()
+            input.resume()
+            remux.join()
         }
         val written = TranscodeFixtures.decodedFrameIndices(output).size
         assertTrue(written < FRAMES / 2, "the cancelled remux went on to copy $written of $FRAMES frames")

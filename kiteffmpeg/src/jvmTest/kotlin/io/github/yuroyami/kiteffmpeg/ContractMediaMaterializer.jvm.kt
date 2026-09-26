@@ -39,3 +39,24 @@ internal actual fun writeContractTranscript(text: String) {
 }
 
 internal actual fun contractLiveHandleCount(): Long = Internals.liveHandles()
+
+internal actual fun contractPausedInput(bytes: ByteArray, pauseAt: Int): ContractPausedInput {
+    val path = contractOutputPath("pipe")
+    check(ProcessBuilder("mkfifo", path).start().waitFor() == 0) { "mkfifo failed for $path" }
+    val gate = java.util.concurrent.CountDownLatch(1)
+    kotlin.concurrent.thread(isDaemon = true, name = "contract-pipe-writer") {
+        // A reader that stops early breaks the pipe. That ends this writer, and nothing else.
+        runCatching {
+            java.io.FileOutputStream(path).use { out ->
+                out.write(bytes, 0, pauseAt)
+                out.flush()
+                gate.await(PAUSE_LIMIT_MILLIS, java.util.concurrent.TimeUnit.MILLISECONDS)
+                out.write(bytes, pauseAt, bytes.size - pauseAt)
+            }
+        }
+    }
+    return object : ContractPausedInput {
+        override val path: String = path
+        override fun resume() = gate.countDown()
+    }
+}

@@ -5,6 +5,8 @@ import kotlinx.cinterop.cstr
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.launch
 import platform.posix.SEEK_END
 import platform.posix.SEEK_SET
 import platform.posix.close
@@ -96,3 +98,43 @@ internal actual fun writeContractTranscript(text: String) {
 
 
 internal actual fun contractLiveHandleCount(): Long = 0L
+
+@OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+internal actual fun contractPausedInput(bytes: ByteArray, pauseAt: Int): ContractPausedInput {
+    val path = contractOutputPath("pipe")
+    check(platform.posix.mkfifo(path, 0x180u.toUShort()) == 0) { "mkfifo failed for $path" }
+    // A reader that stops early breaks the pipe, which must end this writer and not the process.
+    platform.posix.signal(platform.posix.SIGPIPE, platform.posix.SIG_IGN)
+    val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        val descriptor = platform.posix.open(path, platform.posix.O_WRONLY)
+        if (descriptor < 0) return@launch
+        try {
+            if (writeAll(descriptor, bytes, 0, pauseAt)) {
+                kotlinx.coroutines.withTimeoutOrNull(PAUSE_LIMIT_MILLIS) { gate.await() }
+                writeAll(descriptor, bytes, pauseAt, bytes.size - pauseAt)
+            }
+        } finally {
+            close(descriptor)
+        }
+    }
+    return object : ContractPausedInput {
+        override val path: String = path
+        override fun resume() {
+            gate.complete(Unit)
+        }
+    }
+}
+
+/** Writes [length] bytes from [offset], and answers false when the reader went away. */
+private fun writeAll(descriptor: Int, bytes: ByteArray, offset: Int, length: Int): Boolean {
+    var done = 0
+    bytes.usePinned { pinned ->
+        while (done < length) {
+            val written = platform.posix.write(descriptor, pinned.addressOf(offset + done), (length - done).toULong())
+            if (written <= 0) return false
+            done += written.toInt()
+        }
+    }
+    return true
+}
