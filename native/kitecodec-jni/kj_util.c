@@ -16,8 +16,63 @@
  * surrogate-shaped three-byte sequences and U+0000 is encoded as C0 80. KiteFFmpeg's C boundary,
  * FFmpeg and the host filesystem use standard, NUL-terminated UTF-8 instead. Keep that impedance
  * match here, in the one JNI conversion unit, rather than leaking either encoding into a category
- * unit. The raw C-to-Java helper reports validation failures without throwing so exception
- * construction can use it without recursing through kj_throw_handle. */
+ * unit. The raw C-to-Java helper reports failures without throwing so exception construction can
+ * use it without recursing through kj_throw_handle. */
+
+/* Decodes the code point at bytes[offset] and returns how many bytes it took. An ill-formed
+ * sequence becomes U+FFFD, one per maximal subpart, which is what the native backend's toKString
+ * and the web backend's UTF8ToString produce. FFmpeg does not promise UTF-8 in metadata: an
+ * ID3v1 title or a RIFF INFO value carries its writer's code page, and a refusal here failed the
+ * whole open (#75). */
+static size_t kj_utf8_step(const unsigned char *bytes, size_t byte_len, size_t offset, uint32_t *code_point)
+{
+    unsigned char first = bytes[offset];
+    unsigned char low = 0x80;
+    unsigned char high = 0xbf;
+    size_t need;
+    size_t i;
+    uint32_t value;
+
+    if (first <= 0x7f) {
+        *code_point = first;
+        return 1;
+    }
+    if (first >= 0xc2 && first <= 0xdf) {
+        need = 1;
+        value = first & 0x1fu;
+    } else if (first >= 0xe0 && first <= 0xef) {
+        need = 2;
+        value = first & 0x0fu;
+        if (first == 0xe0) low = 0xa0;
+        if (first == 0xed) high = 0x9f;
+    } else if (first >= 0xf0 && first <= 0xf4) {
+        need = 3;
+        value = first & 0x07u;
+        if (first == 0xf0) low = 0x90;
+        if (first == 0xf4) high = 0x8f;
+    } else {
+        *code_point = 0xfffdu;
+        return 1;
+    }
+    for (i = 1; i <= need; i++) {
+        unsigned char next;
+        if (offset + i >= byte_len) {
+            *code_point = 0xfffdu;
+            return i;
+        }
+        next = bytes[offset + i];
+        if (next < low || next > high) {
+            *code_point = 0xfffdu;
+            return i;
+        }
+        value = (value << 6) | (uint32_t)(next & 0x3fu);
+        low = 0x80;
+        high = 0xbf;
+    }
+    *code_point = value;
+    return need + 1;
+}
+
 static jstring kj_utf8_to_jstring(JNIEnv *env, const char *c, const char **failure)
 {
     const unsigned char *bytes = (const unsigned char *)c;
@@ -33,50 +88,12 @@ static jstring kj_utf8_to_jstring(JNIEnv *env, const char *c, const char **failu
     byte_len = strlen(c);
     while (offset < byte_len) {
         uint32_t code_point;
-        unsigned char first = bytes[offset];
-        size_t width;
-
-        if (first <= 0x7f) {
-            code_point = first;
-            width = 1;
-        } else if (first >= 0xc2 && first <= 0xdf &&
-                   offset + 1 < byte_len &&
-                   (bytes[offset + 1] & 0xc0) == 0x80) {
-            code_point = ((uint32_t)(first & 0x1f) << 6) |
-                         (uint32_t)(bytes[offset + 1] & 0x3f);
-            width = 2;
-        } else if (first >= 0xe0 && first <= 0xef &&
-                   offset + 2 < byte_len &&
-                   (bytes[offset + 1] & 0xc0) == 0x80 &&
-                   (bytes[offset + 2] & 0xc0) == 0x80 &&
-                   !(first == 0xe0 && bytes[offset + 1] < 0xa0) &&
-                   !(first == 0xed && bytes[offset + 1] >= 0xa0)) {
-            code_point = ((uint32_t)(first & 0x0f) << 12) |
-                         ((uint32_t)(bytes[offset + 1] & 0x3f) << 6) |
-                         (uint32_t)(bytes[offset + 2] & 0x3f);
-            width = 3;
-        } else if (first >= 0xf0 && first <= 0xf4 &&
-                   offset + 3 < byte_len &&
-                   (bytes[offset + 1] & 0xc0) == 0x80 &&
-                   (bytes[offset + 2] & 0xc0) == 0x80 &&
-                   (bytes[offset + 3] & 0xc0) == 0x80 &&
-                   !(first == 0xf0 && bytes[offset + 1] < 0x90) &&
-                   !(first == 0xf4 && bytes[offset + 1] >= 0x90)) {
-            code_point = ((uint32_t)(first & 0x07) << 18) |
-                         ((uint32_t)(bytes[offset + 1] & 0x3f) << 12) |
-                         ((uint32_t)(bytes[offset + 2] & 0x3f) << 6) |
-                         (uint32_t)(bytes[offset + 3] & 0x3f);
-            width = 4;
-        } else {
-            *failure = "native string conversion refused: malformed standard UTF-8";
-            return NULL;
-        }
+        offset += kj_utf8_step(bytes, byte_len, offset, &code_point);
         if (units > (size_t)INT32_MAX - (code_point > 0xffffu ? 2u : 1u)) {
             *failure = "native string conversion refused: result exceeds the JNI string limit";
             return NULL;
         }
         units += code_point > 0xffffu ? 2u : 1u;
-        offset += width;
     }
 
     if (units <= sizeof local_utf16 / sizeof local_utf16[0]) {
@@ -93,28 +110,7 @@ static jstring kj_utf8_to_jstring(JNIEnv *env, const char *c, const char **failu
     units = 0;
     while (offset < byte_len) {
         uint32_t code_point;
-        unsigned char first = bytes[offset];
-        size_t width;
-
-        if (first <= 0x7f) {
-            code_point = first;
-            width = 1;
-        } else if (first <= 0xdf) {
-            code_point = ((uint32_t)(first & 0x1f) << 6) |
-                         (uint32_t)(bytes[offset + 1] & 0x3f);
-            width = 2;
-        } else if (first <= 0xef) {
-            code_point = ((uint32_t)(first & 0x0f) << 12) |
-                         ((uint32_t)(bytes[offset + 1] & 0x3f) << 6) |
-                         (uint32_t)(bytes[offset + 2] & 0x3f);
-            width = 3;
-        } else {
-            code_point = ((uint32_t)(first & 0x07) << 18) |
-                         ((uint32_t)(bytes[offset + 1] & 0x3f) << 12) |
-                         ((uint32_t)(bytes[offset + 2] & 0x3f) << 6) |
-                         (uint32_t)(bytes[offset + 3] & 0x3f);
-            width = 4;
-        }
+        offset += kj_utf8_step(bytes, byte_len, offset, &code_point);
         if (code_point <= 0xffffu) {
             utf16[units++] = (jchar)code_point;
         } else {
@@ -122,7 +118,6 @@ static jstring kj_utf8_to_jstring(JNIEnv *env, const char *c, const char **failu
             utf16[units++] = (jchar)(0xd800u + (code_point >> 10));
             utf16[units++] = (jchar)(0xdc00u + (code_point & 0x3ffu));
         }
-        offset += width;
     }
     result = (*env)->NewString(env, utf16, (jsize)units);
     if (heap_utf16) free(utf16);

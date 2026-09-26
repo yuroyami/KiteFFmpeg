@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `MediaSource.extractFrame` and
   both `drive` overloads declare `@Throws`, so Swift and Objective-C receive an `FFmpegException`
   as an error instead of terminating (#87).
+- On the JVM and Android, a file whose tags are not valid UTF-8, such as a Latin-1 ID3v1 title or
+  a RIFF INFO value in a code page, opens. Each malformed sequence reads as U+FFFD, as it already
+  did on the native and web backends (#75).
 
 ## [0.3.0] - 2026-09-25
 
