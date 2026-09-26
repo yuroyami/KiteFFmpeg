@@ -40,7 +40,7 @@ public expect class Packet : AutoCloseable {
     /** [dts] converted to microseconds on the stream's own timeline, or null when absent. */
     public val dtsMicros: Long?
 
-    /** [duration] converted to microseconds, or null when the container supplied none. */
+    /** [duration] converted to microseconds, or null when the container supplied none or one that is not positive. */
     public val durationMicros: Long?
 
     /**

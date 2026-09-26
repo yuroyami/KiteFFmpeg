@@ -55,7 +55,9 @@ public actual class Packet internal constructor(
     public actual val hasPts: Boolean get() = pts != NOPTS
     public actual val ptsMicros: Long? get() = pts.microsOrNull(base)
     public actual val dtsMicros: Long? get() = dts.microsOrNull(base)
-    public actual val durationMicros: Long? get() = if (duration == 0L) null else rescaleQ(duration, base, MICRO)
+    // Not positive means none, as on the JVM and native backends: FFmpeg uses 0 for unknown, and a
+    // negative duration from a broken container is no duration either.
+    public actual val durationMicros: Long? get() = if (duration <= 0L) null else rescaleQ(duration, base, MICRO)
 
     public actual fun copy(): Packet {
         val cloned = ffkmp_packet_clone(requireModule(), alive())
