@@ -15,9 +15,13 @@ class JniPendingExceptionTest {
     @Test
     fun aRefusedOptionKeyMakesNoJniCallWithAnExceptionPending() {
         val java = ProcessHandle.current().info().command().orElseThrow()
-        val process = ProcessBuilder(
-            java, "-Xcheck:jni", "-cp", System.getProperty("java.class.path"), RefusedOptionKeyMain::class.java.name,
-        ).redirectErrorStream(true).start()
+        // A test task that points the loader at a library by property has to point the child there
+        // too: the JNI harness bundles none on its classpath.
+        val library = System.getProperty("kiteffmpeg.jni.path")?.let { "-Dkiteffmpeg.jni.path=$it" }
+        val command = listOfNotNull(
+            java, "-Xcheck:jni", library, "-cp", System.getProperty("java.class.path"), RefusedOptionKeyMain::class.java.name,
+        )
+        val process = ProcessBuilder(command).redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().readText()
         assertTrue(process.waitFor(120, TimeUnit.SECONDS), "the child JVM did not finish:\n$output")
         assertTrue("REFUSED path" in output && "REFUSED io" in output, "both opens must refuse typed:\n$output")
