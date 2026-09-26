@@ -41,6 +41,25 @@ KC_API int ffkmp_averror_eagain(void);
 KC_API int ffkmp_averror_eof(void);
 KC_API int64_t ffkmp_rescale_q(int64_t v, int sn, int sd, int dn, int dd);
 
+/* Logging */
+
+/* Receives FFmpeg's own log lines. level is FFmpeg's, where a lower number is more severe:
+ * AV_LOG_ERROR is 16 and AV_LOG_WARNING is 24. component names the object that logged, such as
+ * "h264" or "mov,mp4,m4a,3gp,3g2,mj2", and is "" when FFmpeg names none. message is the line without
+ * its trailing newline. Both strings are the bytes FFmpeg wrote and live only for the call.
+ */
+typedef void (*ffkmp_log_sink)(int level, const char *component, const char *message);
+
+/* Routes FFmpeg's log lines at level and more severe to sink. A NULL sink drops every line, so
+ * nothing reaches stderr. Until the first call, FFmpeg's default callback still prints; the Kotlin
+ * library makes this call with NULL once, when it first accepts the FFmpeg runtime.
+ *
+ * FFmpeg calls the sink on whichever thread logs, including its own worker threads, so the sink must
+ * be safe on any thread and must not call back into this library. Safe to call from any thread. A
+ * line already being delivered when this returns may still reach the previous sink.
+ */
+KC_API void ffkmp_log_set_sink(ffkmp_log_sink sink, int level);
+
 /* kc_frame */
 
 /* Ownership. Returns a new kc_frame the caller owns, or NULL when allocation fails.

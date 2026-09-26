@@ -21,6 +21,7 @@ internal object Internals {
     private external fun nativeMediaTypeData(): Int
     private external fun nativeMediaTypeAttachment(): Int
     private external fun nativeLiveHandles(): Long
+    private external fun nativeSetLogLevel(level: Int)
     private external fun nativeRescaleQ(value: Long, sn: Int, sd: Int, dn: Int, dd: Int): Long
     private external fun nativePixelFormatName(value: Int): String?
     private external fun nativePixelFormatValue(name: String): Int
@@ -287,6 +288,8 @@ internal object Internals {
         val reportedAbi = (report.cAbiVersion.substringBefore('.').toInt() shl 16) or
             (report.cAbiVersion.substringAfter('.').toInt() shl 8)
         val attach = if (status == 0 && report.isAcceptable && packedAbi == reportedAbi) {
+            // FFmpeg prints every line until a sink is set, and this library starts silent.
+            nativeSetLogLevel(FFmpegLog.QUIET)
             nativeAttachCurrentVm()
         } else {
             null
@@ -331,6 +334,19 @@ internal object Internals {
         if (!accepted) {
             throw FFmpegException(FFmpegError.Internal("KiteFFmpeg JVM attach failed: status=$attach"))
         }
+    }
+
+    /** Serialised, so the C side resolves its callback once and the two halves agree on the level. */
+    @Synchronized
+    internal fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
+        FFmpegLog.sink = sink
+        checked { nativeSetLogLevel(FFmpegLog.code(level, sink)) }
+    }
+
+    /** Called by kj_abi.c for every FFmpeg log line at the installed level, on the thread that logged. */
+    @JvmStatic
+    private fun onNativeLog(level: Int, component: String, message: String) {
+        FFmpegLog.deliver(level, component, message)
     }
 
     internal fun hasDecoder(name: String) = checked { nativeHasDecoder(name) }

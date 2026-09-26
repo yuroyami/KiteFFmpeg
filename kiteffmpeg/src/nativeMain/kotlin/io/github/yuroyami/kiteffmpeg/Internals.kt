@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import ffmpeg.KC_FFMPEG_LIBRARY_COUNT
 import ffmpeg.ffkmp_averror_eagain
 import ffmpeg.ffkmp_averror_eof
+import ffmpeg.ffkmp_log_set_sink
 import ffmpeg.ffkmp_pix_fmt_from_name
 import ffmpeg.ffkmp_pix_fmt_name
 import ffmpeg.ffkmp_sample_fmt_from_name
@@ -13,6 +14,7 @@ import ffmpeg.kc_ffmpeg_report
 import ffmpeg.kc_ffmpeg_report_get
 import ffmpeg.kc_init
 import ffmpeg.kc_verdict_name
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.free
@@ -24,6 +26,7 @@ import kotlinx.cinterop.get
 import kotlinx.cinterop.nativeHeap
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.pointed
+import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.toKString
 
 /** Cached AVERROR codes. Read once at first call (lazy through `by lazy`). */
@@ -43,8 +46,25 @@ internal object FFErrors {
  * process-wide run and every later call is a load of a cached int.
  */
 internal fun requireCompatibleFFmpeg() {
-    if (kc_init() == 0) return
+    if (kc_init() == 0) {
+        quietByDefault
+        return
+    }
     throw FFmpegException(FFmpegError.IncompatibleFFmpegRuntime(ffmpegIdentity))
+}
+
+/** FFmpeg prints every line until a sink is set, and this library starts silent. Once per process. */
+private val quietByDefault: Unit by lazy { ffkmp_log_set_sink(null, FFmpegLog.QUIET) }
+
+/** The C sink for every FFmpeg log line, on the thread that logged. The Kotlin sink sits behind it. */
+internal val nativeLogForwarder = staticCFunction { level: Int, component: CPointer<ByteVar>?, message: CPointer<ByteVar>? ->
+    FFmpegLog.deliver(level, component?.toKString().orEmpty(), message?.toKString().orEmpty())
+}
+
+/** Installs [sink] at [level] behind [nativeLogForwarder], or drops every line when [sink] is null. */
+internal fun setNativeLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
+    FFmpegLog.sink = sink
+    ffkmp_log_set_sink(if (sink == null) null else nativeLogForwarder, FFmpegLog.code(level, sink))
 }
 
 /**

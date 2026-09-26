@@ -156,6 +156,12 @@ library {
       public typealias kc_subtitle = cnames/structs/AVSubtitle /* = cnames/structs/AVSubtitle */
 
       @kotlinx/cinterop/ExperimentalForeignApi
+      public typealias ffkmp_log_sinkVar = kotlinx/cinterop/CPointerVarOf<ffmpeg/ffkmp_log_sink^> /* = kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<kotlinx/cinterop/CFunction<kotlin/Function3<kotlin/Int, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlin/Unit>>> /* = ffmpeg/ffkmp_log_sink^ */> */
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public typealias ffkmp_log_sink = kotlinx/cinterop/CPointer<kotlinx/cinterop/CFunction<kotlin/Function3<kotlin/Int, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVar^>?, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVar^>?, kotlin/Unit>>> /* = kotlinx/cinterop/CPointer<kotlinx/cinterop/CFunction<kotlin/Function3<kotlin/Int, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlin/Unit>>> */
+
+      @kotlinx/cinterop/ExperimentalForeignApi
       public typealias kc_io_read_fnVar = kotlinx/cinterop/CPointerVarOf<ffmpeg/kc_io_read_fn^> /* = kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<kotlinx/cinterop/CFunction<kotlin/Function3<kotlinx/cinterop/CPointer<out kotlinx/cinterop/CPointed>? /* = kotlinx/cinterop/COpaquePointer^? */, kotlinx/cinterop/CPointer<kotlinx/cinterop/UByteVarOf<kotlin/UByte> /* = kotlinx/cinterop/UByteVar^ */>?, kotlin/Int, kotlin/Int>>> /* = ffmpeg/kc_io_read_fn^ */> */
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -241,6 +247,10 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_rescale_q")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_rescale_q(v: kotlin/Long /* = platform/posix/int64_t^ */, sn: kotlin/Int, sd: kotlin/Int, dn: kotlin/Int, dd: kotlin/Int): kotlin/Long /* = platform/posix/int64_t^ */
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_set_sink")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_set_sink(sink: kotlinx/cinterop/CPointer<kotlinx/cinterop/CFunction<kotlin/Function3<kotlin/Int, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlin/Unit>>>? /* = ffmpeg/ffkmp_log_sink^? */, level: kotlin/Int): kotlin/Unit
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_alloc")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -705,10 +715,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_height")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecctx_height(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?): kotlin/Int
-
-      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_open_input")
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_fmt_open_input(out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */> */>?, @kotlinx/cinterop/internal/CCall.CString path: kotlin/String?): kotlin/Int
     }
   }
 
@@ -716,6 +722,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_open_input")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_fmt_open_input(out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */> */>?, @kotlinx/cinterop/internal/CCall.CString path: kotlin/String?): kotlin/Int
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_close_input")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1174,7 +1184,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 11 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 12 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1224,10 +1234,6 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_SENTENCE: kotlin/Int /* = 1152 */
         public final get
-
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KC_HDR_MASTERING_INTS: kotlin/Int /* = 20 */
-        public final get
     }
   }
 
@@ -1235,6 +1241,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_HDR_MASTERING_INTS: kotlin/Int /* = 20 */
+        public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_HDR_HAS_PRIMARIES: kotlin/Int /* = 1 */

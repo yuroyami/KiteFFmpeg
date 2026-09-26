@@ -61,6 +61,18 @@ public expect object FFmpeg {
 
     /** Every decoder the bound FFmpeg has for [codec], the one FFmpeg picks by default first. */
     public fun decodersFor(codec: CodecId): List<DecoderId>
+
+    /**
+     * Routes FFmpeg's own log lines at [level] and more severe to [sink]. A null sink, the default,
+     * drops every line, so FFmpeg prints nothing.
+     *
+     * FFmpeg logs on whichever thread it runs, including its own decoder threads, so [sink] must be
+     * safe to call from any thread. It must not call KiteFFmpeg, and it should return quickly,
+     * because the thread that logged waits for it. An exception it throws is dropped. On the web
+     * the setting also reaches a codec module that loads later. The placeholder backend has no
+     * FFmpeg and never calls [sink].
+     */
+    public fun setLogSink(level: FFmpegLogLevel = FFmpegLogLevel.Warning, sink: FFmpegLogSink?)
 }
 
 /** The C layer's code for [kind], a KC_COMPONENT_* value. */

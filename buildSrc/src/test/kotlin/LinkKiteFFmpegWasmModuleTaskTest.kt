@@ -14,12 +14,13 @@ class LinkKiteFFmpegWasmModuleTaskTest {
     private val repoRoot: File = File(System.getProperty("kiteffmpeg.repo.root") ?: "..").canonicalFile
 
     @Test
-    fun theExportsAreTheBindingsHelpersAndTheHandWrittenOpen() {
+    fun theExportsAreTheBindingsHelpersAndTheHandWrittenCalls() {
         val baseline = repoRoot.resolve("native/kitecodec-c/signature-baseline.txt").readText()
         val exports = LinkKiteFFmpegWasmModuleTask.exports(baseline)
         val generated = GenerateWasmBindingTask.parse(baseline).filterNot { it.name in GenerateWasmBindingTask.HAND_WRITTEN }
-        assertEquals(generated.size + 3, exports.size)
+        assertEquals(generated.size + 4, exports.size)
         assertTrue("_ffkmp_fmt_open_input_io" in exports, "the byte source open is missing")
+        assertTrue("_ffkmp_log_set_sink" in exports, "the log sink setter is missing")
         assertTrue("_ffkmp_copy_bytes" in exports, "a generated helper is missing")
         assertTrue("_kc_jvm_attach" !in exports, "the JVM-only attach must not be exported")
     }

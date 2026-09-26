@@ -452,6 +452,8 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpeg {
 	public final fun hasDecoder (Ljava/lang/String;)Z
 	public final fun hasEncoder (Ljava/lang/String;)Z
 	public final fun hasFilter (Ljava/lang/String;)Z
+	public final fun setLogSink (Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;Lio/github/yuroyami/kiteffmpeg/FFmpegLogSink;)V
+	public static synthetic fun setLogSink$default (Lio/github/yuroyami/kiteffmpeg/FFmpeg;Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;Lio/github/yuroyami/kiteffmpeg/FFmpegLogSink;ILjava/lang/Object;)V
 }
 
 public final class io/github/yuroyami/kiteffmpeg/FFmpegComponent : java/lang/Enum {
@@ -600,6 +602,24 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpegLibraryIdentity {
 	public final fun getVerdict ()Ljava/lang/String;
 	public final fun isOk ()Z
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegLogLevel : java/lang/Enum {
+	public static final field Debug Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static final field Error Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static final field Fatal Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static final field Info Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static final field Panic Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static final field Trace Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static final field Verbose Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static final field Warning Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;
+}
+
+public abstract interface class io/github/yuroyami/kiteffmpeg/FFmpegLogSink {
+	public abstract fun log (Lio/github/yuroyami/kiteffmpeg/FFmpegLogLevel;Ljava/lang/String;Ljava/lang/String;)V
 }
 
 public abstract interface class io/github/yuroyami/kiteffmpeg/FeedResult {

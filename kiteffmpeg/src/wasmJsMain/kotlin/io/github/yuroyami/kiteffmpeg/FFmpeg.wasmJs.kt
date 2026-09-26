@@ -85,4 +85,9 @@ public actual object FFmpeg {
         requireModule()
         return codecLookups.decodersFor(codec)
     }
+
+    // Stored when no module is loaded yet, and applied to the module when it attaches.
+    public actual fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
+        WebLog.set(level, sink)
+    }
 }

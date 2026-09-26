@@ -62,8 +62,8 @@ NM="${KC_NM:-/usr/bin/nm}"
 
 # The exact number of normalized public declarations check 7 expects, and how many of them are
 # helper prototypes. Both move deliberately, in the commit that changes the C surface.
-SIGNATURE_SCOPE=257
-HELPER_PROTOTYPES=234
+SIGNATURE_SCOPE=258
+HELPER_PROTOTYPES=235
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -183,7 +183,8 @@ abi_is_newer_than() {
 #                             anything, and they exist because the bypass warning is mandatory: an
 #                             escape hatch nobody can hear is a silently bypassed gate. `printf` stays forbidden by check 2.
 #   _strcmp                   compares the six *_configuration() strings and the bypass value.
-#   _strlen                   bounds every copy into the report's fixed char arrays.
+#   _strlen                   bounds every copy into the report's fixed char arrays. src/helpers_log.c
+#                             also calls it, to trim a formatted log line's newline.
 #   ___memcpy_chk             clang's bounds-checked memcpy, emitted for the report copies at -O2 from
 #                             the same source line as _memcpy. Compiler output, not a source call.
 # _bzero joined 2026-08-30 with the filter builders' source-array clear: a loop that writes NULL
@@ -203,8 +204,10 @@ _pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk _kc_init
 _pthread_key_create _pthread_getspecific _pthread_setspecific"
 
 # Calls that must never appear. A library does not print, does not log through its host's logger,
-# and does not reach into an Apple runtime from portable C.
-FORBIDDEN_PATTERNS="printf av_log objc_msgSend dispatch_ _exit abort"
+# and does not reach into an Apple runtime from portable C. The av_log patterns name the logging
+# calls themselves: av_log_set_callback and av_log_format_line2 are how src/helpers_log.c hands
+# FFmpeg's own lines to the caller's sink instead of printing them, and those two are allowed.
+FORBIDDEN_PATTERNS="printf _?av_log($|[^A-Za-z0-9_]) _?av_vlog objc_msgSend dispatch_ _exit abort"
 
 status=0
 fail() {

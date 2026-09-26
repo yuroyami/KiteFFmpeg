@@ -29,6 +29,79 @@ JNIEXPORT jint JNICALL kj_abi_init(JNIEnv *env, jclass cls)
     return (jint)kc_init();
 }
 
+/* The log bridge. The Kotlin side keeps the sink, so C forwards every line to one static method,
+ * Internals.onNativeLog, resolved when the first level is set. FFmpeg logs on its own worker
+ * threads too, so a thread the JVM does not know is attached for the one call and detached after
+ * it, as the byte-source bridge in kj_format.c does. A pending exception on the logging thread is
+ * set aside for the call and restored after it, because calling Java with one pending is illegal. */
+static JavaVM *kj_log_vm = NULL;
+static jclass kj_log_class = NULL;
+static jmethodID kj_log_method = NULL;
+
+static void kj_log_forward(int level, const char *component, const char *message)
+{
+    JNIEnv *env = NULL;
+    int attached = 0;
+    jthrowable pending;
+    jstring jcomponent;
+    jstring jmessage;
+
+    if (kj_log_vm == NULL) return;
+    if ((*kj_log_vm)->GetEnv(kj_log_vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK || env == NULL) {
+#ifdef __ANDROID__
+        if ((*kj_log_vm)->AttachCurrentThread(kj_log_vm, &env, NULL) != JNI_OK) return;
+#else
+        if ((*kj_log_vm)->AttachCurrentThread(kj_log_vm, (void **)&env, NULL) != JNI_OK) return;
+#endif
+        attached = 1;
+    }
+    pending = (*env)->ExceptionOccurred(env);
+    if (pending != NULL) (*env)->ExceptionClear(env);
+    jcomponent = kj_string_new(env, component);
+    jmessage = jcomponent != NULL ? kj_string_new(env, message) : NULL;
+    if (jcomponent != NULL && jmessage != NULL) {
+        (*env)->CallStaticVoidMethod(env, kj_log_class, kj_log_method, (jint)level, jcomponent, jmessage);
+    }
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    if (jmessage != NULL) (*env)->DeleteLocalRef(env, jmessage);
+    if (jcomponent != NULL) (*env)->DeleteLocalRef(env, jcomponent);
+    if (pending != NULL) {
+        (*env)->Throw(env, pending);
+        (*env)->DeleteLocalRef(env, pending);
+    }
+    if (attached) (*kj_log_vm)->DetachCurrentThread(kj_log_vm);
+}
+
+/* A negative level drops every line. The Kotlin caller serialises these calls, so the one-time
+ * resolution below never races itself, and the atomic store inside ffkmp_log_set_sink publishes it
+ * to the threads that log. The externals are members of the Internals object, so the second
+ * argument is that object and its class is looked up from it. */
+JNIEXPORT void JNICALL kj_abi_set_log_level(JNIEnv *env, jclass cls, jint level)
+{
+    if (kj_log_class == NULL) {
+        jclass klass = (*env)->GetObjectClass(env, (jobject)cls);
+        jmethodID method;
+        jclass global;
+        if (klass == NULL) return;
+        method = (*env)->GetStaticMethodID(env, klass, "onNativeLog", "(ILjava/lang/String;Ljava/lang/String;)V");
+        if (method == NULL) {
+            (*env)->DeleteLocalRef(env, klass);
+            return;
+        }
+        if ((*env)->GetJavaVM(env, &kj_log_vm) != 0) {
+            (*env)->DeleteLocalRef(env, klass);
+            kj_throw_handle(env, "log sink: GetJavaVM failed");
+            return;
+        }
+        global = (jclass)(*env)->NewGlobalRef(env, klass);
+        (*env)->DeleteLocalRef(env, klass);
+        if (global == NULL) return;
+        kj_log_method = method;
+        kj_log_class = global;
+    }
+    ffkmp_log_set_sink(level >= 0 ? kj_log_forward : NULL, (int)level);
+}
+
 JNIEXPORT jint JNICALL kj_abi_attach_current_vm(JNIEnv *env, jclass cls)
 {
     JavaVM *vm = NULL;

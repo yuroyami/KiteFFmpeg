@@ -108,6 +108,7 @@ you collect them.
 | Scale, blur, watermark, adjust colour | `FilterGraph.buildVideo` / `buildVideoMulti` | [Filtering](docs/filtering.md) |
 | Build a file out of frames you made | `MediaSink` plus `Frame.ofVideo` / `ofAudio` | [Encoding and muxing](docs/encoding-muxing.md) |
 | Ask what this build supports | `FFmpeg.hasEncoder(...)` / `hasFilter(...)` | [Platform support](docs/platforms.md) |
+| See FFmpeg's own warnings and errors | `FFmpeg.setLogSink(level) { level, component, message -> }` | below |
 
 Two details that catch people out. Cut times are **microseconds into the video**, counted from the
 start of the content, not the raw numbers stored in the file. And a filter chain names its inputs
@@ -128,6 +129,10 @@ MediaSource.open("input.mp4").use { source ->
 You cannot collect two of these at once from the same file: they would both try to move the read
 position, so the second one is rejected. Use `decodeStreams(...)` when you want video and audio
 together.
+
+FFmpeg's own log lines, such as `moov atom not found`, print nothing unless you install a sink with
+`FFmpeg.setLogSink`. The sink runs on whichever thread FFmpeg logs from, so keep it quick and
+thread safe, and do not call KiteFFmpeg from it.
 
 **Building a media player?** The API above reads a file front to back, which is right for
 converting and wrong for playback: a player needs audio and video to advance separately, and to

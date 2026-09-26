@@ -258,6 +258,23 @@ final enum class io.github.yuroyami.kiteffmpeg/FFmpegComponent : kotlin/Enum<io.
     final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/FFmpegComponent> // io.github.yuroyami.kiteffmpeg/FFmpegComponent.values|values#static(){}[0]
 }
 
+final enum class io.github.yuroyami.kiteffmpeg/FFmpegLogLevel : kotlin/Enum<io.github.yuroyami.kiteffmpeg/FFmpegLogLevel> { // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel|null[0]
+    enum entry Debug // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Debug|null[0]
+    enum entry Error // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Error|null[0]
+    enum entry Fatal // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Fatal|null[0]
+    enum entry Info // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Info|null[0]
+    enum entry Panic // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Panic|null[0]
+    enum entry Trace // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Trace|null[0]
+    enum entry Verbose // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Verbose|null[0]
+    enum entry Warning // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.Warning|null[0]
+
+    final val entries // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.yuroyami.kiteffmpeg/FFmpegLogLevel> // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.yuroyami.kiteffmpeg/FFmpegLogLevel // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/FFmpegLogLevel> // io.github.yuroyami.kiteffmpeg/FFmpegLogLevel.values|values#static(){}[0]
+}
+
 final enum class io.github.yuroyami.kiteffmpeg/FieldOrder : kotlin/Enum<io.github.yuroyami.kiteffmpeg/FieldOrder> { // io.github.yuroyami.kiteffmpeg/FieldOrder|null[0]
     enum entry BottomFirst // io.github.yuroyami.kiteffmpeg/FieldOrder.BottomFirst|null[0]
     enum entry Progressive // io.github.yuroyami.kiteffmpeg/FieldOrder.Progressive|null[0]
@@ -398,6 +415,10 @@ final enum class io.github.yuroyami.kiteffmpeg/Vp9Profile : kotlin/Enum<io.githu
     final object Companion { // io.github.yuroyami.kiteffmpeg/Vp9Profile.Companion|null[0]
         final fun fromNumber(kotlin/Int): io.github.yuroyami.kiteffmpeg/Vp9Profile? // io.github.yuroyami.kiteffmpeg/Vp9Profile.Companion.fromNumber|fromNumber(kotlin.Int){}[0]
     }
+}
+
+abstract fun interface io.github.yuroyami.kiteffmpeg/FFmpegLogSink { // io.github.yuroyami.kiteffmpeg/FFmpegLogSink|null[0]
+    abstract fun log(io.github.yuroyami.kiteffmpeg/FFmpegLogLevel, kotlin/String, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegLogSink.log|log(io.github.yuroyami.kiteffmpeg.FFmpegLogLevel;kotlin.String;kotlin.String){}[0]
 }
 
 abstract interface io.github.yuroyami.kiteffmpeg/MediaByteSink : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/MediaByteSink|null[0]
@@ -2413,6 +2434,7 @@ final object io.github.yuroyami.kiteffmpeg/FFmpeg { // io.github.yuroyami.kiteff
     final fun hasDecoder(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasDecoder|hasDecoder(kotlin.String){}[0]
     final fun hasEncoder(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasEncoder|hasEncoder(kotlin.String){}[0]
     final fun hasFilter(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasFilter|hasFilter(kotlin.String){}[0]
+    final fun setLogSink(io.github.yuroyami.kiteffmpeg/FFmpegLogLevel = ..., io.github.yuroyami.kiteffmpeg/FFmpegLogSink?) // io.github.yuroyami.kiteffmpeg/FFmpeg.setLogSink|setLogSink(io.github.yuroyami.kiteffmpeg.FFmpegLogLevel;io.github.yuroyami.kiteffmpeg.FFmpegLogSink?){}[0]
 }
 
 final object io.github.yuroyami.kiteffmpeg/Remuxer { // io.github.yuroyami.kiteffmpeg/Remuxer|null[0]

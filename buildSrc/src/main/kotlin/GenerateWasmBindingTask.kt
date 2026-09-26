@@ -72,8 +72,9 @@ abstract class GenerateWasmBindingTask @Inject constructor() : DefaultTask() {
          *
          * `ffkmp_fmt_open_input_io` takes two function pointers and is a subject of its own.
          * `kc_jvm_attach` takes a `JavaVM *`, which does not exist in a browser at all.
+         * `ffkmp_log_set_sink` takes a function pointer, which WebLog.kt registers with `addFunction`.
          */
-        val HAND_WRITTEN = setOf("ffkmp_fmt_open_input_io", "kc_jvm_attach")
+        val HAND_WRITTEN = setOf("ffkmp_fmt_open_input_io", "kc_jvm_attach", "ffkmp_log_set_sink")
 
         /**
          * Maps a C type to the Kotlin/Wasm type that crosses `@JsFun`.

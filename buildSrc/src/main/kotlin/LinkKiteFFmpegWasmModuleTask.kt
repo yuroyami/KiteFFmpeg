@@ -70,7 +70,7 @@ abstract class LinkKiteFFmpegWasmModuleTask : DefaultTask() {
         const val WASM_FILE = "kite.wasm"
 
         /** What the web backend calls besides the generated binding. */
-        val EXTRA_EXPORTS = listOf("_ffkmp_fmt_open_input_io", "_malloc", "_free")
+        val EXTRA_EXPORTS = listOf("_ffkmp_fmt_open_input_io", "_ffkmp_log_set_sink", "_malloc", "_free")
 
         /** The runtime pieces the backend reads; KiteFFmpegWeb.attach refuses a module without them. */
         val RUNTIME_METHODS = listOf(

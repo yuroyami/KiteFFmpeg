@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `rawvideo` opens (#82).
 - The JVM jar is Java 11 bytecode, checked against the Java 11 API, where it was Java 21. An
   application on Java 11 or 17 can now load it. The API is unchanged (#103).
+- FFmpeg's own log lines no longer reach stderr. `FFmpeg.setLogSink(level, sink)` routes them to a
+  sink of your own, with the level, the name of what logged and the message. The sink runs on the
+  thread that logged, on every backend. The C ABI is 3.12, which adds `ffkmp_log_set_sink` (#83).
 
 ### Fixed
 

@@ -22,4 +22,8 @@ public actual object FFmpeg {
     public actual fun encodersFor(codec: CodecId): List<EncoderId> = emptyList()
 
     public actual fun decodersFor(codec: CodecId): List<DecoderId> = emptyList()
+
+    // No FFmpeg, so there is never a line to deliver.
+    public actual fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
+    }
 }

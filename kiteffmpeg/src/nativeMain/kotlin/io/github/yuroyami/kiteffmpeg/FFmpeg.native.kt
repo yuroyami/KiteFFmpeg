@@ -81,4 +81,9 @@ public actual object FFmpeg {
         requireCompatibleFFmpeg()
         return codecLookups.decodersFor(codec)
     }
+
+    public actual fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
+        requireCompatibleFFmpeg()
+        setNativeLogSink(level, sink)
+    }
 }

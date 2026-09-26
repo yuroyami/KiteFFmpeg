@@ -63,6 +63,8 @@ public object KiteFFmpegWeb {
         val missing = missingRuntimeMethods(codecModule)
         if (missing.isNotEmpty()) throw IncompleteModule(missing)
         module = codecModule
+        // Silent unless a sink was set, as on every other backend.
+        WebLog.apply(codecModule)
     }
 
     /**

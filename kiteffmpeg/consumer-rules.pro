@@ -2,6 +2,12 @@
     native <methods>;
 }
 
+# kj_abi.c resolves this with GetStaticMethodID when the first log level is set, and calls it for
+# every FFmpeg log line. Renamed or stripped, the log sink receives nothing.
+-keep class io.github.yuroyami.kiteffmpeg.Internals {
+    private static void onNativeLog(int, java.lang.String, java.lang.String);
+}
+
 # kj_util.c resolves these binary names with FindClass and explicitly invokes the exact
 # (Ljava/lang/String;)V constructor. Neither lookup is visible to R8's ordinary reachability
 # analysis, so both the class names and constructors are part of the JNI ABI.

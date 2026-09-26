@@ -55,4 +55,9 @@ public actual object FFmpeg {
         Internals.requireCompatible()
         return codecLookups.decodersFor(codec)
     }
+
+    public actual fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
+        Internals.requireCompatible()
+        Internals.setLogSink(level, sink)
+    }
 }
