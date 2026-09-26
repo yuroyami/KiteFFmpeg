@@ -2,6 +2,8 @@
 
 #include "kitecodec_helpers.h"
 
+#include <string.h>
+
 #include <libavformat/avformat.h>
 #include <libavutil/error.h>
 #include <libavutil/opt.h>
@@ -114,6 +116,30 @@ KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
     *ctx = NULL;
     av_free(cell);
 }
+/* The option key that names a demuxer to force. It is KiteFFmpeg's own and never reaches FFmpeg,
+   which has no option for it: avformat_open_input takes the format as an argument. */
+#define KC_FORCED_FORMAT_KEY "kiteffmpeg_input_format"
+
+/* The open's option dictionary from the pairs, with the forced format taken out of it: *forced is
+   that demuxer, or NULL when none is named. A name this build does not carry answers
+   AVERROR_DEMUXER_NOT_FOUND. On failure nothing is left allocated. */
+static int kc_open_options(const char *const *keys, const char *const *values, int n,
+                           AVDictionary **options, const AVInputFormat **forced) {
+    *options = NULL;
+    *forced = NULL;
+    for (int i = 0; i < n; i++) {
+        if (!keys[i] || !values[i]) { av_dict_free(options); return AVERROR(EINVAL); }
+        if (strcmp(keys[i], KC_FORCED_FORMAT_KEY) == 0) {
+            *forced = av_find_input_format(values[i]);
+            if (!*forced) { av_dict_free(options); return AVERROR_DEMUXER_NOT_FOUND; }
+            continue;
+        }
+        int rc = av_dict_set(options, keys[i], values[i], 0);
+        if (rc < 0) { av_dict_free(options); return rc; }
+    }
+    return 0;
+}
+
 /* True pre-open options. The pairs are applied between allocation and open, which is the
  * only moment probesize, fflags and format forcing can act. Keys FFmpeg does not consume stay
  * in the dictionary afterwards; that remainder is handed to the caller through *unused (owned;
@@ -130,11 +156,9 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
     if (n > 0 && (!keys || !values)) return AVERROR(EINVAL);
     if (interrupt && kc_cell_raised(&interrupt->raised)) return AVERROR_EXIT;
     AVDictionary *options = NULL;
-    for (int i = 0; i < n; i++) {
-        if (!keys[i] || !values[i]) { av_dict_free(&options); return AVERROR(EINVAL); }
-        int rc = av_dict_set(&options, keys[i], values[i], 0);
-        if (rc < 0) { av_dict_free(&options); return rc; }
-    }
+    const AVInputFormat *forced = NULL;
+    int built = kc_open_options(keys, values, n, &options, &forced);
+    if (built < 0) return built;
     AVFormatContext *c = avformat_alloc_context();
     if (!c) { av_dict_free(&options); return AVERROR(ENOMEM); }
     int *cell = NULL;
@@ -143,7 +167,7 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
         if (!cell) { avformat_free_context(c); av_dict_free(&options); return AVERROR(ENOMEM); }
     }
     kc_install_interrupt(c, interrupt, cell);
-    int rc = avformat_open_input(&c, path, NULL, &options);
+    int rc = avformat_open_input(&c, path, forced, &options);
     if (rc < 0) { av_freep(&cell); av_dict_free(&options); return rc; }
     if (unused) *unused = options;    /* the caller owns the remainder, possibly NULL */
     else av_dict_free(&options);
@@ -413,29 +437,19 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     c->interrupt_callback.opaque = (void *)bridge->cell;
 
     AVDictionary *options = NULL;
-    for (int i = 0; i < n; i++) {
-        if (!keys[i] || !values[i]) {
-            av_dict_free(&options);
-            avformat_free_context(c);
-            av_freep(&pb->buffer);
-            avio_context_free(&pb);
-            av_freep(&bridge);
-            return AVERROR(EINVAL);
-        }
-        int rc = av_dict_set(&options, keys[i], values[i], 0);
-        if (rc < 0) {
-            av_dict_free(&options);
-            avformat_free_context(c);
-            av_freep(&pb->buffer);
-            avio_context_free(&pb);
-            av_freep(&bridge);
-            return rc;
-        }
+    const AVInputFormat *forced = NULL;
+    int built = kc_open_options(keys, values, n, &options, &forced);
+    if (built < 0) {
+        avformat_free_context(c);
+        av_freep(&pb->buffer);
+        avio_context_free(&pb);
+        av_freep(&bridge);
+        return built;
     }
 
     /* On failure avformat_open_input frees the context but, per AVFMT_FLAG_CUSTOM_IO, never
        the caller's pb; the bridge and the AVIO state are this function's to unwind. */
-    int rc = avformat_open_input(&c, NULL, NULL, &options);
+    int rc = avformat_open_input(&c, NULL, forced, &options);
     if (rc < 0) {
         av_dict_free(&options);
         av_freep(&pb->buffer);

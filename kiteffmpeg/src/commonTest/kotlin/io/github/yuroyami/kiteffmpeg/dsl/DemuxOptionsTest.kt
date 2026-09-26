@@ -40,6 +40,12 @@ class DemuxOptionsTest {
     }
 
     @Test
+    fun aNamedFormatCompilesLastUnderTheKeyTheCOpenTakesOut() {
+        val compiled = DemuxOptions(format = "s16le", options = mapOf("sample_rate" to "48000")).compile()
+        assertEquals(listOf("sample_rate" to "48000", "kiteffmpeg_input_format" to "s16le"), compiled)
+    }
+
+    @Test
     fun emptyOptionsCompileToNothing() {
         assertEquals(emptyList(), DemuxOptions().compile())
     }

@@ -37,6 +37,14 @@ public data class DemuxOptions(
     val ioTimeoutMicros: Long? = null,
     /** Raw option pairs for anything the typed set lacks. They come after the typed ones and win a tie. */
     val options: Map<String, String> = emptyMap(),
+    /**
+     * The demuxer to use, by FFmpeg name, as the command line's `-f`: the open does not probe. This
+     * is what opens headerless input, such as `s16le` or `rawvideo`, whose parameters then go in
+     * [options] (`sample_rate`, `video_size` and the like). A name this build does not carry fails
+     * with [FFmpegError.DemuxerNotFound]. Unlike [formatWhitelist], which only refuses a probed
+     * format, this chooses one.
+     */
+    val format: String? = null,
 ) {
     /** The exact option pairs, in a stable order: typed knobs first, the raw pairs after. */
     public fun compile(): List<Pair<String, String>> = buildList {
@@ -48,6 +56,8 @@ public data class DemuxOptions(
         if (protocolWhitelist.isNotEmpty()) add("protocol_whitelist" to protocolWhitelist.joinToString(","))
         ioTimeoutMicros?.let { add("rw_timeout" to it.toString()) }
         options.forEach { (key, value) -> add(key to value) }
+        // Not an FFmpeg option: the C open takes this key out and passes the demuxer it names.
+        format?.let { add(FORCED_FORMAT_KEY to it) }
     }
 
     public companion object {
@@ -59,6 +69,9 @@ public data class DemuxOptions(
         )
     }
 }
+
+/** The key the C open takes the forced demuxer from. It must match `KC_FORCED_FORMAT_KEY`. */
+internal const val FORCED_FORMAT_KEY: String = "kiteffmpeg_input_format"
 
 /** A demuxer behaviour flag, by FFmpeg's own `fflags` value name. */
 public enum class DemuxFlag(internal val ff: String) {

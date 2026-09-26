@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `StreamInfo` gains `mirrored`, which changes the generated data-class methods. Recompile. A
   renderer mirrors the picture left to right first when it is true, and then turns it clockwise by
   `rotationDegrees`. The C ABI is 3.11, which adds `ffkmp_stream_mirrored` (#81).
+- `DemuxOptions` gains `format`, which changes the generated data-class methods. Recompile. It
+  names the demuxer to use, as `ffmpeg -f` does, so headerless input such as `s16le` or
+  `rawvideo` opens (#82).
 
 ### Fixed
 

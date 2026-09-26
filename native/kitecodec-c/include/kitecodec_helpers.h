@@ -502,6 +502,11 @@ KC_API void ffkmp_interrupt_free(kc_interrupt **cell);
  * that cell (see kc_interrupt), and an already raised cell fails the open with AVERROR_EXIT
  * before anything is read. NULL out or path, negative n, or a NULL entry inside the arrays is
  * refused with AVERROR(EINVAL).
+ *
+ * One key is KiteFFmpeg's own and never reaches FFmpeg: "kiteffmpeg_input_format" names the
+ * demuxer to use, as the command line's -f does, so the open does not probe. That is what opens
+ * headerless input such as s16le or rawvideo. A name this build does not carry fails the open
+ * with AVERROR_DEMUXER_NOT_FOUND. ffkmp_fmt_open_input_io honours the same key.
  */
 KC_API int  ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path,
                                   const char *const *keys, const char *const *values,
