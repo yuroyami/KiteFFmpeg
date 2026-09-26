@@ -36,6 +36,10 @@
 # keeps it as the native-sbom-<version> artifact of the run. Attach that file to the GitHub
 # release page. A digest, a version or a patch that does not match stops the run before the
 # upload. A publish from the maintainer's machine gets no document; run the script by hand there.
+#
+# TESTS. The upload job waits for the whole of ci.yml, run on the commit being published, so a
+# commit whose tests fail cannot reach Central. A release therefore takes as long as CI plus the
+# upload, and one flaky test stops it.
 name: Publish release
 
 on:
@@ -90,9 +94,17 @@ jobs:
           fi
           echo "Publishing version ${gradle_version}"
 
+  # ci.yml, called on this commit. Its jobs appear in this run under this job's name, and the upload
+  # waits for all of them, so a commit whose tests fail cannot reach Central, which cannot withdraw
+  # a version. One flaky test therefore stops a release; run it again.
+  tests:
+    name: CI on the commit being published
+    needs: check-version
+    uses: ./.github/workflows/ci.yml
+
   publish-library:
     name: kiteffmpeg → Maven Central
-    needs: check-version
+    needs: [check-version, tests]
     # Apple klibs (macosArm64) can only be produced on a macOS host.
     runs-on: macos-latest
     timeout-minutes: 90

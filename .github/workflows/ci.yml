@@ -36,12 +36,16 @@ on:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
+  # The publish workflow runs this whole file on the commit it is about to publish.
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # github.workflow is the caller's name when the publish workflow calls this file, so a release
+  # run and a push run on the same branch never cancel each other.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -194,6 +198,12 @@ jobs:
       - name: Public API baseline + coupling + deleted surface + wasm mirror + dependency hygiene
         run: |
           ./gradlew :kiteffmpeg:apiCheck -Pkiteffmpeg.requireAllTargets=true --stacktrace
+          # The shared native source sets compile only as metadata, which apiCheck never builds and
+          # a publish does. The 0.3.0 publish once failed there, before any upload.
+          ./gradlew -Pkiteffmpeg.requireAllTargets=true --stacktrace \
+            :kiteffmpeg:compileNativeMainKotlinMetadata :kiteffmpeg:compileAppleMainKotlinMetadata \
+            :kiteffmpeg:compileIosMainKotlinMetadata :kiteffmpeg:compileMacosMainKotlinMetadata \
+            :kiteffmpeg:compileLinuxMainKotlinMetadata :kiteffmpeg:compileAndroidNativeMainKotlinMetadata
           ./gradlew checkCinteropCoupling --stacktrace
           ./gradlew :kiteffmpeg:checkWasmBindingMirror --stacktrace
           ./gradlew checkReleaseTargetMirror --stacktrace
