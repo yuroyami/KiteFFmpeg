@@ -37,6 +37,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `Transcoder.transcode` checks for cancellation before every frame it encodes, so a cancel, or an
   exception from `onProgress`, also stops a transcode inside a long gap between two video frames.
   A frame whose end is past what a `Long` holds lasts one output frame.
+- A `MediaSink` close waits for an encode or a copy-stream write that already started on another
+  thread, and a second close waits for the first to finish. Once a close starts, a new encode, copy
+  write, metadata call or chapter call fails with `IllegalStateException`. A close from inside the
+  sink's own `MediaByteSink` call fails with `IllegalStateException`, which fails that write.
 - `Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `MediaSource.extractFrame` and
   both `drive` overloads declare `@Throws`, so Swift and Objective-C receive an `FFmpegException`
   as an error instead of terminating (#87).

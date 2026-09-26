@@ -63,6 +63,11 @@ public expect class MediaSink : AutoCloseable {
      * muxed). It does nothing for encoders already drained by [VideoEncoder.drive] or
      * [AudioEncoder.drive].
      *
+     * A close waits for an encode or a copy-stream write that already started on another thread,
+     * and a second close waits for the first to finish. Once a close starts, a new encode or copy
+     * write fails with [IllegalStateException]. A close from inside this sink's own
+     * [MediaByteSink] call fails with [IllegalStateException] too, which fails that write.
+     *
      * @throws FFmpegException when the trailer fails. The file on disk is then broken, for
      *         example an mp4 whose moov atom was never written.
      */

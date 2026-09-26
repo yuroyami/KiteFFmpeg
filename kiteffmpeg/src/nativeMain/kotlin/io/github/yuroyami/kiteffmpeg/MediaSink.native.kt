@@ -101,14 +101,16 @@ public actual class MediaSink internal constructor(
 
     /**
      * Two flags because the close WRITES on its way out. [closeBegun] flips at the
-     * top of close, under [muxLock], and is what a second close and every add checks: nothing new
-     * may start once a close exists. [closed] flips only after the muxer is freed, and is what the
-     * write path checks: the close's own flush writes are legal, and an outside writer that was
-     * blocked on [muxLock] resumes only after the whole close released it, when this flag already
-     * refuses the freed muxer for it.
+     * top of close, under [muxLock], and is what a second close, every add, a new encode and a copy
+     * write check: nothing new may start once a close exists. [closed] flips only after the muxer is
+     * freed, and is what the packet write checks: the close's own flush writes are legal, and so are
+     * the writes of an encode that started before the close, which the close waits for.
      */
     private var closeBegun = false
     private var closed = false
+
+    /** Held for a whole close, so a second close returns only once the first one has finished. */
+    private val closeLock = SynchronizedObject()
 
     /**
      * The failure that made this sink unusable, if one has.
@@ -141,10 +143,10 @@ public actual class MediaSink internal constructor(
 
     /**
      * Reentrant lock serializing everything that touches the shared muxer state: header
-     * write, `av_interleaved_write_frame`, and the shared timeline base. Encoding itself
-     * (separate AVCodecContexts) stays lock-free, so a video and an audio encoder driven
-     * from concurrent coroutines only serialize at the muxer boundary, which libavformat
-     * requires anyway.
+     * write, `av_interleaved_write_frame`, the shared timeline base, and a whole copy-stream
+     * write. Each encoder's codec calls run under that encoder's own lock instead, so a video and
+     * an audio encoder driven from concurrent coroutines only serialize at the muxer boundary,
+     * which libavformat requires anyway. Lock order is close, encoder, frame, then this one.
      */
     private val muxLock = SynchronizedObject()
 
@@ -163,6 +165,17 @@ public actual class MediaSink internal constructor(
     }
 
     private val headerWritten: Boolean get() = synchronized(muxLock) { headerState == HeaderState.Written }
+
+    /** Refuses once a close began, so an encode never starts on a sink that is going away. */
+    internal fun checkNotClosing(): Unit = synchronized(muxLock) {
+        check(!closeBegun) { "MediaSink is closed" }
+    }
+
+    /** Runs [block] under the mux lock once no close has begun. A copy write holds it throughout. */
+    internal fun <T> withMuxLockOpen(block: () -> T): T = synchronized(muxLock) {
+        check(!closeBegun) { "MediaSink is closed" }
+        block()
+    }
 
     @Throws(FFmpegException::class)
     public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
@@ -352,7 +365,7 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun setChapters(chapters: List<Chapter>): Unit = synchronized(muxLock) {
         check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
-        check(!closed) { "MediaSink is closed" }
+        check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         chapters.forEach { chapter ->
             memScoped {
@@ -374,7 +387,7 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun setMetadata(metadata: Map<String, String>): Unit = synchronized(muxLock) {
         check(!headerWritten) { "Metadata must be set before the muxer writes its header." }
-        check(!closed) { "MediaSink is closed" }
+        check(!closeBegun) { "MediaSink is closed" }
         // A POISONED sink refuses here too, matching the JVM backend, whose setMetadata has always
         // gone through its usability check. The two disagreed until 2026-08-30: this one asked only
         // whether the sink was closed, so a sink holding a half-configured stream accepted metadata
@@ -412,10 +425,9 @@ public actual class MediaSink internal constructor(
     }
 
     internal fun writePacket(packet: CPointer<kc_packet>): Unit = synchronized(muxLock) {
-        // The close-vs-write race: a writer that blocked on this lock while close ran
-        // used to resume and hand the packet to a FREED muxer, because nothing here re-read the
-        // closed flag after the wait. close() holds this same lock for its entire flush, trailer
-        // and free, so the flag is the whole fix: a late writer now fails typed instead.
+        // A writer that blocked on this lock while close ran must not hand its packet to the
+        // freed muxer. close() frees under this lock and sets the flag there, so a late writer
+        // fails typed instead.
         check(!closed) { "MediaSink is closed" }
         ensureHeaderWritten()
         val rc = ffkmp_fmt_write_frame(ctx, packet)
@@ -426,45 +438,57 @@ public actual class MediaSink internal constructor(
     private fun explained(error: FFmpegError): FFmpegException = FFmpegException(error, byteSink?.takeFailure())
 
     actual override fun close() {
+        // This sink's own MediaByteSink callback runs under muxLock, inside a write that still
+        // uses the muxer, so a close from there is refused. The check runs before closeLock and
+        // holds nothing else, so the refusal never waits on a close in progress.
+        synchronized(muxLock) {
+            check((byteSink?.callbackDepth ?: 0) == 0) {
+                "A MediaSink cannot be closed from inside its own MediaByteSink callback. Close it " +
+                    "after the call that wrote returns."
+            }
+        }
+        synchronized(closeLock) { closeOnce() }
+    }
+
+    private fun closeOnce() {
         var firstFailure: Throwable? = null
-        val trailerRc = synchronized(muxLock) {
+        fun note(failure: Throwable) {
+            val first = firstFailure
+            if (first == null) firstFailure = failure else first.addSuppressed(failure)
+        }
+        val cores = synchronized(muxLock) {
             if (closeBegun) return
             closeBegun = true
+            encoderCores.toList().also { encoderCores.clear() }
+        }
+        // Each encoder is finished and closed under its own lock, which also waits for an encode
+        // in flight on another thread. Never under muxLock: an encode holds its encoder's lock and
+        // then takes muxLock for its writes.
+        try {
+            // Flush BEFORE freeing the contexts. Encoders buffer (libx264's lookahead holds tens
+            // of frames); freeing without an EOF drain silently truncates the tail. The FIRST flush
+            // error is retained and thrown after cleanup: one encoder failing is not a reason to
+            // skip draining the others or the trailer for what did land.
+            if (cores.isNotEmpty()) {
+                // The flush packet is borrowed, not owed: a failed allocation is one more failure
+                // to report, and every cleanup below still runs (#112).
+                runCatching {
+                    withPacket { packet ->
+                        cores.forEach { core -> runCatching { core.finish(packet) }.exceptionOrNull()?.let(::note) }
+                    }
+                }.exceptionOrNull()?.let(::note)
+            }
+        } finally {
+            cores.forEach { runCatching { it.close() } }
+        }
+        val trailerRc = synchronized(muxLock) {
             var rc = 0
             try {
-                // Flush BEFORE freeing the contexts. Encoders buffer (libx264's lookahead holds
-                // tens of frames); freeing without an EOF drain silently truncates the tail. The
-                // FIRST flush error is retained and thrown after cleanup: tail frames lost while
-                // close reports success was a real defect, and one encoder failing is not a
-                // reason to skip draining the others or the trailer for what did land.
-                if (encoderCores.isNotEmpty()) {
-                    // The flush packet is borrowed, not owed: a failed allocation is one more
-                    // failure to report, and every cleanup below still runs (#112).
-                    runCatching {
-                        withPacket { packet ->
-                            encoderCores.forEach { core ->
-                                runCatching { core.finish(packet) }.exceptionOrNull()?.let { failure ->
-                                    if (firstFailure == null) firstFailure = failure
-                                    else firstFailure?.addSuppressed(failure)
-                                }
-                            }
-                        }
-                    }.exceptionOrNull()?.let { failure ->
-                        if (firstFailure == null) firstFailure = failure
-                        else firstFailure?.addSuppressed(failure)
-                    }
-                }
-                encoderCores.forEach { runCatching { it.close() } }
-                encoderCores.clear()
                 // Declared streams and no packet means the header never wrote itself on demand.
                 // The sink still owes a real container: header now, trailer below, or an explicit
-                // failure. Declaring streams and closing used to perform no I/O and report
-                // success.
+                // failure.
                 if (headerState == HeaderState.NotWritten && declaredStreams > 0) {
-                    runCatching { ensureHeaderWritten() }.exceptionOrNull()?.let { failure ->
-                        if (firstFailure == null) firstFailure = failure
-                        else firstFailure?.addSuppressed(failure)
-                    }
+                    runCatching { ensureHeaderWritten() }.exceptionOrNull()?.let(::note)
                 }
                 if (headerState == HeaderState.Written) {
                     rc = ffkmp_fmt_write_trailer(ctx)
@@ -567,6 +591,13 @@ internal class EncoderCore(
     private val codecTimeBase: Rational,
     private val isAudio: Boolean,
 ) {
+    /**
+     * Held for every codec call and every state change here, so [close], and the sink's close
+     * through it, waits for an encode in flight instead of freeing the codec under it. Internal so
+     * a test can see an encode holding it.
+     */
+    internal val lock = SynchronizedObject()
+
     private var closed = false
     private val streamIndex = ffkmp_stream_index(stream)
     private var lastPts = Long.MIN_VALUE
@@ -590,7 +621,7 @@ internal class EncoderCore(
     private var driving = false
     private var drained = false
 
-    fun beginDrive() {
+    fun beginDrive(): Unit = synchronized(lock) {
         check(!closed) { "Encoder is closed" }
         check(!drained) {
             "This encoder has already been driven to its end and cannot encode again. An encoder " +
@@ -611,12 +642,12 @@ internal class EncoderCore(
      * above all, has drained nothing, and marking it spent would replace that real failure with a
      * misleading "already driven" on the retry. The contract suite pins exactly that.
      */
-    fun endDrive() {
+    fun endDrive(): Unit = synchronized(lock) {
         drained = true
     }
 
     /** Releases the one-drive-at-a-time guard, on every path including failure. */
-    fun releaseDrive() {
+    fun releaseDrive(): Unit = synchronized(lock) {
         driving = false
     }
 
@@ -630,9 +661,10 @@ internal class EncoderCore(
         else ffkmp_rescale_q(lastPts + stepPastLastPts(), codecTimeBase.num, codecTimeBase.den, 1, 1_000_000)
 
     /** Encode one frame, converting its pixel format to the encoder's if needed. Closes [frame]. */
-    fun encode(packet: CPointer<kc_packet>, frame: Frame) {
+    fun encode(packet: CPointer<kc_packet>, frame: Frame): Unit = synchronized(lock) {
         check(!closed) { "Encoder is closed" }
         check(!drained) { "This encoder was already drained; its codec cannot accept more frames" }
+        sink.checkNotClosing()
         try {
             // Inside the ownership scope, not before it. This function consumes the frame on every
             // path, and a restamp that threw used to escape before the `finally` existed, leaking
@@ -646,8 +678,8 @@ internal class EncoderCore(
             }
             // The frame's lease spans the restamp, the conversion and the whole send/drain, so a
             // concurrent close waits at the frame's lock instead of freeing the AVFrame under the
-            // encoder. Lock order is frame, then the mux lock inside the
-            // drain's writes; nothing takes them the other way round.
+            // encoder. Lock order is this encoder, the frame, then the mux lock inside the drain's
+            // writes; nothing takes them the other way round.
             frame.withNative { native ->
                 restampPts(frame)
                 val converted = if (isAudio) null else conversionFor(native)
@@ -711,7 +743,7 @@ internal class EncoderCore(
     }
 
     /** Signal EOF to the encoder and write out everything it still buffers. */
-    fun finish(packet: CPointer<kc_packet>) {
+    fun finish(packet: CPointer<kc_packet>): Unit = synchronized(lock) {
         // No-op on a spent encoder: MediaSink.close finishes every core, including ones already
         // driven to completion and closed, and that must not read as a lost tail.
         if (closed || drained) return
@@ -835,7 +867,7 @@ internal class EncoderCore(
 
     fun ensureHeaderWritten() = sink.ensureHeaderWritten()
 
-    fun close() {
+    fun close(): Unit = synchronized(lock) {
         if (closed) return
         closed = true
         ffkmp_codecctx_free(codecCtx)
@@ -875,7 +907,8 @@ public actual class CopyStream internal constructor(
         packet.copy().use { owned -> writeCopyPacket(owned.native) }
     }
 
-    internal fun writeCopyPacket(packet: CPointer<kc_packet>) {
+    // Under the mux lock from start to end: the stream belongs to the muxer that close frees.
+    internal fun writeCopyPacket(packet: CPointer<kc_packet>): Unit = sink.withMuxLockOpen {
         // Header first, because avformat_write_header may rewrite the stream time-base we read below.
         sink.ensureHeaderWritten()
         ffkmp_packet_set_stream_index(packet, streamIndex)

@@ -12,6 +12,9 @@ public actual class MediaSink internal constructor(
     private enum class HeaderState { NotWritten, Written, Failed }
 
     private val muxLock = Any()
+
+    /** Held for a whole close, so a second close returns only once the first one has finished. */
+    private val closeLock = Any()
     private val encoderCores = mutableListOf<EncoderCore>()
     private var headerState = HeaderState.NotWritten
     private var sharedBaseMicros = Long.MIN_VALUE
@@ -74,6 +77,12 @@ public actual class MediaSink internal constructor(
 
     /** Runs [block] under the mux lock so a concurrent [close] cannot free the format mid-call. */
     internal fun <T> withMuxLock(block: () -> T): T = synchronized(muxLock) { block() }
+
+    /** Refuses once a close began, so an encode or a copy write never starts on a sink going away. */
+    internal fun checkNotClosing(): Unit = synchronized(muxLock) {
+        check(formatToken != 0L) { "MediaSink is closed" }
+        check(!closing) { "MediaSink is closing" }
+    }
 
     private val headerWritten: Boolean
         get() = synchronized(muxLock) { headerState == HeaderState.Written }
@@ -315,14 +324,27 @@ public actual class MediaSink internal constructor(
     private fun explained(error: FFmpegException): FFmpegException = byteSink?.explain(error) ?: error
 
     actual override fun close() {
+        // This sink's own MediaByteSink callback runs under muxLock, inside a write that still
+        // uses the muxer, so a close from there is refused. The check runs before closeLock and
+        // holds nothing else, so the refusal never waits on a close in progress.
+        synchronized(muxLock) {
+            check((byteSink?.callbackDepth ?: 0) == 0) {
+                "A MediaSink cannot be closed from inside its own MediaByteSink callback. Close it " +
+                    "after the call that wrote returns."
+            }
+        }
+        synchronized(closeLock) { closeOnce() }
+    }
+
+    private fun closeOnce() {
         // Cores are finished and closed BEFORE muxLock is taken for the trailer. An encode on
         // another thread holds core.lock and then takes muxLock to write its packets, so closing
         // cores from inside muxLock would invert that order and deadlock. finish/close below take
         // each core's own lock, which also serializes against any in-flight encode.
         val cores = synchronized(muxLock) {
-            // One closer only. The first close owns the flush and the trailer; a second, from any
-            // thread, returns and lets it finish rather than writing a second trailer or freeing
-            // the muxer under the first one's flush.
+            // One closer only. The first close owns the flush and the trailer; a second waits on
+            // closeLock and then finds the sink closed, rather than writing a second trailer or
+            // freeing the muxer under the first one's flush.
             if (formatToken == 0L || closing) return
             closing = true
             encoderCores.toList().also { encoderCores.clear() }
@@ -495,6 +517,7 @@ internal class EncoderCore(
     fun encode(packet: Long, frame: Frame): Unit = synchronized(lock) {
         check(codecContext != 0L) { "Encoder is closed" }
         check(!drained) { "This encoder was already drained; its codec cannot accept more frames" }
+        sink.checkNotClosing()
         try {
             // The media type this encoder was built for. A video frame handed to an audio encoder
             // reached FFmpeg and was interpreted as samples, which is a wrong answer rather than a
@@ -664,6 +687,7 @@ public actual class CopyStream internal constructor(
 
     internal fun writeCopyPacket(packet: Long): Unit = sink.withMuxLock {
         check(streamToken != 0L) { "CopyStream is closed with its MediaSink" }
+        sink.checkNotClosing()
         sink.ensureHeaderWritten()
         Internals.packetSetStreamIndex(packet, streamIndex)
         val pts = Internals.packetPts(packet)

@@ -17,24 +17,41 @@ internal class JniByteSink(private val sink: MediaByteSink) {
     @Volatile
     private var failure: Throwable? = null
 
+    /**
+     * How many calls into [sink] are running. Every call runs under the owning sink's mux lock, so
+     * a close that holds that lock and reads a nonzero depth was called from inside one of them.
+     */
+    var callbackDepth: Int = 0
+        private set
+
     /** Called from C with the first [length] bytes of [from] to hand over. */
     @Suppress("unused")
-    fun write(from: ByteArray, length: Int): Int = try {
-        sink.write(from, 0, length)
-        0
-    } catch (t: Throwable) {
-        failure = t
-        -2
+    fun write(from: ByteArray, length: Int): Int {
+        callbackDepth += 1
+        return try {
+            sink.write(from, 0, length)
+            0
+        } catch (t: Throwable) {
+            failure = t
+            -2
+        } finally {
+            callbackDepth -= 1
+        }
     }
 
     /** Called from C with an absolute position. */
     @Suppress("unused")
-    fun seek(position: Long): Long = try {
-        sink.seek(position)
-        position
-    } catch (t: Throwable) {
-        failure = t
-        -2L
+    fun seek(position: Long): Long {
+        callbackDepth += 1
+        return try {
+            sink.seek(position)
+            position
+        } catch (t: Throwable) {
+            failure = t
+            -2L
+        } finally {
+            callbackDepth -= 1
+        }
     }
 
     /** Attaches the swallowed exception to [error] as its cause, once. */

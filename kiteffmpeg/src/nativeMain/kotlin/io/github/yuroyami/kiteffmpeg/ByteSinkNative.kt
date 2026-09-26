@@ -23,6 +23,12 @@ internal class ByteSinkState(val sink: MediaByteSink) {
     /** The exception the last write or seek swallowed, kept for the error it causes. */
     var failure: Throwable? = null
 
+    /**
+     * How many calls into [sink] are running. Every call runs under the owning sink's mux lock, so
+     * a close that holds that lock and reads a nonzero depth was called from inside one of them.
+     */
+    var callbackDepth: Int = 0
+
     /** The parked exception, once. */
     fun takeFailure(): Throwable? = failure.also { failure = null }
 
@@ -43,6 +49,7 @@ internal class ByteSinkState(val sink: MediaByteSink) {
 @OptIn(ExperimentalForeignApi::class)
 private val byteSinkWrite = staticCFunction { opaque: COpaquePointer?, buf: CPointer<UByteVar>?, len: Int ->
     val state = opaque!!.asStableRef<ByteSinkState>().get()
+    state.callbackDepth += 1
     try {
         val src = buf!!
         var done = 0
@@ -57,18 +64,23 @@ private val byteSinkWrite = staticCFunction { opaque: COpaquePointer?, buf: CPoi
     } catch (failure: Throwable) {
         state.failure = failure
         -2
+    } finally {
+        state.callbackDepth -= 1
     }
 }
 
 @OptIn(ExperimentalForeignApi::class)
 private val byteSinkSeek = staticCFunction { opaque: COpaquePointer?, offset: Long, _: Int ->
     val state = opaque!!.asStableRef<ByteSinkState>().get()
+    state.callbackDepth += 1
     try {
         state.sink.seek(offset)
         offset
     } catch (failure: Throwable) {
         state.failure = failure
         -2L
+    } finally {
+        state.callbackDepth -= 1
     }
 }
 

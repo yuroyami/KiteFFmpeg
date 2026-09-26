@@ -12,7 +12,8 @@ package io.github.yuroyami.kiteffmpeg
  * [FFmpegException] whose cause is that exception, and the sink cannot write again after it.
  *
  * Lifetime. The [MediaSink] opened over this owns it: after the last byte it calls [flush] once,
- * then [close] once, and the instance must stay valid until then.
+ * then [close] once, and the instance must stay valid until then. Closing that [MediaSink] from
+ * inside [write] or [seek] is refused, because the muxer is still using it.
  */
 public interface MediaByteSink : AutoCloseable {
 
