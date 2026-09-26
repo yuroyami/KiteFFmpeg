@@ -95,13 +95,16 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input2(JNIEnv *env, jclass cls, jstring path
         cvalues = (char **)calloc((size_t)n, sizeof(char *));
         if (ckeys == NULL || cvalues == NULL) goto oom;
         for (i = 0; i < n; i++) {
+            /* One conversion at a time: a refused key throws, and no JNI call may follow it. */
             jstring jk = (jstring)(*env)->GetObjectArrayElement(env, keys, i);
-            jstring jv = (jstring)(*env)->GetObjectArrayElement(env, values, i);
+            jstring jv;
             ckeys[i] = kj_string_dup(env, jk);
-            cvalues[i] = kj_string_dup(env, jv);
             if (jk != NULL) (*env)->DeleteLocalRef(env, jk);
+            if (ckeys[i] == NULL) goto oom;
+            jv = (jstring)(*env)->GetObjectArrayElement(env, values, i);
+            cvalues[i] = kj_string_dup(env, jv);
             if (jv != NULL) (*env)->DeleteLocalRef(env, jv);
-            if (ckeys[i] == NULL || cvalues[i] == NULL) goto oom;
+            if (cvalues[i] == NULL) goto oom;
         }
     }
     rc = ffkmp_fmt_open_input2(&ctx, c,
@@ -647,7 +650,8 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
     }
     cb_class = (*env)->GetObjectClass(env, cb);
     st->read = (*env)->GetMethodID(env, cb_class, "read", "([BI)I");
-    st->seek = (*env)->GetMethodID(env, cb_class, "seek", "(JI)J");
+    /* A failed lookup leaves NoSuchMethodError pending, and no JNI call may follow it. */
+    st->seek = st->read != NULL ? (*env)->GetMethodID(env, cb_class, "seek", "(JI)J") : NULL;
     (*env)->DeleteLocalRef(env, cb_class);
     if (st->read == NULL || st->seek == NULL) {
         if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -670,13 +674,16 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
         cvalues = (char **)calloc((size_t)n, sizeof(char *));
         if (ckeys == NULL || cvalues == NULL) goto oom;
         for (i = 0; i < n; i++) {
+            /* One conversion at a time: a refused key throws, and no JNI call may follow it. */
             jstring jk = (jstring)(*env)->GetObjectArrayElement(env, keys, i);
-            jstring jv = (jstring)(*env)->GetObjectArrayElement(env, values, i);
+            jstring jv;
             ckeys[i] = kj_string_dup(env, jk);
-            cvalues[i] = kj_string_dup(env, jv);
             if (jk != NULL) (*env)->DeleteLocalRef(env, jk);
+            if (ckeys[i] == NULL) goto oom;
+            jv = (jstring)(*env)->GetObjectArrayElement(env, values, i);
+            cvalues[i] = kj_string_dup(env, jv);
             if (jv != NULL) (*env)->DeleteLocalRef(env, jv);
-            if (ckeys[i] == NULL || cvalues[i] == NULL) goto oom;
+            if (cvalues[i] == NULL) goto oom;
         }
     }
 
@@ -918,13 +925,16 @@ JNIEXPORT jint JNICALL kj_fmt_add_chapter(JNIEnv *env, jclass cls, jlong fmt_tok
         cvalues = (char **)calloc((size_t)n, sizeof(char *));
         if (ckeys == NULL || cvalues == NULL) { rc = -12; goto done; }
         for (i = 0; i < n; i++) {
+            /* One conversion at a time: a refused key throws, and no JNI call may follow it. */
             jstring jk = (jstring)(*env)->GetObjectArrayElement(env, keys, i);
-            jstring jv = (jstring)(*env)->GetObjectArrayElement(env, values, i);
+            jstring jv;
             ckeys[i] = kj_string_dup(env, jk);
-            cvalues[i] = kj_string_dup(env, jv);
             if (jk != NULL) (*env)->DeleteLocalRef(env, jk);
+            if (ckeys[i] == NULL) { rc = -12; goto done; }
+            jv = (jstring)(*env)->GetObjectArrayElement(env, values, i);
+            cvalues[i] = kj_string_dup(env, jv);
             if (jv != NULL) (*env)->DeleteLocalRef(env, jv);
-            if (ckeys[i] == NULL || cvalues[i] == NULL) { rc = -12; goto done; }
+            if (cvalues[i] == NULL) { rc = -12; goto done; }
         }
     }
     rc = ffkmp_fmt_add_chapter(ctx, (int64_t)id, (int64_t)start_us, (int64_t)end_us,

@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - On the JVM and Android, a file whose tags are not valid UTF-8, such as a Latin-1 ID3v1 title or
   a RIFF INFO value in a code page, opens. Each malformed sequence reads as U+FFFD, as it already
   did on the native and web backends (#75).
+- An open option key that is not a valid string fails with `FFmpegException` and makes no JNI call
+  while that failure is pending, so Android's CheckJNI no longer aborts a debuggable app (#104).
 
 ## [0.3.0] - 2026-09-25
 
