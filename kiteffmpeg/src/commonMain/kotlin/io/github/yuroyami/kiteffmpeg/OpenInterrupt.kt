@@ -13,7 +13,7 @@ import kotlinx.atomicfu.locks.synchronized
  * ```kotlin
  * val cancel = OpenInterrupt()
  * // From another thread, when the user gives up: cancel.interrupt()
- * val source = MediaSource.open("https://example.com/film.mkv", emptyMap(), cancel)
+ * val source = MediaSource.open("http://example.com/film.mkv", emptyMap(), cancel)
  * ```
  *
  * The open then fails with [FFmpegError.Interrupted] at FFmpeg's next check. The source the open

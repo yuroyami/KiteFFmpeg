@@ -16,14 +16,12 @@ A `MediaSink` is a muxer over an open output file. The workflow is always the sa
 import io.github.yuroyami.kiteffmpeg.MediaSink
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
-import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 MediaSink.open("output.mp4").use { sink ->
     val video = sink.addVideoEncoder(
         VideoEncoderSpec(
-            codec = CodecId.H264,
-            encoder = EncoderId.Libx264,
+            codec = CodecId.Mpeg4,
             width = 1280, height = 720,
             frameRate = Rational(30, 1),
             bitrateBps = 4_000_000,
@@ -44,13 +42,12 @@ The output format is inferred from the file extension. `.mp4`, `.mkv`, `.mov` an
 
 ```kotlin
 val spec = VideoEncoderSpec(
-    codec = CodecId.H264,
-    encoder = EncoderId.Libx264,
+    codec = CodecId.Mpeg4,
     width = 1920, height = 1080,
     pixelFormat = PixelFormat.Yuv420p,       // default
     frameRate = Rational(30, 1),
     bitrateBps = 6_000_000,                  // default 4_000_000
-    options = mapOf("preset" to "veryfast", "crf" to "20"),
+    options = mapOf("bf" to "2"),            // up to two B-frames between references
 )
 val encoder = sink.addVideoEncoder(spec)
 ```
@@ -59,7 +56,7 @@ val encoder = sink.addVideoEncoder(spec)
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `codec` | `CodecId` | required | `H264`, `Hevc`, `Av1`, `Vp9`, `Libx264`, a hardware id, etc. |
+| `codec` | `CodecId` | required | The format: `Mpeg4`, `H264`, `Hevc`, and so on. Which encoder writes it is `encoder`. |
 | `width` / `height` | `Int` | required | Output frame size. Match your filter output. |
 | `pixelFormat` | `PixelFormat` | `Yuv420p` | Most codecs want `Yuv420p`. |
 | `frameRate` | `Rational` | required | Exact fraction, e.g. `Rational(30000, 1001)` for 29.97. |
@@ -86,26 +83,24 @@ val spec = VideoEncoderSpec(
 
 A raw option that sets the same thing as one of these fields is refused once the field is set, for example `color_trc` beside `color` or `aspect` beside `sampleAspectRatio`.
 
-### Per-encoder options: preset, crf, and others
+### Per-encoder options
 
-The `options` map is passed through verbatim to the underlying encoder. The keys are exactly the FFmpeg option names, so anything `ffmpeg -h encoder=libx264` lists is valid:
+The `options` map is passed through verbatim to the underlying encoder. The keys are exactly the FFmpeg option names, so anything `ffmpeg -h encoder=mpeg4` lists for the encoder you use is valid:
 
 ```kotlin
 VideoEncoderSpec(
-    codec = CodecId.H264,
-    encoder = EncoderId.Libx264,
+    codec = CodecId.Mpeg4,
     width = 1280, height = 720,
     frameRate = Rational(30, 1),
     options = mapOf(
-        "preset" to "slow",      // speed vs. compression
-        "crf" to "18",           // constant quality (lower = better)
-        "tune" to "film",
+        "bf" to "2",             // up to two B-frames between references
+        "mpeg_quant" to "1",     // MPEG quantisers instead of H.263 ones
     ),
 )
 ```
 
 !!! tip "crf overrides bitrate"
-    When you pass `crf`, libx264 and libx265 run in constant-quality mode and ignore `bitrateBps`. Use one or the other, not both. A `crf` of 18 to 23 is the usual quality band for H.264.
+    With `crf`, libx264 and libx265 run in constant-quality mode and ignore `bitrateBps`. Those two encoders exist only in a GPL FFmpeg, which no published artifact carries, so this applies only to a build you make yourself.
 
 ## Driving the encoder
 
@@ -308,8 +303,7 @@ A real output usually carries video and audio together. Add both encoders up fro
 MediaSink.open("output.mp4").use { sink ->
     val video = sink.addVideoEncoder(
         VideoEncoderSpec(
-            codec = CodecId.H264,
-            encoder = EncoderId.Libx264,
+            codec = CodecId.Mpeg4,
             width = 1280, height = 720,
             frameRate = Rational(30, 1),
         )

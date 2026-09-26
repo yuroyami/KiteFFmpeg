@@ -41,7 +41,7 @@ fun main(args: Array<String>) {
             transcode(
                 input = a.positional.getOrNull(0) ?: usage("transcode <in> <out> [filter] [-an|-acopy] [-scopy] [-vt] [--ss s] [--to s] [--title t]"),
                 output = a.positional.getOrNull(1) ?: usage("transcode <in> <out> [filter] [-an|-acopy] [-scopy] [-vt] [--ss s] [--to s] [--title t]"),
-                filter = a.positional.getOrNull(2) ?: "scale=320:180,eq=brightness=0.05",
+                filter = a.positional.getOrNull(2) ?: "scale=320:180,hue=s=1.2",
                 audio = if (noAudio) AudioChoice.Drop else if (copyAudio) AudioChoice.Copy else AudioChoice.Encode,
                 subtitles = "-scopy" in a.flags,
                 useVideoToolbox = "-vt" in a.flags,

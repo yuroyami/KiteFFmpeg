@@ -1,6 +1,6 @@
 # Filter graphs
 
-A filter graph is a chain of FFmpeg filters that transforms frames. A `FilterGraph` wraps a [libavfilter](https://ffmpeg.org/ffmpeg-filters.html) chain and passes frames through it. You describe the chain as a string (`scale`, `eq`, `vignette`, `format`, `volume`, `atempo`, anything FFmpeg ships), KiteFFmpeg compiles it into a `buffersrc → chain → buffersink` graph, and you feed it `Frame`s. The same chains you would give to the `ffmpeg` CLI work here, with no subprocess.
+A filter graph is a chain of FFmpeg filters that transforms frames. A `FilterGraph` wraps a [libavfilter](https://ffmpeg.org/ffmpeg-filters.html) chain and passes frames through it. You describe the chain as a string built from the filters the build carries (`scale`, `hue`, `vignette`, `format`, `volume`, `atempo` and the rest that [Platform support](platforms.md) lists), KiteFFmpeg compiles it into a `buffersrc → chain → buffersink` graph, and you feed it `Frame`s. Any such chain works as it would in the `ffmpeg` CLI, with no subprocess.
 
 Most of the time you do not build a graph by hand. [`Transcoder.transcode`](transcoding.md) takes a `videoFilter` / `audioFilter` string and wires the graph for you. Use `FilterGraph` directly when you are composing several inputs, driving frames yourself, or filtering outside the transcode pipeline.
 
@@ -25,7 +25,7 @@ val graph = FilterGraph.buildVideo(
 
 ```kotlin
 val graph = FilterGraph.buildVideo(
-    description = "scale=640:360,eq=contrast=1.2,format=yuv420p",
+    description = "scale=640:360,hue=s=1.2,format=yuv420p",
     width = 1280,
     height = 720,
     pixelFormat = PixelFormat.Yuv420p,

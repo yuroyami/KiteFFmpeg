@@ -42,15 +42,13 @@ MediaSource.open("input.mp4").use { src ->
 import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
-import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
     output = "clip.mp4",
     spec = VideoEncoderSpec(
-        codec = CodecId.H264,
-        encoder = EncoderId.Libx264,
+        codec = CodecId.Mpeg4,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     ),
@@ -80,7 +78,7 @@ graph.feedInput(1, logoFrame)  { /* logo input produces no output on its own */ 
 Multi-input graphs take a push callback rather than a `Flow`. Label inputs `[in0]…[inN-1]` in order and emit a single `[out]`. Each `VideoInput` describes one source (`width`, `height`, `pixelFormat`, `timeBase`, `frameRate`). Close the graph with `graph.close()` when done.
 
 !!! tip "Single-input filters use a Flow"
-    For a one-input chain (scale, crop, eq), build with `FilterGraph.buildVideo(...)` and call `process(input: Flow<Frame>): Flow<Frame>` instead. See [Filtering](filtering.md).
+    For a one-input chain (scale, hue, format), build with `FilterGraph.buildVideo(...)` and call `process(input: Flow<Frame>): Flow<Frame>` instead. See [Filtering](filtering.md).
 
 ## Audio-only: mp3 to aac
 
@@ -105,15 +103,13 @@ Passing `spec = null` runs an audio-only pipeline. AAC's fixed 1024-sample frame
 import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
-import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
     output = "output.mp4",
     spec = VideoEncoderSpec(
-        codec = CodecId.H264,
-        encoder = EncoderId.Libx264,
+        codec = CodecId.Mpeg4,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     ),
@@ -135,15 +131,13 @@ import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
-import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 Transcoder.transcode(
     input  = "input.mp4",
     output = "output.mp4",
     spec = VideoEncoderSpec(
-        codec = CodecId.H264,
-        encoder = EncoderId.Libx264,
+        codec = CodecId.Mpeg4,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     ),

@@ -62,8 +62,8 @@ Transcoder.transcode(
 )
 ```
 
-That filter string is FFmpeg's own syntax, so anything you already know how to write for
-`ffmpeg -vf` works here unchanged.
+That filter string is FFmpeg's own syntax, so any chain built from the filters listed in
+[Platform support](docs/platforms.md) works as it would with `ffmpeg -vf`.
 
 Set `videoCopy` or `audioCopy` if you want to keep a stream exactly as it is instead of
 re-encoding it. That is much faster and loses nothing.

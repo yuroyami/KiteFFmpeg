@@ -88,19 +88,16 @@ suspend fun transcode(
 ```kotlin
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
-import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.PixelFormat
 import io.github.yuroyami.kiteffmpeg.Rational
 
 val spec = VideoEncoderSpec(
-    codec = CodecId.H264,
-    encoder = EncoderId.Libx264,    // codec selector
+    codec = CodecId.Mpeg4,
     width = 1280,
     height = 720,
     pixelFormat = PixelFormat.Yuv420p,  // default
     frameRate = Rational(30, 1),        // exact fraction, not a float
     bitrateBps = 4_000_000L,            // default
-    options = mapOf("preset" to "slow", "crf" to "20"),
 )
 ```
 
@@ -408,7 +405,6 @@ import io.github.yuroyami.kiteffmpeg.Transcoder
 import io.github.yuroyami.kiteffmpeg.VideoEncoderSpec
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
 import io.github.yuroyami.kiteffmpeg.CodecId
-import io.github.yuroyami.kiteffmpeg.EncoderId
 import io.github.yuroyami.kiteffmpeg.Rational
 
 suspend fun makeClip() {
@@ -416,12 +412,10 @@ suspend fun makeClip() {
         input  = "input.mkv",
         output = "clip.mp4",
         spec = VideoEncoderSpec(
-            codec = CodecId.H264,
-            encoder = EncoderId.Libx264,
+            codec = CodecId.Mpeg4,
             width = 1280, height = 720,
             frameRate = Rational.Fps30,
             bitrateBps = 3_000_000,
-            options = mapOf("preset" to "medium", "crf" to "22"),
         ),
         videoFilter = "scale=1280:720,format=yuv420p",
         audioSpec   = AudioEncoderSpec(codec = CodecId.Aac, bitrateBps = 160_000),
