@@ -13,6 +13,7 @@
 #   ./scripts/native-sbom.sh                  # writes build/sbom/kiteffmpeg-<VERSION>-native.spdx.json
 #   ./scripts/native-sbom.sh --out FILE       # writes FILE
 #   ./scripts/native-sbom.sh --archives DIR   # reads the archives from DIR, and downloads the missing ones into it
+#   ./scripts/native-sbom.sh --web-zip FILE   # also records the web zip of the wasmJs publication
 #
 # The archives are the ones that FFMPEG_VERSION and FFMPEG_ASSET_TAG in .github/workflows/publish.yml
 # name, one for each target of the TargetTriple enum in buildSrc. Each archive needs its .sha256
@@ -25,7 +26,9 @@
 #   - a dav1d that is not the tag BuildDav1dTask pins,
 #   - archives that disagree on the FFmpeg commit, the dav1d version or the patches,
 #   - a patch that native/patches/ffmpeg does not hold at the same digest, because NOTICE promises
-#     every patch in this repository.
+#     every patch in this repository,
+#   - a web zip built from another FFmpeg version, commit or set of patches than the archives, or
+#     with no recorded emscripten version. The web zip embeds FFmpeg without dav1d.
 #
 # Needs curl, unzip, shasum, strings and jq.
 #
@@ -39,15 +42,17 @@ WORKFLOW="$ROOT/.github/workflows/publish.yml"
 PATCHES="$ROOT/native/patches/ffmpeg"
 REPOSITORY="yuroyami/KiteFFmpeg"
 
-usage() { echo "usage: $0 [--out FILE] [--archives DIR]" >&2; exit 2; }
+usage() { echo "usage: $0 [--out FILE] [--archives DIR] [--web-zip FILE]" >&2; exit 2; }
 refuse() { echo "native-sbom.sh: $*" >&2; exit 1; }
 
 out=""
 archives=""
+web_zip=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --out) [ $# -ge 2 ] || usage; out="$2"; shift 2 ;;
         --archives) [ $# -ge 2 ] || usage; archives="$2"; shift 2 ;;
+        --web-zip) [ $# -ge 2 ] || usage; web_zip="$2"; shift 2 ;;
         *) usage ;;
     esac
 done
@@ -165,9 +170,29 @@ if [ -n "$patches" ]; then
     done <<<"$patches"
 fi
 
+# The web zip, when there is one: the same FFmpeg source as the archives, and its own compiler.
+web_records="$work/web.jsonl"
+: > "$web_records"
+if [ -n "$web_zip" ]; then
+    [ -f "$web_zip" ] || refuse "no web zip at $web_zip"
+    web_info=$(unzip -p "$web_zip" build-info/web-build-info.txt) || refuse "$web_zip holds no build-info/web-build-info.txt"
+    web_built=$(field "FFmpeg version" <<<"$web_info")
+    [ "$web_built" = "$ffmpeg_version" ] || refuse "the web zip was built from FFmpeg $web_built, but FFMPEG_VERSION is $ffmpeg_version"
+    web_commit=$(field "Git commit" <<<"$web_info")
+    [ "$web_commit" = "$commit" ] || refuse "the web zip was built from FFmpeg commit $web_commit, but the archives from $commit"
+    emscripten=$(field "Emscripten" <<<"$web_info")
+    [ -n "$emscripten" ] && [ "$emscripten" != unknown ] || refuse "the web zip names no emscripten version"
+    web_record=$(unzip -p "$web_zip" build-info/ffmpeg-patches.txt) || refuse "$web_zip holds no build-info/ffmpeg-patches.txt"
+    web_patches=$(printf '%s\n' "$web_record" | tr -d '\r' | awk '!/^#/ && NF && $0 != "(none)"')
+    [ "$web_patches" = "$patches" ] || refuse "the web zip carries other FFmpeg patches than the archives"
+    web_digest=$(shasum -a 256 "$web_zip" | cut -d' ' -f1)
+    jq -cn --arg name "$(basename "$web_zip")" --arg digest "$web_digest" --arg emscripten "$emscripten" \
+        '{name: $name, digest: $digest, emscripten: $emscripten}' > "$web_records"
+fi
+
 namespace_id=$(uuidgen 2>/dev/null | tr 'A-Z' 'a-z' || true)
 mkdir -p "$(dirname "$out")"
-jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" \
+jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" --slurpfile web "$web_records" \
     --arg version "$version" --arg ffmpeg "$ffmpeg_version" --arg release "$asset_tag" \
     --arg commit "$commit" --arg dav1d_tag "$dav1d_tag" --arg dav1d "$dav1d" \
     --arg namespace "${namespace_id:-$(date -u +%Y%m%d%H%M%S)}" \
@@ -204,7 +229,9 @@ jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" \
                 licenseConcluded: "NOASSERTION",
                 copyrightText: "NOASSERTION",
                 filesAnalyzed: false,
-                comment: "Its klibs, the native library in its JVM jar and the JNI libraries in its Android AAR link the libraries below statically. Each package names its own licence."
+                comment: ("Its klibs, the native library in its JVM jar and the JNI libraries in its Android AAR link the libraries below statically. "
+                    + (if ($web | length) > 0 then "The web zip of its wasmJs publication links FFmpeg alone. " else "" end)
+                    + "Each package names its own licence.")
             }]
             + [libraries[] | {
                 SPDXID: "SPDXRef-\(.id)",
@@ -231,6 +258,18 @@ jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" \
                 filesAnalyzed: false,
                 comment: "Static FFmpeg and dav1d libraries for \(.triple), built by the release-binaries workflow of this repository. Its BUILD-INFO.txt names the FFmpeg commit and the configure line."
             }]
+            + [$web[] | {
+                SPDXID: "SPDXRef-web-zip",
+                name: .name,
+                versionInfo: $version,
+                downloadLocation: "https://repo1.maven.org/maven2/io/github/yuroyami/kiteffmpeg-wasm-js/\($version)/\(.name)",
+                checksums: [{algorithm: "SHA256", checksumValue: .digest}],
+                licenseDeclared: "NOASSERTION",
+                licenseConcluded: "NOASSERTION",
+                copyrightText: "NOASSERTION",
+                filesAnalyzed: false,
+                comment: "kite.mjs and kite.wasm, the web codec module. It embeds FFmpeg \($ffmpeg) at commit \($commit), with the same patches as the archives, compiled and linked by the publish workflow with emscripten \(.emscripten). It carries no dav1d."
+            }]
         ),
         files: [$patches[] | {
             SPDXID: "SPDXRef-patch-\(.name | spdxid)",
@@ -249,9 +288,13 @@ jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" \
                 relationshipType: "CONTAINS", relatedSpdxElement: "SPDXRef-\(.id)"}]
             + [$archives[] | {spdxElementId: "SPDXRef-archive-\(.triple)",
                 relationshipType: "BUILD_DEPENDENCY_OF", relatedSpdxElement: "SPDXRef-kiteffmpeg"}]
+            + [$web[] | {spdxElementId: "SPDXRef-web-zip",
+                relationshipType: "CONTAINS", relatedSpdxElement: "SPDXRef-ffmpeg"}]
+            + [$web[] | {spdxElementId: "SPDXRef-web-zip",
+                relationshipType: "PACKAGE_OF", relatedSpdxElement: "SPDXRef-kiteffmpeg"}]
             + [$patches[] | {spdxElementId: "SPDXRef-patch-\(.name | spdxid)",
                 relationshipType: "PATCH_APPLIED", relatedSpdxElement: "SPDXRef-ffmpeg"}]
         )
     }' > "$out"
 
-echo "native-sbom.sh: $(jq '.packages | length' "$out") packages and $(jq '.files | length' "$out") patches from $(wc -l < "$records" | tr -d ' ') archives in $out"
+echo "native-sbom.sh: $(jq '.packages | length' "$out") packages and $(jq '.files | length' "$out") patches from $(wc -l < "$records" | tr -d ' ') archives$( [ -s "$web_records" ] && echo " and the web zip") in $out"

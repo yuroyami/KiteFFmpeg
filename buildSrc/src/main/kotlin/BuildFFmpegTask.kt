@@ -139,13 +139,8 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             val scratchInstall = scratch.resolve("install")
             copySourceTree(sourceDir.toPath(), scratchSource)
 
-            val patches = sourcePatches.files.filter { it.name.endsWith(".patch") }.sortedBy { it.name }
-            patches.forEach { patchFile ->
-                runIn(
-                    scratchSource.toFile(),
-                    listOf("/usr/bin/patch", "-p1", "--forward", "--fuzz=0", "-i", patchFile.absolutePath),
-                )
-            }
+            val patches = orderedPatches(sourcePatches.files)
+            patches.forEach { patchFile -> runIn(scratchSource.toFile(), patchCommand(patchFile)) }
 
             // The deps tree rides to the scratch exactly like the FFmpeg source does: this
             // repo lives under '#Kite', and pkg-config shell-escapes the '#' in emitted -I/-L
@@ -172,20 +167,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             runIn(scratchBuild.toFile(), listOf("make", "install"), env)
 
             writeConfigureEvidence(scratchBuild.resolve("ffbuild/config.log"), scratchInstall)
-            run {
-                val evidenceDir = scratchInstall.resolve("lib/kiteffmpeg").also(Files::createDirectories)
-                val digest = java.security.MessageDigest.getInstance("SHA-256")
-                val lines = buildString {
-                    appendLine("# Source patches applied to the scratch FFmpeg before configure, in order.")
-                    if (patches.isEmpty()) appendLine("(none)")
-                    patches.forEach { p ->
-                        val sha = digest.digest(p.readBytes()).joinToString("") { "%02x".format(it) }
-                        appendLine("${p.name}  sha256=$sha")
-                        digest.reset()
-                    }
-                }
-                Files.writeString(evidenceDir.resolve("ffmpeg-patches.txt"), lines, UTF_8)
-            }
+            writePatchEvidence(patches, scratchInstall)
             verifyInstall(scratchInstall, target)
             bundleThirdPartyArchives(target, license, scratchInstall.toFile())
             verifyInstall(scratchInstall, target)
@@ -1152,6 +1134,32 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
          * removed. The command itself is otherwise byte-for-byte stable and the installed record
          * is always one UTF-8 line terminated by exactly one newline.
          */
+        /** The `.patch` files of [files], in the name order they are applied. */
+        internal fun orderedPatches(files: Set<File>): List<File> =
+            files.filter { it.name.endsWith(".patch") }.sortedBy { it.name }
+
+        /** Applies [patch] to the current directory; a rejected hunk fails the build loudly. */
+        internal fun patchCommand(patch: File): List<String> =
+            listOf("/usr/bin/patch", "-p1", "--forward", "--fuzz=0", "-i", patch.absolutePath)
+
+        /**
+         * Writes `lib/kiteffmpeg/ffmpeg-patches.txt` under [install]: the patches applied, in order,
+         * each with its SHA-256, or `(none)`. The bill of materials checks it against the repository.
+         */
+        internal fun writePatchEvidence(patches: List<File>, install: Path) {
+            val evidenceDir = install.resolve("lib/kiteffmpeg").also(Files::createDirectories)
+            val lines = buildString {
+                appendLine("# Source patches applied to the scratch FFmpeg before configure, in order.")
+                if (patches.isEmpty()) appendLine("(none)")
+                patches.forEach { p ->
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    val sha = digest.digest(p.readBytes()).joinToString("") { "%02x".format(it) }
+                    appendLine("${p.name}  sha256=$sha")
+                }
+            }
+            Files.writeString(evidenceDir.resolve("ffmpeg-patches.txt"), lines, UTF_8)
+        }
+
         internal fun writeConfigureEvidence(configLog: Path, install: Path) {
             check(Files.isRegularFile(configLog)) {
                 "FFmpeg configure provenance is missing: $configLog"

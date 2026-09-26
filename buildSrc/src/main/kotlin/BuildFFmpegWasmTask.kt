@@ -38,6 +38,14 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
     @get:Input
     abstract val sourceRef: Property<String>
 
+    /**
+     * The committed patches from `native/patches/ffmpeg`, applied to the scratch copy before
+     * configure exactly as [BuildFFmpegTask] applies them, so the web FFmpeg is the same source.
+     */
+    @get:org.gradle.api.tasks.InputFiles
+    @get:org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+    abstract val sourcePatches: org.gradle.api.file.ConfigurableFileCollection
+
     /** `base`, `simd` or `mt`. The spike's verdict is that `base` is what v1 ships. */
     @get:Input
     abstract val variant: Property<String>
@@ -80,6 +88,8 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
             val build = workspace.resolve("ffmpeg")
             val prefix = workspace.resolve("install")
             BuildFFmpegTask.copySourceTree(source.toPath(), build)
+            val patches = BuildFFmpegTask.orderedPatches(sourcePatches.files)
+            patches.forEach { patchFile -> runIn(build.toFile(), BuildFFmpegTask.patchCommand(patchFile), emptyMap()) }
 
             val env = mapOf("PATH" to "${emscriptenLlvmBin.get()}:${System.getenv("PATH").orEmpty()}")
             runIn(build.toFile(), listOf("./configure") + configureArgs(variantName, prefix), env)
@@ -87,6 +97,8 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
             runIn(build.toFile(), listOf("make", "install"), env)
 
             BuildFFmpegTask.writeConfigureEvidence(build.resolve("ffbuild/config.log"), prefix)
+            BuildFFmpegTask.writePatchEvidence(patches, prefix)
+            writeWebBuildInfo(source, emcc, prefix)
             verifyWasmInstall(prefix)
 
             install.deleteRecursively()
@@ -157,6 +169,33 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
         check(Files.isRegularFile(prefix.resolve("include/libavformat/avformat.h"))) {
             "the wasm FFmpeg build installed libraries but no headers; the C library needs both."
         }
+    }
+
+    /**
+     * Writes `lib/kiteffmpeg/web-build-info.txt`: the FFmpeg tag and commit and the emscripten
+     * version. The web zip carries it, and the bill of materials reads it, because nothing else
+     * says which source and compiler produced `kite.wasm`.
+     */
+    private fun writeWebBuildInfo(source: File, emcc: String, prefix: Path) {
+        val commit = capture(source, listOf("git", "rev-parse", "HEAD")).ifEmpty { "unknown" }
+        val emscripten = capture(source, listOf(emcc, "--version")).lineSequence().firstOrNull().orEmpty()
+        val version = Regex("""\b(\d+\.\d+\.\d+)\b""").find(emscripten)?.groupValues?.get(1) ?: "unknown"
+        val evidenceDir = prefix.resolve("lib/kiteffmpeg").also(Files::createDirectories)
+        Files.writeString(
+            evidenceDir.resolve("web-build-info.txt"),
+            buildString {
+                appendLine("FFmpeg version:   ${sourceRef.get()}")
+                appendLine("Git commit:       $commit")
+                appendLine("Emscripten:       $version")
+                appendLine("Emscripten line:  $emscripten")
+            },
+        )
+    }
+
+    private fun capture(workDir: File, command: List<String>): String {
+        val proc = ProcessBuilder(command).directory(workDir).redirectErrorStream(true).start()
+        val text = proc.inputStream.bufferedReader().readText().trim()
+        return if (proc.waitFor() == 0) text else ""
     }
 
     private fun requireOnPath(tool: String): String {

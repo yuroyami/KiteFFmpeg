@@ -136,15 +136,9 @@ jobs:
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
           done
       # Written from the archives the step above kept, and before anything is built or uploaded,
-      # so a refusal stops the run early.
+      # so a refusal stops the run early. It is written again once the web zip exists.
       - name: Bill of materials for the embedded FFmpeg and dav1d
         run: ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg
-      - name: Keep the bill of materials
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-sbom-${{ inputs.version }}
-          path: build/sbom/
-          if-no-files-found: error
       # The C helper tasks compile with konan's own LLVM, which only lands in
       # ~/.konan/dependencies once a Kotlin/Native compile has run; on a fresh runner the C task
       # can race it and die with "No LLVM package with a usable clang", measured on this
@@ -166,17 +160,43 @@ jobs:
               || { echo "::error::${jar} carries no kiteffmpeg-native/${lib}" >&2; exit 1; }
           done
       # The web codec module, kite.mjs and kite.wasm, links with emscripten against a web FFmpeg
-      # built here from the tag being published. The publish step's -Pkiteffmpeg.web.module=true
-      # attaches it to the wasmJs publication as the `web` zip, and refuses to publish without it.
-      # release-ass-chain.yml installs emscripten the same way, and ci.yml clones the tag the same way.
+      # built here from the tag being published, with the same patches as the native trees. The
+      # publish step's -Pkiteffmpeg.web.module=true attaches it to the wasmJs publication as the
+      # `web` zip, and refuses to publish without it. Emscripten comes from emsdk at a pinned
+      # version, and the FFmpeg clone must be the commit the native archives were built from, so a
+      # later publish cannot ship different bytes from the same inputs.
       - name: Build the web codec module
+        env:
+          EMSCRIPTEN_VERSION: "6.0.10"
         run: |
           set -euo pipefail
-          brew install emscripten
+          git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"
+          "${RUNNER_TEMP}/emsdk/emsdk" install "${EMSCRIPTEN_VERSION}"
+          "${RUNNER_TEMP}/emsdk/emsdk" activate "${EMSCRIPTEN_VERSION}"
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
           git clone --depth 1 --branch "${FFMPEG_VERSION}" https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-          ./gradlew :kiteffmpeg:kiteffmpegWebZip --stacktrace
-          unzip -l kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-*-web.zip | grep -q "kite.wasm" \
-            || { echo "::error::the web zip carries no kite.wasm" >&2; exit 1; }
+          expected=$(unzip -p "build/prebuilt-ffmpeg/ffmpeg-${FFMPEG_VERSION}-lgpl-macos-arm64.zip" BUILD-INFO.txt \
+            | sed -n 's/^Git commit: *//p' | head -1 | tr -d '\r')
+          actual=$(git -C vendor/ffmpeg rev-parse HEAD)
+          if [ -z "${expected}" ] || [ "${actual}" != "${expected}" ]; then
+            echo "::error::FFmpeg ${FFMPEG_VERSION} cloned as ${actual}, but the native archives were built from ${expected}" >&2
+            exit 1
+          fi
+          ./gradlew :kiteffmpeg:kiteffmpegWebZip -Pkiteffmpeg.emscripten.llvmBin="${EMSDK}/upstream/bin" --stacktrace
+          zip="kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}-web.zip"
+          for entry in kite.wasm build-info/web-build-info.txt build-info/ffmpeg-patches.txt; do
+            unzip -l "${zip}" "${entry}" > /dev/null \
+              || { echo "::error::the web zip carries no ${entry}" >&2; exit 1; }
+          done
+      # Now with the web zip: its digest, its FFmpeg commit and patches, and its emscripten version.
+      - name: Bill of materials for the embedded code, with the web zip
+        run: ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg --web-zip kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}-web.zip
+      - name: Keep the bill of materials
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-sbom-${{ inputs.version }}
+          path: build/sbom/
+          if-no-files-found: error
       # Uploads to the Central Portal. By default it stops there: the deployment lands as
       # USER_MANAGED and a human presses Publish. With the release input on, the plugin presses it,
       # which is the same click made by the run rather than by a person. Central is immutable

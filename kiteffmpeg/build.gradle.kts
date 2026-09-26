@@ -733,6 +733,8 @@ fun registerBuildFFmpegWasm(variantName: String, taskSuffix: String) =
     ) {
         variant = variantName
         sourceRef = BuildFFmpegTask.DEFAULT_SOURCE_REF
+        // The same committed patches as the native trees, so both builds are the same source.
+        sourcePatches.from(fileTree(rootDir.resolve("native/patches/ffmpeg")) { include("*.patch") })
         emscriptenLlvmBin.set(
             providers.gradleProperty("kiteffmpeg.emscripten.llvmBin")
                 .orElse(io.github.yuroyami.kiteffmpeg.buildtools.BuildFFmpegWasmTask.DEFAULT_EMSCRIPTEN_LLVM_BIN),
@@ -823,6 +825,11 @@ val kiteffmpegWebZip = tasks.register<Zip>("kiteffmpegWebZip") {
     group = "kiteffmpeg"
     description = "The web codec module as one zip, for the wasmJs publication."
     from(linkWasmModule.map { it.outputDir })
+    // Which FFmpeg commit, patches and emscripten produced kite.wasm; the bill of materials reads it.
+    from(wasmFFmpegRoot.resolve("lib/kiteffmpeg")) {
+        include("web-build-info.txt", "ffmpeg-patches.txt")
+        into("build-info")
+    }
     from(project.file("src/jvmMain/resources/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1")) { into("licenses") }
     from(project.file("web/licenses/THIRD-PARTY.txt")) { into("licenses") }
     archiveBaseName.set("kiteffmpeg-wasm-js")

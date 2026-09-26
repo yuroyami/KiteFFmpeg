@@ -36,7 +36,9 @@ KiteFFmpeg's Apache-2.0 licence.
 
 Since 2026-08-22, KiteFFmpeg's PUBLISHED ARTIFACTS (the per-target
 klibs, the JVM jar's bundled native library, and the Android AAR's JNI
-libraries) EMBED compiled FFmpeg with the dav1d AV1 decoder. Those FFmpeg
+libraries) EMBED compiled FFmpeg with the dav1d AV1 decoder. Since 0.3.0 the
+`web` zip of the wasmJs publication (kite.mjs and kite.wasm) embeds compiled
+FFmpeg too, without dav1d, and carries the LGPL text under licenses/. Those FFmpeg
 portions remain LGPL-2.1-or-later (dav1d: BSD-2-Clause); the artifact POMs
 declare all three licences, the JVM jar carries the licence texts under
 META-INF/licenses/kiteffmpeg-ffmpeg/, and the complete corresponding FFmpeg
@@ -51,9 +53,11 @@ build tasks produce) are built from FFmpeg release sources at the version that
 FFMPEG_VERSION names in .github/workflows/publish.yml, with the patches under
 native/patches/ffmpeg applied, configured WITHOUT --enable-gpl and without any
 GPL-only component. They are covered by the GNU Lesser General Public License,
-version 2.1 or later. Each publish run writes an SPDX bill of materials that names
-the FFmpeg and dav1d versions, the patches and the digest of every prebuilt
-archive (scripts/native-sbom.sh).
+version 2.1 or later. The web FFmpeg is built during the publish from the same
+commit, with the same patches, by the emscripten version that publish.yml pins.
+Each publish run writes an SPDX bill of materials that names the FFmpeg and dav1d
+versions, the patches, the digest of every prebuilt archive, and the web zip with
+its emscripten version and digest (scripts/native-sbom.sh).
 
   FFmpeg          https://ffmpeg.org
   LGPL v2.1       https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
@@ -81,7 +85,8 @@ Components the published artifacts actually contain
 --------------------------------------------------------------------------------
 
 This list was read out of the shipped lib/ directories, not from a configure
-line, and it is complete for every artifact this project publishes.
+line, and it is complete for every artifact this project publishes. The web zip
+carries FFmpeg alone.
 
   FFmpeg          LGPL-2.1-or-later   https://ffmpeg.org
                   (the eight libav* libraries, bundled)
