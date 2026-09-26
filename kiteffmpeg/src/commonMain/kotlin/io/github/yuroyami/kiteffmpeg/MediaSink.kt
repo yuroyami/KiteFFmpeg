@@ -28,8 +28,8 @@ public expect class MediaSink : AutoCloseable {
     /**
      * Add an output stream that copies [stream]'s packets verbatim from [source]: no decode,
      * no re-encode, only timestamp rescaling into the output's time-base (`ffmpeg -c copy`).
-     * Bitstream filters are not applied, so format pairs that need one (e.g. h264 in mp4 →
-     * MPEG-TS Annex B) are not yet supported.
+     * A format pair that needs a bitstream filter, such as H.264 in MP4 to MPEG-TS, gets it
+     * automatically when the packets are written.
      *
      * Must be called before any frame/packet is written. Packets are pulled by [Remuxer] or
      * [Transcoder]; this only declares the mapping.

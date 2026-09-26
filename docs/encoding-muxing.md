@@ -231,8 +231,8 @@ MediaSink.open("output.mp4").use { sink ->
 
 `addCopyStream` returns a `CopyStream`, an opaque handle that declares the mapping. The packets themselves are pulled by [Transcoder](transcoding.md) or [Remuxer](remuxing.md); the handle just tells the muxer that this output stream exists and where its packets come from. This is also how `audioCopy = true` is implemented inside `Transcoder`.
 
-!!! warning "Bitstream filters are not applied"
-    A copy stream rescales timestamps but does not run bitstream filters. Format pairs that need one (for example H.264 in MP4 going to MPEG-TS Annex B) are not yet supported on the copy path. Re-encode those, or pick a container that accepts the source bitstream as-is. Bitstream filters are on the [roadmap](about.md).
+!!! note "Bitstream filters are automatic"
+    A format pair that needs a bitstream filter, such as H.264 in MP4 going to MPEG-TS, needs nothing from you: libavformat inserts the filter when the copied packets are written.
 
 For a whole-file lossless container rewrite (every stream copied, no encoders at all), use [`Remuxer.remux`](remuxing.md) instead. It runs in seconds.
 

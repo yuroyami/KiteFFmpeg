@@ -24,17 +24,17 @@ public expect object Remuxer {
      * moved onto the output's timeline. What the target container cannot store is dropped by its
      * muxer: MP4 has no stream titles, and Matroska has no display matrix.
      *
-     * Bitstream filters are not applied yet, so container pairs that need one (h264-in-mp4 to
-     * MPEG-TS Annex B) fail with a muxer error rather than producing a broken file.
+     * A container pair that needs a bitstream filter, such as H.264 in MP4 to MPEG-TS, gets it
+     * automatically: libavformat inserts the filter when the packets are written.
      *
-     * @param startMicros trim start, relative to the start of the content (see
-     *                    [MediaSource.startTimeMicros])
-     * @param endMicros trim end, on the same content-relative scale
      * The copy loop runs on [dispatcher], so a call from an app's main thread does not block it.
      * Cancelling the caller stops the loop before its next packet. Every native object is closed
      * before this function returns or throws, and the output is finished with whatever was
      * written up to that point.
      *
+     * @param startMicros trim start, relative to the start of the content (see
+     *                    [MediaSource.startTimeMicros])
+     * @param endMicros trim end, on the same content-relative scale
      * @param metadata container tags written into the output header (`title`, `artist`, …)
      * @param dispatcher where the blocking work runs. Null runs it on `Dispatchers.IO`, the pool
      *                   for blocking calls.
