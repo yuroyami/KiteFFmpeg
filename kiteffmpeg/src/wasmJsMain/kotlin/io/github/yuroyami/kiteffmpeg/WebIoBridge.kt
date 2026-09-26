@@ -73,6 +73,9 @@ internal class WebIoBridge private constructor(
                             "length has to stream, which needs the Worker.",
                     ),
                 )
+            if (size < 0) {
+                throw FFmpegException(FFmpegError.Io(0, "the byte source reported a size of $size bytes"))
+            }
             if (size > MAX_BYTES) {
                 throw FFmpegException(
                     FFmpegError.Unsupported(
@@ -86,13 +89,13 @@ internal class WebIoBridge private constructor(
             val total = size.toInt()
             val buffer = wasmAlloc(module, total)
             if (buffer == 0) throw FFmpegException(FFmpegError.Internal("could not stage $total bytes"))
-            try {
+            val callbacks = try {
                 drain(io, module, buffer, total)
+                installCallbacks(module, buffer, total)
             } catch (failure: Throwable) {
                 wasmFree(module, buffer)
                 throw failure
             }
-            val callbacks = installCallbacks(module, buffer, total)
             return WebIoBridge(
                 module = module,
                 buffer = buffer,
@@ -113,6 +116,13 @@ internal class WebIoBridge private constructor(
             while (written < total) {
                 val want = minOf(CHUNK, total - written)
                 val got = callSource { io.read(chunk, 0, want) }
+                // Checked before the write: the staging block ends at total, and this chunk at want.
+                if (got > want) {
+                    throw FFmpegException(
+                        FFmpegError.Io(0, "the byte source failed while its bytes were staged"),
+                        byteSourceOverCount(got, want),
+                    )
+                }
                 if (got <= 0) {
                     throw FFmpegException(
                         FFmpegError.InvalidData(0, "the byte source ended at $written of $total bytes"),

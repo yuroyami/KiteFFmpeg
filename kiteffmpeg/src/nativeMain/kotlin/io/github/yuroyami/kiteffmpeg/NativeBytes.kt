@@ -18,12 +18,21 @@ internal fun CPointer<*>.toByteArray(size: Int): ByteArray {
     return bytes
 }
 
-/** Copies [length] bytes of [source], from [offset], to [destination] in one C call. */
+/**
+ * Copies [length] bytes of [source], from [offset], to [destination] in one C call. The range is
+ * checked against [source]; the C side's size is the caller's to check.
+ */
 internal fun copyInto(destination: CPointer<*>, source: ByteArray, offset: Int, length: Int) {
-    if (length > 0) source.usePinned { ffkmp_copy_bytes(destination, it.addressOf(offset), length) }
+    if (length <= 0) return
+    require(offset >= 0 && length <= source.size - offset) {
+        "cannot copy $length bytes from offset $offset of a ${source.size} byte array"
+    }
+    source.usePinned { ffkmp_copy_bytes(destination, it.addressOf(offset), length) }
 }
 
 /** Copies [length] bytes from [source] into [destination], from index 0, in one C call. */
 internal fun copyFrom(source: CPointer<*>, destination: ByteArray, length: Int) {
-    if (length > 0) destination.usePinned { ffkmp_copy_bytes(it.addressOf(0), source, length) }
+    if (length <= 0) return
+    require(length <= destination.size) { "cannot copy $length bytes into a ${destination.size} byte array" }
+    destination.usePinned { ffkmp_copy_bytes(it.addressOf(0), source, length) }
 }

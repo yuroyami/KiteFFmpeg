@@ -31,6 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A `MediaByteSource` whose `read` answers with more bytes than it was asked for fails the operation
+  with an I/O `FFmpegException` on every backend, before any of those bytes is used. The cause names
+  the two counts.
 - `Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `MediaSource.extractFrame` and
   both `drive` overloads declare `@Throws`, so Swift and Objective-C receive an `FFmpegException`
   as an error instead of terminating (#87).

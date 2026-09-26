@@ -184,6 +184,17 @@ abstract class DecodeContract {
         assertSame(thrown, error.cause, "the open must carry the byte source's exception as its cause")
     }
 
+    @Test
+    fun aByteSourceThatAnswersWithMoreThanItWasAskedFailsTheOpen() = contract {
+        // Every bridge refuses the count before it copies anything.
+        for (answer in listOf<(Int, Int) -> Int>({ _, asked -> asked + 1 }, { _, _ -> Int.MAX_VALUE })) {
+            val error = runCatching { open(FixtureBytes().apply { answerFor = answer }) }.exceptionOrNull()
+            assertIs<FFmpegException>(error)
+            val cause = assertIs<IllegalStateException>(error.cause, "the refusal must name the count")
+            assertTrue("answered a read of" in cause.message.orEmpty(), cause.message)
+        }
+    }
+
     /** Reads every packet, closing each, and describes it as stream:pts:dts:size:key. */
     private fun PacketReader.drain(): List<String> = buildList {
         while (true) {
@@ -232,11 +243,14 @@ abstract class DecodeContract {
             ((this[offset + 3].toInt() and 0xFF) shl 24),
     )
 
-    /** [DecodeContractMedia] as a seekable byte source that can be told to fail. */
+    /** [DecodeContractMedia] as a seekable byte source that can be told to fail or to miscount. */
     private class FixtureBytes : MediaByteSource {
         private val bytes = DecodeContractMedia.bytes
         private var position = 0
         var failReadsWith: Throwable? = null
+
+        /** The count each read reports, from the count it read and the count it was asked for. Null reports the truth. */
+        var answerFor: ((read: Int, asked: Int) -> Int)? = null
 
         override val size: Long get() = bytes.size.toLong()
         override val seekable: Boolean get() = true
@@ -247,7 +261,7 @@ abstract class DecodeContract {
             val count = minOf(length, bytes.size - position)
             bytes.copyInto(into, offset, position, position + count)
             position += count
-            return count
+            return answerFor?.invoke(count, length) ?: count
         }
 
         override fun seek(position: Long) {

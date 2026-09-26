@@ -881,14 +881,22 @@ internal class ByteSourceState(val io: MediaByteSource) {
 private val byteSourceRead = staticCFunction { opaque: COpaquePointer?, buf: CPointer<UByteVar>?, len: Int ->
     val state = opaque!!.asStableRef<ByteSourceState>().get()
     try {
+        // FFmpeg always asks for at least one byte into a real buffer; anything else is refused,
+        // as the JNI bridge does.
+        if (len <= 0 || buf == null) return@staticCFunction -2
         val want = minOf(len, state.scratch.size)
         val r = state.io.read(state.scratch, 0, want)
         when {
+            // Checked before the copy: FFmpeg's buffer holds len bytes and the scratch holds want.
+            r > want -> {
+                state.failure = byteSourceOverCount(r, want)
+                -2
+            }
             r > 0 -> {
                 // One C copy. posix memcpy cannot be called here: its size_t is 32-bit on
                 // androidNativeArm32 and 64-bit elsewhere, and the shared-native metadata compile
                 // refuses a commonized declaration whose widths differ.
-                copyInto(buf!!, state.scratch, 0, r)
+                copyInto(buf, state.scratch, 0, r)
                 state.position += r
                 state.failure = null
                 r

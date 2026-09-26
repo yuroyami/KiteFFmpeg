@@ -543,7 +543,8 @@ KC_API void ffkmp_dict_free(kc_dict **dict);
  *
  * read_fn contract: fill buf with at most len bytes and return how many (> 0). It must BLOCK
  * until at least one byte exists. At end of stream return KC_IO_EOF; on any failure return
- * KC_IO_ERR. It is called from whatever thread drives the demuxer, one call at a time.
+ * KC_IO_ERR. A count above len is refused as an I/O error. It is called from whatever thread
+ * drives the demuxer, one call at a time.
  *
  * seek_fn contract: move the cursor to offset (whence is SEEK_SET/SEEK_CUR/SEEK_END) and
  * return the NEW absolute position, or KC_IO_ERR. A NULL seek_fn declares the stream

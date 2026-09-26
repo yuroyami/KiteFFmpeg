@@ -34,6 +34,8 @@ class WebIoBridgeTest {
         override val seekable: Boolean = true,
         override val size: Long? = content.size.toLong(),
         private val failAfterBytes: Int = -1,
+        /** From this many bytes on, each read reports one byte more than it read. */
+        private val overCountAfterBytes: Int = -1,
     ) : MediaByteSource {
         var closeCount: Int = 0
             private set
@@ -49,8 +51,9 @@ class WebIoBridgeTest {
             val n = minOf(length, content.size - position)
             content.copyInto(into, offset, position, position + n)
             position += n
+            val overCounts = overCountAfterBytes >= 0 && served >= overCountAfterBytes
             served += n
-            return n
+            return if (overCounts) n + 1 else n
         }
 
         override fun seek(position: Long) {
@@ -196,6 +199,29 @@ class WebIoBridgeTest {
         val source = FakeByteSource(ByteArray(16), size = null)
         val failure = assertFailsWith<FFmpegException> { WebIoBridge.install(source) }
         assertTrue(failure.error is FFmpegError.Unsupported, "a live stream is a typed refusal")
+        assertEquals(before, mallocCount(holder.module), "the refusal must not have staged anything")
+        assertEquals(1, source.closeCount, "a refused source is still the bridge's to close")
+    }
+
+    /** The last chunk asks for exactly the bytes that remain. */
+    @Test
+    fun anOverCountOnTheLastChunkIsRefusedBeforeItIsWritten() {
+        attachFake()
+        val source = FakeByteSource(ByteArray(70_000) { it.toByte() }, overCountAfterBytes = 65_536)
+        val failure = assertFailsWith<FFmpegException> { WebIoBridge.install(source) }
+        assertTrue(failure.error is FFmpegError.Io, "a miscounting source is an I/O error, as on the other backends")
+        val cause = assertIs<IllegalStateException>(failure.cause, "the refusal names the count")
+        assertTrue("answered a read of 4464 bytes with 4465" in cause.message.orEmpty(), cause.message)
+        assertEquals(1, source.closeCount, "a refused source is still the bridge's to close")
+    }
+
+    @Test
+    fun aNegativeSizeRefusesBeforeAllocatingAndStillCloses() {
+        val holder = attachFake()
+        val before = mallocCount(holder.module)
+        val source = FakeByteSource(ByteArray(16), size = -5L)
+        val failure = assertFailsWith<FFmpegException> { WebIoBridge.install(source) }
+        assertTrue(failure.error is FFmpegError.Io, "a negative size is a broken source")
         assertEquals(before, mallocCount(holder.module), "the refusal must not have staged anything")
         assertEquals(1, source.closeCount, "a refused source is still the bridge's to close")
     }

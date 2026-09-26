@@ -25,10 +25,17 @@ public interface MediaByteSource : AutoCloseable {
      * Reads at most [length] bytes into [into] at [offset], advancing the cursor.
      *
      * @return how many bytes were read (at least 1), or -1 at the end of the stream. Never 0:
-     *         block until a byte exists or the stream ends.
+     *         block until a byte exists or the stream ends. A count above [length] fails the
+     *         operation as an I/O error, and none of those bytes are used.
      */
     public fun read(into: ByteArray, offset: Int, length: Int): Int
 
     /** Moves the cursor to [position] bytes from the start. Only called when [seekable]. */
     public fun seek(position: Long)
 }
+
+/** What a bridge records when [MediaByteSource.read] answered with more bytes than it was asked for. */
+internal fun byteSourceOverCount(returned: Int, asked: Int): IllegalStateException = IllegalStateException(
+    "the byte source answered a read of $asked bytes with $returned, and MediaByteSource.read " +
+        "may return at most the length it was given",
+)

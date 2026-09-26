@@ -27,8 +27,15 @@ internal class JniByteIo(private val io: MediaByteSource) {
     /** Called from C. Fills [into] from the source, returns count, -1 EOF, -2 error. */
     @Suppress("unused")
     fun read(into: ByteArray, length: Int): Int = try {
-        val r = io.read(into, 0, minOf(length, into.size))
+        val want = minOf(length, into.size)
+        val r = io.read(into, 0, want)
         when {
+            // The C side refuses this count too; checking here keeps the position true and names
+            // the cause.
+            r > want -> {
+                failure = byteSourceOverCount(r, want)
+                -2
+            }
             r > 0 -> {
                 position += r
                 failure = null

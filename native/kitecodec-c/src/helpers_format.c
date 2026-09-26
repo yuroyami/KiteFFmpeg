@@ -370,6 +370,8 @@ static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
        is broken here, between caller reads, which is exactly where a network stall spins. */
     if (kc_cell_raised(b->cell)) return AVERROR_EXIT;
     int r = b->read_fn(b->opaque, buf, len);
+    /* FFmpeg's buffer holds len bytes, so a larger count is refused. */
+    if (r > len) return AVERROR(EIO);
     if (r > 0) return r;
     if (r == KC_IO_EOF) return AVERROR_EOF;
     return AVERROR(EIO);
