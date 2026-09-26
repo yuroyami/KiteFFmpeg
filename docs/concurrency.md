@@ -31,10 +31,12 @@ coroutineScope {
 // RIGHT: one demux pass, frames interleaved, routed by stream
 source.decodeStreams(listOfNotNull(source.primaryVideo, source.primaryAudio))
     .collect { frame ->
-        when (frame.info.type) {
-            MediaType.Video -> handleVideo(frame)
-            MediaType.Audio -> handleAudio(frame)
-            else -> {}
+        frame.use {
+            when (it.info.type) {
+                MediaType.Video -> handleVideo(it)
+                MediaType.Audio -> handleAudio(it)
+                else -> {}
+            }
         }
     }
 ```
@@ -65,7 +67,7 @@ A `FilterGraph` follows the same rule: `feedInput`, `flushInput`, and collecting
 
 ## Close every collected frame
 
-Frames emitted by `decodedFrames`, `decodeStreams`, and `FilterGraph.process` are owned by the collector: each stays valid until you `close()` it, so buffering operators (`buffer()`, `toList()`) and handing frames across coroutines are safe. The obligation is release, not timing. Close every collected frame, or its native buffers leak. Callback-style outputs (`FilterGraph.feedInput`'s `onOutput`) are the exception: those frames are valid only inside the callback, so call `copy()` to keep one. The full ownership contract is in [Decoding, Frame ownership](decoding.md#frame-ownership).
+Frames emitted by `decodedFrames`, `decodeStreams`, and `FilterGraph.process` are owned by the collector: each stays valid until you `close()` it, so `toList()` and handing a frame to another coroutine are safe. `buffer()`, `flowOn`, `conflate` and `produceIn` are not: a flow cancelled part way drops the frames they queued without closing them, so use `bufferFrames()` instead. The obligation is release, not timing. Close every collected frame, or its native buffers leak. Callback-style outputs (`FilterGraph.feedInput`'s `onOutput`) are the exception: those frames are valid only inside the callback, so call `copy()` to keep one. The full ownership contract is in [Decoding, Frame ownership](decoding.md#frame-ownership).
 
 ## Cancellation
 
@@ -93,7 +95,7 @@ job.cancelAndJoin()   // stops at the next suspension point, frees native state
 | `MediaSource` | Confine to one coroutine context. One active flow at a time; `decodeStreams` for several streams. Seek between collections, not during. |
 | `MediaSink` + encoders | Add all streams first, then drive encoders sequentially from one coroutine. |
 | `FilterGraph` | Feed/flush/collect from one coroutine. |
-| `Frame` from a flow | Consume synchronously in the collector; copy to keep. |
+| `Frame` from a flow | Owned by the collector until closed. Close every one. Decode ahead with `bufferFrames()`, never `buffer()` or `flowOn`. |
 | Separate objects | Independent. Parallel pipelines over different files are fine. |
 
 ## Related

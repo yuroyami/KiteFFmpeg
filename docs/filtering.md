@@ -123,7 +123,7 @@ MediaSource.open("input.mp4").use { src ->
 
     val filtered: Flow<Frame> = graph.process(src.decodedFrames(video))
     filtered.collect { frame ->
-        // ... encode or inspect frame ...
+        frame.use { /* ... encode or inspect it ... */ }
     }
 }
 ```
@@ -133,7 +133,7 @@ MediaSource.open("input.mp4").use { src ->
 `process` is one shot. A second call, or a `feedInput` after it, fails with `IllegalStateException` and a message that names the graph as spent. Build a new graph for another stream.
 
 !!! warning "Frame ownership"
-    Frames emitted by `process` are owned by the collector. They stay valid until you `close()` them, so buffering operators are safe. Close each one when done (see [frame ownership](decoding.md#frame-ownership)).
+    Frames emitted by `process` are owned by the collector. They stay valid until you `close()` them. Close each one when done. To decode ahead, use `bufferFrames()` rather than `buffer()` or `flowOn`, which drop queued frames without closing them (see [frame ownership](decoding.md#frame-ownership)).
 
 ## Multi-input graphs
 

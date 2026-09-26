@@ -102,8 +102,10 @@ import kotlinx.coroutines.flow.collect
 val video = source.primaryVideo ?: error("no video track")
 
 source.decodedFrames(video).collect { frame ->
-    val info = frame.info
-    println("frame pts=${info.pts} (${info.ptsSeconds}s) ${info.width}x${info.height}")
+    frame.use {
+        val info = it.info
+        println("frame pts=${info.pts} (${info.ptsSeconds}s) ${info.width}x${info.height}")
+    }
 }
 ```
 
@@ -120,10 +122,12 @@ If you need both video and audio, do not open two flows. Two concurrently collec
 val wanted = listOfNotNull(source.primaryVideo, source.primaryAudio)
 
 source.decodeStreams(wanted).collect { frame ->
-    when (frame.info.type) {
-        MediaType.Video -> handleVideo(frame)
-        MediaType.Audio -> handleAudio(frame)
-        else -> {}
+    frame.use {
+        when (it.info.type) {
+            MediaType.Video -> handleVideo(it)
+            MediaType.Audio -> handleAudio(it)
+            else -> {}
+        }
     }
 }
 ```
@@ -176,7 +180,9 @@ The layout follows `info.pixelFormat` (video) or `info.sampleFormat` (audio). A 
 
 ### Frame ownership
 
-Frames emitted by the flow APIs (`decodedFrames`, `decodeStreams`, `FilterGraph.process`) are **owned by you**: each one stays valid until you `close()` it, so buffering operators (`buffer()`, `toList()`, holding frames in a list) are safe. Internally these are O(1) reference-counted clones of the decoder's landing frame, so no pixel copies are made.
+Frames emitted by the flow APIs (`decodedFrames`, `decodeStreams`, `FilterGraph.process`) are **owned by you**: each one stays valid until you `close()` it, so `toList()` and holding frames in a list are safe. Internally these are O(1) reference-counted clones of the decoder's landing frame, so no pixel copies are made.
+
+`buffer()`, `flowOn`, `conflate` and `produceIn` are **not** safe for frames. They queue frames in a channel that cannot close them, so a flow cancelled part way drops the queued frames without releasing them. Use `bufferFrames()` to decode ahead, and pass it a `context` where you would have used `flowOn`.
 
 There is one obligation: **close every frame you collect**, or its native buffers leak.
 
@@ -237,7 +243,7 @@ Three rules to know:
 ```kotlin
 source.seekMicros(30_000_000)   // jump to ~30 seconds
 source.decodedFrames(video).collect { frame ->
-    // frames from the keyframe at or before 30s onward
+    frame.use { /* frames from the keyframe at or before 30s onward */ }
 }
 ```
 

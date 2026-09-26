@@ -121,15 +121,17 @@ start of the content, not the raw numbers stored in the file. And a filter chain
 MediaSource.open("input.mp4").use { source ->
     val video = source.primaryVideo ?: error("no video track")
     source.decodedFrames(video).collect { frame ->
-        val info = frame.info
-        println("pts=${info.ptsSeconds}s ${info.width}x${info.height}")
+        frame.use {
+            val info = it.info
+            println("pts=${info.ptsSeconds}s ${info.width}x${info.height}")
+        }
     }
 }
 ```
 
-You cannot collect two of these at once from the same file: they would both try to move the read
-position, so the second one is rejected. Use `decodeStreams(...)` when you want video and audio
-together.
+Each collected frame is yours, so close it: `frame.use { }` does that. You cannot collect two of
+these at once from the same file: they would both try to move the read position, so the second one
+is rejected. Use `decodeStreams(...)` when you want video and audio together.
 
 FFmpeg's own log lines, such as `moov atom not found`, print nothing unless you install a sink with
 `FFmpeg.setLogSink`. The sink runs on whichever thread FFmpeg logs from, so keep it quick and
