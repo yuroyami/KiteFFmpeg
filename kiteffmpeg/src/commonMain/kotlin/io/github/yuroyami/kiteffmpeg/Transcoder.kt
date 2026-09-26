@@ -28,10 +28,17 @@ public expect object Transcoder {
      *
      * The work runs on [dispatcher], not on the caller's dispatcher: every step is a blocking
      * call into FFmpeg, and running them on a UI thread would freeze it until the whole file is
-     * written. Cancelling the caller stops the work within one packet of the input, and this
-     * function throws [kotlinx.coroutines.CancellationException] only after every decoder,
-     * encoder, filter graph and file the work opened is closed. A read that blocks inside FFmpeg,
-     * such as a stalled network input, is not interrupted; it ends when the read returns.
+     * written. Cancelling the caller stops the work before the next input packet or encoded
+     * frame, and this function throws [kotlinx.coroutines.CancellationException] only after every
+     * decoder, encoder, filter graph and file the work opened is closed. An exception from
+     * [onProgress] stops the work the same way, and this function then throws it. A read that
+     * blocks inside FFmpeg, such as a stalled network input, is not interrupted; it ends when the
+     * read returns.
+     *
+     * The constant frame rate fills every gap in the input's timestamps, so a file with two frames
+     * a day apart makes a day of video. For a file you did not make, bound the work: call this
+     * inside `withTimeout`, or throw from [onProgress] once [TranscodeProgress.framesEncoded]
+     * passes your limit.
      *
      * @param input  input file path
      * @param output output file path

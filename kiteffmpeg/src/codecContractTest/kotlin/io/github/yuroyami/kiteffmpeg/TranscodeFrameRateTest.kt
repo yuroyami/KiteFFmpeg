@@ -115,6 +115,30 @@ internal class TranscodeFrameRateTest {
     }
 
     /**
+     * Two frames 10,000 seconds apart ask for 250,000 copies of the first at 25 fps. The progress
+     * callback stops the transcode after 300 of them, and the output ends near there. Red when the
+     * gap was filled without a cancellation check: the stop waited for all 250,000.
+     */
+    @Test
+    fun aStopInsideALongGapEndsTheTranscodeThere() {
+        val input = path("mkv")
+        TranscodeFixtures.writeVideo(input, Rational(1_000, 1), listOf(0L, 10_000L * 1_000_000L))
+        val output = path("mkv")
+        assertFailsWith<EnoughFrames> {
+            runBlocking {
+                Transcoder.transcode(
+                    input = input,
+                    output = output,
+                    spec = TranscodeFixtures.videoSpec(Rational(25, 1)),
+                    onProgress = { if (it.framesEncoded >= 300L) throw EnoughFrames() },
+                )
+            }
+        }
+        val written = videoPacketCount(output)
+        assertTrue(written in 300 until 25_000, "the output holds $written of the gap's 250,000 frames")
+    }
+
+    /**
      * An encoder driven directly refuses the second of two frames on one tick, instead of moving
      * it later. Red when it moved them: 60 frames at 60 fps timestamps played for 2.4 seconds.
      */
@@ -141,5 +165,21 @@ internal class TranscodeFrameRateTest {
         }
         assertIs<FFmpegError.InvalidArgument>(refusal.error, refusal.message)
         assertTrue(refusal.message?.contains("tick") == true, "the refusal says why: ${refusal.message}")
+    }
+
+    private class EnoughFrames : RuntimeException("the test has seen enough frames")
+
+    /** Counts [path]'s video packets without decoding them. */
+    @OptIn(KiteFFmpegLowLevelApi::class)
+    private fun videoPacketCount(path: String): Int = MediaSource.open(path).use { source ->
+        val video = checkNotNull(source.primaryVideo) { "$path has no video stream" }
+        source.openPacketReader(listOf(video)).use { reader ->
+            var count = 0
+            while (true) {
+                (reader.read() ?: break).close()
+                count++
+            }
+            count
+        }
     }
 }

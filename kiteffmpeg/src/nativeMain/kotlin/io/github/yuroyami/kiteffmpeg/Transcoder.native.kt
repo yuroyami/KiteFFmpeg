@@ -5,6 +5,8 @@ import ffmpeg.ffkmp_packet_pts
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.cancellation.CancellationException
 
 public actual object Transcoder {
@@ -132,6 +134,9 @@ public actual object Transcoder {
         metadata: Map<String, String>,
         publish: ((TranscodeProgress) -> Unit)?,
     ) {
+        // Checked before every encoded frame, because one input packet can make any number of them:
+        // a gap that the constant rate fills, or a filter.
+        val context = currentCoroutineContext()
         if (input.path != null && output.path != null) refuseSameFile(input.path, output.path)
 
         input.open().use { source ->
@@ -268,6 +273,7 @@ public actual object Transcoder {
 
                             // One output frame per tick of the spec's rate, each its own copy.
                             fun encodeVideoTick(frame: Frame, tick: Long) {
+                                context.ensureActive()
                                 venc!!.core.encode(videoPacket, frame.copyAt(tick, videoRate!!.tickBase))
                                 reportMaybe()
                             }
@@ -279,6 +285,7 @@ public actual object Transcoder {
                                 frame.use { videoRate!!.push(it, ::encodeVideoTick) }
                             }
                             fun encodeAudio(frame: Frame) {
+                                context.ensureActive()
                                 aenc!!.core.encode(audioPacket, frame)
                                 if (venc == null) reportMaybe()
                             }

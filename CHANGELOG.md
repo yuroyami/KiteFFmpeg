@@ -34,6 +34,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A `MediaByteSource` whose `read` answers with more bytes than it was asked for fails the operation
   with an I/O `FFmpegException` on every backend, before any of those bytes is used. The cause names
   the two counts.
+- `Transcoder.transcode` checks for cancellation before every frame it encodes, so a cancel, or an
+  exception from `onProgress`, also stops a transcode inside a long gap between two video frames.
+  A frame whose end is past what a `Long` holds lasts one output frame.
 - `Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `MediaSource.extractFrame` and
   both `drive` overloads declare `@Throws`, so Swift and Objective-C receive an `FFmpegException`
   as an error instead of terminating (#87).
