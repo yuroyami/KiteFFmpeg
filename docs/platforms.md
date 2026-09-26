@@ -52,14 +52,14 @@ external library (software AV1 via libdav1d/libaom on mobile profiles, for examp
 the flavors that link those libraries. The WRITE side and the protocol list remain deliberately
 small. If an encoder, muxer, filter or protocol is not listed here, it is not in the generated
 profile. This table describes compiled profile contents, not per-target runtime qualification.
-The authoritative list is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yuroyami/KiteFFmpeg/blob/main/buildSrc/src/main/kotlin/BuildFFmpegTask.kt); as of `n9.0.2`:
+The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yuroyami/KiteFFmpeg/blob/main/buildSrc/src/main/kotlin/BuildFFmpegTask.kt). The encode rows below were read out of each tree's `libavcodec.a` as of `n9.0.2`, not copied from that recipe: `nm` lists one `ff_<name>_encoder` symbol for each encoder the archive carries.
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
 | | macOS LGPL | Mobile Apple LGPL | Linux / Windows LGPL | Android LGPL |
 |---|---|---|---|---|
-| **Video encode** | `mpeg4`, `mjpeg`, `png`, `h264_videotoolbox`, `hevc_videotoolbox` | `mpeg4`, `mjpeg`, `png` | `mpeg4`, `mjpeg`, `png` | `mpeg4`, `mjpeg`, `png`, `h264_mediacodec`, `hevc_mediacodec` |
-| **Audio encode** | `aac`, `flac`, `pcm_s16le`/`s24le`/`f32le` | `flac`, `pcm_*` | `flac`, `pcm_*` | `aac`, `flac`, `pcm_*` |
+| **Video encode** | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p` | same as Mobile Apple | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `h264_mediacodec`, `hevc_mediacodec` |
+| **Audio encode** | `aac`, `flac`, `pcm_s16le`/`s24le`/`f32le` | same | same | same |
 | **Decode** | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; on Windows, the D3D11VA hwaccel behind h264/hevc/vp9/mpeg2/vc1/wmv3 | every native FFmpeg decoder + MediaCodec h264/hevc |
 | **Demux** | every native FFmpeg demuxer | same | same | same |
 | **Mux (write)** | mp4/mov, matroska/webm (including `.mka`), mpegts, mp3, wav, flac, ogg/opus, image2 | same | same | same |
@@ -123,7 +123,7 @@ On an arm64 Mac, the local phone selector registers exactly `macosArm64`, `iosAr
   -Pkiteffmpeg.applePhoneTargetsOnly=true
 ```
 
-The mobile Apple profile is the current STANDARD software-playback set from `sharedCoreArgs()`, `--disable-autodetect`, SDK zlib and SDK cross flags. It has no desktop third-party archives, GPL flags, hardware encode or VideoToolbox. Final iOS static link flags are exactly `-lz`. `buildFFmpegForIos*Gpl` tasks do not exist, and repository build/path resolution refuses GPL for every iOS target before tree lookup with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
+The mobile Apple profile is the current STANDARD software-playback set from `sharedCoreArgs()`, `--disable-autodetect`, SDK zlib and SDK cross flags. It has no desktop third-party archives, GPL flags or hardware encoders. It does carry VideoToolbox and AudioToolbox: `libavcodec.a` holds the ten VideoToolbox decode hwaccels, so the iOS link flags are `-lz -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework AudioToolbox`, which `ffmpeg.def` passes. `buildFFmpegForIos*Gpl` tasks do not exist, and repository build/path resolution refuses GPL for every iOS target before tree lookup with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
 
 `-Pkiteffmpeg.applePhoneTargetsOnly=true` is mutually exclusive with the stable and host-only selectors. It is accepted by `publishToMavenLocal` for a private consumer proof and explicitly rejected by every remote publish. Generated `native-libs` trees and Maven-local files are never release evidence.
 
