@@ -13,7 +13,7 @@
 # produces the same bytes and the pin in KitePlayer's kiteplayer-libass/ass-chain.sha256 holds.
 #
 # Attach the zips to the release named by kiteplayer-libass/build.gradle.kts (assChainReleaseTag),
-# for example:  gh release create ass-chain-r1 dist/ass-chain-*.zip dist/ass-chain-*.sha256
+# for example:  gh release create ass-chain-r2 dist/ass-chain-*.zip dist/ass-chain-*.sha256
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

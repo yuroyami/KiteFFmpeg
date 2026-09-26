@@ -535,6 +535,6 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
         )
 
         /** The chain this repo builds by default; mpv-android ships the same series. */
-        const val DEFAULT_SOURCE_REFS = "fribidi-1.0.16 freetype-2.14.3 harfbuzz-14.2.1 libass-0.17.4"
+        const val DEFAULT_SOURCE_REFS = "fribidi-1.0.17 freetype-2.14.3 harfbuzz-14.2.1 libass-0.17.5"
     }
 }

@@ -7,16 +7,18 @@
 # therefore two steps: run this workflow against a new tag, then re-pin in KitePlayer.
 #
 # The tag is chain-keyed (ass-chain-r1, r2, ...), not KiteFFmpeg-versioned: the zips are identical
-# across KiteFFmpeg versions, the same way the FFmpeg binaries are.
+# across KiteFFmpeg versions, the same way the FFmpeg binaries are. Each chain rebuild takes the next
+# tag. A released KitePlayer pins the digests of its tag, so an attached asset is never replaced
+# with other bytes.
 name: Release libass chain
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to attach the chain zips to (chain-keyed, e.g. ass-chain-r1)."
+        description: "Release tag to attach the chain zips to (chain-keyed, e.g. ass-chain-r2)."
         required: true
-        default: "ass-chain-r1"
+        default: "ass-chain-r2"
 
 permissions:
   contents: read
@@ -26,10 +28,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FRIBIDI_TAG: v1.0.16
+  FRIBIDI_TAG: v1.0.17
   FREETYPE_TAG: VER-2-14-3
   HARFBUZZ_TAG: 14.2.1
-  LIBASS_TAG: 0.17.4
+  LIBASS_TAG: 0.17.5
 
 jobs:
   # Android and the GNU targets cross-build from macOS too: the konan toolchains the Linux and
@@ -126,10 +128,26 @@ jobs:
       - name: Attach the chains to the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.release_tag }}
+          REPO: ${{ github.repository }}
         run: |
           ls -la assets
-          gh release view "${{ github.event.inputs.release_tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
-            gh release create "${{ github.event.inputs.release_tag }}" --repo "${{ github.repository }}" \
-              --title "libass chain ${{ github.event.inputs.release_tag }}" \
+          gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$REPO" \
+              --title "libass chain $TAG" \
               --notes "Static libass, HarfBuzz, FreeType and FriBidi archives for kiteplayer-libass. See docs/licensing.md."
-          gh release upload "${{ github.event.inputs.release_tag }}" assets/* --repo "${{ github.repository }}" --clobber
+          # An asset already attached with the same bytes is skipped. Different bytes stop the job,
+          # because KitePlayer pins the digest of every asset it downloads.
+          attached="$(mktemp -d)"
+          for asset in assets/*; do
+            name="$(basename "$asset")"
+            if gh release download "$TAG" --repo "$REPO" --pattern "$name" --dir "$attached" 2>/dev/null; then
+              if cmp -s "$asset" "$attached/$name"; then
+                echo "$name is already attached with the same bytes"
+                continue
+              fi
+              echo "::error::$name is already attached to $TAG with different bytes. Run this workflow with a new release tag."
+              exit 1
+            fi
+            gh release upload "$TAG" "$asset" --repo "$REPO"
+          done
