@@ -143,6 +143,13 @@ Both commands compile the klib of every native target, so they need an FFmpeg tr
 
 API-breaking changes must be intentional and called out in `CHANGELOG.md`.
 
+A default parameter added to a public function still breaks compiled callers, because the
+compiled signature changes. When a public function gains a parameter, keep the old signature as a
+bridge marked `@Deprecated(level = DeprecationLevel.HIDDEN)`. A data class that gains a field
+cannot keep its old constructor that way, so the release notes say that the release is not binary
+compatible and name the classes. Diff the ABI dumps between the two release tags before a release,
+and name every removed `fun` line in the notes.
+
 ## Reporting issues
 
 GitHub Issues is the only tracker for this repository: open work, plans and findings all live there, and

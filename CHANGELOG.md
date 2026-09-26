@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Upgrading
 
+- Not binary compatible with 0.3.0: `StreamInfo` and `DemuxOptions` gained fields, which changes
+  their constructors and `copy`. Rebuild a library compiled against 0.3.0.
+
 - `StreamInfo` gains `mirrored`, which changes the generated data-class methods. Recompile. A
   renderer mirrors the picture left to right first when it is true, and then turns it clockwise by
   `rotationDegrees`. The C ABI is 3.11, which adds `ffkmp_stream_mirrored` (#81).
@@ -79,6 +82,22 @@ for every backend. The breaking changes come first.
 - **NVENC refuses `crf`.** NVENC has no such option (its option is `cq`); it used to pass silently.
 - **The C ABI is 3.10** (0.2.0 shipped 2.7). This matters only to code that calls the C helpers
   directly.
+
+### Binary compatibility
+
+0.3.0 is not binary compatible with 0.2.0. Source that called the old signatures compiles
+unchanged, but a library compiled against 0.2.0 fails when an app resolves 0.3.0: with
+`NoSuchMethodError` on the JVM and Android, and at link time on native targets. Rebuild every
+library that depends on kiteffmpeg against 0.3.0. These compiled signatures changed:
+
+- `MediaSource.open(path, options)` and `MediaSource.open(io, options)` gained `interrupt`.
+- `Transcoder.transcode` and `Remuxer.remux` gained `dispatcher`.
+- `FilterGraph.buildAudio`, `buildAudioMulti` and the DSL `buildAudio` gained a channel layout mask.
+- `FilterGraph.feedInput` and `flushInput` return `FeedResult` instead of `Unit`.
+- `MediaSource.openDecoder` takes a `DecoderId` instead of a `CodecId`.
+- The constructors and `copy` of `Disposition`, `VideoEncoderSpec`, `AudioEncoderSpec`,
+  `AudioInput`, `StreamInfo`, `VideoStreamInfo` and `FrameInfo` gained fields.
+- The implementation constants on `CodecId`, such as `CodecId.Libx264`, are gone.
 
 ### Added
 
