@@ -78,6 +78,7 @@ import ffmpeg.ffkmp_stream_metadata
 import ffmpeg.ffkmp_stream_discard_all
 import ffmpeg.ffkmp_stream_discard_none
 import ffmpeg.ffkmp_stream_disposition
+import ffmpeg.ffkmp_stream_mirrored
 import ffmpeg.ffkmp_stream_rotation_degrees
 import ffmpeg.ffkmp_stream_start_time
 import ffmpeg.ffkmp_disposition_attached_pic
@@ -1061,6 +1062,7 @@ private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> {
                 ?: 0L,
             codecExtradata = readCodecExtradata(par),
             codecProfile = knownProfile(ffkmp_codecpar_profile(par)),
+            mirrored = ffkmp_stream_mirrored(s) != 0,
         )
     }
     return out

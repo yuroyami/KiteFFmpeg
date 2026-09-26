@@ -444,6 +444,9 @@ internal external fun ffkmp_stream_disposition(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_stream_index(a0)")
 internal external fun ffkmp_stream_index(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_stream_mirrored(a0)")
+internal external fun ffkmp_stream_mirrored(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_stream_rotation_degrees(a0)")
 internal external fun ffkmp_stream_rotation_degrees(module: JsAny, a0: Int): Int
 

@@ -97,24 +97,47 @@ KC_API int ffkmp_disposition_attached_pic(void)      { return AV_DISPOSITION_ATT
 KC_API int ffkmp_disposition_descriptions(void)      { return AV_DISPOSITION_DESCRIPTIONS; }
 KC_API int ffkmp_disposition_comment(void)           { return AV_DISPOSITION_COMMENT; }
 
-/* Rotation, in degrees, from the display matrix a phone writes into its recordings. Without this
-   every video shot in portrait plays on its side. av_display_rotation_get returns the angle the
-   image must be rotated by counter-clockwise, as a double; the sign is flipped here so the result
-   is the clockwise rotation a renderer should apply. A singular matrix, such as all zeros, gives
-   NaN, and NaN converted to an int is undefined (0 on arm64, garbage on x86-64), so it reads as
-   upright. */
-KC_API int ffkmp_stream_rotation_degrees(AVStream *s) {
-    if (!s) return 0;
+/* The stream's display matrix, or NULL when it has none or a singular one. A singular matrix, such
+   as all zeros, has no angle: av_display_rotation_get answers NaN, and NaN converted to an int is
+   undefined (0 on arm64, garbage on x86-64), so it reads as upright and unmirrored. */
+static const int32_t *display_matrix(AVStream *s) {
+    if (!s) return NULL;
     const AVPacketSideData *sd = av_packet_side_data_get(s->codecpar->coded_side_data,
                                                          s->codecpar->nb_coded_side_data,
                                                          AV_PKT_DATA_DISPLAYMATRIX);
-    if (!sd || sd->size < 9 * 4) return 0;
-    double theta = -av_display_rotation_get((const int32_t *)sd->data);
-    if (!isfinite(theta)) return 0;
+    if (!sd || sd->size < 9 * 4) return NULL;
+    if (!isfinite(av_display_rotation_get((const int32_t *)sd->data))) return NULL;
+    return (const int32_t *)sd->data;
+}
+
+/* A negative determinant of the matrix's 2x2 part is a reflection. Exact in 64 bits. */
+static int display_mirrors(const int32_t *m) {
+    return (int64_t)m[0] * m[4] - (int64_t)m[1] * m[3] < 0;
+}
+
+/* Rotation, in degrees, from the display matrix a phone writes into its recordings. Without this
+   every video shot in portrait plays on its side. av_display_rotation_get returns the angle the
+   image must be rotated by counter-clockwise, as a double; the sign is flipped here so the result
+   is the clockwise rotation a renderer should apply.
+   A mirrored matrix is read as a left-right mirror first and this turn after it, the order FFmpeg's
+   own autorotate arrives at: the angle of the first column is then half a turn from the turn that
+   follows the mirror. A pure left-right mirror therefore reads as 0, not as a half turn. */
+KC_API int ffkmp_stream_rotation_degrees(AVStream *s) {
+    const int32_t *m = display_matrix(s);
+    if (!m) return 0;
+    double theta = -av_display_rotation_get(m);
+    if (display_mirrors(m)) theta += 180.0;
     int deg = (int)(theta < 0 ? theta - 0.5 : theta + 0.5);
     deg %= 360;
     if (deg < 0) deg += 360;
     return deg;
+}
+
+/* 1 when the display matrix also mirrors the picture, 0 otherwise. See the rotation above for the
+   order a renderer applies the two in. */
+KC_API int ffkmp_stream_mirrored(AVStream *s) {
+    const int32_t *m = display_matrix(s);
+    return m ? display_mirrors(m) : 0;
 }
 
 /* --- Packet ownership --- */

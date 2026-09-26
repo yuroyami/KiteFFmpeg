@@ -58,6 +58,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_discard_none
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_disposition
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_duration_micros
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_index
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_mirrored
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_rotation_degrees
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_time_base
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_ch_layout_mask
@@ -708,6 +709,7 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                 null
             },
             rotationDegrees = ffkmp_stream_rotation_degrees(m, native),
+            mirrored = ffkmp_stream_mirrored(m, native) != 0,
             disposition = ffkmp_stream_disposition(m, native).let { flags ->
                 Disposition(
                     default = flags and dispositionDefault != 0,

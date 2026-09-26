@@ -835,7 +835,11 @@ KC_API int ffkmp_disposition_visual_impaired(void);
 KC_API int ffkmp_disposition_attached_pic(void);
 KC_API int ffkmp_disposition_descriptions(void);
 KC_API int ffkmp_disposition_comment(void);
+/* The display matrix as a mirror and a turn: a renderer mirrors the picture left to right first,
+ * when ffkmp_stream_mirrored answers 1, and then turns it clockwise by
+ * ffkmp_stream_rotation_degrees, 0 to 359. A stream without a usable matrix answers 0 to both. */
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);
+KC_API int ffkmp_stream_mirrored(kc_stream *s);
 
 /* Ownership. Moves every reference from src to dst and leaves src blank, so exactly one of
  * the two owns the data afterwards. dst must be blank on entry. Neither packet is freed,

@@ -139,6 +139,7 @@ internal object Internals {
     private external fun nativeStreamDiscard(token: Long, discard: Boolean)
     private external fun nativeStreamDisposition(token: Long): Int
     private external fun nativeStreamRotation(token: Long): Int
+    private external fun nativeStreamMirrored(token: Long): Int
     private external fun nativeDictNext(token: Long, previous: Long): Long
     private external fun nativeDictKey(token: Long): String?
     private external fun nativeDictValue(token: Long): String?
@@ -445,6 +446,7 @@ internal object Internals {
     internal fun streamDiscard(token: Long, discard: Boolean) = checked { nativeStreamDiscard(token, discard) }
     internal fun streamDisposition(token: Long) = checked { nativeStreamDisposition(token) }
     internal fun streamRotation(token: Long) = checked { nativeStreamRotation(token) }
+    internal fun streamMirrored(token: Long) = checked { nativeStreamMirrored(token) } != 0
     internal fun dictNext(token: Long, previous: Long) = checked { nativeDictNext(token, previous) }
     internal fun dictKey(token: Long) = checked { nativeDictKey(token) ?: "" }
     internal fun dictValue(token: Long) = checked { nativeDictValue(token) ?: "" }

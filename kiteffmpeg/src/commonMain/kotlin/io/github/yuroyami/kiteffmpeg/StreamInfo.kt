@@ -18,7 +18,8 @@ public data class StreamInfo(
      * Clockwise rotation a renderer must apply, in degrees, from the container's display matrix.
      *
      * Phones write this into every recording. Ignoring it plays portrait video on its side, which
-     * is the single most common visible bug in a first video pipeline.
+     * is the single most common visible bug in a first video pipeline. When [mirrored] is true, the
+     * renderer mirrors the picture first and turns it by this after.
      */
     val rotationDegrees: Int = 0,
     /** Where this stream's own timeline starts, in microseconds. May differ from the container's. */
@@ -34,6 +35,11 @@ public data class StreamInfo(
      * 1 for AAC LC. Null when neither the container nor the probe determined one.
      */
     val codecProfile: Int? = null,
+    /**
+     * True when the display matrix also mirrors the picture. A renderer mirrors it left to right
+     * first, and then turns it clockwise by [rotationDegrees]. A front camera can record this way.
+     */
+    val mirrored: Boolean = false,
 ) {
     /** BCP 47 or the raw three letter code, whichever the container provided. Null when absent. */
     val language: String? get() = metadata["language"]
@@ -69,7 +75,8 @@ public data class StreamInfo(
             rotationDegrees == other.rotationDegrees &&
             startTimeMicros == other.startTimeMicros &&
             extradataEquals(codecExtradata, other.codecExtradata) &&
-            codecProfile == other.codecProfile
+            codecProfile == other.codecProfile &&
+            mirrored == other.mirrored
     }
 
     override fun hashCode(): Int {
@@ -87,6 +94,7 @@ public data class StreamInfo(
         result = 31 * result + startTimeMicros.hashCode()
         result = 31 * result + (codecExtradata?.contentHashCode() ?: 0)
         result = 31 * result + (codecProfile ?: 0)
+        result = 31 * result + mirrored.hashCode()
         return result
     }
 

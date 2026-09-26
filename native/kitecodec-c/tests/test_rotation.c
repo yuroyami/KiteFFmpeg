@@ -1,4 +1,5 @@
-/* The clockwise rotation a renderer applies, read from a stream's display matrix.
+/* The clockwise rotation a renderer applies, and whether it mirrors first, read from a stream's
+ * display matrix.
  *
  * The case that matters is the all-zero matrix the demux fuzz target found. Its angle is not a
  * number, and converting that to an int is undefined behaviour: arm64 answers 0 and x86-64
@@ -97,6 +98,65 @@ static void case_null_stream_is_upright(void)
 {
     kc_case("a NULL stream answers 0 rather than dereferencing");
     KC_EQ_INT(ffkmp_stream_rotation_degrees(NULL), 0);
+    KC_EQ_INT(ffkmp_stream_mirrored(NULL), 0);
+}
+
+static void case_mirrors(void)
+{
+    struct row {
+        double clockwise;
+        int hflip;
+        int vflip;
+        int rotation;
+        int mirrored;
+    };
+    /* Each expectation is what fftools/ffmpeg_filter.c's autorotate draws, written as a left-right
+     * mirror followed by a clockwise turn: hflip alone is (0, mirror), vflip alone is a mirror and a
+     * half turn, transpose=cclock_flip is a mirror and three quarters, clock_flip a mirror and one
+     * quarter. Both flips together are a plain half turn. */
+    const struct row rows[] = {
+        { 0.0, 1, 0, 0, 1 },
+        { 0.0, 0, 1, 180, 1 },
+        { 90.0, 1, 0, 270, 1 },
+        { 90.0, 0, 1, 90, 1 },
+        { 180.0, 1, 0, 180, 1 },
+        { -90.0, 1, 0, 90, 1 },
+        { 0.0, 1, 1, 180, 0 },
+        { 90.0, 0, 0, 90, 0 },
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(rows) / sizeof(rows[0]); i++) {
+        AVFormatContext *ctx = avformat_alloc_context();
+        int32_t matrix[9];
+        AVStream *st;
+
+        kc_case("%.0f degrees with hflip %d and vflip %d reads as %d, mirrored %d",
+                rows[i].clockwise, rows[i].hflip, rows[i].vflip, rows[i].rotation, rows[i].mirrored);
+        KC_CHECKF(ctx != NULL, "avformat_alloc_context returned NULL");
+        av_display_rotation_set(matrix, rows[i].clockwise);
+        av_display_matrix_flip(matrix, rows[i].hflip, rows[i].vflip);
+        st = stream_with_matrix(ctx, matrix);
+        KC_EQ_INT(ffkmp_stream_rotation_degrees(st), rows[i].rotation);
+        KC_EQ_INT(ffkmp_stream_mirrored(st), rows[i].mirrored);
+        avformat_free_context(ctx);
+    }
+}
+
+static void case_no_matrix_is_unmirrored(void)
+{
+    AVFormatContext *ctx = avformat_alloc_context();
+    const int32_t zeros[9] = { 0 };
+    AVStream *st;
+
+    kc_case("no matrix and an all-zero matrix are not mirrors");
+    KC_CHECKF(ctx != NULL, "avformat_alloc_context returned NULL");
+    st = avformat_new_stream(ctx, NULL);
+    KC_CHECKF(st != NULL, "avformat_new_stream returned NULL");
+    KC_EQ_INT(ffkmp_stream_mirrored(st), 0);
+    st = stream_with_matrix(ctx, zeros);
+    KC_EQ_INT(ffkmp_stream_mirrored(st), 0);
+    avformat_free_context(ctx);
 }
 
 int main(void)
@@ -107,6 +167,8 @@ int main(void)
     case_all_zero_matrix_is_upright();
     case_quarter_turns();
     case_null_stream_is_upright();
+    case_mirrors();
+    case_no_matrix_is_unmirrored();
 
     return kc_suite_end();
 }

@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Upgrading
+
+- `StreamInfo` gains `mirrored`, which changes the generated data-class methods. Recompile. A
+  renderer mirrors the picture left to right first when it is true, and then turns it clockwise by
+  `rotationDegrees`. The C ABI is 3.11, which adds `ffkmp_stream_mirrored` (#81).
+
 ### Fixed
 
 - `Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `MediaSource.extractFrame` and
@@ -31,6 +37,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   to the collector once its `emit` is called, as before (#115).
 - The interrupt flag behind `OpenInterrupt` is read and written atomically, so raising it from
   another thread while an open polls it is no longer a data race (#116).
+- A display matrix that mirrors the picture is reported as a mirror. A left-right mirror used to
+  read as a half turn, so a renderer showed the video upside down. It now reads as no turn with
+  `StreamInfo.mirrored` set (#81).
 
 ## [0.3.0] - 2026-09-25
 

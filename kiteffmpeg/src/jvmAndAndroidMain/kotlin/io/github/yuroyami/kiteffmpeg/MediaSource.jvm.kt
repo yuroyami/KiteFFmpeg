@@ -669,6 +669,7 @@ private fun buildStreams(format: Long): List<StreamInfo> = buildList {
                         ?: 0L,
                     codecExtradata = Internals.codecParExtradata(parameters),
                     codecProfile = knownProfile(Internals.codecParProfile(parameters)),
+                    mirrored = Internals.streamMirrored(stream),
                 ),
             )
         } finally {

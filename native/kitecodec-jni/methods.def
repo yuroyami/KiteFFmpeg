@@ -140,6 +140,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamSetTimeBase", 
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamDiscard",     "(JZ)V",                  kj_stream_discard)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamDisposition", "(J)I",                   kj_stream_disposition)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamRotation",    "(J)I",                   kj_stream_rotation)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamMirrored",    "(J)I",                   kj_stream_mirrored)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDictNext",          "(JJ)J",                  kj_dict_next)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDictKey",           "(J)Ljava/lang/String;",  kj_dict_key)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeDictValue",         "(J)Ljava/lang/String;",  kj_dict_value)

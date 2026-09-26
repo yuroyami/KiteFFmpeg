@@ -78,6 +78,7 @@ class StreamInfoEqualityTest {
         assertEquals(stream(null), stream(null))
         assertTrue(stream(null) != stream(null).copy(index = 1))
         assertTrue(stream(null) != stream(null).copy(rotationDegrees = 90))
+        assertTrue(stream(null) != stream(null).copy(mirrored = true))
     }
 }
 

@@ -413,6 +413,8 @@ JNIEXPORT jint JNICALL kj_stream_disposition(JNIEnv *env,jclass cls,jlong token)
 { kc_stream*s=(kc_stream*)kj_handle_get(env,token,KJ_KIND_STREAM);(void)cls;return s?ffkmp_stream_disposition(s):0; }
 JNIEXPORT jint JNICALL kj_stream_rotation(JNIEnv *env,jclass cls,jlong token)
 { kc_stream*s=(kc_stream*)kj_handle_get(env,token,KJ_KIND_STREAM);(void)cls;return s?ffkmp_stream_rotation_degrees(s):0; }
+JNIEXPORT jint JNICALL kj_stream_mirrored(JNIEnv *env,jclass cls,jlong token)
+{ kc_stream*s=(kc_stream*)kj_handle_get(env,token,KJ_KIND_STREAM);(void)cls;return s?ffkmp_stream_mirrored(s):0; }
 
 JNIEXPORT jlong JNICALL kj_dict_next(JNIEnv *env,jclass cls,jlong dict_token,jlong previous_token)
 {

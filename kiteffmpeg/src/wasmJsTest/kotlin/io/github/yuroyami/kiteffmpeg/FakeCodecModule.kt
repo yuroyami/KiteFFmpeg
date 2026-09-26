@@ -137,6 +137,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         };
         m._ffkmp_stream_duration_micros = () => 0n;
         m._ffkmp_stream_rotation_degrees = () => 0;
+        m._ffkmp_stream_mirrored = () => 0;
         m._ffkmp_codecpar_codec_type = () => 3;
         m._ffkmp_codecpar_codec_id = () => 1;
         m._ffkmp_codecpar_bit_rate = () => 0n;
