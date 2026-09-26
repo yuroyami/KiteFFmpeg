@@ -195,8 +195,12 @@ abi_is_newer_than() {
 # the two are separate translation units; the linked product always carries both. It is on the list
 # rather than exempted by a rule, because the rule this check enforces is "the helper layer takes no
 # dependency nobody wrote down", and this one is written down here.
+# _pthread_key_create, _pthread_getspecific and _pthread_setspecific joined 2026-09-26 with the
+# per-thread scaler cache in src/helpers_frame.c. The key's destructor frees a thread's cached
+# SwsContext when that thread ends, which a `static __thread` pointer cannot do (#105).
 ALLOWED_UNDEFINED="_memcpy _snprintf _strstr _bzero ___stack_chk_fail ___stack_chk_guard __tlv_bootstrap
-_pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk _kc_init"
+_pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk _kc_init
+_pthread_key_create _pthread_getspecific _pthread_setspecific"
 
 # Calls that must never appear. A library does not print, does not log through its host's logger,
 # and does not reach into an Apple runtime from portable C.
