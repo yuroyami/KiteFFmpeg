@@ -69,7 +69,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       # meson + ninja + nasm are dav1d's build system and assembler (nasm for the x64 ABI).
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y meson ninja-build nasm
@@ -115,7 +115,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       # meson/ninja are dav1d's build system; nasm assembles the x86_64 asm for BOTH dav1d and
       # FFmpeg on the two Intel triples, so it is installed unconditionally.
       - name: Install build deps
@@ -165,7 +165,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       # nasm assembles FFmpeg's and dav1d's x86 asm; meson/ninja are dav1d's build system.
       # clang is the --host-cc that compiles configure's host-side probe tools.
       - name: Install build deps
