@@ -20,14 +20,13 @@ public enum class FFmpegLogLevel(internal val code: Int) {
     }
 }
 
-/**
- * Receives FFmpeg's own log lines, as installed with [FFmpeg.setLogSink].
- *
- * [component] names what logged, such as `h264` or `mov,mp4,m4a,3gp,3g2,mj2`, and is empty when
- * FFmpeg names nothing. [message] is one call of FFmpeg's logger without its trailing newline, so
- * a line FFmpeg builds in parts arrives in parts.
- */
+/** Receives FFmpeg's own log lines, as installed with [FFmpeg.setLogSink]. */
 public fun interface FFmpegLogSink {
+    /**
+     * One line. [component] names what logged, such as `h264` or `mov,mp4,m4a,3gp,3g2,mj2`, and is
+     * empty when FFmpeg names nothing. [message] is one call of FFmpeg's logger without its trailing
+     * newline, so a line FFmpeg builds in parts arrives in parts.
+     */
     public fun log(level: FFmpegLogLevel, component: String, message: String)
 }
 

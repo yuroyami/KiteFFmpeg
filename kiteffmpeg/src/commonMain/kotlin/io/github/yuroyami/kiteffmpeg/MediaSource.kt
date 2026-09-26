@@ -10,9 +10,13 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 public expect class MediaSource : AutoCloseable {
 
+    /** Every stream the container declares, including streams this build cannot decode. */
     public val streams: List<StreamInfo>
+    /** The container's duration in microseconds, or null when it declares none, as for a live stream. */
     public val durationMicros: Long?
+    /** FFmpeg's name for the container format, such as `mov,mp4,m4a,3gp,3g2,mj2` or `matroska,webm`. */
     public val formatName: String
+    /** The container-level tags, such as `title` and `artist`, as the file wrote them. */
     public val metadata: Map<String, String>
 
     /** The container's chapter table. Empty when the container declares none. */
@@ -26,6 +30,15 @@ public expect class MediaSource : AutoCloseable {
     public val unusedOpenOptions: List<String>
 
     /**
+     * The CONTAINER's own bit rate estimate in bits per second, or null when it has none.
+     *
+     * Not the sum of the streams' rates and not a measurement: it is what the demuxer wrote down,
+     * which for a variable-rate file is an estimate and for a live source is usually nothing. Read
+     * it as a hint for a progress bar or a quality label, never as an exact figure.
+     */
+    public val bitrateBps: Long?
+
+    /**
      * Where this container's timeline begins, in microseconds. It is 0 for most mp4 files, and
      * commonly around 1.4s for MPEG-TS.
      *
@@ -35,15 +48,6 @@ public expect class MediaSource : AutoCloseable {
      * bounds) are relative to the start of the content, so `10_000_000` always means ten seconds
      * in. Subtract this from a frame's own pts to move it onto the timeline those parameters use.
      */
-    /**
-     * The CONTAINER's own bit rate estimate in bits per second, or null when it has none.
-     *
-     * Not the sum of the streams' rates and not a measurement: it is what the demuxer wrote down,
-     * which for a variable-rate file is an estimate and for a live source is usually nothing. Read
-     * it as a hint for a progress bar or a quality label, never as an exact figure.
-     */
-    public val bitrateBps: Long?
-
     public val startTimeMicros: Long
 
     /**
@@ -216,6 +220,7 @@ public expect class MediaSource : AutoCloseable {
 
     override fun close()
 
+    /** Opens sources. */
     public companion object {
         /**
          * Open a local file or URL.

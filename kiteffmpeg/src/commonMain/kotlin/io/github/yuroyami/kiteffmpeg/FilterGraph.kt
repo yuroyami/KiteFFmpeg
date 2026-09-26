@@ -394,8 +394,11 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
         backend.free()
     }
 
+    /** Builds graphs. */
     public companion object {
         /**
+         * Builds a single-input video graph from [description], for input frames of the given shape.
+         *
          * @param description filter chain, e.g. `scale=1280:720,eq=brightness=0.1,format=yuv420p`
          * @param width  input frame width
          * @param height input frame height

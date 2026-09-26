@@ -37,6 +37,7 @@ private fun Double.ffmpegText(): String {
 
 // --- Video steps ------------------------------------------------------------------------------
 
+/** Scales to [width] by [height] pixels. -1 on one side keeps the aspect ratio. */
 public data class Scale(val width: Int, val height: Int) : FilterStep {
     init {
         require(width != 0 && height != 0) { "scale takes -1 to keep aspect, never 0" }
@@ -46,6 +47,7 @@ public data class Scale(val width: Int, val height: Int) : FilterStep {
     override fun compile(): String = "scale=$width:$height"
 }
 
+/** Crops to [width] by [height] pixels at [x] and [y]. With both offsets null the crop is centred. */
 public data class Crop(
     val width: Int,
     val height: Int,
@@ -59,6 +61,7 @@ public data class Crop(
     }
 }
 
+/** Pads to [width] by [height] pixels with [color], with the input at [x] and [y]. -1 centres it. */
 public data class Pad(
     val width: Int,
     val height: Int,
@@ -76,6 +79,7 @@ public data class Pad(
     }
 }
 
+/** A quarter turn for [Transpose], with or without a mirror. */
 public enum class QuarterTurn(internal val transpose: String) {
     Clockwise("clock"),
     CounterClockwise("cclock"),
@@ -83,16 +87,19 @@ public enum class QuarterTurn(internal val transpose: String) {
     CounterClockwiseWithFlip("cclock_flip"),
 }
 
+/** Turns the picture a quarter turn. */
 public data class Transpose(val turn: QuarterTurn) : FilterStep {
     override val filterName: String get() = "transpose"
     override fun compile(): String = "transpose=${turn.transpose}"
 }
 
+/** Converts to the constant [rate], dropping or repeating frames. */
 public data class Fps(val rate: Rational) : FilterStep {
     override val filterName: String get() = "fps"
     override fun compile(): String = "fps=${rate.num}/${rate.den}"
 }
 
+/** Converts the pixels to [format]. */
 public data class Format(val format: PixelFormat) : FilterStep {
     override val filterName: String get() = "format"
     override fun compile(): String = "format=${format.name}"
@@ -118,13 +125,16 @@ public data class Eq(
     }
 }
 
+/** The deinterlacing filters [Deinterlace] can use. */
 public enum class Deinterlacer(internal val ff: String) { Yadif("yadif"), Bwdif("bwdif") }
 
+/** Deinterlaces with [with]. */
 public data class Deinterlace(val with: Deinterlacer = Deinterlacer.Bwdif) : FilterStep {
     override val filterName: String get() = with.ff
     override fun compile(): String = with.ff
 }
 
+/** Draws the outline of a [width] by [height] box at [x] and [y], in [color], [thickness] pixels wide. */
 public data class DrawBox(
     val x: Int,
     val y: Int,
@@ -146,6 +156,7 @@ public data class Volume(val gain: Double) : FilterStep {
     override fun compile(): String = "volume=${gain.ffmpegText()}"
 }
 
+/** Changes the tempo by the factor [tempo] and keeps the pitch. FFmpeg takes 0.5 to 100. */
 public data class Atempo(val tempo: Double) : FilterStep {
     init {
         require(tempo in 0.5..100.0) { "atempo accepts 0.5 to 100, got $tempo" }
@@ -155,6 +166,7 @@ public data class Atempo(val tempo: Double) : FilterStep {
     override fun compile(): String = "atempo=${tempo.ffmpegText()}"
 }
 
+/** Resamples to [sampleRate]. */
 public data class Aresample(val sampleRate: Int) : FilterStep {
     override val filterName: String get() = "aresample"
     override fun compile(): String = "aresample=$sampleRate"
@@ -166,6 +178,7 @@ public data class Aresample(val sampleRate: Int) : FilterStep {
  * pipe, which the chain separator must not see.
  */
 public data class Pan(val layout: String, val outputs: List<String>) : FilterStep {
+    /** The same, with the output expressions as separate arguments. */
     public constructor(layout: String, vararg outputs: String) : this(layout, outputs.toList())
 
     init {
@@ -177,6 +190,7 @@ public data class Pan(val layout: String, val outputs: List<String>) : FilterSte
         "pan=${escapeFilterValue((listOf(layout) + outputs).joinToString("|"))}"
 }
 
+/** Pins the sample format, the rate or the channel layout that the next stage receives. */
 public data class AudioFormat(
     /**
      * The sample format to pin, typed. It was a raw String while [SampleFormat] already existed,
@@ -229,6 +243,7 @@ public data class Raw(val fragment: String) : FilterStep {
 
 // --- The chain --------------------------------------------------------------------------------
 
+/** Typed steps in order. [compile] joins them into the description a filter graph takes. */
 public data class FilterChain(val steps: List<FilterStep>) {
     init {
         require(steps.isNotEmpty()) { "a filter chain needs at least one step" }
@@ -291,54 +306,75 @@ public data class FilterChain(val steps: List<FilterStep>) {
 
 // --- Builder sugar (sugar over constructors, never the other way) -----------------------
 
+/** Collects the steps of a video [FilterChain]. See [videoFilters]. */
 public class VideoFilterBuilder internal constructor() {
     private val steps = mutableListOf<FilterStep>()
 
+    /** Adds a [Scale] step. */
     public fun scale(width: Int, height: Int) { steps += Scale(width, height) }
+    /** Adds a [Crop] step. */
     public fun crop(width: Int, height: Int, x: Int? = null, y: Int? = null) { steps += Crop(width, height, x, y) }
+    /** Adds a [Pad] step. */
     public fun pad(width: Int, height: Int, x: Int = -1, y: Int = -1, color: String = "black") {
         steps += Pad(width, height, x, y, color)
     }
+    /** Adds a [Transpose] step. */
     public fun transpose(turn: QuarterTurn) { steps += Transpose(turn) }
+    /** Adds an [Fps] step. */
     public fun fps(rate: Rational) { steps += Fps(rate) }
+    /** Adds a [Format] step. */
     public fun format(format: PixelFormat) { steps += Format(format) }
+    /** Adds an [Eq] step. */
     public fun eq(
         brightness: Double? = null,
         contrast: Double? = null,
         saturation: Double? = null,
         gamma: Double? = null,
     ) { steps += Eq(brightness, contrast, saturation, gamma) }
+    /** Adds a [Deinterlace] step. */
     public fun deinterlace(with: Deinterlacer = Deinterlacer.Bwdif) { steps += Deinterlace(with) }
+    /** Adds a [DrawBox] step. */
     public fun drawBox(x: Int, y: Int, width: Int, height: Int, color: String = "red", thickness: Int = 3) {
         steps += DrawBox(x, y, width, height, color, thickness)
     }
+    /** Adds a [Raw] step. */
     public fun raw(fragment: String) { steps += Raw(fragment) }
 
     internal fun build(): FilterChain = FilterChain(steps.toList())
 }
 
+/** Collects the steps of an audio [FilterChain]. See [audioFilters]. */
 public class AudioFilterBuilder internal constructor() {
     private val steps = mutableListOf<FilterStep>()
 
+    /** Adds a [Volume] step. */
     public fun volume(gain: Double) { steps += Volume(gain) }
+    /** Adds an [Atempo] step. */
     public fun atempo(tempo: Double) { steps += Atempo(tempo) }
+    /** Adds an [Aresample] step. */
     public fun aresample(sampleRate: Int) { steps += Aresample(sampleRate) }
+    /** Adds a [Pan] step. */
     public fun pan(layout: String, vararg outputs: String) { steps += Pan(layout, *outputs) }
+    /** Adds an [AudioFormat] step. */
     public fun aformat(
         sampleFormat: SampleFormat? = null,
         sampleRate: Int? = null,
         channelLayout: String? = null,
     ) { steps += AudioFormat(sampleFormat, sampleRate, channelLayout) }
+    /** Adds a [Loudnorm] step. */
     public fun loudnorm(integrated: Double = -24.0, truePeak: Double = -2.0, range: Double = 7.0) {
         steps += Loudnorm(integrated, truePeak, range)
     }
+    /** Adds a [Raw] step. */
     public fun raw(fragment: String) { steps += Raw(fragment) }
 
     internal fun build(): FilterChain = FilterChain(steps.toList())
 }
 
+/** A video [FilterChain] built in [block], such as `videoFilters { scale(1280, -1); fps(Rational(30, 1)) }`. */
 public fun videoFilters(block: VideoFilterBuilder.() -> Unit): FilterChain =
     VideoFilterBuilder().apply(block).build()
 
+/** An audio [FilterChain] built in [block], such as `audioFilters { volume(0.5); atempo(1.25) }`. */
 public fun audioFilters(block: AudioFilterBuilder.() -> Unit): FilterChain =
     AudioFilterBuilder().apply(block).build()

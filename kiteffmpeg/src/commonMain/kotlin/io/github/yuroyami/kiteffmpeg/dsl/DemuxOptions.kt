@@ -60,6 +60,7 @@ public data class DemuxOptions(
         format?.let { add(FORCED_FORMAT_KEY to it) }
     }
 
+    /** Ready-made option sets. */
     public companion object {
         /** Starts a live stream sooner: no optional buffering and a short probe. */
         public val LowLatency: DemuxOptions = DemuxOptions(

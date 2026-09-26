@@ -68,6 +68,7 @@ public expect class MediaSink : AutoCloseable {
      */
     override fun close()
 
+    /** Opens sinks. */
     public companion object {
         /**
          * Open a sink writing to [path].
@@ -116,11 +117,19 @@ public expect class CopyStream {
     public fun write(packet: Packet)
 }
 
+/**
+ * What a video encoder writes: the format, the picture size and pixel format, the rate, and the
+ * colour, pixel shape and HDR metadata the output declares. [MediaSink.addVideoEncoder] opens an
+ * encoder from it, and [Transcoder.transcode] takes one as its video spec.
+ */
 public data class VideoEncoderSpec(
     /** The format to write. */
     val codec: CodecId,
+    /** The output width in pixels. */
     val width: Int,
+    /** The output height in pixels. */
     val height: Int,
+    /** The pixel format the encoder writes. */
     val pixelFormat: PixelFormat = PixelFormat.Yuv420p,
     /**
      * The constant rate of the output. The encoder's time-base has one tick per frame at this
@@ -128,7 +137,9 @@ public data class VideoEncoderSpec(
      * reach it, the way FFmpeg's `fps` filter does.
      */
     val frameRate: Rational,
+    /** The target bit rate in bits per second, for encoders that take one. */
     val bitrateBps: Long = 4_000_000L,
+    /** Frames from one keyframe to the next. The default is two seconds of frames. */
     val keyframeIntervalFrames: Int = (frameRate.asDouble * 2).toInt().coerceAtLeast(1),
     /**
      * Encoder-specific options, passed through as `av_opt_set` strings: `"preset" to "veryfast"`,
@@ -162,13 +173,21 @@ public data class VideoEncoderSpec(
     val encoder: EncoderId? = null,
 )
 
+/**
+ * What an audio encoder writes: the format, the rate, the channels and the sample format.
+ * [MediaSink.addAudioEncoder] opens an encoder from it, and [Transcoder.transcode] takes one as its
+ * audio spec.
+ */
 public data class AudioEncoderSpec(
     /** The format to write. */
     val codec: CodecId,
+    /** Samples per second, for each channel. */
     val sampleRate: Int = 44_100,
+    /** The channel count. */
     val channels: Int = 2,
     /** [SampleFormat.None] picks the encoder's preferred format (e.g. fltp for aac). */
     val sampleFormat: SampleFormat = SampleFormat.None,
+    /** The target bit rate in bits per second, for encoders that take one. */
     val bitrateBps: Long = 128_000L,
     /** Encoder-specific options, passed through as `av_opt_set` strings. */
     val options: Map<String, String> = emptyMap(),
@@ -215,7 +234,9 @@ public expect class AudioEncoder : AutoCloseable {
     public val frameSize: Int
     /** The sample format actually negotiated (resolves [AudioEncoderSpec.sampleFormat] = None). */
     public val sampleFormat: SampleFormat
+    /** The sample rate the encoder opened with. */
     public val sampleRate: Int
+    /** The channel count the encoder opened with. */
     public val channels: Int
 
     /**

@@ -107,11 +107,17 @@ public data class StreamInfo(
     }
 }
 
+/** What the container declares about a video stream. */
 public data class VideoStreamInfo(
+    /** The coded width in pixels. */
     val width: Int,
+    /** The coded height in pixels. */
     val height: Int,
+    /** The pixel format the decoder produces. */
     val pixelFormat: PixelFormat,
+    /** The frame rate the container declares. */
     val frameRate: Rational,
+    /** The shape of one pixel, width over height. 1:1 is square. */
     val sampleAspectRatio: Rational,
     /** Owned snapshot of the container/bitstream colour declaration. */
     val color: ColorInfo = ColorInfo.Unspecified,
@@ -152,6 +158,7 @@ public enum class FieldOrder {
     /** True for the two interlaced answers, which is the question a deinterlacer actually asks. */
     public val isInterlaced: Boolean get() = this == TopFirst || this == BottomFirst
 
+    /** Reads the C layer's field order codes. */
     public companion object {
         /** Maps the C layer's 0 to 3 onto this enum; anything else is [Unknown]. */
         internal fun ofCode(code: Int): FieldOrder = when (code) {
@@ -171,6 +178,7 @@ public data class Vp9CodecInfo(
     val chromaSubsampling: Vp9ChromaSubsampling?,
 )
 
+/** A VP9 profile. [number] is its number in the VP9 bitstream specification. */
 public enum class Vp9Profile(public val number: Int) {
     Profile0(0),
     Profile1(1),
@@ -178,7 +186,9 @@ public enum class Vp9Profile(public val number: Int) {
     Profile3(3),
     ;
 
+    /** Lookups by number. */
     public companion object {
+        /** The profile numbered [value], or null for a number VP9 does not define. */
         public fun fromNumber(value: Int): Vp9Profile? = entries.firstOrNull { it.number == value }
     }
 }
@@ -201,18 +211,23 @@ public enum class Vp9Level(public val code: Int) {
     Level6_2(62),
     ;
 
+    /** Lookups by code. */
     public companion object {
+        /** The level with code [value], or null for a code VP9 does not define. */
         public fun fromCode(value: Int): Vp9Level? = entries.firstOrNull { it.code == value }
     }
 }
 
+/** Bits per sample in a VP9 stream. */
 public enum class Vp9BitDepth(public val bits: Int) {
     Eight(8),
     Ten(10),
     Twelve(12),
     ;
 
+    /** Lookups by bit count. */
     public companion object {
+        /** The bit depth of [value] bits, or null for a depth VP9 does not define. */
         public fun fromBits(value: Int): Vp9BitDepth? = entries.firstOrNull { it.bits == value }
     }
 }
@@ -225,14 +240,20 @@ public enum class Vp9ChromaSubsampling(public val code: Int) {
     Yuv444(444),
     ;
 
+    /** Lookups by code. */
     public companion object {
+        /** The subsampling with code [value], such as 420, or null for a code this enum lacks. */
         public fun fromCode(value: Int): Vp9ChromaSubsampling? = entries.firstOrNull { it.code == value }
     }
 }
 
+/** What the container declares about an audio stream. */
 public data class AudioStreamInfo(
+    /** Samples per second, for each channel. */
     val sampleRate: Int,
+    /** The channel count. */
     val channels: Int,
+    /** The sample format the decoder produces. */
     val sampleFormat: SampleFormat,
     /**
      * Which speaker each channel belongs to, as FFmpeg's native order mask: one bit per speaker.
@@ -297,6 +318,7 @@ public data class FrameInfo(
 
     val ptsSeconds: Double get() = if (hasPts) pts * timeBase.asDouble else Double.NaN
 
+    /** The sentinel FFmpeg uses for a missing timestamp. */
     public companion object {
         /** FFmpeg's `AV_NOPTS_VALUE` sentinel. */
         public const val NOPTS: Long = Long.MIN_VALUE

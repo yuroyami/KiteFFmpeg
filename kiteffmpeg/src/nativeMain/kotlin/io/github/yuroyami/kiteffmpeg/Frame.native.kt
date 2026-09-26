@@ -67,12 +67,8 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 
 /**
- * AVFrame-backed [Frame] implementation. The native pointer ([nativeFrame]) is `internal`:
- * users go through [info] / [copyPlanesToByteArray]; the filter graph & encoder modules in
- * this package read the pointer directly for zero-copy hand-offs.
- *
- * Construction: see [Frame.acquire] (alloc) and [Frame.wrap] (when an existing AVFrame should
- * be adopted, e.g. from a decoder).
+ * One decoded or constructed picture or block of audio, held in native memory. Read it through
+ * [info] and [copyPlanesToByteArray], and close it when done.
  */
 public actual class Frame internal constructor(
     internal val nativeFrame: CPointer<kc_frame>,

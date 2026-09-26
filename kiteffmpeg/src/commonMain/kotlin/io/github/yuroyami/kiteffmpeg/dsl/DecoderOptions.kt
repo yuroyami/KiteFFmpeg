@@ -29,6 +29,7 @@ public data class DecoderOptions(
         options.forEach { (key, value) -> add(key to value) }
     }
 
+    /** Ready-made option sets. */
     public companion object {
         /** The scrubbing pair: cheapest legal decode of only what a scrubbing thumb needs. */
         public val Scrubbing: DecoderOptions = DecoderOptions(
@@ -48,12 +49,14 @@ public enum class DecoderSkip(internal val ff: String) {
     All("all"),
 }
 
+/** How a decoder spreads its work across threads: whole frames, slices of one frame, or both. */
 public enum class DecoderThreadType(internal val ff: String) {
     Frame("frame"),
     Slice("slice"),
     Both("frame+slice"),
 }
 
+/** How closely a decoder checks the bitstream, by the flag names of FFmpeg's `err_detect` option. */
 public enum class ErrorDetection(internal val ff: String) {
     CrcCheck("crccheck"),
     Bitstream("bitstream"),

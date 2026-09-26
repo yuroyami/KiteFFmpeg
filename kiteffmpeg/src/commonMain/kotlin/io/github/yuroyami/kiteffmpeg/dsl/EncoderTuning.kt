@@ -130,6 +130,7 @@ public data class VideoEncoderTuning(
     }
 }
 
+/** Typed audio encoder settings, which [applyTo] folds into an [AudioEncoderSpec]. */
 public data class AudioEncoderTuning(
     val profile: String? = null,
     val bitrateBps: Long? = null,
@@ -141,6 +142,7 @@ public data class AudioEncoderTuning(
         }
     }
 
+    /** [spec] with these settings applied. Throws when a setting collides with the same key in the spec's options. */
     public fun applyTo(spec: AudioEncoderSpec): AudioEncoderSpec {
         require(profile == null || !spec.options.containsKey("profile")) {
             "the typed knob 'profile' collides with the same key in the spec's options map; " +
@@ -151,6 +153,7 @@ public data class AudioEncoderTuning(
     }
 }
 
+/** The x264 and x265 speed presets, fastest first. A slower preset spends more time for a smaller file. */
 public enum class EncoderPreset(internal val ff: String) {
     UltraFast("ultrafast"),
     SuperFast("superfast"),
@@ -163,6 +166,7 @@ public enum class EncoderPreset(internal val ff: String) {
     VerySlow("veryslow"),
 }
 
+/** How an encoder spends bits. */
 public sealed interface RateControl {
     /** Quality-targeted: one CRF value, bitrate left to the encoder. */
     public data class ConstantQuality(val crf: Int) : RateControl {
