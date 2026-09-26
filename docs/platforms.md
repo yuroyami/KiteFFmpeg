@@ -32,50 +32,16 @@ Two points decide whether KiteFFmpeg is usable for you:
   download step. `mingwX64` builds and tests in CI; `linuxArm64` runs its native suite in an arm64
   container; `iosX64` and `macosX64` remain unqualified.
 
-## FFmpeg is a prerequisite
+## FFmpeg comes with the library
 
-KiteFFmpeg EMBEDS FFmpeg's libav\* libraries plus dav1d inside each native target's klib (2026-08-22), so a consumer provisions nothing. Inside this repository the vendored trees under `native-libs/` are what gets embedded; a host without them falls back to a system FFmpeg for its own desktop target only. See the README's [target table](https://github.com/yuroyami/KiteFFmpeg#where-it-runs).
+KiteFFmpeg embeds FFmpeg's libav\* libraries plus dav1d in every published artifact: inside each
+native target's klib, and as native libraries inside the JVM jar and the Android AAR. An app
+provisions nothing, and its users install nothing. See the README's
+[target table](https://github.com/yuroyami/KiteFFmpeg#where-it-runs).
 
-### Mode 1: dynamic against system FFmpeg
-
-This is the default, and what the macOS arm64 build does today. The Gradle build's `FFmpegPaths`
-finds your system FFmpeg, compiles the C archive against its headers and links the shared libraries
-dynamically. The cinterop def parses only KiteFFmpeg's opaque helper, handle and ABI headers. The
-module build still supplies the FFmpeg include path redundantly to cinterop, where that reduced
-header set does not use it. Your users need FFmpeg installed at runtime.
-
-=== "macOS"
-
-    ```bash
-    brew install ffmpeg
-    ```
-
-    Override the discovered prefix with `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties` if Homebrew lives somewhere non-standard.
-
-=== "Linux"
-
-    ```bash
-    sudo apt install ffmpeg libavformat-dev libavcodec-dev \
-        libavfilter-dev libavutil-dev libswscale-dev libswresample-dev
-    ```
-
-`FFmpegPaths` discovers the apt-installed headers and libraries for the C archive and final link.
-
-### Mode 2: vendored static (release)
-
-For a self-contained binary, build a minimal FFmpeg from source. The build expects the FFmpeg source tree at `vendor/ffmpeg`, so clone it first:
-
-```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
-
-./gradlew :kiteffmpeg:buildFFmpegForMacosArm64
-# or build every configured target at once:
-./gradlew :kiteffmpeg:buildFFmpegForAll
-```
-
-The Gradle task cross-compiles a pinned codec and filter set and drops `.a` libraries under `native-libs/<license>/<target>/` (`lgpl` or `gpl`). `FFmpegPaths` notices, compiles the C archive against that tree and switches the final link to the static libraries. Desktop size is around 25 MB; no mobile size is claimed before it is measured.
-
-Configure and make never see the checkout path or final output path. The task copies source to a unique hash-free directory under `java.io.tmpdir`, excluding `.git` and every `build` subtree, installs the normalized configure invocation at `lib/kiteffmpeg/ffmpeg-configure.txt`, verifies that record plus the archives and headers there, copies with Java/NIO to a verified sibling staging tree, then replaces the final tree. Packaging reads only that exact single-line evidence. A failure leaves the previous output intact and prints the retained scratch path.
+The embedded FFmpeg is a minimal static build from source with a pinned codec and filter set. Its
+desktop size is around 25 MB; no mobile size is claimed before it is measured. To build it inside
+this repository, see [Building from source](building-from-source.md).
 
 The static profile is **LGPL by default**: no `--enable-gpl`, no libx264 / libx265. That is the App-Store- and closed-source-safe flavor.
 

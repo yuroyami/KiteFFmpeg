@@ -100,5 +100,6 @@ nav:
       - Platform support: platforms.md
       - Licensing: licensing.md
       - Troubleshooting: troubleshooting.md
+      - Building from source: building-from-source.md
       - About and status: about.md
       - API reference ▸: https://yuroyami.github.io/KiteFFmpeg/api/

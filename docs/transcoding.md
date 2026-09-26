@@ -38,8 +38,8 @@ regardless of how long the input is.
 
 `transcode` is a `suspend fun`, so call it from a coroutine. It suspends until the whole file is written. The work itself runs on a dispatcher for blocking work, not on the caller's, so calling it from a UI thread does not freeze that thread. See [Threads and cancellation](#threads-and-cancellation).
 
-!!! note "Requires FFmpeg present at link time"
-    KiteFFmpeg binds to FFmpeg's libav\* libraries. The library is consumed by building from source today; install FFmpeg first (`brew install ffmpeg` on macOS, `apt install` on Linux) or use a vendored static build. See [Platform support](platforms.md) for what runs where.
+!!! note "FFmpeg comes with the library"
+    The published artifacts embed FFmpeg, so there is nothing to install. What each build can encode is in [Platform support](platforms.md).
 
 ## The option surface
 

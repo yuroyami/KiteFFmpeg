@@ -27,7 +27,7 @@ The generated Android profile contains MediaCodec names, but the current Android
 source, host tests, link and packaging, with exact named-decoder selection documented in
 [Decoding](decoding.md). See [Platform support](platforms.md) and [Licensing](licensing.md).
 
-- [Getting started](getting-started.md): install FFmpeg, wire the build, run your first transcode.
+- [Getting started](getting-started.md): add the dependency, probe your build, run your first transcode.
 - [API reference](https://yuroyami.github.io/KiteFFmpeg/api/): every public type and signature.
 
 ## Why KiteFFmpeg
@@ -161,7 +161,7 @@ See **[Filtering](filtering.md)**.
 
 | | |
 |---|---|
-| **[Getting started](getting-started.md)** | Install FFmpeg, build, and run your first transcode. |
+| **[Getting started](getting-started.md)** | Add the dependency and run your first transcode. |
 | **[Transcoding](transcoding.md)** | The `Transcoder.transcode` pipeline: specs, trim, audio copy, progress. |
 | **[Decoding & frames](decoding.md)** | `MediaSource`, decode flows, single-pass multi-stream, thumbnails. |
 | **[Filtering](filtering.md)** | `FilterGraph` video and audio graphs, single and multi-input. |

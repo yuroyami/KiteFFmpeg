@@ -1,7 +1,7 @@
 # Getting Started
 
-Learn how to install FFmpeg, wire the module, probe what your build can do, inspect a media file,
-and run your first transcode with KiteFFmpeg: a coroutine-first Kotlin Multiplatform API over
+Learn how to add KiteFFmpeg to a project, probe what your build can do, inspect a media file, and
+run your first transcode with KiteFFmpeg: a coroutine-first Kotlin Multiplatform API over
 FFmpeg's libav* libraries.
 
 !!! warning "Before you start"
@@ -16,72 +16,10 @@ FFmpeg's libav* libraries.
     The consumer script, release status and per-target evidence are in the
     [README](https://github.com/yuroyami/KiteFFmpeg#where-it-runs).
 
-## Step 1: Get FFmpeg
+## Step 1: Add the dependency
 
-KiteFFmpeg links against FFmpeg's libav* libraries. You need them present before you build. There are two ways to source them.
-
-=== "System FFmpeg (default)"
-
-    Install FFmpeg with your package manager. This is what the macOS arm64 build does today.
-
-    ```bash
-    # macOS
-    brew install ffmpeg
-
-    # Debian / Ubuntu
-    sudo apt install -y \
-        libavformat-dev libavcodec-dev libavfilter-dev \
-        libavutil-dev libswscale-dev libswresample-dev
-    ```
-
-    `FFmpegPaths` finds Homebrew on macOS (override with `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties`) or apt-installed libraries on Linux, compiles KiteFFmpeg's C archive against their headers, and links their shared libraries. The cinterop def itself parses only KiteFFmpeg's opaque helper, handle and ABI headers; the module build still passes the FFmpeg include path to cinterop redundantly, where the reduced header set leaves it unused. Your users need their own FFmpeg installed at runtime.
-
-=== "Vendored static build"
-
-    For a release where you do not want a runtime FFmpeg dependency, build a minimal static FFmpeg from source with the Gradle task. It drops `.a` libraries under `native-libs/<license>/<target>/`; `FFmpegPaths` compiles the C archive against that tree and switches the final link to the static libraries automatically.
-
-    The task expects the FFmpeg source tree at `vendor/ffmpeg`. Cloning it is a **mandatory first step**:
-
-    ```bash
-    git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
-
-    ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64
-    # or build every target you have toolchains for:
-    ./gradlew :kiteffmpeg:buildFFmpegForAll
-    ```
-
-    Configure, make and install run in a unique hash-free directory under `java.io.tmpdir`. The task installs the normalized configure invocation as the single-line `lib/kiteffmpeg/ffmpeg-configure.txt` provenance record, requires it during verification, copies the verified install to a sibling staging directory and only then replaces `native-libs`. A failed build preserves the last good tree even when the checkout path contains `#`; packaging reads only that installed record.
-
-    Every profile is portable (2026-08-22): no third-party libraries are needed on any target. The prerequisites are `make`, a C toolchain and, for the x86_64 targets' assembly, `nasm`. The dav1d flavour additionally needs `meson` and `ninja`. On macOS: `brew install nasm meson ninja`. See [Troubleshooting](troubleshooting.md#vendored-build-prerequisites) if configure fails.
-
-    Every bake is **LGPL** (no libx264 / libx265). There are no GPL build tasks: a GPL tree is something you build and own yourself, and point this repository's build at.
-
-!!! tip "Android"
-
-    Android uses a separate LGPL-only FFmpeg profile with FFmpeg's MediaCodec wrappers. The
-    Kotlin/Native flow cross-compiles that profile before building a klib. The regular Android
-    source model uses the same profile through JNI, packages only `arm64-v8a`, `armeabi-v7a` and
-    `x86_64`, and
-    reaches a platform codec only through an FFmpeg name such as `h264_mediacodec`. The current
-    proof stops at source, host tests, link and packaging; it is not a public install or playback
-    result. See [Platform support](platforms.md) for both target models.
-
-!!! tip "Mobile Apple local trees"
-
-    On an arm64 Mac, build the host, device and simulator trees in one producer invocation:
-
-    ```bash
-    ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 \
-      :kiteffmpeg:buildFFmpegForIosArm64 \
-      :kiteffmpeg:buildFFmpegForIosSimulatorArm64
-    ```
-
-    Generated trees remain untracked. iOS has no GPL task; `buildFFmpegForIos*Gpl` is deliberately not registered. Repository build/path resolution refuses GPL for every iOS target before tree lookup with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
-
-## Step 2: Wire the module
-
-**The normal way is one dependency line**, and it needs nothing else on disk because FFmpeg rides
-inside the published artifacts:
+One dependency line is the whole setup. FFmpeg is compiled into every published artifact, so there
+is nothing to install, no Gradle plugin and no download step:
 
 ```kotlin
 sourceSets.commonMain.dependencies {
@@ -89,45 +27,10 @@ sourceSets.commonMain.dependencies {
 }
 ```
 
-The rest of this step covers working INSIDE the repository, which is what a contributor needs and
-what the runnable examples below assume. A consumer does not need any of it.
+Your users need nothing installed either. To build KiteFFmpeg itself from this repository, see
+[Building from source](building-from-source.md).
 
-**Inside the KiteFFmpeg repository.** The `:kiteffmpeg-sample` module already depends on `:kiteffmpeg` and is the fastest way to run the API against real arguments. Everything below works from a plain clone.
-
-**From your own project.** Clone KiteFFmpeg alongside it and compose the builds:
-
-=== "settings.gradle.kts"
-
-    ```kotlin
-    includeBuild("../KiteFFmpeg")
-    ```
-
-=== "build.gradle.kts"
-
-    ```kotlin
-    kotlin {
-        macosArm64()
-        sourceSets.commonMain.dependencies {
-            implementation("io.github.yuroyami:kiteffmpeg")
-        }
-    }
-    ```
-
-    A composite build substitutes the dependency with the included project, so the version is omitted deliberately. Your FFmpeg comes from KiteFFmpeg's own `FFmpegPaths` resolution (Step 1).
-
-To test a consumer against locally published artifacts instead, run `./gradlew publishToMavenLocal`. On an arm64 Mac, `-Pkiteffmpeg.applePhoneTargetsOnly=true` narrows that to macosArm64, iosArm64 and iosSimulatorArm64. Both selectors are local-only; any remote `publish` task refuses them during configuration.
-
-Once `kiteffmpeg` is publicly published, a native
-consumer build script can replace the composite build. It is written out in full in the
-[README](https://github.com/yuroyami/KiteFFmpeg#install); the plugin is mandatory for Kotlin/Native
-because the klib's `ffmpeg.def` carries no `-L`, and so is the `license` choice. This is not a
-promise that a JVM jar or Android AAR is already available.
-
-!!! note "`kiteffmpeg-gpl` does not exist"
-
-    `kiteffmpeg` is LGPL and is safe for commercial distribution. A `kiteffmpeg-gpl` add-on packaging libx264 / libx265 has a README in the repository and nothing else: no build script, and commented out of `settings.gradle.kts`. There are no `Gpl` build tasks either, so a GPL flavour is a tree you build and own, selected with `-Pkiteffmpeg.ffmpeg.license=gpl`.
-
-## Step 3: Probe what your build can do
+## Step 2: Probe what your build can do
 
 Every public type lives under `io.github.yuroyami.kiteffmpeg`. Start with the `FFmpeg` object: it reports the linked library versions and tells you which encoders, decoders, and filters are available in this particular build.
 
@@ -148,7 +51,7 @@ fun printCapabilities() {
 
 Capability probing matters because builds differ. A hardware encoder like `h264_videotoolbox` exists on macOS but not in a Linux VM; checking `FFmpeg.hasEncoder(...)` at runtime lets you pick a codec that is actually present.
 
-## Step 4: Open and inspect a file
+## Step 3: Open and inspect a file
 
 `MediaSource.open(path)` opens an input via libavformat and exposes its streams and metadata. It is `AutoCloseable`, so wrap it in `use { }`.
 
@@ -175,7 +78,7 @@ MediaSource.open("input.mp4").use { src ->
 
 Each `StreamInfo` carries an `index`, a `type` (`MediaType.Video`, `Audio`, `Subtitle`, ...), a `codec` (`CodecId`), a `timeBase` (`Rational`), and either a `video` (`VideoStreamInfo`) or `audio` (`AudioStreamInfo`) detail block. Reading frames out of a stream is covered in [Decoding](decoding.md).
 
-## Step 5: Your first transcode
+## Step 4: Your first transcode
 
 `Transcoder.transcode(...)` runs the full pipeline in one pass: demux -> decode -> filter -> encode -> mux. Demux means split a container file into its separate streams. Mux means write streams back into a container file. It is a `suspend` function, so call it from a coroutine.
 
@@ -248,12 +151,12 @@ Remuxer.remux("input.mp4", "output.mkv")   // no re-encode, runs in seconds
 
 See [Transcoding](transcoding.md) for filters, hardware encoders, and progress in depth, and [Remuxing](remuxing.md) for stream-copy and keyframe-snapped trim.
 
-## Step 6: Run the sample
+## Step 5: Run the sample
 
 The `:kiteffmpeg-sample` module is a small macOS arm64 CLI that exercises the whole API. Build it, then point it at any media file.
 
 ```bash
-brew install ffmpeg                     # macOS prereq
+# The repository build needs an FFmpeg tree; see Building from source.
 ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
 
 KEXE=kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
@@ -297,5 +200,5 @@ Reading the sample source is the fastest way to see each API used against real a
 - **[Remuxing](remuxing.md)**: lossless `Remuxer.remux(...)` and stream-copy.
 - **[Concurrency](concurrency.md)**: the threading, confinement, and cancellation rules.
 - **[Recipes](recipes.md)**: copy-paste patterns for common tasks.
-- **[Troubleshooting](troubleshooting.md)**: FFmpeg not found, Windows setup, VideoToolbox on VMs.
+- **[Troubleshooting](troubleshooting.md)**: repository build problems, Windows setup, VideoToolbox on VMs.
 - **[API reference](https://yuroyami.github.io/KiteFFmpeg/api/)**: every public type and signature.

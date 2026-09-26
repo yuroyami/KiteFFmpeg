@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Most build-time problems have one cause: KiteFFmpeg links against an FFmpeg **you** provide, and the build could not find or produce it.
+An app that uses the published artifacts needs nothing but the dependency line, because FFmpeg is inside them. Most problems on this page come from building KiteFFmpeg itself from this repository, where the build must find or produce an FFmpeg tree; [Building from source](building-from-source.md) explains where it looks.
 
 ## "No FFmpeg install found for \<target\>"
 
@@ -107,8 +107,8 @@ Its local proof scope is
 `-Pkiteffmpeg.phoneTargetsOnly=true` and needs both `ANDROID_SDK_ROOT` and `ANDROID_NDK_HOME` plus
 the complete local FFmpeg trees.
 
-There is no public Android AAR to troubleshoot in a consumer build yet. The macOS JNI dylib is a
-JVM test fixture, not a desktop distribution, and x86_64 Android has link/package evidence only.
+The Android AAR is on Maven Central. It declares `minSdkVersion 26` and carries the three ABIs
+above.
 FFmpeg's MediaCodec wrapper is selected only by an FFmpeg codec name after
 the Android loader accepts the linked FFmpeg identity and attaches the VM; KiteFFmpeg does not call
 the platform codec API directly.

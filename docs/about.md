@@ -44,12 +44,7 @@ The two things a reader most often needs from it:
 
 ## What's next
 
-- **Android runtime qualification and publication**: the JNI/AAR source and packaging model is in
-  place; playback qualification, physical-device evidence, consumer publication and app/UI
-  integration remain.
-- **Bitstream filters** (h264 to/from Annex B) so stream copy reaches MPEG-TS.
 - **Hardware decode and full hwframes pipelines**: zero-copy VideoToolbox / CUDA.
-- **iOS qualification**: the repository now has an LGPL mobile Apple FFmpeg build and local-consumption path for `iosArm64` and `iosSimulatorArm64`. It is a private/local substrate, not a public artifact or CI claim. Runtime and application qualification belong to the consuming player stages.
 
 ## Architecture
 
@@ -146,28 +141,10 @@ KiteFFmpeg follows `ffmpeg.c`'s own rules at every stage:
 
 ## FFmpeg sourcing
 
-A consumer provides nothing: FFmpeg is compiled into every published artifact. This section is about the repository itself, where the build either discovers a host system install or cross-builds a vendored tree per target.
-
-=== "Dynamic (default)"
-
-    Links against a system FFmpeg. This is what the macOS arm64 build does today. The Gradle build finds Homebrew on macOS or apt-installed libraries on Linux, compiles the C archive against those headers, and links the dylibs. The reduced def parses no FFmpeg header. The module build still supplies the include path redundantly to cinterop, but it is unused by the opaque header set. Your users need their own FFmpeg installed at run time.
-
-    ```bash
-    brew install ffmpeg                     # macOS
-    sudo apt install ffmpeg libavcodec-dev libavformat-dev \
-        libavfilter-dev libavutil-dev libswscale-dev libswresample-dev   # Linux
-    ```
-
-=== "Vendored static (release)"
-
-    Cross-compiles a minimal FFmpeg from source through a Gradle task, with a pinned codec and filter set, and drops `.a` libraries under `native-libs/<license>/<target>/` (`lgpl` by default; `gpl` for the opt-in `Gpl` task variants). The build notices them, compiles the C archive against their headers and switches the final link to the static libraries, so the resulting binary carries everything it needs.
-
-    ```bash
-    git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
-    ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64   # or :buildFFmpegForAll
-    ```
-
-    The build copies source to a unique hash-free temporary workspace, configures and installs there, records the normalized configure invocation at `lib/kiteffmpeg/ffmpeg-configure.txt`, verifies that record plus all six archives and headers, stages a Java/NIO copy beside the declared output and only then replaces the old tree. Packaging reads only that installed single-line record. The mobile Apple tasks use the shared STANDARD software-playback profile plus SDK zlib. They do not use the desktop third-party stack, GPL, VideoToolbox or hardware encode.
+A consumer provides nothing: FFmpeg is compiled into every published artifact. Inside the
+repository, the build compiles against the vendored static tree under `native-libs/` and falls back
+to a system FFmpeg only for the host's own desktop target. [Building from source](building-from-source.md)
+covers both.
 
 See [Platform support](platforms.md) for the per-target detail.
 
