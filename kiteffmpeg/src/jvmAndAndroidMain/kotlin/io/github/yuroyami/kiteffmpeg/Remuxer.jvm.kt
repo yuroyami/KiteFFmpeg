@@ -15,12 +15,51 @@ public actual object Remuxer {
         metadata: Map<String, String>,
         dispatcher: CoroutineDispatcher?,
         onProgress: ((packetsWritten: Long) -> Unit)?,
+    ): Unit = remuxEnds(inputAt(input, emptyMap()), outputAt(output), streamIndices, startMicros, endMicros, metadata, dispatcher, onProgress)
+
+    @Throws(FFmpegException::class, CancellationException::class)
+    public actual suspend fun remux(
+        input: String,
+        inputOptions: Map<String, String>,
+        output: String,
+        streamIndices: List<Int>?,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((packetsWritten: Long) -> Unit)?,
+    ): Unit = remuxEnds(inputAt(input, inputOptions), outputAt(output), streamIndices, startMicros, endMicros, metadata, dispatcher, onProgress)
+
+    @Throws(FFmpegException::class, CancellationException::class)
+    public actual suspend fun remux(
+        input: () -> MediaByteSource,
+        output: MediaByteSink,
+        format: String,
+        outputOptions: Map<String, String>,
+        streamIndices: List<Int>?,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((packetsWritten: Long) -> Unit)?,
+    ): Unit = remuxEnds(inputFrom(input), outputInto(output, format, outputOptions), streamIndices, startMicros, endMicros, metadata, dispatcher, onProgress)
+
+    /** The three overloads, once they have said where the input and the output are. */
+    private suspend fun remuxEnds(
+        input: InputEnd,
+        output: OutputEnd,
+        streamIndices: List<Int>?,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((packetsWritten: Long) -> Unit)?,
     ) {
         Internals.requireCompatible()
         require(startMicros >= 0L && endMicros > startMicros) {
             "Invalid trim window [$startMicros, $endMicros]"
         }
-        refuseSameFile(input, output)
+        if (input.path != null && output.path != null) refuseSameFile(input.path, output.path)
         runTranscode(dispatcher ?: Dispatchers.IO, onProgress) { publish ->
             remuxHere(input, output, streamIndices, startMicros, endMicros, metadata, publish)
         }
@@ -28,27 +67,27 @@ public actual object Remuxer {
 
     /** The whole remux, on the calling thread, handing its packet counts to [publish]. */
     private suspend fun remuxHere(
-        input: String,
-        output: String,
+        input: InputEnd,
+        output: OutputEnd,
         streamIndices: List<Int>?,
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
         publish: ((packetsWritten: Long) -> Unit)?,
     ) {
-        MediaSource.open(input).use { source ->
+        input.open().use { source ->
             val selected = if (streamIndices == null) {
                 source.streams.filter { it.type != MediaType.Unknown }
             } else {
                 streamIndices.map { wanted ->
                     source.streams.firstOrNull { it.index == wanted }
                         ?: throw FFmpegException(
-                            FFmpegError.Internal("No stream with index $wanted in $input"),
+                            FFmpegError.Internal("No stream with index $wanted in ${input.name}"),
                         )
                 }
             }
             if (selected.isEmpty()) {
-                throw FFmpegException(FFmpegError.Internal("Nothing to remux from $input"))
+                throw FFmpegException(FFmpegError.Internal("Nothing to remux from ${input.name}"))
             }
             // Validated BEFORE the sink exists. The demuxer refuses a duplicated index too, but it
             // only sees the mapping after a stream has been created in the output for every entry,
@@ -67,7 +106,7 @@ public actual object Remuxer {
             val leadIndex = (selected.firstOrNull { it.type == MediaType.Video } ?: selected.first()).index
             if (startMicros > 0L) source.seekMicros(startMicros)
 
-            MediaSink.open(output).use { sink ->
+            output.open().use { sink ->
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
                 sink.setChapters(
                     chaptersForOutput(

@@ -109,4 +109,66 @@ public expect object Transcoder {
         dispatcher: CoroutineDispatcher? = null,
         onProgress: ((TranscodeProgress) -> Unit)? = null,
     )
+
+    /**
+     * [transcode] with pre-open options for [input], applied the way [MediaSource.open] applies
+     * them. On Android this reads a file the user picked without copying it: pass `"fd:"` as
+     * [input] and the descriptor number as the `fd` option. Every other parameter is as in the
+     * path overload.
+     *
+     * @throws FFmpegException as the path overload does. Swift and Objective-C receive it as an error.
+     */
+    @Throws(FFmpegException::class, CancellationException::class)
+    public suspend fun transcode(
+        input: String,
+        inputOptions: Map<String, String>,
+        output: String,
+        spec: VideoEncoderSpec? = null,
+        videoFilter: String? = null,
+        videoCopy: Boolean = false,
+        audioSpec: AudioEncoderSpec? = null,
+        audioFilter: String? = null,
+        audioCopy: Boolean = false,
+        subtitleCopy: Boolean = false,
+        startMicros: Long = 0L,
+        endMicros: Long = Long.MAX_VALUE,
+        metadata: Map<String, String> = emptyMap(),
+        dispatcher: CoroutineDispatcher? = null,
+        onProgress: ((TranscodeProgress) -> Unit)? = null,
+    )
+
+    /**
+     * [transcode] from bytes the caller supplies into bytes the caller keeps, with no path at either
+     * end. Every other parameter is as in the path overload.
+     *
+     * @param input opens a fresh source at position zero each time it is called. The transcode
+     *              calls it twice when the encoder must see the first frame, and closes each
+     *              source it opened.
+     * @param output receives the file. The transcode owns it and closes it, as [MediaSink.open] does.
+     * @param format the output container, such as `mp4` or `matroska`, because there is no file name
+     *               to infer it from.
+     * @param outputOptions muxer options, as [MediaSink.open] takes them. An output that cannot seek
+     *                      needs a layout that never goes back, such as MP4 with `movflags` set to
+     *                      `frag_keyframe+empty_moov`.
+     * @throws FFmpegException as the path overload does. Swift and Objective-C receive it as an error.
+     */
+    @Throws(FFmpegException::class, CancellationException::class)
+    public suspend fun transcode(
+        input: () -> MediaByteSource,
+        output: MediaByteSink,
+        format: String,
+        outputOptions: Map<String, String> = emptyMap(),
+        spec: VideoEncoderSpec? = null,
+        videoFilter: String? = null,
+        videoCopy: Boolean = false,
+        audioSpec: AudioEncoderSpec? = null,
+        audioFilter: String? = null,
+        audioCopy: Boolean = false,
+        subtitleCopy: Boolean = false,
+        startMicros: Long = 0L,
+        endMicros: Long = Long.MAX_VALUE,
+        metadata: Map<String, String> = emptyMap(),
+        dispatcher: CoroutineDispatcher? = null,
+        onProgress: ((TranscodeProgress) -> Unit)? = null,
+    )
 }

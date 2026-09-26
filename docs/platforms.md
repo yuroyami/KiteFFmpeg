@@ -112,6 +112,16 @@ val pfd = contentResolver.openFileDescriptor(uri, "r")!!
 val source = MediaSource.open("fd:", mapOf("fd" to pfd.fd.toString()))
 ```
 
+`Transcoder.transcode` and `Remuxer.remux` take the same pair through their `inputOptions`
+overloads, so a picked file converts without a copy:
+
+```kotlin
+Transcoder.transcode("fd:", mapOf("fd" to pfd.fd.toString()), output = outputPath, spec = spec)
+```
+
+To write the result into bytes the app keeps rather than a file, use the overloads that take a
+`MediaByteSource` factory and a `MediaByteSink`, with the container named by `format`.
+
 FFmpeg `dup()`s the descriptor, so the caller keeps ownership, and its `fstat` marks a regular file seekable. Do **not** reach for `/proc/self/fd/N` through the `file` protocol instead: that re-opens by path, the kernel rechecks permissions against the path, and a descriptor a process may legitimately read can still fail with `Permission denied`. `pipe:<fd>` also dups but hardcodes the stream as non-seekable, which costs you seeking.
 
 Probe rather than assume. `FFmpeg.hasEncoder("libx264")` is cheap. It turns a runtime failure on a user's machine into a clear message.

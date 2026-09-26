@@ -56,4 +56,51 @@ public expect object Remuxer {
         dispatcher: CoroutineDispatcher? = null,
         onProgress: ((packetsWritten: Long) -> Unit)? = null,
     )
+
+    /**
+     * [remux] with pre-open options for [input], applied the way [MediaSource.open] applies them. On
+     * Android this reads a file the user picked without copying it: pass `"fd:"` as [input] and the
+     * descriptor number as the `fd` option. Every other parameter is as in the path overload.
+     *
+     * @throws FFmpegException as the path overload does. Swift and Objective-C receive it as an error.
+     */
+    @Throws(FFmpegException::class, CancellationException::class)
+    public suspend fun remux(
+        input: String,
+        inputOptions: Map<String, String>,
+        output: String,
+        streamIndices: List<Int>? = null,
+        startMicros: Long = 0L,
+        endMicros: Long = Long.MAX_VALUE,
+        metadata: Map<String, String> = emptyMap(),
+        dispatcher: CoroutineDispatcher? = null,
+        onProgress: ((packetsWritten: Long) -> Unit)? = null,
+    )
+
+    /**
+     * [remux] from bytes the caller supplies into bytes the caller keeps, with no path at either
+     * end. Every other parameter is as in the path overload.
+     *
+     * @param input opens a fresh source at position zero. The remux calls it once and closes the source.
+     * @param output receives the file. The remux owns it and closes it, as [MediaSink.open] does.
+     * @param format the output container, such as `mp4` or `matroska`, because there is no file name
+     *               to infer it from.
+     * @param outputOptions muxer options, as [MediaSink.open] takes them. An output that cannot seek
+     *                      needs a layout that never goes back, such as MP4 with `movflags` set to
+     *                      `frag_keyframe+empty_moov`.
+     * @throws FFmpegException as the path overload does. Swift and Objective-C receive it as an error.
+     */
+    @Throws(FFmpegException::class, CancellationException::class)
+    public suspend fun remux(
+        input: () -> MediaByteSource,
+        output: MediaByteSink,
+        format: String,
+        outputOptions: Map<String, String> = emptyMap(),
+        streamIndices: List<Int>? = null,
+        startMicros: Long = 0L,
+        endMicros: Long = Long.MAX_VALUE,
+        metadata: Map<String, String> = emptyMap(),
+        dispatcher: CoroutineDispatcher? = null,
+        onProgress: ((packetsWritten: Long) -> Unit)? = null,
+    )
 }

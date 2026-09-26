@@ -25,6 +25,75 @@ public actual object Transcoder {
         metadata: Map<String, String>,
         dispatcher: CoroutineDispatcher?,
         onProgress: ((TranscodeProgress) -> Unit)?,
+    ): Unit = transcodeEnds(
+        inputAt(input, emptyMap()), outputAt(output),
+        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy,
+            startMicros, endMicros, metadata, dispatcher, onProgress,
+    )
+
+    @Throws(FFmpegException::class, CancellationException::class)
+    public actual suspend fun transcode(
+        input: String,
+        inputOptions: Map<String, String>,
+        output: String,
+        spec: VideoEncoderSpec?,
+        videoFilter: String?,
+        videoCopy: Boolean,
+        audioSpec: AudioEncoderSpec?,
+        audioFilter: String?,
+        audioCopy: Boolean,
+        subtitleCopy: Boolean,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((TranscodeProgress) -> Unit)?,
+    ): Unit = transcodeEnds(
+        inputAt(input, inputOptions), outputAt(output),
+        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy,
+            startMicros, endMicros, metadata, dispatcher, onProgress,
+    )
+
+    @Throws(FFmpegException::class, CancellationException::class)
+    public actual suspend fun transcode(
+        input: () -> MediaByteSource,
+        output: MediaByteSink,
+        format: String,
+        outputOptions: Map<String, String>,
+        spec: VideoEncoderSpec?,
+        videoFilter: String?,
+        videoCopy: Boolean,
+        audioSpec: AudioEncoderSpec?,
+        audioFilter: String?,
+        audioCopy: Boolean,
+        subtitleCopy: Boolean,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((TranscodeProgress) -> Unit)?,
+    ): Unit = transcodeEnds(
+        inputFrom(input), outputInto(output, format, outputOptions),
+        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy,
+            startMicros, endMicros, metadata, dispatcher, onProgress,
+    )
+
+    /** The three overloads, once they have said where the input and the output are. */
+    private suspend fun transcodeEnds(
+        input: InputEnd,
+        output: OutputEnd,
+        spec: VideoEncoderSpec?,
+        videoFilter: String?,
+        videoCopy: Boolean,
+        audioSpec: AudioEncoderSpec?,
+        audioFilter: String?,
+        audioCopy: Boolean,
+        subtitleCopy: Boolean,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((TranscodeProgress) -> Unit)?,
     ) {
         // The FFmpeg identity gate. First statement of the entry point.
         requireCompatibleFFmpeg()
@@ -49,8 +118,8 @@ public actual object Transcoder {
 
     /** The whole transcode, on the calling thread, handing its progress reports to [publish]. */
     private suspend fun transcodeHere(
-        input: String,
-        output: String,
+        input: InputEnd,
+        output: OutputEnd,
         spec: VideoEncoderSpec?,
         videoFilter: String?,
         videoCopy: Boolean,
@@ -63,12 +132,12 @@ public actual object Transcoder {
         metadata: Map<String, String>,
         publish: ((TranscodeProgress) -> Unit)?,
     ) {
-        refuseSameFile(input, output)
+        if (input.path != null && output.path != null) refuseSameFile(input.path, output.path)
 
-        MediaSource.open(input).use { source ->
+        input.open().use { source ->
             val videoStream = if (spec != null || videoCopy) {
                 source.primaryVideo
-                    ?: throw FFmpegException(FFmpegError.Internal("No video stream in $input (use spec = null for audio-only)"))
+                    ?: throw FFmpegException(FFmpegError.Internal("No video stream in ${input.name} (use spec = null for audio-only)"))
             } else null
             val audioStream = if (audioSpec != null || audioCopy) source.primaryAudio else null
             val ainfo = audioStream?.audio
@@ -116,7 +185,7 @@ public actual object Transcoder {
             }
             val audioEncoderSpec = audioSpec?.inheriting(audioStream)
 
-            MediaSink.open(output).use { sink ->
+            output.open().use { sink ->
                 // All encoders + copy mappings + metadata must exist before the header.
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
                 sink.setChapters(

@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - FFmpeg's own log lines no longer reach stderr. `FFmpeg.setLogSink(level, sink)` routes them to a
   sink of your own, with the level, the name of what logged and the message. The sink runs on the
   thread that logged, on every backend. The C ABI is 3.12, which adds `ffkmp_log_set_sink` (#83).
+- `Transcoder.transcode` and `Remuxer.remux` gain two overloads each. One takes pre-open options
+  for the input path, which is how an Android app reads a picked file through `"fd:"` without a
+  copy. The other reads from a `MediaByteSource` factory and writes into a `MediaByteSink`, with
+  the container named by `format` (#85).
 
 ### Fixed
 

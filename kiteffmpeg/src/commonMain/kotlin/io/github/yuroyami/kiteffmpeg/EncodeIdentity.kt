@@ -25,11 +25,11 @@ private const val PEEK_FRAME_LIMIT = 250
  * nothing comes out within [PEEK_FRAME_LIMIT] decoded frames.
  */
 internal suspend fun firstEncodedFrameInfo(
-    input: String,
+    input: InputEnd,
     stream: StreamInfo,
     videoFilter: String?,
     startMicros: Long,
-): FrameInfo? = MediaSource.open(input).use { source ->
+): FrameInfo? = input.open().use { source ->
     val video = source.streams.firstOrNull { it.index == stream.index } ?: return null
     if (startMicros > 0) source.seekMicros(startMicros)
     val trim = TrimWindow(startMicros, Long.MAX_VALUE, source.startTimeMicros)
