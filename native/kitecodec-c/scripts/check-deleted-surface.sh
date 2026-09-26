@@ -36,6 +36,9 @@
 # pattern requires a following `(`. But the scan runs once per deleted name over both repositories,
 # and `native-libs` reached 284 MB once the wasm32 tree landed, which made a check that plan
 # section 9 budgets in seconds take minutes instead. Generated trees stay out so Tier 1 stays fast.
+# Binary files are skipped with `-I` for the same reason. A video or an archive cannot hold a call
+# site or a prose mention, and untracked recordings beside the sources once made step 1 alone run
+# for more than half an hour (#119).
 #
 # Usage:  ./scripts/check-deleted-surface.sh
 #
@@ -172,7 +175,7 @@ for name in $DELETED; do
     # and to shellcheck (SC1087) as an array subscript, and shellcheck grades that an error rather
     # than a style note. bash expands it correctly either way, so this is a legibility fix and not
     # a behaviour fix: the script's output was verified identical before and after.
-    grep -rnE "(^|[^A-Za-z0-9_])${name}[[:space:]]*\(" $EXCLUDES $TREES >> "$WORK/uses.txt" 2>/dev/null || true
+    grep -rnIE "(^|[^A-Za-z0-9_])${name}[[:space:]]*\(" $EXCLUDES $TREES >> "$WORK/uses.txt" 2>/dev/null || true
 done
 if [ -s "$WORK/uses.txt" ]; then
     fail "$(wc -l < "$WORK/uses.txt" | tr -d ' ') use site(s) survive:"
@@ -201,7 +204,7 @@ echo "3. every surviving prose mention is in a file that records the deletion"
 : > "$WORK/prose.txt"
 for name in $DELETED; do
     # shellcheck disable=SC2086
-    grep -rlw "$name" $EXCLUDES $TREES >> "$WORK/prose.txt" 2>/dev/null || true
+    grep -rlIw "$name" $EXCLUDES $TREES >> "$WORK/prose.txt" 2>/dev/null || true
 done
 sort -u "$WORK/prose.txt" > "$WORK/prose_files.txt"
 : > "$WORK/allowed.txt"
