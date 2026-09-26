@@ -25,6 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   allocation no longer skips the encoders, the trailer and the byte sink (#112).
 - On the web, `MediaSource.decodeStreams` refuses a list that names one stream twice before it
   opens any decoder. Each refused call used to leave one decoder allocated (#113).
+- On the web, opening a `MediaByteSource` uses the byte count it staged and no longer reads
+  `size` again after closing the source, so a source that refuses access after close opens (#114).
 
 ## [0.3.0] - 2026-09-25
 

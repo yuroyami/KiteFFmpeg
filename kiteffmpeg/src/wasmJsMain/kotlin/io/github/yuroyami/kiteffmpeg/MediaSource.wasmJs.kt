@@ -591,7 +591,7 @@ public actual class MediaSource internal constructor(
             val opts = CStringArrays.of(m, options)
             val rc = try {
                 openInputIo(
-                    m, slot, bridge.readPointer, bridge.seekPointer, io.size ?: 0L,
+                    m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
                     opts.keys, opts.values, options.size, unusedSlot,
                 )
             } catch (failure: Throwable) {

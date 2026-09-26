@@ -63,6 +63,42 @@ class WebIoBridgeTest {
         }
     }
 
+    /** Answers its size only while open, like a source over a handle that close released. */
+    private class ClosingSizeSource(private val content: ByteArray) : MediaByteSource {
+        var closeCount: Int = 0
+            private set
+        var sizeReadsAfterClose: Int = 0
+            private set
+        private var position = 0
+
+        override val seekable: Boolean = true
+
+        override val size: Long?
+            get() {
+                if (closeCount > 0) {
+                    sizeReadsAfterClose++
+                    throw IllegalStateException("size read after close")
+                }
+                return content.size.toLong()
+            }
+
+        override fun read(into: ByteArray, offset: Int, length: Int): Int {
+            if (position >= content.size) return -1
+            val n = minOf(length, content.size - position)
+            content.copyInto(into, offset, position, position + n)
+            position += n
+            return n
+        }
+
+        override fun seek(position: Long) {
+            this.position = position.toInt()
+        }
+
+        override fun close() {
+            closeCount++
+        }
+    }
+
     private fun attachFake(): JsAnyHolder {
         val module = fakeCodecModule()
         useCodecModule(module)
@@ -88,6 +124,21 @@ class WebIoBridgeTest {
         assertTrue(failure.error is FFmpegError.Io, "a source that throws is an I/O error, as on the other backends")
         assertIs<IllegalStateException>(failure.cause, "the source's own exception is the cause")
         assertEquals(1, source.closeCount, "a source that threw mid-stage must still be closed once")
+    }
+
+    @Test
+    fun openingUsesTheStagedSizeAndNeverAsksTheClosedSource() {
+        val module = fakePacketReaderCodecModule()
+        useCodecModule(module)
+        val source = ClosingSizeSource(ByteArray(1000) { it.toByte() })
+        val media = MediaSource.open(source, emptyMap())
+        try {
+            assertEquals(0, source.sizeReadsAfterClose, "every size read must come before the close")
+            assertEquals(1, source.closeCount, "staging closes the source exactly once")
+            assertEquals(1000.0, fakeLastOpenSize(module), "FFmpeg must be told the staged byte count")
+        } finally {
+            media.close()
+        }
     }
 
     @Test

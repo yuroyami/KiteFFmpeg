@@ -120,6 +120,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         m._ffkmp_fmt_open_input_io = (out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt) => {
             m.HEAP32[out >> 2] = CONTEXT;
             m.HEAP32[unused >> 2] = 0;
+            m.__lastOpenSize = Number(size);
             openCount++;
             return 0;
         };
@@ -333,6 +334,11 @@ internal external fun setFakeDecodeScript(module: JsAny, script: String)
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, v) => m.__setDecoderOpenFails(v)")
 internal external fun setFakeDecoderOpenFails(module: JsAny, fails: Boolean)
+
+/** The size the last open told FFmpeg, or -1 before any open. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__lastOpenSize === undefined ? -1 : m.__lastOpenSize")
+internal external fun fakeLastOpenSize(module: JsAny): Double
 
 /** How many codec contexts have been allocated. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

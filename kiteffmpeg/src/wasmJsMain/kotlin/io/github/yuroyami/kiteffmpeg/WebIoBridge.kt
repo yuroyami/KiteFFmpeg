@@ -21,6 +21,8 @@ internal class WebIoBridge private constructor(
     private val buffer: Int,
     val readPointer: Int,
     val seekPointer: Int,
+    /** The staged byte count. The source is closed by then, so nothing may ask it again (#114). */
+    val size: Long,
 ) {
 
     fun release() {
@@ -96,6 +98,7 @@ internal class WebIoBridge private constructor(
                 buffer = buffer,
                 readPointer = callbackRead(callbacks),
                 seekPointer = callbackSeek(callbacks),
+                size = total.toLong(),
             )
         }
 
