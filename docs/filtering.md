@@ -77,6 +77,7 @@ val graph = FilterGraph.buildAudio(
     sampleRate = 48_000,
     sampleFormat = SampleFormat.FltP,
     channels = 2,
+    timeBase = Rational(1, 48_000),
     // Pin the output to what the AAC encoder wants:
     outputSampleRate = 44_100,
     outputSampleFormat = SampleFormat.FltP,
