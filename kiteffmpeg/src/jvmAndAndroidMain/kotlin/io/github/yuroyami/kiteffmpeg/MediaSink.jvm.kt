@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSink internal constructor(
     private var formatToken: Long,
@@ -681,6 +682,7 @@ public actual class CopyStream internal constructor(
 }
 
 public actual class VideoEncoder internal constructor(internal val core: EncoderCore) : AutoCloseable {
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun drive(
         input: Flow<Frame>,
         onProgress: ((framesEncoded: Long) -> Unit)?,
@@ -717,6 +719,7 @@ public actual class AudioEncoder internal constructor(
     public actual val channels: Int,
     public actual val channelLayoutMask: Long?,
 ) : AutoCloseable {
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun drive(input: Flow<Frame>) {
         core.beginDrive()
         try {

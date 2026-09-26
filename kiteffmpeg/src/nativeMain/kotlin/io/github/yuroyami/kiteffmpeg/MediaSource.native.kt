@@ -128,6 +128,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSource internal constructor(
     private val ctx: CPointer<kc_fmt_ctx>,
@@ -424,6 +425,7 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun seekMicros(micros: Long) {
         synchronized(stateLock) {
             check(!closed) { "MediaSource is closed" }
@@ -486,6 +488,7 @@ public actual class MediaSource internal constructor(
         return ffkmp_fmt_stream(ctx, stream.index.toUInt())?.let { ffkmp_stream_codecpar(it) }
     }
 
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
         val target = stream ?: primaryVideo
             ?: throw FFmpegException(FFmpegError.Internal("No video stream to extract a frame from"))

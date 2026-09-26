@@ -82,6 +82,7 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.set
 import kotlinx.cinterop.value
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSink internal constructor(
     private val ctx: CPointer<kc_fmt_ctx>,
@@ -907,6 +908,7 @@ public actual class VideoEncoder internal constructor(
     internal val core: EncoderCore,
 ) : AutoCloseable {
 
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun drive(input: Flow<Frame>, onProgress: ((framesEncoded: Long) -> Unit)?, progressEveryNFrames: Int) {
         require(progressEveryNFrames > 0) { "progressEveryNFrames must be positive" }
         core.beginDrive()
@@ -940,6 +942,7 @@ public actual class AudioEncoder internal constructor(
     public actual val channelLayoutMask: Long?,
 ) : AutoCloseable {
 
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun drive(input: Flow<Frame>) {
         core.beginDrive()
         try {

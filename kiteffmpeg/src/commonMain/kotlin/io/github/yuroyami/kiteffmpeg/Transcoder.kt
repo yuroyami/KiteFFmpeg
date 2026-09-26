@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.cancellation.CancellationException
 
 /** Progress snapshot delivered during [Transcoder.transcode]. */
 public data class TranscodeProgress(
@@ -87,7 +88,11 @@ public expect object Transcoder {
      *                   context and never on [dispatcher], so a UI caller may update its views
      *                   from it. A caller that is busy when a report arrives gets only the newest
      *                   one, and the last report arrives before this function returns.
+     * @throws FFmpegException when the input cannot be opened, this build lacks an encoder or a
+     *         filter, or a decode, filter, encode or write fails. Swift and Objective-C receive it
+     *         as an error.
      */
+    @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun transcode(
         input: String,
         output: String,

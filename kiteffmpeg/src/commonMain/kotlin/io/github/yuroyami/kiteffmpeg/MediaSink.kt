@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * An open output file (muxer). Add every encoder first, video and audio, because the muxer's
@@ -199,6 +200,7 @@ public expect class VideoEncoder : AutoCloseable {
      * Drain [input] into this encoder + the parent muxer. Returns when the flow completes.
      * Reports progress every [progressEveryNFrames] via [onProgress] (the encoded-frame count).
      */
+    @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun drive(input: Flow<Frame>, onProgress: ((framesEncoded: Long) -> Unit)? = null, progressEveryNFrames: Int = 30)
     override fun close()
 }
@@ -229,6 +231,7 @@ public expect class AudioEncoder : AutoCloseable {
      * is converted with a [Resampler] first. So is a frame at another sample rate when [frameSize] is 0; a fixed-size
      * codec refuses it, because a resampled frame no longer has the size the codec takes.
      */
+    @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun drive(input: Flow<Frame>)
     override fun close()
 }

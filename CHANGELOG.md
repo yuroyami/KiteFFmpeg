@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `Transcoder.transcode`, `Remuxer.remux`, `MediaSource.seekMicros`, `MediaSource.extractFrame` and
+  both `drive` overloads declare `@Throws`, so Swift and Objective-C receive an `FFmpegException`
+  as an error instead of terminating (#87).
+
 ## [0.3.0] - 2026-09-25
 
 FFmpeg 9.0.2, subtitle decoding, output into your own bytes, libswresample, and one filter graph

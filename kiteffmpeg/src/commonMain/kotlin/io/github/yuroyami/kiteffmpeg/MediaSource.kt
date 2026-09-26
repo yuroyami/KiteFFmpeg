@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * An opened input: a local file or a URL. It owns the container cursor and per-stream resources,
@@ -135,6 +136,7 @@ public expect class MediaSource : AutoCloseable {
      * @param micros where to seek to, relative to the start of the content (see [startTimeMicros])
      * @throws FFmpegException when the seek fails
      */
+    @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun seekMicros(micros: Long)
 
     /**
@@ -147,6 +149,7 @@ public expect class MediaSource : AutoCloseable {
      * @return an owned frame: hold it as long as you like, then close it
      * @throws FFmpegException when the seek or decode fails
      */
+    @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun extractFrame(atMicros: Long, stream: StreamInfo? = null): Frame
 
     /**

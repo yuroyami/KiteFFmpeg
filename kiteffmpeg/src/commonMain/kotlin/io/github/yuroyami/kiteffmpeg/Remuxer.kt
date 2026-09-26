@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Lossless container rewrite: `ffmpeg -c copy`. Packets move from input to output without
@@ -41,7 +42,10 @@ public expect object Remuxer {
      *                   own coroutine context and never on [dispatcher]. A caller that is busy when
      *                   a report arrives gets only the newest one, and the last report arrives
      *                   before this function returns.
+     * @throws FFmpegException when the input cannot be opened, the output cannot be written, or a
+     *         packet cannot be copied. Swift and Objective-C receive it as an error.
      */
+    @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun remux(
         input: String,
         output: String,

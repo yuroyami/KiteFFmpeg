@@ -5,6 +5,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSource internal constructor(
     private var formatToken: Long,
@@ -256,6 +257,7 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun seekMicros(micros: Long) {
         // The native seek runs while stateLock is held: releasing it after the token read would
         // let a concurrent close() free the format context mid-seek. A close arriving during the
@@ -295,6 +297,7 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
         val target = stream ?: primaryVideo
             ?: throw FFmpegException(FFmpegError.Internal("No video stream to extract a frame from"))

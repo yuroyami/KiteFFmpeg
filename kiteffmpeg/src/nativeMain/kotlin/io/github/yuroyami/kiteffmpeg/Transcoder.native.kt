@@ -5,9 +5,11 @@ import ffmpeg.ffkmp_packet_pts
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlin.coroutines.cancellation.CancellationException
 
 public actual object Transcoder {
 
+    @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun transcode(
         input: String,
         output: String,
