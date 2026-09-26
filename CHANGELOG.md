@@ -29,6 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `size` again after closing the source, so a source that refuses access after close opens (#114).
 - `bufferFrames` closes a frame that a cancelled collector took from its buffer. A frame belongs
   to the collector once its `emit` is called, as before (#115).
+- The interrupt flag behind `OpenInterrupt` is read and written atomically, so raising it from
+  another thread while an open polls it is no longer a data race (#116).
 
 ## [0.3.0] - 2026-09-25
 

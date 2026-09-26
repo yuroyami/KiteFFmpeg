@@ -48,10 +48,11 @@ KC_API int ffkmp_avseek_flag_any(void)      { return AVSEEK_FLAG_ANY; }
    target. A player uses it to say "land at or before here, but no earlier than there", which is
    what makes a retry ladder cheap instead of a fixed pessimistic backoff. */
 /* The cancellation entry poll, mirroring helpers_format.c: every context this layer opens carries an
-   int cell as the interrupt opaque, and FFmpeg's own poll sites do not cover buffered reads. */
+   int cell as the interrupt opaque, and FFmpeg's own poll sites do not cover buffered reads. The
+   read is atomic because the raise can come from another thread (#116). */
 static int kc_playback_interrupted(AVFormatContext *s) {
     return s && s->interrupt_callback.callback && s->interrupt_callback.opaque
-        && *(volatile int *)s->interrupt_callback.opaque;
+        && __atomic_load_n((const int *)s->interrupt_callback.opaque, __ATOMIC_RELAXED);
 }
 
 KC_API int ffkmp_fmt_seek_file(AVFormatContext *ctx, int stream_index,

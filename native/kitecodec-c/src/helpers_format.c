@@ -13,21 +13,32 @@
    it is its own allocation freed by the paired close. FFmpeg polls it at the top of every
    blocking loop and returns AVERROR_EXIT once it reads nonzero. One-way by design: an
    interrupted context is being abandoned, and clearing the flag mid-flight is how a
-   cancelled read resumes into freed state. */
+   cancelled read resumes into freed state.
+
+   A raise comes from any thread while FFmpeg polls on the one inside the open, so every cell
+   access is a relaxed atomic: a plain or volatile int there is a data race in C11 (#116). */
+static int kc_cell_raised(const int *cell) {
+    return __atomic_load_n(cell, __ATOMIC_RELAXED);
+}
+
+static void kc_cell_raise(int *cell) {
+    __atomic_store_n(cell, 1, __ATOMIC_RELAXED);
+}
+
 static int kc_interrupt_check(void *opaque) {
-    return opaque ? *(volatile int *)opaque : 0;
+    return opaque ? kc_cell_raised((const int *)opaque) : 0;
 }
 
 /* The same poll over a cell the CALLER owns (kc_interrupt). A separate function only so that
    the close can tell the two apart: a borrowed cell is never this layer's to free. */
 static int kc_interrupt_check_borrowed(void *opaque) {
-    return opaque ? *(volatile int *)opaque : 0;
+    return opaque ? kc_cell_raised((const int *)opaque) : 0;
 }
 
 /* The caller-owned cell. `raised` is first, so the cell reads as the plain int both polls
    expect. */
 struct kc_interrupt {
-    volatile int raised;
+    int raised;
 };
 
 KC_API kc_interrupt *ffkmp_interrupt_new(void) {
@@ -35,7 +46,7 @@ KC_API kc_interrupt *ffkmp_interrupt_new(void) {
     return av_mallocz(sizeof(kc_interrupt));
 }
 KC_API void ffkmp_interrupt_raise(kc_interrupt *cell) {
-    if (cell) cell->raised = 1;
+    if (cell) kc_cell_raise(&cell->raised);
 }
 KC_API void ffkmp_interrupt_free(kc_interrupt **cell) {
     if (cell) av_freep(cell);
@@ -53,12 +64,12 @@ static int kc_ctx_has_cell(const AVFormatContext *s) {
    contract is therefore checked HERE, at our own entry points. Every context this layer
    opens carries an int cell as the opaque, so the read is safe by construction. */
 static int kc_ctx_interrupted(AVFormatContext *s) {
-    return kc_ctx_has_cell(s) && *(volatile int *)s->interrupt_callback.opaque;
+    return kc_ctx_has_cell(s) && kc_cell_raised((const int *)s->interrupt_callback.opaque);
 }
 
 KC_API void ffkmp_fmt_interrupt(AVFormatContext *ctx) {
     if (!kc_ctx_has_cell(ctx)) return;
-    *(volatile int *)ctx->interrupt_callback.opaque = 1;
+    kc_cell_raise((int *)ctx->interrupt_callback.opaque);
 }
 
 /* Installs the interrupt poll on c: over the caller's cell when there is one, else over
@@ -117,7 +128,7 @@ KC_API int ffkmp_fmt_open_input2(AVFormatContext **out, const char *path,
     if (!path) return AVERROR(EINVAL);
     if (n < 0) return AVERROR(EINVAL);
     if (n > 0 && (!keys || !values)) return AVERROR(EINVAL);
-    if (interrupt && interrupt->raised) return AVERROR_EXIT;
+    if (interrupt && kc_cell_raised(&interrupt->raised)) return AVERROR_EXIT;
     AVDictionary *options = NULL;
     for (int i = 0; i < n; i++) {
         if (!keys[i] || !values[i]) { av_dict_free(&options); return AVERROR(EINVAL); }
@@ -321,10 +332,10 @@ typedef struct kc_io_bridge {
     kc_io_seek_fn seek_fn;
     int64_t       size;
     /* The bridge's own interrupt cell, freed with the bridge. */
-    volatile int  interrupted;
+    int           interrupted;
     /* The cell every read and seek checks and the context's interrupt_callback polls: the
        caller's kc_interrupt when the open was given one, else &interrupted. */
-    volatile int *cell;
+    int          *cell;
 } kc_io_bridge;
 
 /* FFmpeg's read_packet: >0 bytes, AVERROR_EOF at end, never 0 since n7. The caller contract
@@ -333,7 +344,7 @@ static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
     /* FFmpeg's own poll sites never see a custom AVIO, so an interrupted long scan
        is broken here, between caller reads, which is exactly where a network stall spins. */
-    if (*b->cell) return AVERROR_EXIT;
+    if (kc_cell_raised(b->cell)) return AVERROR_EXIT;
     int r = b->read_fn(b->opaque, buf, len);
     if (r > 0) return r;
     if (r == KC_IO_EOF) return AVERROR_EOF;
@@ -342,7 +353,7 @@ static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
 
 static int64_t kc_io_seek(void *opaque, int64_t offset, int whence) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
-    if (*b->cell) return AVERROR_EXIT;
+    if (kc_cell_raised(b->cell)) return AVERROR_EXIT;
     if (whence & AVSEEK_SIZE) return b->size >= 0 ? b->size : AVERROR(ENOSYS);
     whence &= ~AVSEEK_FORCE;
     if (!b->seek_fn) return AVERROR(ENOSYS);
@@ -366,7 +377,7 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     if (!read_fn) return AVERROR(EINVAL);
     if (n < 0) return AVERROR(EINVAL);
     if (n > 0 && (!keys || !values)) return AVERROR(EINVAL);
-    if (interrupt && interrupt->raised) return AVERROR_EXIT;
+    if (interrupt && kc_cell_raised(&interrupt->raised)) return AVERROR_EXIT;
 
     kc_io_bridge *bridge = av_mallocz(sizeof(kc_io_bridge));
     if (!bridge) return AVERROR(ENOMEM);

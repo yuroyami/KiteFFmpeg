@@ -5,13 +5,15 @@
  * frees it. The cases below pin each half of that: a raised cell refuses an open before anything
  * is read, an interrupt through the context raises the caller's cell, and closing a context never
  * frees the borrowed cell, which the asan variant would report as a double free when the test
- * then frees it itself.
+ * then frees it itself. The last case raises from a second thread, which the tsan variant reports
+ * as a data race if any access to the cell is not atomic.
  */
 
 #include "harness.h"
 
 #include "kitecodec_helpers.h"
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,6 +164,47 @@ static void case_the_custom_io_open_polls_the_borrowed_cell(void)
     free(source.bytes);
 }
 
+/* An endless run of zero bytes, one per call and slowly, so only the interrupt can end the open.
+   The read limit turns a broken interrupt into a failed case after about five seconds, not a hang. */
+typedef struct {
+    int reads;
+} endless_source;
+
+static int endless_read(void *opaque, unsigned char *buf, int len)
+{
+    endless_source *e = (endless_source *)opaque;
+    (void)len;
+    if (++e->reads > 5000) return KC_IO_ERR;
+    usleep(1000);
+    buf[0] = 0;
+    return 1;
+}
+
+static void *raise_later(void *cell)
+{
+    usleep(20 * 1000);
+    ffkmp_interrupt_raise((kc_interrupt *)cell);
+    return NULL;
+}
+
+static void case_a_raise_from_another_thread_stops_the_open(void)
+{
+    endless_source source = { 0 };
+    kc_interrupt *cell = ffkmp_interrupt_new();
+    kc_fmt_ctx *ctx = NULL;
+    pthread_t raiser;
+
+    kc_case("a raise from a second thread stops an open that polls the cell on the first");
+    KC_NOT_NULL(cell);
+    KC_EQ_INT(pthread_create(&raiser, NULL, raise_later, cell), 0);
+    /* Nothing orders the raise against the polls, as in real use (#116). */
+    KC_EQ_INT(ffkmp_fmt_open_input_io(&ctx, &source, endless_read, NULL, -1,
+                                      NULL, NULL, 0, NULL, cell), AVERROR_EXIT);
+    KC_NULL(ctx);
+    KC_EQ_INT(pthread_join(raiser, NULL), 0);
+    ffkmp_interrupt_free(&cell);
+}
+
 int main(void)
 {
     const char *tmp = getenv("TMPDIR");
@@ -176,6 +219,7 @@ int main(void)
     case_raised_cell_refuses_the_path_open();
     case_interrupting_the_context_raises_the_borrowed_cell();
     case_the_custom_io_open_polls_the_borrowed_cell();
+    case_a_raise_from_another_thread_stops_the_open();
 
     return kc_suite_end();
 }
