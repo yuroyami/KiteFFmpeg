@@ -250,6 +250,9 @@ public actual class MediaSource internal constructor(
     public actual fun decodedFrames(stream: StreamInfo): Flow<Frame> = decodeStreams(listOf(stream))
 
     public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = flow {
+        // Refused before any decoder exists. A duplicate index opened a second decoder over the
+        // first one's map entry, and only the survivor was closed (#113).
+        canonicalPacketSelection(this@MediaSource.streams, streams)
         // Staged, because `associate` built them all and dropped the ones it had already built if
         // a later open threw, leaking one codec context each.
         val decoders = LinkedHashMap<Int, StreamDecoder>()

@@ -101,6 +101,30 @@ class WebDecodeOwnershipTest {
     }
 
     @Test
+    fun aDuplicateSelectionIsRefusedBeforeAnyDecoderOpens() = runTest {
+        val module = fakeDecodeCodecModule()
+        val source = openSource(module, "gg")
+        try {
+            val stream = source.streams[0]
+            // Twice, because each refused call used to strand one more decoder.
+            repeat(2) {
+                assertFailsWith<IllegalArgumentException> {
+                    source.decodeStreams(listOf(stream, stream)).toList()
+                }
+            }
+            assertEquals(0, fakeDecoderOpens(module), "a refused selection must not build a decoder")
+            assertEquals(0, fakeLiveDecoders(module))
+            assertEquals(0, fakeFrameBalance(module), "every landing frame must be freed")
+
+            // The refusals left the source usable.
+            source.decodeStreams(listOf(stream)).toList().forEach { it.close() }
+            assertEquals(fakeDecoderOpens(module), fakeDecoderFrees(module))
+        } finally {
+            source.close()
+        }
+    }
+
+    @Test
     fun extractFrameReturnsTheCursorLeaseWhenOpeningTheDecoderThrows() = runTest {
         val module = fakeDecodeCodecModule()
         val source = openSource(module, "gg")
