@@ -53,6 +53,8 @@ internal class JvmFilterBackend(
     }
 }
 
+internal actual val filterGraphRefusal: String? = null
+
 @Throws(FFmpegException::class)
 internal actual fun buildVideoBackend(
     description: String,

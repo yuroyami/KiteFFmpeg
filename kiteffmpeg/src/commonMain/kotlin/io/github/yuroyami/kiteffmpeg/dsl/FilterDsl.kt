@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg.dsl
 
 import io.github.yuroyami.kiteffmpeg.SampleFormat
+import io.github.yuroyami.kiteffmpeg.filterGraphRefusal
 import io.github.yuroyami.kiteffmpeg.FFmpeg
 import io.github.yuroyami.kiteffmpeg.FFmpegError
 import io.github.yuroyami.kiteffmpeg.FFmpegException
@@ -265,7 +266,13 @@ public data class FilterChain(val steps: List<FilterStep>) {
      * The error is [FFmpegError.FilterNotFound], which is what FFmpeg itself would eventually
      * answer, so a caller can catch one type whether the refusal came from here or from the parse.
      */
-    public fun requireAvailable(): Unit = requireAvailable(FFmpeg::hasFilter)
+    public fun requireAvailable() {
+        // A backend with no filter graph says so, rather than claiming the build lacks each filter.
+        filterGraphRefusal?.let { reason ->
+            throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, reason))
+        }
+        requireAvailable(FFmpeg::hasFilter)
+    }
 
     /** [requireAvailable] against a supplied predicate; see [missingFilters]. */
     internal fun requireAvailable(has: (String) -> Boolean) {

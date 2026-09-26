@@ -1,7 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_component_names
-import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_filter_exists
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_find_decoder_by_name
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_find_encoder_by_name
 import io.github.yuroyami.kiteffmpeg.wasm.kc_ffmpeg_configuration
@@ -47,8 +46,10 @@ public actual object FFmpeg {
     public actual fun hasDecoder(name: String): Boolean =
         withCString(name) { ptr -> ffkmp_find_decoder_by_name(requireModule(), ptr) != 0 }
 
-    public actual fun hasFilter(name: String): Boolean =
-        withCString(name) { ptr -> ffkmp_filter_exists(requireModule(), ptr) != 0 }
+    // The codec module compiles a few filters for its own conversions, but this backend builds no
+    // FilterGraph, so no filter is usable here whatever the module carries.
+    @Suppress("UNUSED_PARAMETER")
+    public actual fun hasFilter(name: String): Boolean = false
 
     public actual fun components(kind: FFmpegComponent): List<String> {
         val m = requireModule()

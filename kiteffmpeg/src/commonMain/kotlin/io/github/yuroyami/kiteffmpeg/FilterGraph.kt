@@ -527,6 +527,9 @@ internal interface FilterBackend {
     fun free()
 }
 
+/** Why this backend builds no filter graph at all, or null where it builds them. */
+internal expect val filterGraphRefusal: String?
+
 @Throws(FFmpegException::class)
 internal expect fun buildVideoBackend(
     description: String,

@@ -45,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   had no floor and those demuxers take the nearer side as the direction (#80).
 - On the web, `Packet.durationMicros` is null for a duration that is not positive, as on the JVM
   and native backends. A negative duration used to pass through (#106).
+- On the web, `FFmpeg.hasFilter` answers false, because the web builds no filter graph. Every
+  filter graph build and `FilterChain.requireAvailable` refuse with one reason that says so. The
+  refusal used to say that decoding was not implemented, which is false on wasmJs (#102).
 - A display matrix that mirrors the picture is reported as a mirror. A left-right mirror used to
   read as a half turn, so a renderer showed the video upside down. It now reads as no turn with
   `StreamInfo.mirrored` set (#81).

@@ -31,7 +31,10 @@ public expect object FFmpeg {
     /** Whether the bound FFmpeg has a given decoder compiled in. */
     public fun hasDecoder(name: String): Boolean
 
-    /** Whether the bound FFmpeg has a given filter compiled in. */
+    /**
+     * Whether a [FilterGraph] here can use the given filter: it is compiled into the bound FFmpeg,
+     * on a backend that builds filter graphs. The web backends build none, so there it is false.
+     */
     public fun hasFilter(name: String): Boolean
 
     /**
