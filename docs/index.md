@@ -61,8 +61,14 @@ checkout, where you build FFmpeg yourself.
 === "Linux"
 
     ```bash
-    sudo apt install ffmpeg libavcodec-dev libavformat-dev \
-        libavfilter-dev libavutil-dev libswscale-dev libswresample-dev
+    # The prebuilt static tree from this repository's release, as CI uses it.
+    tag=ffmpeg-n9.0.2
+    asset=ffmpeg-n9.0.2-lgpl-linux-x64.zip
+    curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset"
+    curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset.sha256"
+    shasum -a 256 -c "$asset.sha256"
+    mkdir -p native-libs/lgpl/linux-x64
+    unzip -q "$asset" -d native-libs/lgpl/linux-x64
     ./gradlew :kiteffmpeg:linuxX64Test
     ```
 

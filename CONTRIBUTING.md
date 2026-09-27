@@ -41,7 +41,7 @@ These are not style preferences. Each one exists because ignoring it cost someon
 - **JDK 21** (the build sets `jvmToolchain(21)`).
 - **FFmpeg**: the fastest path on a dev machine is a system install:
   - macOS: `brew install ffmpeg`
-  - Debian/Ubuntu: `sudo apt install libavformat-dev libavcodec-dev libavfilter-dev libavutil-dev libswscale-dev libswresample-dev`
+  - Linux: the apt packages do not link (see [Building from source](docs/building-from-source.md#where-the-build-finds-ffmpeg)). Unzip this repository's `ffmpeg-<version>-lgpl-linux-x64.zip` release asset (or the `linux-arm64` one) under `native-libs/lgpl/linux-x64/`, which is what CI does.
   - Windows has no auto-discovery; unzip this repository's `ffmpeg-<version>-lgpl-mingw-x64.zip` release asset under `native-libs/lgpl/mingw-x64/`, which is what CI does (see [docs/platforms.md](docs/platforms.md#windows-mingwx64)).
 - If Homebrew lives in a non-standard prefix, set `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties`.
 - The `ffmpeg` and `ffprobe` CLIs on `PATH` (used by the e2e script only).
@@ -82,33 +82,39 @@ Pure-logic tests (`Rational`, `FrameInfo`) live in `commonTest`; `nativeTest` ru
 ## The gate before every commit
 
 Pick the tier by which paths changed, never by how confident you feel. Say which tier you ran
-and which rule selected it.
+and which rule selected it. `scripts/check-gate.sh` runs either tier on a macOS arm64 machine,
+prints each command before it runs it, and stops at the first failure. `--from=STEP` resumes a
+tier at the step named in its output, and `--dry-run` prints the commands only.
 
-**Tier 1, every change without exception, seconds:**
+**Tier 1, every change without exception, a few minutes:**
 
 ```bash
-./gradlew checkCinteropCoupling
-./gradlew :kiteffmpeg:checkFFmpegRecipes
-./native/kitecodec-c/scripts/check-deleted-surface.sh
-./native/kitecodec-jni/scripts/source-discipline.sh
-./native/kitecodec-c/scripts/run-c-tests.sh plain
-git ls-files -z | xargs -0 grep -n $'\u2014'   # em dash scan: printing nothing is the pass
+./scripts/check-gate.sh tier1
 ```
+
+It runs `checkCinteropCoupling` and `:kiteffmpeg:checkFFmpegRecipes`, the deleted-surface check,
+the JNI source-discipline check, the plain C build and its suites, and the em dash scan.
 
 Tier 1 cannot catch data races, wrong-architecture archives, cinterop surface changes,
 real-media regressions, or anything about a target it did not build. It does catch a vendored
 FFmpeg tree baked from a different recipe than the checkout describes.
 
-**Tier 2, roughly 10 to 15 minutes.** Selected by any of: files under `native/` or `buildSrc/`,
-any `.def` file, any `build.gradle.kts`, any version catalog,
-or any Kotlin under a platform source set. Contents: Tier 1, plus host cinterop (with
-`-Pkiteffmpeg.hostTargetsOnly=true` on a machine with one FFmpeg tree), `apiCheck` (with
-`-Pkiteffmpeg.requireAllTargets=true`, see [Binary compatibility](#binary-compatibility)), the build
-logic and plugin tests, the sanitizer and interpose C runs, corpus replay, the symbol check,
-the klib metadata diff, the host target's test task, `jvmTest`, and `./scripts/linux-tests.sh`.
+**Tier 2, tens of minutes.** Selected by any of: files under `native/` or `buildSrc/`, any `.def`
+file, any `build.gradle.kts`, any version catalog, or any Kotlin under a platform source set.
 
-Run the aggregate task, not a hand-written list of modules. `run-c-tests.sh` never builds
-anything: run `build-host.sh <variant>` first or you are testing yesterday's binaries.
+```bash
+./scripts/check-gate.sh tier2
+```
+
+Tier 2 is Tier 1 plus `apiCheck` (with `-Pkiteffmpeg.requireAllTargets=true`, see
+[Binary compatibility](#binary-compatibility)) and the metadata compiles, the wasm binding and
+release target mirrors, the dependency hygiene script, host cinterop and the klib metadata diff,
+the build logic tests, the interpose, AddressSanitizer and ThreadSanitizer C runs, the symbol
+audit, the corpus replay, the host target's test task, `jvmTest`, the end-to-end transcode, and
+`./scripts/linux-tests.sh`, which needs Docker.
+
+`run-c-tests.sh` never builds anything. When you run it by hand, run `build-host.sh <variant>`
+first, or you are testing yesterday's binaries.
 
 ## Pull request expectations
 

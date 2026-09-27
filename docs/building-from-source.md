@@ -12,15 +12,27 @@ order:
 1. The vendored static tree under `native-libs/<license>/<target>/`. This is what the published
    artifacts embed.
 2. A system FFmpeg, for the host's own desktop target only: Homebrew on macOS (override the prefix
-   with `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties`) or the apt packages on Linux.
-   It is a convenience for a quick local build, and a binary linked this way needs that FFmpeg at
-   run time.
+   with `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties`). It is a convenience for a quick
+   local build, and a binary linked this way needs that FFmpeg at run time.
 
 ```bash
-# The system fallback, for a quick host build
-brew install ffmpeg                     # macOS
-sudo apt install -y libavformat-dev libavcodec-dev libavfilter-dev \
-    libavutil-dev libswscale-dev libswresample-dev   # Debian / Ubuntu
+# The system fallback, for a quick host build on macOS
+brew install ffmpeg
+```
+
+On Linux the lookup also finds the apt packages, but a Kotlin/Native link against them fails:
+Ubuntu's libav\* libraries need glibc 2.29 or later, and Kotlin/Native links against its own
+glibc 2.19 sysroot. Use the prebuilt static tree from this repository's release instead, which is
+what CI does:
+
+```bash
+tag=ffmpeg-n9.0.2
+asset=ffmpeg-n9.0.2-lgpl-linux-x64.zip   # or ffmpeg-n9.0.2-lgpl-linux-arm64.zip
+curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset"
+curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset.sha256"
+shasum -a 256 -c "$asset.sha256"
+mkdir -p native-libs/lgpl/linux-x64       # or linux-arm64
+unzip -q "$asset" -d native-libs/lgpl/linux-x64
 ```
 
 ## Building the vendored tree

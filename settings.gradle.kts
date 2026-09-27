@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "KiteFFmpeg"
 include(":kiteffmpeg")
 include(":kiteffmpeg-sample")
-// include(":kiteffmpeg-gpl"): uncomment once kiteffmpeg-gpl/build.gradle.kts is implemented (see kiteffmpeg-gpl/README.md)
+// kiteffmpeg-gpl is not a module: nothing builds or publishes a GPL flavour (see kiteffmpeg-gpl/README.md).
