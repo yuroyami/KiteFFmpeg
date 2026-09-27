@@ -344,6 +344,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_convert_pixfmt(src: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, dst_fmt: kotlin/Int): kotlinx/cinterop/CPointer<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_convert_display")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_frame_convert_display(src: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, dst_fmt: kotlin/Int): kotlinx/cinterop/CPointer<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_image_get_buffer_size")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_image_get_buffer_size(fmt: kotlin/Int, w: kotlin/Int, h: kotlin/Int, align: kotlin/Int): kotlin/Int
@@ -711,10 +715,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_width")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecctx_width(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?): kotlin/Int
-
-      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_height")
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_codecctx_height(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?): kotlin/Int
     }
   }
 
@@ -722,6 +722,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_height")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_codecctx_height(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?): kotlin/Int
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_open_input")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1184,7 +1188,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 12 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 13 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1230,10 +1234,6 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_PATH: kotlin/Int /* = 512 */
         public final get
-
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KC_TEXT_SENTENCE: kotlin/Int /* = 1152 */
-        public final get
     }
   }
 
@@ -1241,6 +1241,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_TEXT_SENTENCE: kotlin/Int /* = 1152 */
+        public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_HDR_MASTERING_INTS: kotlin/Int /* = 20 */

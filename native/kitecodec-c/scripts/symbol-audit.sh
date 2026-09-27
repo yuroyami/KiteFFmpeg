@@ -62,8 +62,8 @@ NM="${KC_NM:-/usr/bin/nm}"
 
 # The exact number of normalized public declarations check 7 expects, and how many of them are
 # helper prototypes. Both move deliberately, in the commit that changes the C surface.
-SIGNATURE_SCOPE=258
-HELPER_PROTOTYPES=235
+SIGNATURE_SCOPE=259
+HELPER_PROTOTYPES=236
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -199,9 +199,14 @@ abi_is_newer_than() {
 # _pthread_key_create, _pthread_getspecific and _pthread_setspecific joined 2026-09-26 with the
 # per-thread scaler cache in src/helpers_frame.c. The key's destructor frees a thread's cached
 # SwsContext when that thread ends, which a `static __thread` pointer cannot do (#105).
+# _pow and _exp joined 2026-09-27 with the tone map in src/helpers_display.c. They fill its lookup
+# tables once per process (the PQ and HLG curves, the EETF and the gamma 2.2 encode) and are not
+# called per pixel. sqrt is called per pixel and compiles to one instruction, so it has no entry.
+# _ffkmp_frame_convert_pixfmt joined the same day. It is this library's OWN symbol, which
+# src/helpers_display.c calls across units for the conversion it builds on, as with _kc_init.
 ALLOWED_UNDEFINED="_memcpy _snprintf _strstr _bzero ___stack_chk_fail ___stack_chk_guard __tlv_bootstrap
 _pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk _kc_init
-_pthread_key_create _pthread_getspecific _pthread_setspecific"
+_pthread_key_create _pthread_getspecific _pthread_setspecific _pow _exp _ffkmp_frame_convert_pixfmt"
 
 # Calls that must never appear. A library does not print, does not log through its host's logger,
 # and does not reach into an Apple runtime from portable C. The av_log patterns name the logging

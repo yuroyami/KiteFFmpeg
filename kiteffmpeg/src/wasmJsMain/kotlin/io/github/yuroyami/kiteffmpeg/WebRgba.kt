@@ -2,7 +2,7 @@
 
 package io.github.yuroyami.kiteffmpeg
 
-import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_convert_pixfmt
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_convert_display
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_copy_to_buffer
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_free
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_height
@@ -25,6 +25,14 @@ import kotlin.js.JsAny
  * So this class never returns pixels. It fills a JS array the CALLER owns, which in practice is an
  * `ImageData.data` a canvas is about to draw. The bytes go from the codec module's heap into that
  * array in one JS `set`, and Kotlin only ever passes two integers and a handle.
+ *
+ * ### The colour a screen needs
+ *
+ * The conversion is the one for a picture on a screen, not only a change of encoding. A YCgCo
+ * picture uses the YCgCo matrix. A PQ or HLG picture is tone mapped to SDR in C beside the decoder:
+ * BT.2020 primaries fold to BT.709, and luminance rolls off from a 1000 nit peak to 203 nit
+ * reference white, encoded as gamma 2.2. That is the law KitePlayer's other software paths use, so
+ * the canvas shows the same picture they do.
  *
  * ### Owning one of these
  *
@@ -70,7 +78,7 @@ public class WebRgbaConverter : AutoCloseable {
 
         // The converted frame is a NEW frame owned here and freed on every path out, including the
         // failure ones. It is not the caller's to close and it must not outlive this call.
-        val converted = ffkmp_frame_convert_pixfmt(module, source, format)
+        val converted = ffkmp_frame_convert_display(module, source, format)
         if (converted == 0) return false
         try {
             if (!reserve(module, size)) return false

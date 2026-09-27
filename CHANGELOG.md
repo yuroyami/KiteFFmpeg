@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   for the input path, which is how an Android app reads a picked file through `"fd:"` without a
   copy. The other reads from a `MediaByteSource` factory and writes into a `MediaByteSink`, with
   the container named by `format` (#85).
+- The C ABI is 3.13, which adds `ffkmp_frame_convert_display`, the conversion that
+  `WebRgbaConverter` uses (#120).
 
 ### Added
 
@@ -39,6 +41,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `copyPlanesToByteArray` of a frame with no picture and no samples returns an empty array on the
   JVM, Android and the web, as the documentation says. It threw `FFmpegException` there (#122).
+- On the web, `WebRgbaConverter` tone maps a PQ or HLG picture to SDR. It drew the code values,
+  flat and dim. BT.2020 primaries fold to BT.709, and luminance rolls off from a 1000 nit peak to
+  203 nit reference white, the law KitePlayer's other software paths use. A YCgCo picture draws
+  with the YCgCo matrix, where it used the HD or SD guess (#120).
+- A picture tagged with the FCC matrix converts with that matrix on every backend. It used the
+  BT.709 or BT.601 guess by height (#120).
 - A `MediaByteSource` whose `read` answers with more bytes than it was asked for fails the operation
   with an I/O `FFmpegException` on every backend, before any of those bytes is used. The cause names
   the two counts.

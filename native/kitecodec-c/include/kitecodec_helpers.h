@@ -121,6 +121,15 @@ KC_API kc_frame* ffkmp_frame_clone(const kc_frame *f);
  * not the source: an RGB destination is full range with an RGB matrix.
  */
 KC_API kc_frame* ffkmp_frame_convert_pixfmt(const kc_frame *src, int dst_fmt);
+
+/* Ownership as ffkmp_frame_convert_pixfmt. The same conversion for a picture on a screen, into
+ * dst_fmt, which must be a packed 8-bit RGB format of 3 or 4 bytes per pixel, rgba among them;
+ * any other format returns NULL. Two steps differ. A YCgCo picture uses the YCgCo matrix. A PQ or
+ * HLG picture is tone mapped to SDR: BT.2020 primaries fold to BT.709, and luminance rolls off
+ * from a 1000 nit peak to 203 nit reference white, encoded as gamma 2.2. The result's tags say
+ * so. Every other picture gives the bytes of ffkmp_frame_convert_pixfmt.
+ */
+KC_API kc_frame* ffkmp_frame_convert_display(const kc_frame *src, int dst_fmt);
 KC_API int ffkmp_image_get_buffer_size(int fmt, int w, int h, int align);
 KC_API int ffkmp_frame_copy_to_buffer(kc_frame *f, uint8_t *dst, int dst_size);
 KC_API int ffkmp_samples_get_buffer_size(kc_frame *f);

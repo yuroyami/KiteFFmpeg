@@ -555,6 +555,9 @@ internal external fun ffkmp_frame_alloc(module: JsAny): Int
 @JsFun("(m, a0) => m._ffkmp_frame_clone(a0)")
 internal external fun ffkmp_frame_clone(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_frame_convert_display(a0, a1)")
+internal external fun ffkmp_frame_convert_display(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_frame_convert_pixfmt(a0, a1)")
 internal external fun ffkmp_frame_convert_pixfmt(module: JsAny, a0: Int, a1: Int): Int
 

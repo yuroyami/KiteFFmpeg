@@ -58,6 +58,7 @@ static int kc_sws_cs_for(enum AVColorSpace spc, int height) {
         case AVCOL_SPC_SMPTE170M:
         case AVCOL_SPC_BT470BG:          return SWS_CS_ITU601;
         case AVCOL_SPC_SMPTE240M:        return SWS_CS_SMPTE240M;
+        case AVCOL_SPC_FCC:              return SWS_CS_FCC;
         case AVCOL_SPC_BT2020_NCL:
         case AVCOL_SPC_BT2020_CL:        return SWS_CS_BT2020;
         default:

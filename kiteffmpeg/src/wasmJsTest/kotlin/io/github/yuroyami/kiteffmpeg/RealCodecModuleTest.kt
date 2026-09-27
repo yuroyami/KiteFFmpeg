@@ -21,7 +21,7 @@ class RealCodecModuleTest {
 
     @AfterTest fun finish() = forgetCodecModule()
 
-    private companion object {
+    internal companion object {
         /** Five frames of solid red, 64x64 H.264 in MP4: Y 81, U 90 and V 240 in every pixel. */
         val CLIP: ByteArray = (
             "000000206674797069736f6d0000020069736f6d69736f32617663316d7034310000031a6d6f6f760000006c6d766864" +
