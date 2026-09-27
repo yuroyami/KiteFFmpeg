@@ -47,6 +47,7 @@ So the local gate replays a committed corpus. It discovers nothing. It refuses t
 | `fuzz_muxer_name.c` | `ffkmp_fmt_alloc_output2`, its `format` argument | A muxer name walks the muxer registry, straight from `MediaSink.open(path, format, options)`. |
 | `fuzz_demux.c` | `ffkmp_fmt_open_input_io`, `ffkmp_fmt_find_stream_info`, `ffkmp_fmt_read_frame`, `ffkmp_fmt_seek_micros`, and the stream, metadata and chapter getters | Container bytes reach a demuxer through the custom read callback, as they do from `MediaSource.open(MediaByteSource)`. Every input is opened twice: seekable with its size known, and as a stream with neither. |
 | `fuzz_decode.c` | the same open, then `ffkmp_codecctx_send_packet`, `ffkmp_codecctx_receive_frame`, the frame copies and the pixel conversion | Every packet that a demuxer reads goes to its stream's decoder, and every frame goes through the copies that a caller reads it with. |
+| `fuzz_subtitle.c` | the same open, then the eight `ffkmp_subtitle_` functions: open, decode, times, rectangle count and geometry, the RGBA conversion, the text, and free | Every subtitle packet goes to its stream's subtitle decoder, and each image rectangle is converted from the index plane and palette that the decoder built from the input. |
 
 Each target's own file header says what it does, what matrix it runs and what a finding would look
 like. Read the file, not this table.
@@ -78,9 +79,9 @@ it in every family.
 ## The corpus
 
 The string corpora hold 128 files, 38807 bytes, all committed, all textual. The byte corpora hold
-70 small media files, 117555 bytes, all committed. No media seed is larger than 5559 bytes, which
-keeps every seed under the `-max_len` of 8192 that `run-fuzz.sh` passes. The full replay of all ten
-targets under ASan and UBSan takes about 10 seconds on this machine, the compiles included.
+82 small media files, 121866 bytes, all committed. No media seed is larger than 5559 bytes, which
+keeps every seed under the `-max_len` of 8192 that `run-fuzz.sh` passes. The full replay of all
+eleven targets under ASan and UBSan takes about 17 seconds on this machine, the compiles included.
 
 | Directory | Files | What is in it |
 |---|---|---|
@@ -94,6 +95,7 @@ targets under ASan and UBSan takes about 10 seconds on this machine, the compile
 | `corpus/muxer_name/` | 11 | Valid muxer names (`matroska`, `mp4`, `null`, `wav`), an unknown name, a comma list, a format specifier, uppercase, a trailing space, an empty input and a 300 byte name. |
 | `corpus/demux/` | 33 | Small files that 17 demuxers open: MP4 with its index before the media, after it, and with a rotation; Matroska with chapters and tags; WebM, Ogg, WAV, FLAC, MP3 with ID3 tags, ADTS AAC, MPEG-TS, AVI, FLV, raw H.264, IVF, AIFF, CAF, QuickTime, SubRip, WebVTT and ASS. A concat script and an SDP file that each point at something a fuzz run must never open. Ten deliberately corrupted inputs, named `corrupt_*`: truncated files, sizes that lie, changed header bytes, a bad page checksum, random bytes and an empty file. |
 | `corpus/decode/` | 37 | One small file per decoder: H.264, HEVC, VP8, VP9, AV1, MPEG-4, MJPEG, GIF, APNG, MPEG-2, Theora, FFV1, ProRes, AAC, MP3, Opus, Vorbis, FLAC, PCM, AC-3, ALAC and WavPack. Fourteen deliberately corrupted inputs, named `corrupt_*`: twelve with an intact container and changed bytes inside the coded frames, random bytes and an empty file. |
+| `corpus/subtitle/` | 12 | The SubRip, WebVTT and ASS seeds of `corpus/demux/`, the same SubRip and ASS in Matroska, SubRip as MP4 timed text, and `pgs.sup`, the Blu-ray display set that `tests/test_subtitle.c` builds byte by byte: a 4 by 2 image, then a clear. Five deliberately corrupted inputs, named `corrupt_*`: the Blu-ray set truncated inside its object, with an object size that its run-length data does not hold, and with changed run-length bytes, plus random bytes and an empty file. |
 
 **The media seeds.** The ffmpeg command line tool made them from its own test sources: a 32 by 32
 test picture for three frames and a sine tone, encoded with bit-exact flags. Each `corrupt_*` seed is
@@ -189,6 +191,11 @@ Measured by counting in a scratch build of the two targets, not with a coverage 
   when seekable, and four open and then read what is left.
 * `decode`: 23 decoders open, and every valid seed gives frames. The corrupted seeds give damaged
   frames, no frames, or no open, so they reach the error paths of the decoders.
+* `subtitle`: 5 subtitle decoders open (SubRip, WebVTT, ASS, MP4 timed text and Blu-ray), and every
+  valid seed gives two subtitles. The Blu-ray seed's image goes through the RGBA conversion. The
+  corrupted Blu-ray sets with a wrong object size and wrong run-length bytes still give an image
+  that is converted, the truncated one gives no subtitle, and random bytes and the empty file do
+  not open.
 
 ## What is not fuzzed
 
@@ -244,13 +251,15 @@ FFmpeg refuses every such open, and a fuzz run touches no file and no network. T
 FFmpeg ever gives that option back unused. The `concat_nested_file.ffconcat` and
 `sdp_nested_socket.sdp` seeds keep this checked.
 
-**Subtitles are not decoded.** This library has no subtitle decode entry point, so `fuzz_decode.c`
-decodes audio and video streams only. `fuzz_demux.c` still reads the subtitle containers.
+**Subtitles have their own target.** `fuzz_decode.c` decodes audio and video streams only, and
+`fuzz_subtitle.c` decodes the subtitle streams. DVB, DVD and XSUB subtitles have no seed yet,
+because FFmpeg can encode them only from images, so the fuzzer has to find those decoders itself.
 
 ## Proving the harness has power
 
 A green fuzzer that has never caught anything is not evidence of anything except that it ran. So one
-deliberately planted defect for each kind of input is proved caught, then removed.
+deliberately planted defect for each kind of input, and one for the subtitle image conversion, is
+proved caught, then removed.
 
 ```bash
 ./scripts/build-host.sh asan
@@ -269,7 +278,7 @@ What it does, once for each defect:
 4. Requires a non-zero exit **and** a sanitizer report in the output, and names the input that was
    caught. A non-zero exit with no report is not evidence and is rejected.
 
-The two defects:
+The three defects:
 
 * **The string path.** The running-length check after the `,aformat=` append in
   `ffkmp_graph_build_audio` is deleted. The corpus already carries the input that trips it,
@@ -278,8 +287,12 @@ The two defects:
 * **The byte path.** A failed `ffkmp_fmt_open_input_io` frees the read buffer it allocated instead
   of the buffer that the I/O context holds. FFmpeg's probe swaps in its own buffer and frees the
   first one before it decides whether the input opens, so the changed line frees a buffer a second
-  time. Only an input that cannot be opened reaches that line. The demux and decode targets replay
-  their `corrupt_*` seeds through the mutant, and each must report the double free.
+  time. Only an input that cannot be opened reaches that line. The demux, decode and subtitle
+  targets replay their `corrupt_*` seeds through the mutant, and each must report the double free.
+* **The subtitle path.** `ffkmp_subtitle_rect_rgba` converts one row more than the image has. The
+  subtitle target allocates the destination at exactly the size that the conversion needs, so the
+  extra row lands past its end. `corpus/subtitle/pgs.sup` holds a 4 by 2 image, and replaying it
+  through the mutant must report the heap overflow.
 
 ## Running
 

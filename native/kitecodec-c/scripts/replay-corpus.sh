@@ -39,7 +39,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 
 # One name per fuzz/fuzz_*.c file: the string targets first, then the two byte targets. Keep this
 # list, the fuzz/fuzz_*.c files, the fuzz/corpus subdirectories and run-fuzz.sh in agreement.
-ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode"
+ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode subtitle"
 
 PROVE_POWER=0
 if [ "${1:-}" = "--prove-power" ]; then
@@ -229,7 +229,7 @@ build_shared() {
 # The defects are planted in COPIES of the helper sources under build/, never in the repository, the
 # same way the C suites were proved load bearing. So the defect is never in any commit at all.
 #
-# Two defects, one for each kind of input.
+# Three defects: one for each kind of input, and one for the subtitle image conversion.
 #
 # The string path. One deletion: the running-length check the description overflow fix installed
 # after the ",aformat=" append in ffkmp_graph_build_audio. That is the exact overflow, at the exact site. With
@@ -242,8 +242,13 @@ build_shared() {
 # allocated instead of the buffer the I/O context holds. FFmpeg's probe swaps that buffer for its
 # own, and frees the first one, before it decides whether the input can be opened. So the changed
 # line frees a buffer for the second time, and only an input that cannot be opened reaches it. The
-# demux and decode targets replay the deliberately corrupted seeds, the files named corrupt_*,
-# through the mutant, and each target must report the double free.
+# demux, decode and subtitle targets replay the deliberately corrupted seeds, the files named
+# corrupt_*, through the mutant, and each target must report the double free.
+#
+# The subtitle path. One changed bound: ffkmp_subtitle_rect_rgba converts one row more than the
+# image has. The subtitle target allocates the destination at exactly the size that the conversion
+# needs, so the extra row is written past its end. The Blu-ray seed, corpus/subtitle/pgs.sup, holds
+# a 4 by 2 image, so replaying it through the mutant must report the heap overflow.
 
 # Applies one named mutation to a copy of the helper sources, builds a helper archive from the copy,
 # and links a mutant replay binary for each target named after it. The mutation is applied by exact
@@ -275,16 +280,22 @@ MUTATIONS = {
     ),
     "open_failure_buffer": (
         "helpers_format.c",
-        '    int rc = avformat_open_input(&c, NULL, NULL, &options);\n'
+        '    int rc = avformat_open_input(&c, NULL, forced, &options);\n'
         '    if (rc < 0) {\n'
         '        av_dict_free(&options);\n'
         '        av_freep(&pb->buffer);\n',
-        '    int rc = avformat_open_input(&c, NULL, NULL, &options);\n'
+        '    int rc = avformat_open_input(&c, NULL, forced, &options);\n'
         '    if (rc < 0) {\n'
         '        av_dict_free(&options);\n'
         '        av_freep(&buffer);\n',
         'a failed ffkmp_fmt_open_input_io frees the buffer it allocated, not the one the '
         'I/O context holds',
+    ),
+    "rgba_row_bound": (
+        "helpers_subtitle.c",
+        '    for (int row = 0; row < r->h; row++) {\n',
+        '    for (int row = 0; row <= r->h; row++) {\n',
+        'ffkmp_subtitle_rect_rgba converts one row more than the image has, past the end of dst',
     ),
 }
 file, old, new, what = MUTATIONS[name]
@@ -392,8 +403,8 @@ prove_power() {
     expect_caught filter_audio "${files[@]}" || failed=1
 
     echo "prove-power: the byte path, a defect planted in a COPY of the helper sources"
-    build_mutants open_failure_buffer demux decode
-    for target in demux decode; do
+    build_mutants open_failure_buffer demux decode subtitle
+    for target in demux decode subtitle; do
         files=()
         while IFS= read -r file; do files+=("$file"); done < <(find "$ROOT/fuzz/corpus/$target" -type f -name 'corrupt_*' | sort)
         if [ "${#files[@]}" -eq 0 ]; then
@@ -403,6 +414,12 @@ prove_power() {
         fi
         expect_caught "$target" "${files[@]}" || failed=1
     done
+
+    echo "prove-power: the subtitle path, a defect planted in a COPY of the helper sources"
+    build_mutants rgba_row_bound subtitle
+    files=()
+    while IFS= read -r file; do files+=("$file"); done < <(find "$ROOT/fuzz/corpus/subtitle" -type f -name 'pgs.sup')
+    expect_caught subtitle "${files[@]}" || failed=1
 
     if [ "$failed" -ne 0 ]; then
         return 1

@@ -44,7 +44,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 
 # One name per fuzz/fuzz_*.c file. Keep this list, the fuzz/fuzz_*.c files, the
 # fuzz/corpus subdirectories and replay-corpus.sh in agreement.
-ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode"
+ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode subtitle"
 TARGETS="${*:-$ALL_TARGETS}"
 
 CC="${KC_CC:-/usr/bin/clang}"

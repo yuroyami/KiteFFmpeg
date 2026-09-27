@@ -58,9 +58,9 @@ jobs:
   fuzz-linux:
     name: Fuzz the C entry points (libFuzzer, ubuntu-24.04)
     runs-on: ubuntu-24.04
-    # Ten targets at five minutes each is 50 minutes of fuzzing, plus the FFmpeg install and the
+    # Eleven targets at five minutes each is 55 minutes of fuzzing, plus the FFmpeg install and the
     # instrumented build of the helper layer.
-    timeout-minutes: 75
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
       # clang-18 is ubuntu-24.04's default clang. libclang-rt-18-dev is the package that actually

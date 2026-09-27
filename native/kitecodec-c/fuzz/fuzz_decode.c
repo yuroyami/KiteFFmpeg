@@ -15,7 +15,7 @@
  * thread between calls; FFmpeg reuses it only when every parameter matches, so a reused scaler
  * is the one a fresh input would build.
  *
- * Subtitle streams are not decoded, because this library has no subtitle decode entry point.
+ * Subtitle streams are not decoded here. fuzz_subtitle.c decodes them.
  *
  * Budgets, so that one input cannot run for minutes or allocate gigabytes: max_pixels and
  * max_samples on every decoder, at most 4096 packets and 1024 frames per input, and the

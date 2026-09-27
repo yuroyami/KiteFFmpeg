@@ -34,7 +34,7 @@
  *   Name target, fuzz_format_name
  *     The whole input is one format name, handed to both from-name lookups.
  *
- *   Byte targets, fuzz_demux and fuzz_decode
+ *   Byte targets, fuzz_demux, fuzz_decode and fuzz_subtitle
  *     The whole input is the media: container bytes as a file or a stream delivers them.
  *     kc_fuzz_open_media below serves them to FFmpeg through the custom read callback of
  *     ffkmp_fmt_open_input_io. Nothing is split and nothing is NUL terminated, because no
