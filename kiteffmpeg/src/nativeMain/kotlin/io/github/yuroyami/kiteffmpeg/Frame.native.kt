@@ -12,6 +12,7 @@ import ffmpeg.ffkmp_codecctx_send_frame
 import ffmpeg.ffkmp_codecctx_set_full_range
 import ffmpeg.ffkmp_codecctx_set_video
 import ffmpeg.ffkmp_find_encoder_by_name
+import ffmpeg.ffkmp_frame_a53_cc
 import ffmpeg.ffkmp_frame_alloc
 import ffmpeg.ffkmp_frame_channels
 import ffmpeg.ffkmp_frame_clone
@@ -195,6 +196,17 @@ public actual class Frame internal constructor(
         val needed = planesByteCountOpen()
         if (destination.size < needed) throw destinationTooShort(destination.size, needed)
         if (needed == 0) 0 else copyPlanes(destination)
+    }
+
+    @Throws(FFmpegException::class)
+    public actual fun closedCaptions(): ByteArray? = withNative {
+        val size = ffkmp_frame_a53_cc(nativeFrame, null, 0)
+        check0(size, "frame closed captions")
+        if (size == 0) return@withNative null
+        val bytes = ByteArray(size)
+        val written = bytes.usePinned { ffkmp_frame_a53_cc(nativeFrame, it.addressOf(0).reinterpret(), size) }
+        check0(written, "frame closed captions")
+        bytes
     }
 
     /** The packed byte count, 0 for a frame that holds no picture or samples. Call under [withNative]. */

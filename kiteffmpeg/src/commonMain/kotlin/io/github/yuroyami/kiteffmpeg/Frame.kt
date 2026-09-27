@@ -59,6 +59,20 @@ public expect class Frame : AutoCloseable {
     public fun copyPlanesInto(destination: ByteArray): Int
 
     /**
+     * The CEA-608 and CEA-708 closed captions this video frame carries: the cc_data of its ATSC
+     * A/53 part 4 side data, three bytes per caption pair. In each triplet the first byte holds
+     * the valid flag and the caption type, and the other two hold the caption data.
+     *
+     * A decoder exports these from the video bitstream, such as the SEI messages of H.264 and HEVC
+     * or the user data of MPEG-2, and attaches them to the frame they arrived with.
+     *
+     * @return a new array with the bytes, or null when the frame carries no captions
+     * @throws FFmpegException if the side data cannot be read
+     */
+    @Throws(FFmpegException::class)
+    public fun closedCaptions(): ByteArray?
+
+    /**
      * An owned snapshot of this frame. Use it to keep a callback-scoped frame past that call.
      * O(1): it takes new references to the same refcounted buffers, with no pixel copy.
      * The returned frame survives the source being recycled. Close it yourself.

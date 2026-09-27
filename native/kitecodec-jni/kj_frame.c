@@ -135,6 +135,27 @@ JNIEXPORT jint JNICALL kj_frame_copy_planes_into(JNIEnv *env, jclass cls, jlong 
     return (jint)kj_bytes_written_in_place(env, destination, kj_frame_bytes_out, &fb);
 }
 
+static int kj_frame_captions_out(void *ctx, uint8_t *dst, int32_t len)
+{
+    return ffkmp_frame_a53_cc((kc_frame *)ctx, dst, len);
+}
+
+/* The frame's closed caption bytes in a new array, or NULL when it carries none. */
+JNIEXPORT jbyteArray JNICALL kj_frame_closed_captions(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    int size, rc = 0;
+    jbyteArray out;
+    (void)cls;
+    if (frame == NULL) return NULL;
+    size = ffkmp_frame_a53_cc(frame, NULL, 0);
+    if (size < 0) { kj_throw_ffmpeg(env, size, "frame_a53_cc size"); return NULL; }
+    if (size == 0) return NULL;
+    out = kj_bytes_filled_in_place(env, size, kj_frame_captions_out, frame, &rc);
+    if (out == NULL && rc < 0) kj_throw_ffmpeg(env, rc, "frame_a53_cc copy");
+    return out;
+}
+
 JNIEXPORT void JNICALL kj_frame_unref(JNIEnv *env, jclass cls, jlong token)
 {
     kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);

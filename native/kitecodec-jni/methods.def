@@ -233,6 +233,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameIsKeyframe",  "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameCopyPlanes",  "(J)[B",                  kj_frame_copy_planes)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFramePlanesSize",  "(J)I",                   kj_frame_planes_size)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameCopyPlanesInto", "(J[B)I",              kj_frame_copy_planes_into)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameClosedCaptions", "(J)[B",               kj_frame_closed_captions)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameUnref",       "(J)V",                    kj_frame_unref)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameClone",       "(J)J",                    kj_frame_clone)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameConvert",     "(JI)J",                   kj_frame_convert)

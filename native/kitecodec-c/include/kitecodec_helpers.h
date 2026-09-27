@@ -901,6 +901,12 @@ KC_API int ffkmp_frame_mastering_display(kc_frame *f, int *q, int *flags);
 /* The content light level a stream or a frame declares, with the same returns. */
 KC_API int ffkmp_codecpar_content_light(kc_codec_par *p, int *max_cll, int *max_fall);
 KC_API int ffkmp_frame_content_light(kc_frame *f, int *max_cll, int *max_fall);
+
+/* The closed captions a video frame carries: the cc_data of its ATSC A/53 part 4 side data, three
+ * bytes per caption pair. Returns their byte count, and 0 when the frame carries none. Copies them
+ * into dst when dst is not NULL; a dst_size below the count returns AVERROR(EINVAL) and copies
+ * nothing. A NULL frame returns AVERROR(EINVAL). */
+KC_API int ffkmp_frame_a53_cc(kc_frame *f, uint8_t *dst, int dst_size);
 KC_API uint8_t* ffkmp_frame_plane(kc_frame *f, int p);
 KC_API int ffkmp_frame_plane_count(kc_frame *f);
 KC_API int ffkmp_frame_plane_height(kc_frame *f, int p);

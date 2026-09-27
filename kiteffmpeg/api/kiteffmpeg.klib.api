@@ -1379,6 +1379,7 @@ final class io.github.yuroyami.kiteffmpeg/Frame : kotlin/AutoCloseable { // io.g
         final fun <get-info>(): io.github.yuroyami.kiteffmpeg/FrameInfo // io.github.yuroyami.kiteffmpeg/Frame.info.<get-info>|<get-info>(){}[0]
 
     final fun close() // io.github.yuroyami.kiteffmpeg/Frame.close|close(){}[0]
+    final fun closedCaptions(): kotlin/ByteArray? // io.github.yuroyami.kiteffmpeg/Frame.closedCaptions|closedCaptions(){}[0]
     final fun copy(): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/Frame.copy|copy(){}[0]
     final fun copyPlanesInto(kotlin/ByteArray): kotlin/Int // io.github.yuroyami.kiteffmpeg/Frame.copyPlanesInto|copyPlanesInto(kotlin.ByteArray){}[0]
     final fun copyPlanesToByteArray(): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/Frame.copyPlanesToByteArray|copyPlanesToByteArray(){}[0]

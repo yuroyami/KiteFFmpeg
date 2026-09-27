@@ -696,6 +696,7 @@ public final class io/github/yuroyami/kiteffmpeg/FilterGraphKt {
 public final class io/github/yuroyami/kiteffmpeg/Frame : java/lang/AutoCloseable {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Frame$Companion;
 	public fun close ()V
+	public final fun closedCaptions ()[B
 	public final fun copy ()Lio/github/yuroyami/kiteffmpeg/Frame;
 	public final fun copyPlanesInto ([B)I
 	public final fun copyPlanesToByteArray ()[B

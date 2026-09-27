@@ -250,6 +250,13 @@ Three rules to know:
 - A subtitle with no images and no texts clears the screen. That is how a Blu-ray stream ends a line.
 - Scale the canvas onto your output to place the images, and call `flush()` after a seek.
 
+### Closed captions
+
+CEA-608 and CEA-708 captions reach you in one of two ways:
+
+- **As a track of their own**, such as a MOV `c608` track. The stream's codec is `eia_608`, and `openSubtitleDecoder` decodes it to text like any other subtitle stream.
+- **Inside the video**, as H.264 and HEVC SEI messages or MPEG-2 user data. The decoder attaches them to the frame they arrived with, and `frame.closedCaptions()` returns them as the cc_data triplets of ATSC A/53 part 4: three bytes per caption pair. It returns null for a frame that carries none.
+
 ## Seeking
 
 `seekMicros(micros)` is a `suspend` function that repositions the demuxer to (approximately) the requested time, so call it from a coroutine. FFmpeg seeks to the nearest keyframe at or before the target, so the next frames you decode may start slightly earlier than the exact microsecond you asked for:

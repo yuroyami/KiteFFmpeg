@@ -51,6 +51,19 @@ KC_API void     ffkmp_frame_use_best_effort_ts(AVFrame *f) {
    The clone owns its references: safe to hold after the source frame is reused/unref'd. */
 KC_API AVFrame* ffkmp_frame_clone(const AVFrame *f) { return (f && KC_GATE_OPEN()) ? av_frame_clone(f) : NULL; }
 
+KC_API int ffkmp_frame_a53_cc(AVFrame *f, uint8_t *dst, int dst_size) {
+    const AVFrameSideData *sd;
+    if (!f) return AVERROR(EINVAL);
+    sd = av_frame_get_side_data(f, AV_FRAME_DATA_A53_CC);
+    if (!sd || sd->size == 0) return 0;
+    if (sd->size > 0x7fffffff) return AVERROR(EINVAL);
+    if (dst) {
+        if (dst_size < (int)sd->size) return AVERROR(EINVAL);
+        memcpy(dst, sd->data, sd->size);
+    }
+    return (int)sd->size;
+}
+
 /* Maps an AVColorSpace onto the SWS_CS_* table sws_getCoefficients understands. */
 static int kc_sws_cs_for(enum AVColorSpace spc, int height) {
     switch (spc) {

@@ -16,6 +16,9 @@ public actual class Frame private constructor() : AutoCloseable {
         placeholderBackendUnavailable("Copying frame planes")
 
     @Throws(FFmpegException::class)
+    public actual fun closedCaptions(): ByteArray? = placeholderBackendUnavailable("Reading closed captions")
+
+    @Throws(FFmpegException::class)
     public actual fun copy(): Frame = placeholderBackendUnavailable("Copying a frame")
 
     @Throws(FFmpegException::class)

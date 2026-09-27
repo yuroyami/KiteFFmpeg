@@ -231,6 +231,7 @@ internal object Internals {
     private external fun nativeFrameCopyPlanes(token: Long): ByteArray
     private external fun nativeFramePlanesSize(token: Long): Int
     private external fun nativeFrameCopyPlanesInto(token: Long, destination: ByteArray): Int
+    private external fun nativeFrameClosedCaptions(token: Long): ByteArray?
     private external fun nativeFrameUnref(token: Long)
     private external fun nativeFrameClone(token: Long): Long
     private external fun nativeFrameConvert(token: Long, format: Int): Long
@@ -571,6 +572,7 @@ internal object Internals {
     internal fun frameCopyPlanes(token: Long) = checked { nativeFrameCopyPlanes(token) }
     internal fun framePlanesSize(token: Long) = checked { nativeFramePlanesSize(token) }
     internal fun frameCopyPlanesInto(token: Long, destination: ByteArray) = checked { nativeFrameCopyPlanesInto(token, destination) }
+    internal fun frameClosedCaptions(token: Long) = checked { nativeFrameClosedCaptions(token) }
     internal fun frameUnref(token: Long) = checked { nativeFrameUnref(token) }
     internal fun frameClone(token: Long) = token("frame clone") { nativeFrameClone(token) }
     internal fun frameConvert(token: Long, format: Int) = token("frame conversion") { nativeFrameConvert(token, format) }

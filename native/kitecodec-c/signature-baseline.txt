@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 3.13
+# abi-version 3.14
 #
-# Exact scope: 236 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 237 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 259 records.
+# records are sorted without deduplication. There must be exactly 260 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -107,6 +107,7 @@ KC_API int ffkmp_fmt_set_opt(kc_fmt_ctx *c, const char *k, const char *v);
 KC_API int ffkmp_fmt_write_frame(kc_fmt_ctx *ctx, kc_packet *p);
 KC_API int ffkmp_fmt_write_header(kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_write_trailer(kc_fmt_ctx *ctx);
+KC_API int ffkmp_frame_a53_cc(kc_frame *f, uint8_t *dst, int dst_size);
 KC_API int ffkmp_frame_channels(kc_frame *f);
 KC_API int ffkmp_frame_chroma_location(kc_frame *f);
 KC_API int ffkmp_frame_color_primaries(kc_frame *f);

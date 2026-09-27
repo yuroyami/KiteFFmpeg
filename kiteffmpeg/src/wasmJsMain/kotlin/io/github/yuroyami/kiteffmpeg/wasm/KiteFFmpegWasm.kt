@@ -303,6 +303,9 @@ internal external fun ffkmp_fmt_write_header(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_fmt_write_trailer(a0)")
 internal external fun ffkmp_fmt_write_trailer(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_frame_a53_cc(a0, a1, a2)")
+internal external fun ffkmp_frame_a53_cc(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_frame_channels(a0)")
 internal external fun ffkmp_frame_channels(module: JsAny, a0: Int): Int
 

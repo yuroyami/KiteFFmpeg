@@ -89,6 +89,9 @@ public actual class Frame internal constructor(
     }
 
     @Throws(FFmpegException::class)
+    public actual fun closedCaptions(): ByteArray? = locked { Internals.frameClosedCaptions(it) }
+
+    @Throws(FFmpegException::class)
     public actual fun copy(): Frame = locked { open ->
         Frame(
             token = Internals.frameClone(open),

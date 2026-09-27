@@ -1151,6 +1151,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_content_light(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, max_cll: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?, max_fall: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_a53_cc")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_frame_a53_cc(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, dst: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/UByteVarOf<kotlin/UByte> /* = platform/posix/uint8_tVar^ */>?, dst_size: kotlin/Int): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_plane")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_plane(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, p: kotlin/Int): kotlinx/cinterop/CPointer<kotlinx/cinterop/UByteVarOf<kotlin/UByte> /* = platform/posix/uint8_tVar^ */>?
@@ -1188,7 +1192,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 13 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 14 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1230,10 +1234,6 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_LIST: kotlin/Int /* = 128 */
         public final get
-
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KC_TEXT_PATH: kotlin/Int /* = 512 */
-        public final get
     }
   }
 
@@ -1241,6 +1241,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_TEXT_PATH: kotlin/Int /* = 512 */
+        public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_SENTENCE: kotlin/Int /* = 1152 */

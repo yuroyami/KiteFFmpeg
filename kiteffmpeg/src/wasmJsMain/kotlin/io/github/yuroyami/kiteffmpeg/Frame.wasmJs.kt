@@ -2,6 +2,7 @@ package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_content_light
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_mastering_display
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_a53_cc
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_channels
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_clone
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_color_range
@@ -130,6 +131,22 @@ public actual class Frame internal constructor(
         if (destination.size < size) throw destinationTooShort(destination.size, size)
         if (size > 0) copyPlanes(destination, size)
         return size
+    }
+
+    public actual fun closedCaptions(): ByteArray? {
+        val m = requireModule()
+        val p = alive()
+        val size = ffkmp_frame_a53_cc(m, p, 0, 0)
+        if (size < 0) throw FFmpegException(FFmpegError.fromCode(size, "reading closed captions failed with $size"))
+        if (size == 0) return null
+        val buffer = wasmAlloc(m, size)
+        try {
+            val written = ffkmp_frame_a53_cc(m, p, buffer, size)
+            if (written != size) throw FFmpegException(FFmpegError.Internal("closed captions wrote $written of $size bytes"))
+            return readBytes(m, buffer, size)
+        } finally {
+            wasmFree(m, buffer)
+        }
     }
 
     /** Copies the frame's [size] bytes through a module buffer into the start of [destination]. */

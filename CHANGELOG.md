@@ -30,12 +30,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   the container named by `format` (#85).
 - The C ABI is 3.13, which adds `ffkmp_frame_convert_display`, the conversion that
   `WebRgbaConverter` uses (#120).
+- The C ABI is 3.14, which adds `ffkmp_frame_a53_cc`, the reader behind `Frame.closedCaptions`
+  (#84).
 
 ### Added
 
 - `Frame.copyPlanesInto(destination)` copies the same bytes as `copyPlanesToByteArray` into an
   array that the caller keeps. `Frame.planesByteCount()` gives the size that array needs. A
   converter that reuses one array allocates nothing per frame (#122).
+- `Frame.closedCaptions()` returns the CEA-608 and CEA-708 captions a video frame carries, as the
+  cc_data triplets of its ATSC A/53 side data, or null when it carries none. A caption track
+  stored on its own, such as a MOV `c608` track, already decodes to text through
+  `openSubtitleDecoder`, and a test now covers it (#84).
 
 ### Fixed
 

@@ -60,6 +60,7 @@ class FrameClosedContractTest {
         assertFailsWith<IllegalStateException> { frame.copyPlanesToByteArray() }
         assertFailsWith<IllegalStateException> { frame.planesByteCount() }
         assertFailsWith<IllegalStateException> { frame.copyPlanesInto(ByteArray(128)) }
+        assertFailsWith<IllegalStateException> { frame.closedCaptions() }
     }
 
     @Test
