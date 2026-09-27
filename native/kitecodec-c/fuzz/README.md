@@ -45,8 +45,8 @@ So the local gate replays a committed corpus. It discovers nothing. It refuses t
 | `fuzz_format_name.c` | `ffkmp_pix_fmt_from_name`, `ffkmp_sample_fmt_from_name` | A name looked up in a descriptor table, and the round trip back to a name. |
 | `fuzz_codec_name.c` | `ffkmp_find_encoder_by_name`, `ffkmp_find_decoder_by_name`, `ffkmp_filter_exists` | A name walks the codec and filter registries, straight from `FFmpeg.hasEncoder`, `hasDecoder` and `hasFilter`. |
 | `fuzz_muxer_name.c` | `ffkmp_fmt_alloc_output2`, its `format` argument | A muxer name walks the muxer registry, straight from `MediaSink.open(path, format, options)`. |
-| `fuzz_demux.c` | `ffkmp_fmt_open_input_io`, `ffkmp_fmt_find_stream_info`, `ffkmp_fmt_read_frame`, `ffkmp_fmt_seek_micros`, and the stream, metadata and chapter getters | Container bytes reach a demuxer through the custom read callback, as they do from `MediaSource.open(MediaByteSource)`. Every input is opened twice: seekable with its size known, and as a stream with neither. |
-| `fuzz_decode.c` | the same open, then `ffkmp_codecctx_send_packet`, `ffkmp_codecctx_receive_frame`, the frame copies and the pixel conversion | Every packet that a demuxer reads goes to its stream's decoder, and every frame goes through the copies that a caller reads it with. |
+| `fuzz_demux.c` | `ffkmp_fmt_open_input_io`, `ffkmp_fmt_find_stream_info`, `ffkmp_fmt_read_frame`, `ffkmp_fmt_seek_micros`, `ffkmp_fmt_seek_file` with the player's three seek windows, the stream HDR readers, and the stream, metadata and chapter getters | Container bytes reach a demuxer through the custom read callback, as they do from `MediaSource.open(MediaByteSource)`. Every input is opened twice: seekable with its size known, and as a stream with neither. |
+| `fuzz_decode.c` | the same open, then `ffkmp_codecctx_send_packet`, `ffkmp_codecctx_receive_frame`, the frame HDR readers, the frame copies and the pixel conversion, with and without the decoder budgets | Every packet that a demuxer reads goes to its stream's decoder, and every frame goes through the copies that a caller reads it with. |
 | `fuzz_subtitle.c` | the same open, then the eight `ffkmp_subtitle_` functions: open, decode, times, rectangle count and geometry, the RGBA conversion, the text, and free | Every subtitle packet goes to its stream's subtitle decoder, and each image rectangle is converted from the index plane and palette that the decoder built from the input. |
 
 Each target's own file header says what it does, what matrix it runs and what a finding would look
@@ -240,10 +240,13 @@ public string entry points that have no target.
 
 **The byte targets bound their own work.** A demuxer or a decoder fed random bytes hits a time or
 memory limit long before it hits memory corruption. So each byte target says in its file header
-what it bounds: at most 4096 packets per read loop and 1024 frames per input, `max_pixels` and
-`max_samples` on every decoder, and the pixel conversion only for pictures of at most 65536 pixels.
-The `-timeout`, `-rss_limit_mb` and `-malloc_limit_mb` flags of `run-fuzz.sh` still apply. A timeout
-or an out-of-memory finding still needs a person to classify it before it counts.
+what it bounds: at most 4096 packets per read loop and 1024 frames per input, and the pixel
+conversion only for pictures of at most 65536 pixels. `fuzz_decode.c` decodes each input twice:
+once with `max_pixels` and `max_samples` on every decoder, and once without them, as `MediaSource`
+and `StreamDecoder` open decoders, within 256 packets and 64 frames. An out-of-memory finding from
+the second pass is about the library, which sets no such budget of its own. The `-timeout`,
+`-rss_limit_mb` and `-malloc_limit_mb` flags of `run-fuzz.sh` still apply. A timeout or an
+out-of-memory finding still needs a person to classify it before it counts.
 
 **Nested opens are refused.** Some formats name other files or network addresses, a concat script
 or an SDP session for example. The byte targets open every input with `protocol_whitelist=none`, so

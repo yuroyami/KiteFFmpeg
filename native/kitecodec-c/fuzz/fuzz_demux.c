@@ -16,7 +16,9 @@
  * metadata and the chapters. Then it reads packets to the end and reads every byte of every
  * packet, so a packet whose size disagrees with its buffer is caught. The seekable open then
  * seeks to the middle and reads a few more packets, because a player seeks, and some containers
- * parse their seek index only then.
+ * parse their seek index only then. It seeks again with ffkmp_fmt_seek_file, backward, forward
+ * and to any frame, with the windows that PacketReader.seek passes, because that is the seek the
+ * player uses. Each stream's HDR side data is read too, as MediaSource reads it for its streams.
  *
  * One read loop takes at most 4096 packets. A demuxer that never reaches the end then costs one
  * input a bounded time instead of a timeout.
@@ -36,6 +38,7 @@
 
 #define KC_FUZZ_MAX_PACKETS 4096
 #define KC_FUZZ_PACKETS_AFTER_SEEK 64
+#define KC_FUZZ_PACKETS_AFTER_PLAYER_SEEK 16
 
 /* Walks a borrowed dictionary the way the Kotlin side does, reading every key and value to its
  * terminator. Returns a sum of the lengths so the reads cannot be optimised away. */
@@ -74,6 +77,27 @@ static void read_extradata(kc_codec_par *par) {
         }
     }
     free(whole);
+}
+
+/* The HDR static metadata a stream declares, read as MediaSource reads it. Both readers answer 1
+ * when the stream has it and 0 when it has none; any other answer, or a flag outside the two
+ * the header defines, is a finding. */
+static size_t read_hdr(kc_codec_par *par) {
+    size_t total = 0;
+    int mastering[KC_HDR_MASTERING_INTS];
+    int flags = 0;
+    int has = ffkmp_codecpar_mastering_display(par, mastering, &flags);
+    if (has != 0 && has != 1) abort();
+    if (has == 1) {
+        if ((flags & ~(KC_HDR_HAS_PRIMARIES | KC_HDR_HAS_LUMINANCE)) != 0) abort();
+        for (int i = 0; i < KC_HDR_MASTERING_INTS; i++) total += (size_t)mastering[i];
+    }
+    int max_cll = 0;
+    int max_fall = 0;
+    has = ffkmp_codecpar_content_light(par, &max_cll, &max_fall);
+    if (has != 0 && has != 1) abort();
+    if (has == 1) total += (size_t)max_cll + (size_t)max_fall;
+    return total;
 }
 
 static size_t read_streams(kc_fmt_ctx *ctx) {
@@ -115,6 +139,7 @@ static size_t read_streams(kc_fmt_ctx *ctx) {
         int rotation = ffkmp_stream_rotation_degrees(stream);
         if (rotation < 0 || rotation >= 360) abort();
         total += read_dictionary(ffkmp_stream_metadata(stream));
+        total += read_hdr(par);
     }
     /* The index guard: one past the last stream is refused, never read. */
     if (ffkmp_fmt_stream(ctx, count) != NULL) abort();
@@ -182,6 +207,26 @@ static size_t seek_to_middle(kc_fmt_ctx *ctx, kc_packet *packet) {
     return read_packets(ctx, packet, KC_FUZZ_PACKETS_AFTER_SEEK);
 }
 
+/* The seek the player uses: ffkmp_fmt_seek_file on every stream at once, to the middle, with the
+ * windows PacketReader.seek computes for each direction. A refused seek is an answer, not a
+ * finding, and the packets after each one are read either way. */
+static size_t seek_like_the_player(kc_fmt_ctx *ctx, kc_packet *packet) {
+    int64_t duration = ffkmp_fmt_duration(ctx);
+    if (duration <= 0) return 0;
+    int64_t start = ffkmp_fmt_start_time(ctx);
+    int64_t half = duration / 2;
+    if (start > 0 && half > INT64_MAX - start) return 0;
+    int64_t target = (start > 0 ? start : 0) + half;
+    size_t total = 0;
+    (void)ffkmp_fmt_seek_file(ctx, -1, INT64_MIN, target, target, ffkmp_avseek_flag_backward());
+    total += read_packets(ctx, packet, KC_FUZZ_PACKETS_AFTER_PLAYER_SEEK);
+    (void)ffkmp_fmt_seek_file(ctx, -1, target, target, INT64_MAX, 0);
+    total += read_packets(ctx, packet, KC_FUZZ_PACKETS_AFTER_PLAYER_SEEK);
+    (void)ffkmp_fmt_seek_file(ctx, -1, INT64_MIN, target, INT64_MAX, ffkmp_avseek_flag_any());
+    total += read_packets(ctx, packet, KC_FUZZ_PACKETS_AFTER_PLAYER_SEEK);
+    return total;
+}
+
 static size_t demux(const uint8_t *data, size_t size, int seekable, kc_packet *packet) {
     size_t total = 0;
     kc_fuzz_media media = { data, size, 0 };
@@ -195,7 +240,10 @@ static size_t demux(const uint8_t *data, size_t size, int seekable, kc_packet *p
         total += read_container(ctx);
         total += read_streams(ctx);
         total += read_packets(ctx, packet, KC_FUZZ_MAX_PACKETS);
-        if (seekable) total += seek_to_middle(ctx, packet);
+        if (seekable) {
+            total += seek_to_middle(ctx, packet);
+            total += seek_like_the_player(ctx, packet);
+        }
     }
 
     ffkmp_fmt_close_input_io(&ctx);
@@ -212,6 +260,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         abort();
     }
     if (refused != NULL) abort();
+    /* The documented refusals of the seek and the HDR readers, on a missing argument. */
+    int q[KC_HDR_MASTERING_INTS];
+    int flags = 0;
+    int light = 0;
+    if (ffkmp_fmt_seek_file(NULL, -1, 0, 0, 0, 0) != AVERROR(EINVAL)) abort();
+    if (ffkmp_codecpar_mastering_display(NULL, q, &flags) != AVERROR(EINVAL)) abort();
+    if (ffkmp_codecpar_content_light(NULL, &light, &light) != AVERROR(EINVAL)) abort();
 
     kc_packet *packet = ffkmp_packet_alloc();
     if (packet == NULL) return 0;

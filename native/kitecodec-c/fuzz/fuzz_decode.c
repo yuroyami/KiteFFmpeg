@@ -15,12 +15,18 @@
  * thread between calls; FFmpeg reuses it only when every parameter matches, so a reused scaler
  * is the one a fresh input would build.
  *
- * Subtitle streams are not decoded here. fuzz_subtitle.c decodes them.
+ * Subtitle streams are not decoded here. fuzz_subtitle.c decodes them. Every video frame's HDR
+ * side data is read too, as a player reads it to decide on tone mapping.
  *
- * Budgets, so that one input cannot run for minutes or allocate gigabytes: max_pixels and
- * max_samples on every decoder, at most 4096 packets and 1024 frames per input, and the
- * conversion only for pictures of at most 65536 pixels. If a decoder refuses either option,
- * its budget is gone, so the target aborts instead of running without it.
+ * Each input is decoded twice. The first pass sets max_pixels and max_samples on every decoder,
+ * so a decoder refuses a picture or a block of samples past them, and takes at most 4096
+ * packets and 1024 frames. If a decoder refuses either option, its budget is gone, so the target
+ * aborts instead of running without it. The second pass opens the decoders the way MediaSource
+ * and StreamDecoder open them, with neither option, because the library sets no such budget, so
+ * an input that fails only above those budgets is still found. It takes at most 256 packets and
+ * 64 frames instead. An input that makes a decoder allocate past the fuzzer's memory limit in
+ * that pass is a finding about the library. Both passes convert only pictures of at most 65536
+ * pixels.
  *
  * A finding is a sanitizer report or a crash inside a decoder or inside the helpers, or one of
  * the aborts below.
@@ -37,6 +43,8 @@
 #define KC_FUZZ_MAX_DECODERS 8
 #define KC_FUZZ_MAX_PACKETS 4096
 #define KC_FUZZ_MAX_FRAMES 1024
+#define KC_FUZZ_UNBUDGETED_PACKETS 256
+#define KC_FUZZ_UNBUDGETED_FRAMES 64
 #define KC_FUZZ_MAX_CONVERT_PIXELS 65536
 #define KC_FUZZ_MAX_PIXELS "1048576"
 #define KC_FUZZ_MAX_SAMPLES "262144"
@@ -64,12 +72,32 @@ static size_t read_planes(kc_frame *frame, int format, int width) {
     return total;
 }
 
+/* The HDR static metadata a frame carries. 1 when it has it, 0 when it has none. */
+static size_t read_frame_hdr(kc_frame *frame) {
+    size_t total = 0;
+    int mastering[KC_HDR_MASTERING_INTS];
+    int flags = 0;
+    int has = ffkmp_frame_mastering_display(frame, mastering, &flags);
+    if (has != 0 && has != 1) abort();
+    if (has == 1) {
+        if ((flags & ~(KC_HDR_HAS_PRIMARIES | KC_HDR_HAS_LUMINANCE)) != 0) abort();
+        for (int i = 0; i < KC_HDR_MASTERING_INTS; i++) total += (size_t)mastering[i];
+    }
+    int max_cll = 0;
+    int max_fall = 0;
+    has = ffkmp_frame_content_light(frame, &max_cll, &max_fall);
+    if (has != 0 && has != 1) abort();
+    if (has == 1) total += (size_t)max_cll + (size_t)max_fall;
+    return total;
+}
+
 static size_t inspect_video(kc_frame *frame, int rgba) {
     size_t total = 0;
     int width = ffkmp_frame_width(frame);
     int height = ffkmp_frame_height(frame);
     int format = ffkmp_frame_format(frame);
     if (width <= 0 || height <= 0 || format < 0) return 0;
+    total += read_frame_hdr(frame);
     /* No hardware device is attached, so every frame is in memory. */
     if (ffkmp_frame_is_hardware(frame) || ffkmp_frame_hw_surface(frame) != NULL) abort();
 
@@ -128,7 +156,7 @@ static size_t drain(kc_codec_ctx *decoder, int is_video, kc_frame *frame, int rg
     return total;
 }
 
-static kc_codec_ctx *open_decoder(kc_codec_par *par) {
+static kc_codec_ctx *open_decoder(kc_codec_par *par, int budgeted) {
     const kc_codec *codec = ffkmp_find_decoder_by_id(ffkmp_codecpar_codec_id(par));
     if (codec == NULL) return NULL;
     kc_codec_ctx *decoder = ffkmp_codecctx_alloc(codec);
@@ -138,8 +166,10 @@ static kc_codec_ctx *open_decoder(kc_codec_par *par) {
         return NULL;
     }
     ffkmp_codecctx_set_threads(decoder, 1, 0);
-    if (ffkmp_codecctx_set_opt(decoder, "max_pixels", KC_FUZZ_MAX_PIXELS) != 0) abort();
-    if (ffkmp_codecctx_set_opt(decoder, "max_samples", KC_FUZZ_MAX_SAMPLES) != 0) abort();
+    if (budgeted) {
+        if (ffkmp_codecctx_set_opt(decoder, "max_pixels", KC_FUZZ_MAX_PIXELS) != 0) abort();
+        if (ffkmp_codecctx_set_opt(decoder, "max_samples", KC_FUZZ_MAX_SAMPLES) != 0) abort();
+    }
     if (ffkmp_codecctx_open(decoder, codec) < 0) {
         ffkmp_codecctx_free(decoder);
         return NULL;
@@ -147,13 +177,8 @@ static kc_codec_ctx *open_decoder(kc_codec_par *par) {
     return decoder;
 }
 
-int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    kc_fuzz_quiet();
-
-    /* The documented refusals of a missing context, asserted on every input. */
-    if (ffkmp_codecctx_send_packet(NULL, NULL) != AVERROR(EINVAL)) abort();
-    if (ffkmp_codecctx_receive_frame(NULL, NULL) != AVERROR(EINVAL)) abort();
-
+/* One decode of the whole input, with or without the decoder budgets, within these counts. */
+static size_t decode_all(const uint8_t *data, size_t size, int budgeted, int max_packets, int max_frames) {
     kc_fuzz_media media = { data, size, 0 };
     kc_fmt_ctx *ctx = NULL;
     if (kc_fuzz_open_media(&ctx, &media, 1) < 0) return 0;
@@ -178,14 +203,14 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             kc_codec_par *par = ffkmp_stream_codecpar(ffkmp_fmt_stream(ctx, i));
             int type = ffkmp_codecpar_codec_type(par);
             if (type != video && type != audio) continue;
-            decoders[i] = open_decoder(par);
+            decoders[i] = open_decoder(par, budgeted);
             is_video[i] = (type == video);
             if (decoders[i] != NULL) opened++;
         }
 
         int rgba = ffkmp_pix_fmt_from_name("rgba");
-        int frames_left = KC_FUZZ_MAX_FRAMES;
-        for (int n = 0; n < KC_FUZZ_MAX_PACKETS && frames_left > 0; n++) {
+        int frames_left = max_frames;
+        for (int n = 0; n < max_packets && frames_left > 0; n++) {
             if (ffkmp_fmt_read_frame(ctx, packet) < 0) break;
             int index = ffkmp_packet_stream_index(packet);
             if (index >= 0 && (unsigned)index < streams && decoders[index] != NULL) {
@@ -215,6 +240,24 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     ffkmp_packet_free(packet);
     ffkmp_fmt_close_input_io(&ctx);
     if (ctx != NULL) abort();
+    return total;
+}
+
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    kc_fuzz_quiet();
+
+    /* The documented refusals of a missing context or frame, asserted on every input. */
+    if (ffkmp_codecctx_send_packet(NULL, NULL) != AVERROR(EINVAL)) abort();
+    if (ffkmp_codecctx_receive_frame(NULL, NULL) != AVERROR(EINVAL)) abort();
+    int q[KC_HDR_MASTERING_INTS];
+    int flags = 0;
+    int light = 0;
+    if (ffkmp_frame_mastering_display(NULL, q, &flags) != AVERROR(EINVAL)) abort();
+    if (ffkmp_frame_content_light(NULL, &light, &light) != AVERROR(EINVAL)) abort();
+
+    volatile size_t total = 0;
+    total += decode_all(data, size, 1, KC_FUZZ_MAX_PACKETS, KC_FUZZ_MAX_FRAMES);
+    total += decode_all(data, size, 0, KC_FUZZ_UNBUDGETED_PACKETS, KC_FUZZ_UNBUDGETED_FRAMES);
     (void)total;
     return 0;
 }
