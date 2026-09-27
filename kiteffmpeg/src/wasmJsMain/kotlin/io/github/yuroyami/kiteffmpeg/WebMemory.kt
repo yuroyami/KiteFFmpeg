@@ -50,10 +50,13 @@ internal external fun allocCString(module: JsAny, text: String): Int
 
 /** Copies [length] bytes out of codec memory into a Kotlin array. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-internal fun readBytes(module: JsAny, pointer: Int, length: Int): ByteArray {
-    val out = ByteArray(length)
-    for (i in 0 until length) out[i] = readByte(module, pointer + i).toByte()
-    return out
+internal fun readBytes(module: JsAny, pointer: Int, length: Int): ByteArray =
+    ByteArray(length).also { readBytesInto(module, pointer, it, length) }
+
+/** Copies [length] bytes out of codec memory into the start of [destination]. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun readBytesInto(module: JsAny, pointer: Int, destination: ByteArray, length: Int) {
+    for (i in 0 until length) destination[i] = readByte(module, pointer + i).toByte()
 }
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

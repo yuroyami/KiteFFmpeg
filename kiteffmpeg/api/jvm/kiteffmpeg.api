@@ -697,11 +697,13 @@ public final class io/github/yuroyami/kiteffmpeg/Frame : java/lang/AutoCloseable
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Frame$Companion;
 	public fun close ()V
 	public final fun copy ()Lio/github/yuroyami/kiteffmpeg/Frame;
+	public final fun copyPlanesInto ([B)I
 	public final fun copyPlanesToByteArray ()[B
 	public final fun downloadFromHardware ()Lio/github/yuroyami/kiteffmpeg/Frame;
 	public final fun encodeImage-vVKjmHM (Ljava/lang/String;)[B
 	public static synthetic fun encodeImage-vVKjmHM$default (Lio/github/yuroyami/kiteffmpeg/Frame;Ljava/lang/String;ILjava/lang/Object;)[B
 	public final fun getInfo ()Lio/github/yuroyami/kiteffmpeg/FrameInfo;
+	public final fun planesByteCount ()I
 }
 
 public final class io/github/yuroyami/kiteffmpeg/Frame$Companion {

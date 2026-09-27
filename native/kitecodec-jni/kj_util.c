@@ -361,6 +361,24 @@ int kj_bytes_read_in_place(JNIEnv *env, jbyteArray bytes,
     return rc;
 }
 
+int kj_bytes_written_in_place(JNIEnv *env, jbyteArray bytes,
+                              int (*fill)(void *ctx, uint8_t *dst, int32_t len), void *ctx)
+{
+    jsize len;
+    void *dst;
+    int rc;
+    if (bytes == NULL || fill == NULL) {
+        kj_throw_handle(env, "byte write across the JNI boundary refused: NULL argument");
+        return -1;
+    }
+    len = (*env)->GetArrayLength(env, bytes);
+    dst = (*env)->GetPrimitiveArrayCritical(env, bytes, NULL);
+    if (dst == NULL) return -1; /* OOM already thrown */
+    rc = fill(ctx, (uint8_t *)dst, (int32_t)len);
+    (*env)->ReleasePrimitiveArrayCritical(env, bytes, dst, 0);
+    return rc;
+}
+
 jbyteArray kj_bytes_filled_in_place(JNIEnv *env, int32_t len,
                                     int (*fill)(void *ctx, uint8_t *dst, int32_t len), void *ctx, int *rc)
 {

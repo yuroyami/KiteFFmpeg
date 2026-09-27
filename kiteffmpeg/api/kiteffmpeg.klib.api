@@ -1380,9 +1380,11 @@ final class io.github.yuroyami.kiteffmpeg/Frame : kotlin/AutoCloseable { // io.g
 
     final fun close() // io.github.yuroyami.kiteffmpeg/Frame.close|close(){}[0]
     final fun copy(): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/Frame.copy|copy(){}[0]
+    final fun copyPlanesInto(kotlin/ByteArray): kotlin/Int // io.github.yuroyami.kiteffmpeg/Frame.copyPlanesInto|copyPlanesInto(kotlin.ByteArray){}[0]
     final fun copyPlanesToByteArray(): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/Frame.copyPlanesToByteArray|copyPlanesToByteArray(){}[0]
     final fun downloadFromHardware(): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/Frame.downloadFromHardware|downloadFromHardware(){}[0]
     final fun encodeImage(io.github.yuroyami.kiteffmpeg/CodecId = ...): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/Frame.encodeImage|encodeImage(io.github.yuroyami.kiteffmpeg.CodecId){}[0]
+    final fun planesByteCount(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Frame.planesByteCount|planesByteCount(){}[0]
 
     final object Companion { // io.github.yuroyami.kiteffmpeg/Frame.Companion|null[0]
         final fun ofAudio(kotlin/ByteArray, kotlin/Int, kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/SampleFormat, kotlin/Long = ...): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/Frame.Companion.ofAudio|ofAudio(kotlin.ByteArray;kotlin.Int;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.SampleFormat;kotlin.Long){}[0]

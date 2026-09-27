@@ -29,8 +29,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   copy. The other reads from a `MediaByteSource` factory and writes into a `MediaByteSink`, with
   the container named by `format` (#85).
 
+### Added
+
+- `Frame.copyPlanesInto(destination)` copies the same bytes as `copyPlanesToByteArray` into an
+  array that the caller keeps. `Frame.planesByteCount()` gives the size that array needs. A
+  converter that reuses one array allocates nothing per frame (#122).
+
 ### Fixed
 
+- `copyPlanesToByteArray` of a frame with no picture and no samples returns an empty array on the
+  JVM, Android and the web, as the documentation says. It threw `FFmpegException` there (#122).
 - A `MediaByteSource` whose `read` answers with more bytes than it was asked for fails the operation
   with an I/O `FFmpegException` on every backend, before any of those bytes is used. The cause names
   the two counts.

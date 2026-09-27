@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
@@ -227,6 +228,13 @@ abstract class DecodeContract {
 
     private fun List<Frame>.planesSha256(): String {
         val all = map { it.copyPlanesToByteArray() }
+        // One array reused for every decoded picture must receive the same bytes as a fresh copy.
+        val reused = ByteArray(all.maxOfOrNull { it.size } ?: 0)
+        for ((frame, planes) in zip(all)) {
+            assertEquals(planes.size, frame.planesByteCount(), "planesByteCount")
+            assertEquals(planes.size, frame.copyPlanesInto(reused), "bytes written into a reused array")
+            assertContentEquals(planes, reused.copyOf(planes.size), "the reused array's bytes")
+        }
         val joined = ByteArray(all.sumOf { it.size })
         var at = 0
         for (planes in all) {

@@ -178,6 +178,20 @@ val bytes = frame.copyPlanesToByteArray()
 
 The layout follows `info.pixelFormat` (video) or `info.sampleFormat` (audio). A planar format such as `Yuv420p` or `S16p` packs each plane back-to-back; an interleaved format such as `Rgb24` or `S16` packs samples together.
 
+To reuse one array for every frame, size it with `planesByteCount()` and copy into it with `copyPlanesInto`. The copy writes the same bytes from index 0 and returns their count. It refuses an array that is too short with an `FFmpegException`:
+
+```kotlin
+var planes = ByteArray(0)
+source.decodedFrames(video).collect { frame ->
+    frame.use {
+        val size = it.planesByteCount()
+        if (planes.size < size) planes = ByteArray(size)
+        it.copyPlanesInto(planes)
+        // the frame's bytes are planes[0 until size]
+    }
+}
+```
+
 ### Frame ownership
 
 Frames emitted by the flow APIs (`decodedFrames`, `decodeStreams`, `FilterGraph.process`) are **owned by you**: each one stays valid until you `close()` it, so `toList()` and holding frames in a list are safe. Internally these are O(1) reference-counted clones of the decoder's landing frame, so no pixel copies are made.
@@ -198,7 +212,7 @@ Callback-style APIs are different. A frame handed to `FilterGraph.feedInput`'s `
 `copy()` is O(1): it shares the underlying pixel data via reference counting rather than duplicating bytes, and the result is owned. Both collected frames and copies are `AutoCloseable`. Close them (or use `use { }`) when you are finished. `copyPlanesToByteArray()` is always safe. It copies into a fresh array the moment you call it.
 
 !!! note
-    The native `AVFrame*` pointer is deliberately not exposed in common code. You interact with frames only through `info`, `copyPlanesToByteArray()`, `copy()`, and `encodeImage()`.
+    The native `AVFrame*` pointer is deliberately not exposed in common code. You interact with frames only through `info`, `copyPlanesToByteArray()`, `copyPlanesInto()`, `copy()`, and `encodeImage()`.
 
 ## Subtitles
 

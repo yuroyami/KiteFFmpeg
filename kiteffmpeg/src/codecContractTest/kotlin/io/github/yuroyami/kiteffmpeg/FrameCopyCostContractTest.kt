@@ -25,6 +25,8 @@ internal class FrameCopyCostContractTest {
         Frame.ofVideo(bytes, width, height, PixelFormat.Yuv420p, ptsMicros = 0L).use { frame ->
             assertContentEquals(bytes, frame.copyPlanesToByteArray())
             reportCost("1080p yuv420p", rounds = 200) { frame.copyPlanesToByteArray() }
+            val reused = ByteArray(bytes.size)
+            reportCost("1080p yuv420p into a reused array", rounds = 200) { reused.also(frame::copyPlanesInto) }
         }
     }
 

@@ -180,39 +180,55 @@ public actual class Frame internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun copyPlanesToByteArray(): ByteArray = withNative {
-        when (streamType) {
-            MediaType.Video -> copyVideoPlanes()
-            MediaType.Audio -> copyAudioSamples()
-            else -> ByteArray(0)
+        val needed = planesByteCountOpen()
+        val bytes = ByteArray(needed)
+        if (needed == 0) return@withNative bytes
+        val written = copyPlanes(bytes)
+        if (written == needed) bytes else bytes.copyOf(written)
+    }
+
+    @Throws(FFmpegException::class)
+    public actual fun planesByteCount(): Int = withNative { planesByteCountOpen() }
+
+    @Throws(FFmpegException::class)
+    public actual fun copyPlanesInto(destination: ByteArray): Int = withNative {
+        val needed = planesByteCountOpen()
+        if (destination.size < needed) throw destinationTooShort(destination.size, needed)
+        if (needed == 0) 0 else copyPlanes(destination)
+    }
+
+    /** The packed byte count, 0 for a frame that holds no picture or samples. Call under [withNative]. */
+    private fun planesByteCountOpen(): Int = when (streamType) {
+        MediaType.Video -> {
+            val width = ffkmp_frame_width(nativeFrame)
+            val height = ffkmp_frame_height(nativeFrame)
+            val format = ffkmp_frame_format(nativeFrame)
+            if (width <= 0 || height <= 0 || format < 0) {
+                0
+            } else {
+                ffkmp_image_get_buffer_size(format, width, height, 1).also { check0(it, "av_image_get_buffer_size") }
+            }
         }
+        MediaType.Audio -> if (ffkmp_frame_nb_samples(nativeFrame) <= 0) {
+            0
+        } else {
+            ffkmp_samples_get_buffer_size(nativeFrame).also { check0(it, "av_samples_get_buffer_size") }
+        }
+        else -> 0
     }
 
-    // Both copies write straight into the pinned result: one copy, where a scratch buffer and
+    // The copy writes straight into the pinned array: one copy, where a scratch buffer and
     // cinterop's element-by-element readBytes made two and cost half a second per 1080p frame.
-    private fun copyVideoPlanes(): ByteArray {
-        val width = ffkmp_frame_width(nativeFrame)
-        val height = ffkmp_frame_height(nativeFrame)
-        val format = ffkmp_frame_format(nativeFrame)
-        if (width <= 0 || height <= 0 || format < 0) return ByteArray(0)
-
-        val needed = ffkmp_image_get_buffer_size(format, width, height, 1)
-        check0(needed, "av_image_get_buffer_size")
-        val bytes = ByteArray(needed)
-        if (needed == 0) return bytes
-        val written = bytes.usePinned { ffkmp_frame_copy_to_buffer(nativeFrame, it.addressOf(0).reinterpret(), needed) }
-        check0(written, "av_image_copy_to_buffer")
-        return if (written == needed) bytes else bytes.copyOf(written)
-    }
-
-    private fun copyAudioSamples(): ByteArray {
-        if (ffkmp_frame_nb_samples(nativeFrame) <= 0) return ByteArray(0)
-        val needed = ffkmp_samples_get_buffer_size(nativeFrame)
-        check0(needed, "av_samples_get_buffer_size")
-        val bytes = ByteArray(needed)
-        if (needed == 0) return bytes
-        val written = bytes.usePinned { ffkmp_samples_copy_to_buffer(nativeFrame, it.addressOf(0).reinterpret(), needed) }
-        check0(written, "samples_copy_to_buffer")
-        return if (written == needed) bytes else bytes.copyOf(written)
+    private fun copyPlanes(destination: ByteArray): Int {
+        val written = destination.usePinned {
+            if (streamType == MediaType.Video) {
+                ffkmp_frame_copy_to_buffer(nativeFrame, it.addressOf(0).reinterpret(), destination.size)
+            } else {
+                ffkmp_samples_copy_to_buffer(nativeFrame, it.addressOf(0).reinterpret(), destination.size)
+            }
+        }
+        check0(written, if (streamType == MediaType.Video) "av_image_copy_to_buffer" else "samples_copy_to_buffer")
+        return written
     }
 
     @Throws(FFmpegException::class)

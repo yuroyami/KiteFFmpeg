@@ -81,6 +81,26 @@ static int kj_frame_bytes_in(void *ctx, const uint8_t *src, int32_t len)
                      : ffkmp_frame_fill_audio(fb->frame, src, len);
 }
 
+/* Resolves token into fb. 0 means the token was refused and an exception is pending. */
+static int kj_frame_bytes_get(JNIEnv *env, jlong token, kj_frame_bytes *fb)
+{
+    fb->frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    if (fb->frame == NULL) return 0;
+    fb->video = ffkmp_frame_width(fb->frame) > 0;
+    return 1;
+}
+
+/* The byte count of the frame's packed planes or samples: 0 for a frame that holds neither, as an
+ * unreferenced frame does, and a negative FFmpeg error code when FFmpeg cannot size the frame. */
+static int kj_frame_bytes_size(const kj_frame_bytes *fb)
+{
+    if (fb->video) {
+        return ffkmp_image_get_buffer_size(ffkmp_frame_format(fb->frame), ffkmp_frame_width(fb->frame),
+                                           ffkmp_frame_height(fb->frame), 1);
+    }
+    return ffkmp_frame_nb_samples(fb->frame) > 0 ? ffkmp_samples_get_buffer_size(fb->frame) : 0;
+}
+
 /* One copy, straight into the Java array, where a scratch buffer and SetByteArrayRegion made two. */
 JNIEXPORT jbyteArray JNICALL kj_frame_copy_planes(JNIEnv *env, jclass cls, jlong token)
 {
@@ -88,16 +108,31 @@ JNIEXPORT jbyteArray JNICALL kj_frame_copy_planes(JNIEnv *env, jclass cls, jlong
     int size, rc = 0;
     jbyteArray out;
     (void)cls;
-    fb.frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
-    if (fb.frame == NULL) return NULL;
-    fb.video = ffkmp_frame_width(fb.frame) > 0;
-    size = fb.video ? ffkmp_image_get_buffer_size(ffkmp_frame_format(fb.frame), ffkmp_frame_width(fb.frame),
-                                                  ffkmp_frame_height(fb.frame), 1)
-                    : ffkmp_samples_get_buffer_size(fb.frame);
+    if (!kj_frame_bytes_get(env, token, &fb)) return NULL;
+    size = kj_frame_bytes_size(&fb);
     if (size < 0) { kj_throw_ffmpeg(env, size, "frame_copy_planes size"); return NULL; }
     out = kj_bytes_filled_in_place(env, size, kj_frame_bytes_out, &fb, &rc);
     if (out == NULL && rc < 0) kj_throw_ffmpeg(env, rc, "frame_copy_planes copy");
     return out;
+}
+
+JNIEXPORT jint JNICALL kj_frame_planes_size(JNIEnv *env, jclass cls, jlong token)
+{
+    kj_frame_bytes fb;
+    (void)cls;
+    if (!kj_frame_bytes_get(env, token, &fb)) return 0;
+    return (jint)kj_frame_bytes_size(&fb);
+}
+
+/* The copy into an array the caller keeps across frames. Returns the bytes written, or the
+ * negative FFmpeg error code of the copy, which refuses an array shorter than the frame. */
+JNIEXPORT jint JNICALL kj_frame_copy_planes_into(JNIEnv *env, jclass cls, jlong token, jbyteArray destination)
+{
+    kj_frame_bytes fb;
+    (void)cls;
+    if (!kj_frame_bytes_get(env, token, &fb)) return 0;
+    if (kj_frame_bytes_size(&fb) == 0) return 0;
+    return (jint)kj_bytes_written_in_place(env, destination, kj_frame_bytes_out, &fb);
 }
 
 JNIEXPORT void JNICALL kj_frame_unref(JNIEnv *env, jclass cls, jlong token)

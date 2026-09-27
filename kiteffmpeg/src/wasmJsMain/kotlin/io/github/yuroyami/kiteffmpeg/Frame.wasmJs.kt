@@ -92,29 +92,59 @@ public actual class Frame internal constructor(
         }
 
     public actual fun copyPlanesToByteArray(): ByteArray {
-        val m = requireModule()
-        val p = alive()
-        val video = type == MediaType.Video
-        val size = if (video) {
-            ffkmp_image_get_buffer_size(m, ffkmp_frame_format(m, p), ffkmp_frame_width(m, p), ffkmp_frame_height(m, p), 1)
-        } else {
-            ffkmp_samples_get_buffer_size(m, p)
-        }
+        val size = planesByteCount()
         // An empty answer for a frame that genuinely carries nothing, which is what the common
         // contract promises and what the other backends do. Throwing here made an unreferenced
-        // frame a failure on this backend alone. A NEGATIVE size is still an error:
-        // that is FFmpeg refusing to describe the frame, not a frame with no bytes.
+        // frame a failure on this backend alone.
         if (size == 0) return ByteArray(0)
+        return ByteArray(size).also { copyPlanes(it, size) }
+    }
+
+    public actual fun planesByteCount(): Int {
+        val m = requireModule()
+        val p = alive()
+        // A frame with no picture or no samples holds 0 bytes, as on the native backend. FFmpeg
+        // refuses to size one, so it is never asked.
+        val size = when (type) {
+            MediaType.Video -> {
+                val width = ffkmp_frame_width(m, p)
+                val height = ffkmp_frame_height(m, p)
+                val format = ffkmp_frame_format(m, p)
+                if (width <= 0 || height <= 0 || format < 0) return 0
+                ffkmp_image_get_buffer_size(m, format, width, height, 1)
+            }
+            MediaType.Audio -> {
+                if (ffkmp_frame_nb_samples(m, p) <= 0) return 0
+                ffkmp_samples_get_buffer_size(m, p)
+            }
+            else -> return 0
+        }
+        // A NEGATIVE size is an error: that is FFmpeg refusing to describe the frame, not a
+        // frame with no bytes.
         if (size < 0) throw FFmpegException(FFmpegError.Internal("this frame reports no copyable bytes ($size)"))
+        return size
+    }
+
+    public actual fun copyPlanesInto(destination: ByteArray): Int {
+        val size = planesByteCount()
+        if (destination.size < size) throw destinationTooShort(destination.size, size)
+        if (size > 0) copyPlanes(destination, size)
+        return size
+    }
+
+    /** Copies the frame's [size] bytes through a module buffer into the start of [destination]. */
+    private fun copyPlanes(destination: ByteArray, size: Int) {
+        val m = requireModule()
+        val p = alive()
         val buffer = wasmAlloc(m, size)
         try {
-            val written = if (video) {
+            val written = if (type == MediaType.Video) {
                 ffkmp_frame_copy_to_buffer(m, p, buffer, size)
             } else {
                 ffkmp_samples_copy_to_buffer(m, p, buffer, size)
             }
             if (written != size) throw FFmpegException(FFmpegError.Internal("frame copy wrote $written of $size bytes"))
-            return readBytes(m, buffer, size)
+            readBytesInto(m, buffer, destination, size)
         } finally {
             wasmFree(m, buffer)
         }

@@ -9,6 +9,13 @@ public actual class Frame private constructor() : AutoCloseable {
         placeholderBackendUnavailable("Copying frame planes")
 
     @Throws(FFmpegException::class)
+    public actual fun planesByteCount(): Int = placeholderBackendUnavailable("Sizing frame planes")
+
+    @Throws(FFmpegException::class)
+    public actual fun copyPlanesInto(destination: ByteArray): Int =
+        placeholderBackendUnavailable("Copying frame planes")
+
+    @Throws(FFmpegException::class)
     public actual fun copy(): Frame = placeholderBackendUnavailable("Copying a frame")
 
     @Throws(FFmpegException::class)

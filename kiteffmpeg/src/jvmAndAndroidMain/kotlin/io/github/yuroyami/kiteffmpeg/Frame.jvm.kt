@@ -75,6 +75,20 @@ public actual class Frame internal constructor(
     public actual fun copyPlanesToByteArray(): ByteArray = locked { Internals.frameCopyPlanes(it) }
 
     @Throws(FFmpegException::class)
+    public actual fun planesByteCount(): Int = locked { planesByteCount(it) }
+
+    private fun planesByteCount(open: Long): Int =
+        Internals.framePlanesSize(open).also { check0(it, "frame planes size") }
+
+    @Throws(FFmpegException::class)
+    public actual fun copyPlanesInto(destination: ByteArray): Int = locked { open ->
+        val needed = planesByteCount(open)
+        if (destination.size < needed) throw destinationTooShort(destination.size, needed)
+        if (needed == 0) return@locked 0
+        Internals.frameCopyPlanesInto(open, destination).also { check0(it, "frame planes copy") }
+    }
+
+    @Throws(FFmpegException::class)
     public actual fun copy(): Frame = locked { open ->
         Frame(
             token = Internals.frameClone(open),

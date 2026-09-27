@@ -103,6 +103,12 @@ jintArray kj_hdr_new(JNIEnv *env, int display_rc, const int *q, int flags, int l
 int kj_bytes_read_in_place(JNIEnv *env, jbyteArray bytes,
                            int (*use)(void *ctx, const uint8_t *src, int32_t len), void *ctx);
 
+/* Hands fill() the caller's Java array in place, under the same rules as use() above, and keeps
+ * what it wrote. Returns fill's result, or -1 with an exception pending when the array cannot be
+ * written. */
+int kj_bytes_written_in_place(JNIEnv *env, jbyteArray bytes,
+                              int (*fill)(void *ctx, uint8_t *dst, int32_t len), void *ctx);
+
 /* A new Java array of len bytes that fill() writes in place, under the same rules as use() above.
  * When fill fails, *rc holds its result and NULL comes back; NULL with *rc == 0 means an exception
  * is pending. */

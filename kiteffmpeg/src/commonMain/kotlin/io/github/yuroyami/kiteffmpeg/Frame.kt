@@ -38,6 +38,27 @@ public expect class Frame : AutoCloseable {
     public fun copyPlanesToByteArray(): ByteArray
 
     /**
+     * The number of bytes [copyPlanesToByteArray] returns for this frame, which is the size
+     * [copyPlanesInto] needs.
+     *
+     * @throws FFmpegException if FFmpeg cannot describe the frame's layout
+     */
+    @Throws(FFmpegException::class)
+    public fun planesByteCount(): Int
+
+    /**
+     * Copies the same bytes as [copyPlanesToByteArray] into [destination], from index 0, and
+     * leaves the rest of [destination] as it was. A converter that keeps one array for every
+     * frame of a stream allocates nothing per frame. Size the array with [planesByteCount].
+     *
+     * @return the number of bytes written, 0 for a frame that carries no data
+     * @throws FFmpegException if [destination] is shorter than [planesByteCount], or if the copy
+     *         fails
+     */
+    @Throws(FFmpegException::class)
+    public fun copyPlanesInto(destination: ByteArray): Int
+
+    /**
      * An owned snapshot of this frame. Use it to keep a callback-scoped frame past that call.
      * O(1): it takes new references to the same refcounted buffers, with no pixel copy.
      * The returned frame survives the source being recycled. Close it yourself.
@@ -147,3 +168,8 @@ public val Frame.durationMicros: Long?
 
 /** Platform-backed overflow-safe equivalent of FFmpeg's `av_rescale_q`. */
 internal expect fun rescaleQ(value: Long, source: Rational, destination: Rational): Long
+
+/** The refusal every backend gives [Frame.copyPlanesInto] for a destination shorter than the frame. */
+internal fun destinationTooShort(destination: Int, needed: Int): FFmpegException = FFmpegException(
+    FFmpegError.InvalidArgument(0, "The destination holds $destination bytes and this frame needs $needed; size it with planesByteCount()"),
+)
