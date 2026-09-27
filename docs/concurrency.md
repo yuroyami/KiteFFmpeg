@@ -71,12 +71,12 @@ Frames emitted by `decodedFrames`, `decodeStreams`, and `FilterGraph.process` ar
 
 ## Cancellation
 
-The pipelines cooperate with structured concurrency: cancellation is honored at suspension points. Cancelling the coroutine that runs `Transcoder.transcode`, collects a decode flow, or awaits a `drive` call stops the work at the next suspension and releases the native resources on the way out (decoders, frames, and graphs are freed in `finally` blocks; `use { }` handles the objects you opened yourself).
+The pipelines cooperate with structured concurrency: cancellation is honoured at suspension points. Cancelling the coroutine that runs `Transcoder.transcode`, collects a decode flow, or awaits a `drive` call stops the work at the next suspension and releases the native resources on the way out (decoders, frames, and graphs are freed in `finally` blocks; `use { }` handles the objects you opened yourself).
 
 Two practical consequences:
 
 - **Cancellation is prompt but not instantaneous.** A decode/encode step that is already inside a native call finishes that call first; the loop then observes cancellation before the next one.
-- **A canceled transcode leaves a truncated output file.** The trailer is only written by a clean `MediaSink.close()` / a completed `transcode`, so treat the output of a canceled run as garbage and delete it.
+- **A cancelled transcode leaves a truncated output file.** The trailer is only written by a clean `MediaSink.close()` / a completed `transcode`, so treat the output of a cancelled run as garbage and delete it.
 
 `Transcoder.transcode` and `Remuxer.remux` run their work on their own dispatcher, `Dispatchers.IO` unless you pass another as `dispatcher`, so the thread you call them from stays free, and a cancel sent from that same thread reaches them. Their `onProgress` callbacks run in your coroutine context. The other entry points run on the dispatcher you call them from, so call them from a background dispatcher yourself. [Transcoding](transcoding.md#threads-and-cancellation) has the details.
 

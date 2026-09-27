@@ -177,7 +177,7 @@ See **[Filtering](filtering.md)**.
 | **[Concurrency](concurrency.md)** | Threading, confinement, and cancellation rules. |
 | **[Recipes](recipes.md)** | Copy-paste patterns for common tasks. |
 | **[Platform support](platforms.md)** | What runs where, and how FFmpeg is sourced. |
-| **[Licensing](licensing.md)** | LGPL/GPL flavors and what shipping them obligates. |
+| **[Licensing](licensing.md)** | LGPL/GPL flavours and what shipping them obligates. |
 | **[Troubleshooting](troubleshooting.md)** | FFmpeg discovery, Windows setup, VMs, NDK. |
 
 ## Status

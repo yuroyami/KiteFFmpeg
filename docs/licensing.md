@@ -11,13 +11,13 @@ names the FFmpeg Project rather than downstream branding users. Obtain appropria
 publishing KiteFFmpeg's derivative logo.
 
 !!! warning "Not legal advice"
-    This page summarizes the obligations as they are commonly understood. It also explains how KiteFFmpeg's build outputs help you meet them. It is not legal advice. For a commercial product, have a lawyer review your distribution plan.
+    This page summarises the obligations as they are commonly understood. It also explains how KiteFFmpeg's build outputs help you meet them. It is not legal advice. For a commercial product, have a lawyer review your distribution plan.
 
-## The two flavors
+## The two flavours
 
 You choose the license when FFmpeg is built, not in Kotlin code:
 
-| Flavor | Configure | Effective license | libx264 / libx265 | Who builds it |
+| Flavour | Configure | Effective license | libx264 / libx265 | Who builds it |
 |---|---|---|---|---|
 | **LGPL** | no `--enable-gpl` | LGPL-2.1+ | no | KiteFFmpeg, and this is what ships |
 | **GPL** | `--enable-gpl`, usually `--enable-version3` | **GPL-3.0** with version3 | yes | you, in your own tree |
@@ -31,7 +31,7 @@ a library's decision to make. `-Pkiteffmpeg.ffmpeg.license=gpl` still selects
 
 ## LGPL obligations when you distribute
 
-The LGPL flavor does **not** make your app open source. It does obligate you, whenever you distribute the app to others, to do four things.
+The LGPL flavour does **not** make your app open source. It does obligate you, whenever you distribute the app to others, to do four things.
 
 1. **Ship the license text.** Include FFmpeg's `COPYING.LGPLv2.1` and its `LICENSE.md`, which lists the per-component terms. An about screen, a bundled `licenses/` directory, or an oss-attribution page all work.
 2. **Tell users FFmpeg is in there** and that it is LGPL-licensed, with a pointer to its source.
@@ -58,9 +58,9 @@ The release itself also carries `ffmpeg-<version>-source.tar.gz`. That is the ex
 
 Ship the license texts onward with your app. Use `BUILD-INFO.txt` plus the attached source tarball to satisfy the source offer. Together they identify and provide the complete corresponding source.
 
-## GPL flavor restrictions
+## GPL flavour restrictions
 
-The GPL flavor is different in kind: linking it makes the **whole combined work GPL-3.0**. If you distribute that work, then:
+The GPL flavour is different in kind: linking it makes the **whole combined work GPL-3.0**. If you distribute that work, then:
 
 - your application's full source code must be available under a GPL-compatible license,
 - you cannot use App Store, closed-source or proprietary distribution,
@@ -113,8 +113,8 @@ A practical summary for a commercial product: use hardware decode where you can,
 
 Before you ship an app that embeds KiteFFmpeg:
 
-- [ ] Know your flavor: LGPL (default) or GPL (`-Pkiteffmpeg.ffmpeg.license=gpl`). If GPL, confirm your whole app is GPL-3.0-compatible. If it is not, switch flavors.
-- [ ] Bundle the license texts: `COPYING.LGPLv2.1`, FFmpeg's `LICENSE.md`, and notices for the third-party components above. Add `COPYING.GPLv3` for the GPL flavor.
+- [ ] Know your flavour: LGPL (default) or GPL (`-Pkiteffmpeg.ffmpeg.license=gpl`). If GPL, confirm your whole app is GPL-3.0-compatible. If it is not, switch flavours.
+- [ ] Bundle the license texts: `COPYING.LGPLv2.1`, FFmpeg's `LICENSE.md`, and notices for the third-party components above. Add `COPYING.GPLv3` for the GPL flavour.
 - [ ] State in your app's about or licenses screen that it uses FFmpeg and the listed components.
 - [ ] Provide the source offer. Link or host the exact FFmpeg source your build used. `BUILD-INFO.txt` in the release zips records the tag, the commit, and the configure line.
 - [ ] Decide your §6 story: dynamic linking is easiest, or static linking plus an offer of relinkable object files. On Apple platforms, consider the App Store problem above.
@@ -123,5 +123,5 @@ Before you ship an app that embeds KiteFFmpeg:
 
 ## Related
 
-- [Platform support](platforms.md#licensing): choosing the flavor, and per-platform encoder guidance.
+- [Platform support](platforms.md#licensing): choosing the flavour, and per-platform encoder guidance.
 - [About KiteFFmpeg](about.md#license): the short version.

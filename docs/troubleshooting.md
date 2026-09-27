@@ -76,7 +76,7 @@ konan's own sysroot; Android uses the NDK. There are no GPL tasks.
 
 **Path safety.** A checkout or final output path may contain `#`. Configure, make and install run
 only in a unique hash-free workspace under `java.io.tmpdir`; source copying excludes `.git` and
-every `build` subtree. After install, the normalized configure invocation is written as exactly one
+every `build` subtree. After install, the normalised configure invocation is written as exactly one
 line at `lib/kiteffmpeg/ffmpeg-configure.txt`; verification and packaging require that record, and
 packaging does not consult a vendor build log. On success, the verified install is copied to a
 sibling staging directory and replaces the output. On failure, the old output remains and the

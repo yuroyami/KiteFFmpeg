@@ -703,7 +703,7 @@ public actual class MediaSource internal constructor(
 
         /**
          * How far before the requested time [seekForDecode] aims. Must comfortably exceed one GOP:
-         * broadcast MPEG-TS typically uses 0.5–2s, and file-based content rarely exceeds 10s. The
+         * broadcast MPEG-TS typically uses 0.5 to 2 s, and file-based content rarely exceeds 10s. The
          * only cost of overshooting backwards is decoding frames that are then discarded.
          */
         private const val DECODE_SEEK_BACKOFF_MICROS = 5_000_000L

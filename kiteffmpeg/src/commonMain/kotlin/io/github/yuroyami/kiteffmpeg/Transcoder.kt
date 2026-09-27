@@ -9,7 +9,10 @@ public data class TranscodeProgress(
     val framesEncoded: Long,
     /** Where the output timeline currently ends, in microseconds. */
     val outputMicros: Long,
-    /** 0.0–1.0 against the trim window / input duration, or null when the duration is unknown. */
+    /**
+     * From 0.0 to 1.0 against the trim window or the input duration, or null when the duration is
+     * unknown.
+     */
     val percent: Double?,
 )
 

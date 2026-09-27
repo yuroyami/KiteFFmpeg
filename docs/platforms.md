@@ -43,13 +43,14 @@ The embedded FFmpeg is a minimal static build from source with a pinned codec an
 desktop size is around 25 MB; no mobile size is claimed before it is measured. To build it inside
 this repository, see [Building from source](building-from-source.md).
 
-The static profile is **LGPL by default**: no `--enable-gpl`, no libx264 / libx265. That is the App-Store- and closed-source-safe flavor.
+The static profile is **LGPL by default**: no `--enable-gpl`, no libx264 / libx265. A closed-source app can ship it, under the obligations that
+[Licensing](licensing.md) lists.
 
 The READ side of the profile is wide by class: every decoder, demuxer, parser, bitstream filter
 and hwaccel FFmpeg `n9.0.2` can build without extra libraries is compiled, so what FFmpeg can play,
 a vendored build can play. Note the boundary of that sentence: components FFmpeg gates behind an
 external library (software AV1 via libdav1d/libaom on mobile profiles, for example) exist only in
-the flavors that link those libraries. The WRITE side and the protocol list remain deliberately
+the flavours that link those libraries. The WRITE side and the protocol list remain deliberately
 small. If an encoder, muxer, filter or protocol is not listed here, it is not in the generated
 profile. This table describes compiled profile contents, not per-target runtime qualification.
 The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yuroyami/KiteFFmpeg/blob/main/buildSrc/src/main/kotlin/BuildFFmpegTask.kt). The encode rows below were read out of each tree's `libavcodec.a` as of `n9.0.2`, not copied from that recipe: `nm` lists one `ff_<name>_encoder` symbol for each encoder the archive carries.
@@ -69,7 +70,7 @@ Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywher
 
 There is no GPL column and no `drawtext`/`eq`/`boxblur` anywhere: this project bakes the LGPL portable profile only. Use `hue` (it has a brightness parameter `b`), `colorlevels` or `curves` where you reached for `eq`. The bitstream filters are never named by KiteFFmpeg. libavformat inserts them during a stream copy, which is a copy of encoded packets with no decode or encode. Without them, a copy between container families produces a *corrupt file* rather than an error.
 
-`mpeg4` is the dependency-free video baseline: it is always present, in every flavor, so code that must encode *something* without pulling in a GPL or hardware encoder has a target. `https` is **not** built. It needs a TLS backend cross-compiled for every target, and this profile does not include one. Use `http`, a local file, or link a system FFmpeg that has TLS.
+`mpeg4` is the dependency-free video baseline: it is always present, in every flavour, so code that must encode *something* without pulling in a GPL or hardware encoder has a target. `https` is **not** built. It needs a TLS backend cross-compiled for every target, and this profile does not include one. Use `http`, a local file, or link a system FFmpeg that has TLS.
 
 The `fd` protocol is what makes an Android `content://` file playable. Open a descriptor with `ContentResolver.openFileDescriptor`, then open `"fd:"` with the pre-open option `fd` set to the descriptor number:
 
@@ -192,9 +193,9 @@ It is deliberately different from the desktop one:
 
 ## Licensing
 
-The Apache 2.0 license covers KiteFFmpeg's own Kotlin code. The FFmpeg you link against carries its own license, and that is what determines whether your binary is App-Store-safe. The choice is made at the FFmpeg build level, as two flavors:
+The Apache 2.0 license covers KiteFFmpeg's own Kotlin code. The FFmpeg you link against carries its own license, and that license decides what shipping your binary obliges you to do. The choice is made at the FFmpeg build level, as two flavours:
 
-| Flavor | FFmpeg license | Encoders | Use for |
+| Flavour | FFmpeg license | Encoders | Use for |
 |---|---|---|---|
 | **LGPL** (the only one built here) | LGPL-2.1+ (no `--enable-gpl`) | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `aac`, `flac` and the three `pcm_*` everywhere; plus VideoToolbox encode on macOS and MediaCodec encode on Android. No third-party encoder is linked: no svtav1, opus or mp3lame. | Commercial / closed-source / App Store distribution (mind the [LGPL obligations](licensing.md)) |
 | **GPL** (a tree you supply) | GPL, and GPL-3.0 if your own build sets `--enable-version3` | Whatever you configured, typically libx264 / libx265 | GPL-compatible projects only (open-source apps, server tools, internal use) |

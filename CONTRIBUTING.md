@@ -121,7 +121,7 @@ first, or you are testing yesterday's binaries.
 - **Keep PRs focused**: one change per PR, with tests where the change is testable.
 - **Tests must pass**: the host-target test task and, for anything touching the pipeline, `scripts/e2e.sh`.
 - **New public API needs KDoc**: the docs site and the API reference are generated from it, and the KDoc contracts (frame ownership, confinement, timestamps) are part of the API.
-- **Docs**: if behavior described under `docs/` changes, update the page in the same PR.
+- **Docs**: if behaviour described under `docs/` changes, update the page in the same PR.
 - **Commit messages**: imperative subject line; explain the *why* in the body when it is not obvious.
 - CI must be green before review.
 

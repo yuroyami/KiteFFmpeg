@@ -143,7 +143,7 @@ KiteFFmpeg follows `ffmpeg.c`'s own rules at every stage:
 - **Mux.** Packet timestamps are rescaled once more onto whatever stream time-base the muxer actually chose after `avformat_write_header`.
 
 !!! tip "Why `Rational` is its own type"
-    FFmpeg time-bases and frame rates are exact fractions, not floats. `Rational` is always normalized, and its `times(scalar: Long)` operator does overflow-safe rescaling. Use it instead of converting to seconds and back, where rounding accumulates. See the [API reference](https://yuroyami.github.io/KiteFFmpeg/api/) for the full `Rational` surface.
+    FFmpeg time-bases and frame rates are exact fractions, not floats. `Rational` is always normalised, and its `times(scalar: Long)` operator does overflow-safe rescaling. Use it instead of converting to seconds and back, where rounding accumulates. See the [API reference](https://yuroyami.github.io/KiteFFmpeg/api/) for the full `Rational` surface.
 
 ## FFmpeg sourcing
 
@@ -158,7 +158,7 @@ See [Platform support](platforms.md) for the per-target detail.
 
 KiteFFmpeg's own code is licensed under the **Apache License 2.0**. You can freely use, modify, and distribute it in commercial and open-source projects.
 
-The FFmpeg you link against carries its own license, separate from KiteFFmpeg's. It is **LGPL-2.1+** when FFmpeg is built without `--enable-gpl`, and **GPL** with it. **Every KiteFFmpeg artifact is LGPL**, which is commercial- and App-Store-safe (with the usual [LGPL distribution obligations](licensing.md)). A `kiteffmpeg-gpl` module that would package a GPL flavour (libx264 / libx265) as a drop-in artifact does not exist: it is a README and nothing else, with no `build.gradle.kts`, commented out of `settings.gradle.kts`.
+The FFmpeg you link against carries its own license, separate from KiteFFmpeg's. It is **LGPL-2.1+** when FFmpeg is built without `--enable-gpl`, and **GPL** with it. **Every KiteFFmpeg artifact is LGPL**, which a commercial, closed-source app can ship under the [LGPL distribution obligations](licensing.md). Static linking on the iOS App Store is the hardest case of those. A `kiteffmpeg-gpl` module that would package a GPL flavour (libx264 / libx265) as a drop-in artifact does not exist: the `kiteffmpeg-gpl` directory holds only a README that says so, and `settings.gradle.kts` does not include it.
 
 When you build a vendored static FFmpeg here, there is only one flavour to build: `buildFFmpegFor<Target>` produces LGPL. **The `buildFFmpegFor<Target>Gpl` tasks were deleted on 2026-08-21**, because publishing a GPL-flavoured binary decides the licence of every application that links it. `-Pkiteffmpeg.ffmpeg.license=gpl` still selects `native-libs/gpl/<target>/`, so a GPL tree is one you build and own. Path resolution refuses GPL for every iOS target before it looks for a tree, with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.` Stay on LGPL if you ship through a GPL-hostile channel such as the iOS App Store. Full compliance guidance lives in the [Licensing guide](licensing.md).
 

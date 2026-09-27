@@ -49,7 +49,7 @@ git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmp
 ./gradlew :kiteffmpeg:buildFFmpegForAll
 ```
 
-Configure, make and install run in a unique hash-free directory under `java.io.tmpdir`. The task installs the normalized configure invocation as the single-line `lib/kiteffmpeg/ffmpeg-configure.txt` provenance record, requires it during verification, copies the verified install to a sibling staging directory and only then replaces `native-libs`. A failed build preserves the last good tree even when the checkout path contains `#`; packaging reads only that installed record.
+Configure, make and install run in a unique hash-free directory under `java.io.tmpdir`. The task installs the normalised configure invocation as the single-line `lib/kiteffmpeg/ffmpeg-configure.txt` provenance record, requires it during verification, copies the verified install to a sibling staging directory and only then replaces `native-libs`. A failed build preserves the last good tree even when the checkout path contains `#`; packaging reads only that installed record.
 
 Every profile is portable (2026-08-22): no third-party libraries are needed on any target. The prerequisites are `make`, a C toolchain and, for the x86_64 targets' assembly, `nasm`. The dav1d flavour additionally needs `meson` and `ninja`. On macOS: `brew install nasm meson ninja`. See [Troubleshooting](troubleshooting.md#vendored-build-prerequisites) if configure fails.
 

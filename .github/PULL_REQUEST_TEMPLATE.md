@@ -12,5 +12,5 @@
 ## Checklist
 
 - [ ] New/changed public API has KDoc
-- [ ] Docs under `docs/` updated if behavior they describe changed
+- [ ] Docs under `docs/` updated if behaviour they describe changed
 - [ ] No `kotlinx.cinterop` / `ffmpeg.*` types leaked into `commonMain`
