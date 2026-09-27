@@ -110,8 +110,11 @@ Tier 2 is Tier 1 plus `apiCheck` (with `-Pkiteffmpeg.requireAllTargets=true`, se
 [Binary compatibility](#binary-compatibility)) and the metadata compiles, the wasm binding and
 release target mirrors, the dependency hygiene script, host cinterop and the klib metadata diff,
 the build logic tests, the interpose, AddressSanitizer and ThreadSanitizer C runs, the symbol
-audit, the corpus replay, the host target's test task, `jvmTest`, the end-to-end transcode, and
-`./scripts/linux-tests.sh`, which needs Docker.
+audit, the corpus replay, the host target's test task, `jvmTest`, the JNI boundary tests with the
+comparison of the JVM and macOS codec contract transcripts, the end-to-end transcode, and
+`./scripts/linux-tests.sh`, which needs Docker. The JNI step runs with
+`-Pkiteffmpeg.phoneTargetsOnly=true`, which needs the Android SDK and NDK and the macOS, iOS and
+Android FFmpeg trees.
 
 `run-c-tests.sh` never builds anything. When you run it by hand, run `build-host.sh <variant>`
 first, or you are testing yesterday's binaries.

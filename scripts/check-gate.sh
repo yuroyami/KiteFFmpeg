@@ -85,6 +85,11 @@ c_sanitizers() {
 }
 macos() { gradle :kiteffmpeg:macosArm64Test; }
 jvm() { gradle :kiteffmpeg:jvmTest; }
+jni() {
+    # The phone target scope is the only one that registers these tasks. It needs the Android SDK
+    # and NDK, and the macOS, iOS and Android FFmpeg trees under native-libs/.
+    gradle -Pkiteffmpeg.phoneTargetsOnly=true :kiteffmpeg:jniJvmTest :kiteffmpeg:compareJvmNativeContract
+}
 e2e() {
     gradle :kiteffmpeg-sample:linkDebugExecutableMacosArm64
     run scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
@@ -93,7 +98,7 @@ linux() { run ./scripts/linux-tests.sh; }
 
 STEPS=(base)
 if [ "$TIER" = tier2 ]; then
-    STEPS=(base ratchets cinterop_metadata build_logic c_sanitizers macos jvm e2e linux)
+    STEPS=(base ratchets cinterop_metadata build_logic c_sanitizers macos jvm jni e2e linux)
 fi
 FROM="${FROM:-${STEPS[0]}}"
 case " ${STEPS[*]} " in

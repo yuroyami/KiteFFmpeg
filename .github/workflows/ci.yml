@@ -232,6 +232,14 @@ jobs:
           done
       - name: Unit + native tests
         run: ./gradlew :kiteffmpeg:macosArm64Test --stacktrace
+      # The JVM and JNI boundary harness, and the byte-for-byte comparison of the JVM and macOS
+      # codec contract transcripts, exist only in the phone target scope, so this step sets the flag
+      # for itself. That scope needs the macOS, iOS and Android trees fetched above, and an NDK.
+      - name: JNI boundary tests + JVM and native contract comparison
+        run: |
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          ./gradlew -Pkiteffmpeg.phoneTargetsOnly=true --stacktrace \
+            :kiteffmpeg:jniJvmTest :kiteffmpeg:compareJvmNativeContract
       # buildSrc's tests are not in the main build's task graph, so they need naming. They cover the
       # coupling ratchet and the C compile task, including its wrong-architecture refusal.
       - name: Build-logic tests
