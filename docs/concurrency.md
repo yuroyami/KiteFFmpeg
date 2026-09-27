@@ -19,10 +19,10 @@ It is not fine to share one object between concurrently running coroutines.
 
 A `MediaSource` is confined to one coroutine context. Call every member from that same context, never concurrently. That covers `streams`, `seekMicros`, `extractFrame`, and collecting `decodedFrames` or `decodeStreams`.
 
-The demuxer causes the most trouble. A demuxer reads the container and splits it into separate streams. Collecting two `decodedFrames` flows at the same time makes both loops call into the same demuxer concurrently. They **race**, and the result is undefined. When you need several streams (video plus audio is the common case), use `decodeStreams`. It demuxes once and interleaves the frames for you:
+The demuxer is the part that cannot be shared. A demuxer reads the container and splits it into separate streams, and one `MediaSource` has one demuxer, which reads from one position. So only one decode flow may collect at a time: a second `decodedFrames` collection that starts while the first runs throws `IllegalStateException`. When you need several streams (video plus audio is the common case), use `decodeStreams`. It demuxes once and interleaves the frames for you:
 
 ```kotlin
-// WRONG: two concurrent flows race on the shared demuxer
+// WRONG: the second collection throws IllegalStateException
 coroutineScope {
     launch { source.decodedFrames(video).collect { /* … */ } }
     launch { source.decodedFrames(audio).collect { /* … */ } }
@@ -78,7 +78,7 @@ Two practical consequences:
 - **Cancellation is prompt but not instantaneous.** A decode/encode step that is already inside a native call finishes that call first; the loop then observes cancellation before the next one.
 - **A canceled transcode leaves a truncated output file.** The trailer is only written by a clean `MediaSink.close()` / a completed `transcode`, so treat the output of a canceled run as garbage and delete it.
 
-`Transcoder.transcode` runs its work on its own dispatcher, `Dispatchers.IO` unless you pass another, so the thread you call it from stays free, and a cancel sent from that same thread reaches it. Its `onProgress` callback runs in your coroutine context. The other entry points run on the dispatcher you call them from, so call them from a background dispatcher yourself. [Transcoding](transcoding.md#threads-and-cancellation) has the details.
+`Transcoder.transcode` and `Remuxer.remux` run their work on their own dispatcher, `Dispatchers.IO` unless you pass another as `dispatcher`, so the thread you call them from stays free, and a cancel sent from that same thread reaches them. Their `onProgress` callbacks run in your coroutine context. The other entry points run on the dispatcher you call them from, so call them from a background dispatcher yourself. [Transcoding](transcoding.md#threads-and-cancellation) has the details.
 
 ```kotlin
 val job = launch {

@@ -52,7 +52,7 @@ The two things a reader most often needs from it:
 
 The Kotlin/Native binding is **one** cinterop module (`kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def`), but
 the def parses only KiteFFmpeg's helper, handle and ABI headers. It no longer parses libav\*
-functions, constants or struct layouts. Eleven incomplete forward tags remain behind the eleven
+functions, constants or struct layouts. Twelve incomplete forward tags remain behind the twelve
 `kc_*` aliases, and Kotlin source is forbidden to name those tags directly. The aliases and
 `ffkmp_*` functions are the complete native boundary; the compiled C archive owns the direct
 FFmpeg headers and calls internally. JVM and Android reach that same boundary through
@@ -65,17 +65,22 @@ removes that type-sharing problem entirely while retaining one package and one a
 
 ### The `ffkmp_*` C helpers
 
-Kotlin consumes 171 C helpers, all prefixed `ffkmp_*`, through eleven opaque `kc_*` handle aliases.
+Kotlin consumes more than 200 C helpers, all prefixed `ffkmp_*`, through twelve opaque `kc_*` handle
+aliases.
 They live in `native/kitecodec-c/`, compiled per Kotlin/Native target into a static archive that the
 def names and cinterop embeds. ABI 2.0 is the breaking C-source boundary: 140 legacy declarations
 were respelled from raw FFmpeg pointer types to the aliases, and the seven wrappers plus five
 media-type accessors added compatibly at ABI 1.1 now carry every Kotlin call across that boundary.
-ABI 2.1 added packet cloning and VM attachment; ABI 2.2 adds selected-codec identity so a named
-decoder is verified against its stream before open.
+ABI 2.1 added packet cloning and VM attachment, and ABI 2.2 added selected-codec identity so a named
+decoder is verified against its stream before open. The history goes on the same way: the major
+number changes when a declaration changes shape, and each minor adds helpers compatibly. The
+[CHANGELOG](https://github.com/yuroyami/KiteFFmpeg/blob/main/CHANGELOG.md) records each step,
+`KITECODEC_C_ABI_MAJOR` and `KITECODEC_C_ABI_MINOR` in `kitecodec_abi.h` hold the current version,
+and `kc_abi_version()` reports it at run time.
 
 The helpers used to be `static inline` text inside the def, which meant no translation unit, no object
-file and no test. The C layer now has nine translation units, seven C test suites, three sanitizer
-variants and six fuzz targets. Its historical extraction was byte-compared before the generator and
+file and no test. The C layer now has a translation unit for each subsystem, its own C test suites,
+three sanitizer variants and fuzz targets. Its historical extraction was byte-compared before the generator and
 `scripts/verify-lift.sh` were retired; the proof remains in the execution record.
 
 They exist because some of FFmpeg's surface does not survive cinterop cleanly:
@@ -89,13 +94,13 @@ They exist because some of FFmpeg's surface does not survive cinterop cleanly:
 ### Source layout
 
 ```
-native/kitecodec-c/                  ← the C helper layer: nine units, its own tests and fuzz targets
+native/kitecodec-c/                  ← the C helper layer, its own tests and fuzz targets
 ├── include/kitecodec_helpers.h      ← maintained opaque helper declarations, no FFmpeg header
-├── include/kitecodec_handles.h      ← eleven opaque handle aliases
+├── include/kitecodec_handles.h      ← twelve opaque handle aliases
 ├── include/kitecodec_abi.h          ← the FFmpeg identity gate's contract, no FFmpeg header in it
 ├── src/helpers_*.c                  ← maintained implementations, one per subsystem
 ├── src/kitecodec_abi.c              ← the identity gate itself
-├── tests/ fuzz/ scripts/            ← seven suites, six fuzz targets and the audits
+├── tests/ fuzz/ scripts/            ← the C suites, the fuzz targets and the audits
 native/kitecodec-jni/                ← dynamically registered JNI adapter; no libav headers
 kiteffmpeg/src/
 ├── nativeInterop/cinterop/
@@ -124,8 +129,9 @@ kiteffmpeg/src/
     └── *.unsupported.kt             ← public JVM + JS/WasmJs; no media runtime
 ```
 
-Every common contract has Kotlin/Native, JVM/Android and Web actuals. All public types live flat
-under `io.github.yuroyami.kiteffmpeg`, with no internal subpackages.
+Every common contract has Kotlin/Native, JVM/Android and Web actuals. Most public types live in
+`io.github.yuroyami.kiteffmpeg`. The option and filter builders, such as `DemuxOptions`,
+`DecoderOptions`, `FilterChain` and the filter steps, live in `io.github.yuroyami.kiteffmpeg.dsl`.
 
 ### Timestamp handling
 

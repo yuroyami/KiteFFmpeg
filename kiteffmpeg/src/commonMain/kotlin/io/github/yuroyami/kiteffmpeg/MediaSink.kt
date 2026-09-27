@@ -148,7 +148,8 @@ public data class VideoEncoderSpec(
     val keyframeIntervalFrames: Int = (frameRate.asDouble * 2).toInt().coerceAtLeast(1),
     /**
      * Encoder-specific options, passed through as `av_opt_set` strings: `"preset" to "veryfast"`,
-     * `"crf" to "23"` (libx264), `"allow_sw" to "1"` (videotoolbox), etc.
+     * `"crf" to "23"` (libx264), `"allow_sw" to "1"` (videotoolbox), etc. A key that sets the same
+     * thing as a field, such as `b` for [bitrateBps], is refused with [FFmpegError.InvalidArgument].
      */
     val options: Map<String, String> = emptyMap(),
     /**
@@ -194,7 +195,10 @@ public data class AudioEncoderSpec(
     val sampleFormat: SampleFormat = SampleFormat.None,
     /** The target bit rate in bits per second, for encoders that take one. */
     val bitrateBps: Long = 128_000L,
-    /** Encoder-specific options, passed through as `av_opt_set` strings. */
+    /**
+     * Encoder-specific options, passed through as `av_opt_set` strings. A key that sets the same
+     * thing as a field, such as `ar` for [sampleRate], is refused with [FFmpegError.InvalidArgument].
+     */
     val options: Map<String, String> = emptyMap(),
     /**
      * The exact channel layout, as an FFmpeg channel mask, when [channels] alone is ambiguous: six

@@ -35,7 +35,7 @@ The prefix must contain `include/libavformat/avformat.h` and the FFmpeg dylibs u
 
 There is **no system-FFmpeg discovery on Windows**. `FFmpegPaths` resolves Homebrew (macOS) and apt (Linux) installs only. For `mingwX64` it requires a populated `native-libs/<license>/mingw-x64/` tree. Installing an `ffmpeg.exe` from anywhere will not help. The build needs headers and import libraries.
 
-Stage them yourself, either by dropping in a [BtbN build](https://github.com/BtbN/FFmpeg-Builds/releases) (shared zips carry `include/` + `lib/` in the exact expected layout, and this is what CI does) or by cross-compiling the vendored build with a mingw-w64 toolchain. The steps are in [Platform support, Windows](platforms.md#windows-mingwx64). Remember two things. BtbN "gpl" zips go under `native-libs/gpl/mingw-x64` and need `-Pkiteffmpeg.ffmpeg.license=gpl`. At run time the DLL `bin\` directory must be on `PATH`.
+Stage them yourself, either by unzipping this repository's own `ffmpeg-<version>-lgpl-mingw-x64.zip` release asset under `native-libs/lgpl/mingw-x64` (this is what CI does) or by cross-compiling the vendored build with a mingw-w64 toolchain. The steps are in [Platform support, Windows](platforms.md#windows-mingwx64). The release tree is static, so no DLL has to be on `PATH` at run time.
 
 ## VideoToolbox fails on VMs / CI runners
 

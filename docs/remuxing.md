@@ -23,9 +23,12 @@ suspend fun remux(
     startMicros: Long = 0,
     endMicros: Long = Long.MAX_VALUE,
     metadata: Map<String, String> = emptyMap(),
+    dispatcher: CoroutineDispatcher? = null,
     onProgress: ((packetsWritten: Long) -> Unit)? = null,
 ): Unit
 ```
+
+Two more overloads take the same parameters: one adds `inputOptions`, the pre-open options for the input, and one reads from a `MediaByteSource` and writes to a `MediaByteSink`, with the container named by `format`.
 
 | Parameter | Purpose |
 |---|---|
@@ -35,6 +38,7 @@ suspend fun remux(
 | `startMicros` | Start of the copied range, in microseconds. Snapped back to the preceding keyframe. |
 | `endMicros` | End of the copied range, in microseconds. Defaults to no upper bound. |
 | `metadata` | Container-level metadata to set on the output, for example `mapOf("title" to "Episode 1")`. |
+| `dispatcher` | Where the copy loop runs. `null` runs it on `Dispatchers.IO`, so a call from the main thread does not block it. |
 | `onProgress` | Optional callback invoked with the running count of packets written. |
 
 `remux` is a `suspend` function, so call it from a coroutine. It uses constant memory regardless of how long the input runs, because it streams packets one at a time rather than buffering the file.

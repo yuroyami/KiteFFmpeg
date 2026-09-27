@@ -148,16 +148,17 @@ player, stay with the API above.
 
 | | Targets |
 |---|---|
-| **Plays real media** | `macosArm64`, `iosArm64`, `iosSimulatorArm64`, the Android AAR (`minSdk 26`, `arm64-v8a` and `x86_64`), `linuxX64`, `linuxArm64`, `mingwX64` |
+| **Plays real media** | `macosArm64`, `iosArm64`, `iosSimulatorArm64`, the Android AAR (`minSdk 26`, `arm64-v8a`), `linuxX64`, `linuxArm64`, `mingwX64` |
 | **Plays media, with the codec module from the `web` zip** | `wasmJs`. Reading and decoding work, including seeking. Writing files (encode, mux) and filtering are refused by design |
-| **Builds, nothing has run** | `macosX64`, `iosX64`, the Android AAR's 32-bit `armeabi-v7a` library, and the `androidNative*` targets, which are for Kotlin/Native on Android and are not what a normal Android app uses |
+| **Builds, nothing has run** | `macosX64`, `iosX64`, the Android AAR's `armeabi-v7a` and `x86_64` libraries, and the `androidNative*` targets, which are for Kotlin/Native on Android and are not what a normal Android app uses |
 | **Placeholder** | `js`. The code compiles and you can ask it what it supports (nothing), but every media call throws `FFmpegError.Unsupported` |
 
 All of these publish at 0.3.0.
 
 Android and iOS play real media on real phones: this is the engine under
 [KitePlayer](https://github.com/yuroyami/KitePlayer), which is device-tested on both, down to
-per-frame GPU timings on a Redmi Note 8. What those platforms do not have is an **automated device
+per-frame GPU timings on a Redmi Note 8. On Android that evidence is for `arm64-v8a`, including
+FFmpeg's MediaCodec decoders, which KitePlayer selects by name. What those platforms do not have is an **automated device
 job in this repository's CI** (nobody runs a phone farm here), so their evidence is hand-verified
 and app-shipped rather than green-on-every-push. Desktop and Windows are the reverse: CI-verified
 on every push.
@@ -208,7 +209,7 @@ under Node when the module has been built.
 | Hardware decoding on Linux and the web | Hardware decoding is VideoToolbox on Apple platforms, MediaCodec on Android and Direct3D 11 (`HardwareAccel.D3d11va`) on Windows, which has not yet run on a Windows GPU. Linux decodes in software: VA-API would make libva a required system library. Hardware **encoding** is VideoToolbox and MediaCodec; on virtual machines and CI runners pass `allow_sw`, where the encoder exists but the physical chip does not. |
 | `https` | The embedded build has no TLS backend. Use `http`, a local file, or link your own FFmpeg tree. |
 | An automated device job in CI | Android and iOS are verified by hand and by a shipping app, not by a phone farm on every push. Desktop and Windows are CI-verified. |
-| A frozen API | 0.1.x is pre-1.0, so signatures can still change. What you do get: every public declaration is explicit, and a snapshot of the whole API is checked on every push, so a change fails the build here rather than surprising you at your call site. |
+| A frozen API | The 0.x line is pre-1.0, so signatures can still change. What you do get: every public declaration is explicit, and a snapshot of the whole API is checked on every push, so a change fails the build here rather than surprising you at your call site. |
 
 ### What the published builds can encode
 

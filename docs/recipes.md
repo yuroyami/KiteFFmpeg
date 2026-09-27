@@ -3,7 +3,7 @@
 Short, working solutions to common KiteFFmpeg tasks. Each snippet is copy-pasteable and uses only real APIs from `io.github.yuroyami.kiteffmpeg`. The high-level calls (`Transcoder.transcode`, `Remuxer.remux`) are `suspend` functions, so run them inside a coroutine.
 
 !!! note "Imports"
-    Every public type lives in the flat `io.github.yuroyami.kiteffmpeg` package. The snippets below assume the relevant types are imported. The `suspend` calls run inside `runBlocking { }` or any coroutine scope.
+    Most public types live in `io.github.yuroyami.kiteffmpeg`. The option and filter builders, such as `DemuxOptions`, `FilterChain`, `videoFilters` and `audioFilters`, live in `io.github.yuroyami.kiteffmpeg.dsl`. The snippets below assume the relevant types are imported. The `suspend` calls run inside `runBlocking { }` or any coroutine scope.
 
 ## Probe what this build can do
 

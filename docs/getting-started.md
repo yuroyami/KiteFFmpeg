@@ -153,7 +153,7 @@ See [Transcoding](transcoding.md) for filters, hardware encoders, and progress i
 
 ## Step 5: Run the sample
 
-The `:kiteffmpeg-sample` module is a small macOS arm64 CLI that exercises the whole API. Build it, then point it at any media file.
+The `:kiteffmpeg-sample` module is a small command-line program that exercises the whole API. It builds for macOS arm64, Linux x64, Linux arm64 and Windows x64, and CI runs it on macOS, Linux x64 and Windows. Build it, then point it at any media file.
 
 ```bash
 # The repository build needs an FFmpeg tree; see Building from source.

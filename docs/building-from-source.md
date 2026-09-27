@@ -49,9 +49,10 @@ Every bake is **LGPL** (no libx264 / libx265). There are no GPL build tasks: a G
     Kotlin/Native flow cross-compiles that profile before building a klib. The regular Android
     source model uses the same profile through JNI, packages only `arm64-v8a`, `armeabi-v7a` and
     `x86_64`, and
-    reaches a platform codec only through an FFmpeg name such as `h264_mediacodec`. The current
-    proof stops at source, host tests, link and packaging; it is not a public install or playback
-    result. See [Platform support](platforms.md) for both target models.
+    reaches a platform codec only through an FFmpeg name such as `h264_mediacodec`. A local
+    build of that model is not a public install; the published AAR is. `arm64-v8a` plays real
+    media on phones as the engine under KitePlayer, and `armeabi-v7a` and `x86_64` have not run.
+    See [Platform support](platforms.md) for both target models.
 
 !!! tip "Mobile Apple local trees"
 

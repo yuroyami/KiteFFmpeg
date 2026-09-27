@@ -23,9 +23,10 @@ Transcoder.transcode(
 
 For H.264 or H.265, probe first and pick what the linked build has.
 `h264_videotoolbox` has standing macOS runtime evidence; `libx264` exists only in a GPL FFmpeg.
-The generated Android profile contains MediaCodec names, but the current Android claim stops at
-source, host tests, link and packaging, with exact named-decoder selection documented in
-[Decoding](decoding.md). See [Platform support](platforms.md) and [Licensing](licensing.md).
+On Android, `arm64-v8a` plays real media on real phones as the engine under
+[KitePlayer](https://github.com/yuroyami/KitePlayer), including FFmpeg's MediaCodec decoders,
+which KitePlayer selects by name as [Decoding](decoding.md) describes. No Android hardware encoder
+has run on a device. See [Platform support](platforms.md) and [Licensing](licensing.md).
 
 - [Getting started](getting-started.md): add the dependency, probe your build, run your first transcode.
 - [API reference](https://yuroyami.github.io/KiteFFmpeg/api/): every public type and signature.
@@ -177,7 +178,8 @@ See **[Filtering](filtering.md)**.
 
 KiteFFmpeg is pre-1.0 and actively developed. The public pipeline is implemented for Kotlin/Native,
 JVM and Android over the same common contracts, and everything is published on Maven Central with
-FFmpeg embedded. The JVM JNI boundary is proved by 89 tests over real FFmpeg on an arm64 Mac.
+FFmpeg embedded. The JVM JNI boundary is proved by the `jniJvmTest` suite over real FFmpeg on an
+arm64 Mac.
 Android and iOS device evidence is hand-verified and app-shipped rather than automated in this
 repository's CI.
 

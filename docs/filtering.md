@@ -86,7 +86,7 @@ val graph = FilterGraph.buildAudio(
 ```
 
 !!! note "Why the pin lives in the graph"
-    The `aformat` stage is appended as a filter-string fragment, not as a `buffersink` option. Filter-string syntax is stable across FFmpeg versions, whereas `buffersink` option names have churned. Pinning the format inside the chain means the same code keeps working across FFmpeg 6, 7, and 8.
+    The `aformat` stage is appended as a filter-string fragment, not as a `buffersink` option. Filter-string syntax is stable across FFmpeg versions, whereas `buffersink` option names have churned. Pinning the format inside the chain means the same code keeps working across FFmpeg releases, the FFmpeg 9 that the build embeds included.
 
 When the `output*` parameters are left at their defaults (`0`, `SampleFormat.None`, `0`), no `aformat` stage is added and frames leave in the input format.
 

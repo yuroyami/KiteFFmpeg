@@ -30,8 +30,9 @@ already on Central stay exactly as they are.
 
 | Version | Supported |
 |---|---|
-| `main` (latest source) | ✅ |
-| 0.0.x snapshots / anything older | no, rebuild from `main` |
+| The latest `kiteffmpeg` release on Maven Central | Yes. A fix ships in the next release. |
+| Older `kiteffmpeg` releases | No. Update to the latest release. |
+| The earlier `kitecodec-core` artifact | No. It was renamed to `kiteffmpeg`; move to that. |
 
 ## Hardening notes for integrators
 

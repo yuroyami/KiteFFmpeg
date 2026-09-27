@@ -144,15 +144,15 @@ Invoke-WebRequest -Uri "https://github.com/yuroyami/KiteFFmpeg/releases/download
 Expand-Archive $name -DestinationPath native-libs\lgpl\mingw-x64
 ```
 
+The tree is static and LGPL, so the build needs no license property and the test binaries need no DLL on `PATH`. This is how [CI](https://github.com/yuroyami/KiteFFmpeg/blob/main/.github/workflows/ci.yml) runs the Windows tests and the e2e transcode on every push.
+
 CI used to take a BtbN autobuild here. It stopped on 2026-08-24, for two reasons worth repeating:
 BtbN prunes old autobuilds, so a pinned tag eventually 404s, and a third-party build is not the
 build this project ships, so testing against it proved the wrong thing.
 
-Then build with `-Pkiteffmpeg.ffmpeg.license=gpl` (matching the flavor directory), and make sure the `bin\` directory with the DLLs is on `PATH` at run time. An LGPL BtbN variant exists too (`...-win64-lgpl-shared.zip`); put it under `native-libs\lgpl\mingw-x64` and skip the property. This is exactly how [CI](https://github.com/yuroyami/KiteFFmpeg/blob/main/.github/workflows/ci.yml) runs the Windows tests and e2e transcode on every push.
+**Option B: vendored static cross-compile.** Run `:kiteffmpeg:buildFFmpegForMingwX64` with a mingw-w64 cross toolchain (`x86_64-w64-mingw32-gcc`) available. This is realistic from a Linux host or MSYS2; it needs the `vendor/ffmpeg` clone described above.
 
-**Option B: vendored static cross-compile.** Run `:kiteffmpeg:buildFFmpegForMingwX64` (or the `Gpl` variant) with a mingw-w64 cross toolchain (`x86_64-w64-mingw32-gcc`) available. This is realistic from a Linux host or MSYS2; it needs the `vendor/ffmpeg` clone described above.
-
-Windows builds, tests, and e2e-transcodes in CI via Option A, against a BtbN tag, asset name and SHA-256 pinned in the workflow. There is no one-command onboarding path on a bare Windows machine, no system-FFmpeg discovery, and no prebuilt KiteFFmpeg asset for `mingw-x64`. You stage the tree yourself.
+Windows builds, tests, and e2e-transcodes in CI via Option A, against this repository's own release tag, asset name and SHA-256, pinned in the workflow. There is no one-command onboarding path on a bare Windows machine and no system-FFmpeg discovery. You stage the tree yourself, from the release asset or with Option B.
 
 ## Android FFmpeg profiles
 
@@ -176,9 +176,9 @@ It is deliberately different from the desktop one:
     The regular Android loader checks the complete FFmpeg identity before attaching the app's
     `JavaVM`. The low-level API can then request an exact FFmpeg decoder name, for example
     `source.openDecoder(stream, decoder = DecoderId.H264MediaCodec)`, and verifies that decoder
-    against the stream before open. This is not a direct platform-codec call. The present evidence
-    is source, host tests, three JNI link arms and packaging checks; it does not qualify device
-    playback or a hardware encoder.
+    against the stream before open. This is not a direct platform-codec call. KitePlayer selects
+    `h264_mediacodec` and `hevc_mediacodec` this way and plays with them on `arm64-v8a` phones. No
+    Android hardware encoder has run on a device.
 
 !!! note "Two Android target models"
     The `compileKotlinAndroidNative*` flow above produces Kotlin/Native `.klib` files. Separately,
@@ -218,9 +218,11 @@ For distribution obligations (shipping license texts, offering FFmpeg source, th
 
 ### Picking an encoder per platform
 
-`CodecId` exposes the relevant FFmpeg names as companions. Software libx264 is GPL; the standing
+`CodecId` names the format and `EncoderId` names the encoder that writes it; `EncoderId` has the
+relevant FFmpeg encoder names as companions. Software libx264 is GPL; the standing
 hardware-encoder runtime evidence here is VideoToolbox on the qualified macOS desktop profile.
-The Android profile contains MediaCodec wrappers, but this stage does not qualify device encoding.
+The Android profile contains MediaCodec encoders, but no Android hardware encoder has run on a
+device.
 
 === "Qualified macOS hardware"
 

@@ -116,7 +116,7 @@ The flow is cold. Nothing decodes until you collect, and each fresh collection r
 
 ## Decoding several streams in one pass
 
-If you need both video and audio, do not open two flows. Two concurrently collected `decodedFrames` flows **race on the shared demuxer**. A `MediaSource` wraps one `AVFormatContext`, which is not safe to drive from concurrent coroutines. The result is corrupted reads, not just wasted work. `decodeStreams(streams)` is the only correct way to decode several streams together. It runs a single demux pass and interleaves frames from every requested stream into one `Flow<Frame>`:
+If you need both video and audio, do not open two flows. A `MediaSource` wraps one `AVFormatContext`, whose demuxer reads from one position, so only one decode flow may collect at a time. A second `decodedFrames` collection that starts while the first runs throws `IllegalStateException`. `decodeStreams(streams)` is the way to decode several streams together. It runs a single demux pass and interleaves frames from every requested stream into one `Flow<Frame>`:
 
 ```kotlin
 val wanted = listOfNotNull(source.primaryVideo, source.primaryAudio)
@@ -310,8 +310,9 @@ the repository-local path.
 The low-level decoder API also accepts an exact FFmpeg decoder name. On an Android FFmpeg build,
 `source.openDecoder(stream, decoder = DecoderId.H264MediaCodec)` selects FFmpeg's named
 MediaCodec decoder after the bridge has attached the app VM. It verifies that the named decoder
-matches the stream before opening. KiteFFmpeg does not call Android's codec API directly, and this
-selection seam is not by itself a device playback result.
+matches the stream before opening. KiteFFmpeg does not call Android's codec API directly.
+KitePlayer selects `h264_mediacodec` and `hevc_mediacodec` this way and plays with them on
+`arm64-v8a` phones.
 
 ## Next
 

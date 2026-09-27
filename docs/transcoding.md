@@ -113,7 +113,7 @@ Rational(30000, 1001)  // 29.97 fps, exact
 
 The output video has a constant rate: exactly `frameRate` frames per second. When the input has another rate, or no constant rate at all, frames are dropped or repeated against the input timeline, the way FFmpeg's `fps` filter does. Each output frame shows the latest input frame that starts at or before it, so the duration stays the same. A 60 fps clip encoded at 25 fps keeps its length and loses frames. A 24 fps clip encoded at 60 fps shows each frame two or three times.
 
-The `options` map passes codec-specific settings straight through (`preset`, `crf`, `allow_sw`, and so on). KiteFFmpeg does not validate them. They reach the encoder unchanged.
+The `options` map passes settings that have no typed field to the encoder (`preset`, `crf`, `allow_sw`, and so on). KiteFFmpeg does not check those keys, and they reach the encoder unchanged. A key that sets the same thing as a typed field is refused with an `FFmpegException` that names both, for example `b` beside `bitrateBps` or `pix_fmt` beside `pixelFormat`, because the option would silently win over the field.
 
 ### Colour, HDR metadata, pixel shape and channel layout
 
@@ -149,7 +149,7 @@ An encoder that writes another format than `codec` is refused with `FFmpegError.
 
 - Always present, every profile: the `mpeg4`, `mjpeg` and `png` encoders. `mpeg4` is the software video encoder every KiteFFmpeg build carries.
 - Software H.264 and H.265 encoders: `EncoderId.Libx264` and `EncoderId.Libx265`, both GPL-only and in neither published artifact.
-- Hardware video encoders with standing runtime evidence: `EncoderId.H264VideoToolbox` and `EncoderId.HevcVideoToolbox` on the qualified macOS profile. MediaCodec encoders exist in the Android FFmpeg profile, but this stage only claims named-decoder selection through `openDecoder`, not Android encoder or playback qualification.
+- Hardware video encoders with standing runtime evidence: `EncoderId.H264VideoToolbox` and `EncoderId.HevcVideoToolbox` on the qualified macOS profile. MediaCodec encoders exist in the Android FFmpeg profile, but no Android hardware encoder has run on a device.
 
 !!! tip "Probe before you encode"
     Whether a given encoder is present depends on how FFmpeg was built. Ask the build rather than hard-coding a name. `FFmpeg.encodersFor` lists what it has for a format, FFmpeg's default first, and `FFmpeg.codecOf` gives the format an encoder writes:

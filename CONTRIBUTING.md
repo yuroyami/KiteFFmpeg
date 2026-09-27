@@ -1,6 +1,6 @@
 # Contributing to KiteFFmpeg
 
-Thanks for helping out. KiteFFmpeg is a Kotlin Multiplatform (Kotlin/Native) binding to FFmpeg's libav\* libraries, so contributing means having both a Kotlin toolchain and an FFmpeg to link against.
+Thanks for helping out. KiteFFmpeg is a Kotlin Multiplatform binding to FFmpeg's libav\* libraries, with Kotlin/Native, JVM, Android and wasmJs backends, so contributing means having both a Kotlin toolchain and an FFmpeg to link against.
 
 ## Ground rules
 
@@ -42,7 +42,7 @@ These are not style preferences. Each one exists because ignoring it cost someon
 - **FFmpeg**: the fastest path on a dev machine is a system install:
   - macOS: `brew install ffmpeg`
   - Debian/Ubuntu: `sudo apt install libavformat-dev libavcodec-dev libavfilter-dev libavutil-dev libswscale-dev libswresample-dev`
-  - Windows has no auto-discovery; stage a [BtbN build](https://github.com/BtbN/FFmpeg-Builds/releases) under `native-libs/gpl/mingw-x64/` and build with `-Pkiteffmpeg.ffmpeg.license=gpl` (see [docs/platforms.md](docs/platforms.md)).
+  - Windows has no auto-discovery; unzip this repository's `ffmpeg-<version>-lgpl-mingw-x64.zip` release asset under `native-libs/lgpl/mingw-x64/`, which is what CI does (see [docs/platforms.md](docs/platforms.md#windows-mingwx64)).
 - If Homebrew lives in a non-standard prefix, set `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties`.
 - The `ffmpeg` and `ffprobe` CLIs on `PATH` (used by the e2e script only).
 
@@ -122,7 +122,7 @@ anything: run `build-host.sh <variant>` first or you are testing yesterday's bin
 ## Code style
 
 - Standard Kotlin style (official code style, four-space indent); match the formatting of the file you are editing.
-- Public API lives flat in `io.github.yuroyami.kiteffmpeg`, no internal subpackages.
+- Public API lives in `io.github.yuroyami.kiteffmpeg`, except the option and filter builders, which live in `io.github.yuroyami.kiteffmpeg.dsl`.
 - `commonMain` declares `expect`; `nativeMain` holds the `actual`s. Do not leak `kotlinx.cinterop` types (or the `ffmpeg.*` package) into `commonMain`.
 - C bridge helpers in `ffmpeg.def` are prefixed `ffkmp_*`; keep them `static inline` and single-purpose.
 - Native resources follow the `AutoCloseable` + `use { }` pattern; anything acquiring native memory must free it in `finally`.

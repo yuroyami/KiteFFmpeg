@@ -69,7 +69,7 @@ As of 0.1.0 this project builds and publishes NO GPL flavour. x264 and x265 are
 never linked here. A tree you build yourself with --enable-gpl is yours, and its
 obligations are yours.
 
-WHAT THIS MEANS IF YOU SHIP AN APP USING KITECODEC
+WHAT THIS MEANS IF YOU SHIP AN APP USING KITEFFMPEG
 
   - The LGPL applies to FFmpeg, not to your application, and not to KiteFFmpeg's
     own Apache-2.0 code.

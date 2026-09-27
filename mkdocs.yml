@@ -2,7 +2,8 @@ site_name: KiteFFmpeg
 site_url: https://yuroyami.github.io/KiteFFmpeg/
 site_description: >-
   Kotlin Multiplatform codec engine: coroutine-first video and audio decode,
-  encode, transcode and filter graphs via Kotlin/Native FFmpeg bindings.
+  encode, transcode and filter graphs over FFmpeg, with Kotlin/Native, JVM,
+  Android and wasmJs backends.
 site_author: yuroyami
 copyright: Copyright &copy; 2026 yuroyami, Apache-2.0
 

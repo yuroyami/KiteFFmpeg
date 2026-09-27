@@ -56,13 +56,14 @@ val encoder = sink.addVideoEncoder(spec)
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `codec` | `CodecId` | required | The format: `Mpeg4`, `H264`, `Hevc`, and so on. Which encoder writes it is `encoder`. |
+| `codec` | `CodecId` | required | The format: `Mpeg4`, `H264`, `Hevc`, and so on. Which encoder writes it is `encoder`, below. |
 | `width` / `height` | `Int` | required | Output frame size. Match your filter output. |
 | `pixelFormat` | `PixelFormat` | `Yuv420p` | Most codecs want `Yuv420p`. |
 | `frameRate` | `Rational` | required | Exact fraction, e.g. `Rational(30000, 1001)` for 29.97. |
 | `bitrateBps` | `Long` | `4_000_000` | Target bitrate. Ignored when you set `crf`. |
 | `keyframeIntervalFrames` | `Int` | `frameRate × 2` | GOP length. Computed from the frame rate unless you override it. |
-| `options` | `Map<String,String>` | empty | Codec-specific options passed straight to `av_opt_set`. |
+| `options` | `Map<String,String>` | empty | Encoder options set with `av_opt_set`. A key that repeats a field, such as `b` or `pix_fmt`, is refused. |
+| `encoder` | `EncoderId?` | `null` | The encoder that writes `codec`, such as `EncoderId.H264VideoToolbox`. `null` takes the one FFmpeg picks for the format. |
 | `color` | `ColorInfo?` | `null` | The colour the output declares: primaries, transfer, matrix, range and chroma location. Every field that is not unspecified is written. |
 | `sampleAspectRatio` | `Rational?` | `null` | The shape of one pixel, for anamorphic video. `null` writes none, which players read as square. |
 | `hdr` | `HdrMetadata?` | `null` | The mastering display and the content light level of HDR video. |
@@ -85,7 +86,7 @@ A raw option that sets the same thing as one of these fields is refused once the
 
 ### Per-encoder options
 
-The `options` map is passed through verbatim to the underlying encoder. The keys are exactly the FFmpeg option names, so anything `ffmpeg -h encoder=mpeg4` lists for the encoder you use is valid:
+The `options` map is set on the encoder with `av_opt_set`. The keys are the FFmpeg option names, so an option that `ffmpeg -h encoder=mpeg4` lists for the encoder you use is valid. A key that sets the same thing as a typed field is refused with an `FFmpegException` that names both: `b`, `bit_rate`, `g`, `gop_size`, `pix_fmt`, `width`, `height`, `video_size`, `time_base`, `framerate` and `r` for video, and `b`, `bit_rate`, `ar`, `sample_rate`, `ac`, `channels`, `sample_fmt` and `time_base` for audio:
 
 ```kotlin
 VideoEncoderSpec(
@@ -150,13 +151,14 @@ audio.drive(audioFrames)         // audioFrames: Flow<Frame>
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
-| `codec` | `CodecId` | required | `Aac`, `Opus`, `Flac`, `Mp3`, `LibOpus`, `PcmS16`, etc. |
+| `codec` | `CodecId` | required | The format: `Aac`, `Opus`, `Flac`, `Mp3`, `Vorbis`, `PcmS16`, and so on. Which encoder writes it is `encoder`, below. |
 | `sampleRate` | `Int` | `44_100` | Output sample rate in Hz. |
 | `channels` | `Int` | `2` | Channel count. |
 | `sampleFormat` | `SampleFormat` | `None` | `None` lets the encoder pick its preferred format (`fltp` for AAC). |
 | `bitrateBps` | `Long` | `128_000` | Target bitrate. |
-| `options` | `Map<String,String>` | empty | Codec-specific options. |
+| `options` | `Map<String,String>` | empty | Encoder options set with `av_opt_set`. A key that repeats a field, such as `b` or `ar`, is refused. |
 | `channelLayoutMask` | `Long?` | `null` | The exact layout as an FFmpeg channel mask, when the count is ambiguous. `null` takes FFmpeg's default for `channels`: six channels are 5.1 with back surrounds. |
+| `encoder` | `EncoderId?` | `null` | The encoder that writes `codec`, such as `EncoderId.Aac`. `null` takes the one FFmpeg picks for the format. |
 
 Six channels are 5.1 with back surrounds or 5.1 with side surrounds, and the count alone cannot say which. `0x60FL` is 5.1 with side surrounds, the layout AC-3 decodes to. A mask whose channel count differs from `channels` is refused.
 
@@ -242,7 +244,7 @@ For a whole-file lossless container rewrite (every stream copied, no encoders at
 
 ## Hardware encode
 
-Hardware encoders are selected by `CodecId`, the same way software encoders are. They produce the same kind of `VideoEncoder` and drive identically; only the codec id changes.
+A hardware encoder is selected with the spec's `encoder`, an `EncoderId`, the same way a software encoder is. It produces the same kind of `VideoEncoder` and drives the same way; only the encoder id changes.
 
 === "macOS (VideoToolbox)"
 
