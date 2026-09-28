@@ -2,10 +2,14 @@
 
 #include "kitecodec_helpers.h"
 
+#include <stddef.h>
 #include <string.h>
 
 #include <libavformat/avformat.h>
+#include <libavutil/aes.h>
+#include <libavutil/avstring.h>
 #include <libavutil/error.h>
+#include <libavutil/mem.h>
 #include <libavutil/opt.h>
 
 /* ════════════ AVFormatContext (input + output) ════════════ */
@@ -123,12 +127,17 @@ KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
 /* The open's option dictionary from the pairs, with the forced format taken out of it: *forced is
    that demuxer, or NULL when none is named. A name this build does not carry answers
    AVERROR_DEMUXER_NOT_FOUND. On failure nothing is left allocated. */
+/* The HLS option the trust_io_open patch adds. Only ffkmp_fmt_open_input_io2 sets it, together with
+   the io_open that decides every URL, so kc_open_options refuses it from callers. */
+#define KC_TRUST_IO_OPEN_KEY "trust_io_open"
+
 static int kc_open_options(const char *const *keys, const char *const *values, int n,
                            AVDictionary **options, const AVInputFormat **forced) {
     *options = NULL;
     *forced = NULL;
     for (int i = 0; i < n; i++) {
         if (!keys[i] || !values[i]) { av_dict_free(options); return AVERROR(EINVAL); }
+        if (strcmp(keys[i], KC_TRUST_IO_OPEN_KEY) == 0) { av_dict_free(options); return AVERROR(EINVAL); }
         if (strcmp(keys[i], KC_FORCED_FORMAT_KEY) == 0) {
             *forced = av_find_input_format(values[i]);
             if (!*forced) { av_dict_free(options); return AVERROR_DEMUXER_NOT_FOUND; }
@@ -346,10 +355,18 @@ KC_API int ffkmp_fmt_add_chapter(AVFormatContext *ctx, int64_t id, int64_t start
 
 /* ════════════ Custom AVIO ════════════ */
 
+/* 64 KiB: avio's own default probe/read granularity; large enough that a network-backed
+   read_fn is not called per demuxer nibble. */
+#define KC_IO_BUFFER_SIZE (64 * 1024)
+
+typedef struct kc_io_nested kc_io_nested;
+
 /* The bridge the AVIOContext's opaque points at. The magic pins provenance so the paired
-   close can refuse to free state it did not create. */
+   close can refuse to free state it did not create. av_class is first, so that the probe can
+   read mime_type from the bridge (see kc_io_context_class); it stays NULL without a MIME type. */
 #define KC_IO_BRIDGE_MAGIC 0x4B43494Fu /* "KCIO" */
 typedef struct kc_io_bridge {
+    const AVClass *av_class;
     uint32_t      magic;
     void         *opaque;
     kc_io_read_fn read_fn;
@@ -358,18 +375,60 @@ typedef struct kc_io_bridge {
     /* The bridge's own interrupt cell, freed with the bridge. */
     int           interrupted;
     /* The cell every read and seek checks and the context's interrupt_callback polls: the
-       caller's kc_interrupt when the open was given one, else &interrupted. */
+       caller's kc_interrupt when the open was given one, else &interrupted. Nested sources
+       check it too. */
     int          *cell;
+    /* The MIME type the probe reads, owned; NULL when the caller gave none. */
+    char         *mime_type;
+    /* The caller's nested opener, copied; open_fn is NULL when the open has none. */
+    kc_io_opener  opener;
+    /* FFmpeg's own io_open and io_close2, for the data: URLs the opener never sees. */
+    int         (*default_io_open)(AVFormatContext *s, AVIOContext **pb, const char *url,
+                                   int flags, AVDictionary **options);
+    int         (*default_io_close2)(AVFormatContext *s, AVIOContext *pb);
+    /* Every nested source still open, so the close can release what FFmpeg left behind. */
+    kc_io_nested *nested;
 } kc_io_bridge;
 
-/* FFmpeg's read_packet: >0 bytes, AVERROR_EOF at end, never 0 since n7. The caller contract
-   (KC_IO_EOF / KC_IO_ERR) maps here so the Kotlin side never needs an FFmpeg constant. */
-static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
-    kc_io_bridge *b = (kc_io_bridge *)opaque;
+/* The probe asks the input's AVIOContext for "mime_type" through AV_OPT_SEARCH_CHILDREN, and only
+   when that context has a class. A custom AVIOContext has none, so a caller's MIME type never
+   reached the probe. With a MIME type, the context gets kc_io_context_class, whose one child is
+   the bridge, whose class answers mime_type. */
+static const AVOption kc_io_bridge_options[] = {
+    { .name = "mime_type", .help = "the MIME type the caller's bytes arrived with",
+      .offset = offsetof(kc_io_bridge, mime_type), .type = AV_OPT_TYPE_STRING,
+      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY },
+    { .name = NULL },
+};
+
+static const AVClass kc_io_bridge_class = {
+    .class_name = "kc_io_bridge",
+    .item_name  = av_default_item_name,
+    .option     = kc_io_bridge_options,
+    .version    = LIBAVUTIL_VERSION_INT,
+};
+
+static void *kc_io_context_child_next(void *obj, void *prev) {
+    AVIOContext *pb = (AVIOContext *)obj;
+    return prev ? NULL : pb->opaque;
+}
+
+static const AVClass kc_io_context_class = {
+    .class_name = "AVIOContext",
+    .item_name  = av_default_item_name,
+    .version    = LIBAVUTIL_VERSION_INT,
+    .child_next = kc_io_context_child_next,
+};
+
+/* One caller read on FFmpeg's read_packet contract: >0 bytes, AVERROR_EOF at end, never 0
+   since n7. The caller contract (KC_IO_EOF / KC_IO_ERR) maps here so the Kotlin side never
+   needs an FFmpeg constant. */
+static int kc_io_read_through(kc_io_read_fn read_fn, void *source, const int *cell,
+                              uint8_t *buf, int len) {
     /* FFmpeg's own poll sites never see a custom AVIO, so an interrupted long scan
        is broken here, between caller reads, which is exactly where a network stall spins. */
-    if (kc_cell_raised(b->cell)) return AVERROR_EXIT;
-    int r = b->read_fn(b->opaque, buf, len);
+    if (kc_cell_raised(cell)) return AVERROR_EXIT;
+    int r = read_fn(source, buf, len);
     /* FFmpeg's buffer holds len bytes, so a larger count is refused. */
     if (r > len) return AVERROR(EIO);
     if (r > 0) return r;
@@ -377,25 +436,260 @@ static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
     return AVERROR(EIO);
 }
 
-static int64_t kc_io_seek(void *opaque, int64_t offset, int whence) {
-    kc_io_bridge *b = (kc_io_bridge *)opaque;
-    if (kc_cell_raised(b->cell)) return AVERROR_EXIT;
-    if (whence & AVSEEK_SIZE) return b->size >= 0 ? b->size : AVERROR(ENOSYS);
+static int64_t kc_io_seek_through(kc_io_seek_fn seek_fn, void *source, const int *cell,
+                                  int64_t size, int64_t offset, int whence) {
+    if (kc_cell_raised(cell)) return AVERROR_EXIT;
+    if (whence & AVSEEK_SIZE) return size >= 0 ? size : AVERROR(ENOSYS);
     whence &= ~AVSEEK_FORCE;
-    if (!b->seek_fn) return AVERROR(ENOSYS);
-    int64_t r = b->seek_fn(b->opaque, offset, whence);
+    if (!seek_fn) return AVERROR(ENOSYS);
+    int64_t r = seek_fn(source, offset, whence);
     return r < 0 ? AVERROR(EIO) : r;
 }
 
-/* 64 KiB: avio's own default probe/read granularity; large enough that a network-backed
-   read_fn is not called per demuxer nibble. */
-#define KC_IO_BUFFER_SIZE (64 * 1024)
+static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
+    kc_io_bridge *b = (kc_io_bridge *)opaque;
+    return kc_io_read_through(b->read_fn, b->opaque, b->cell, buf, len);
+}
 
-KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
-                                   void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
-                                   int64_t size,
-                                   const char *const *keys, const char *const *values,
-                                   int n, AVDictionary **unused, kc_interrupt *interrupt) {
+static int64_t kc_io_seek(void *opaque, int64_t offset, int whence) {
+    kc_io_bridge *b = (kc_io_bridge *)opaque;
+    return kc_io_seek_through(b->seek_fn, b->opaque, b->cell, b->size, offset, whence);
+}
+
+/* ── Nested sources: the other URLs a demuxer opens, served by the caller's opener ── */
+
+/* One source the nested opener produced. Its AVIOContext reads through the opener's read_fn and
+   seek_fn with source as their opaque. An AES-128 source decrypts on the way, as RFC 8216,
+   section 5.2 describes it: CBC with the playlist's key and IV, and PKCS#7 padding at the end. */
+#define KC_IO_NESTED_MAGIC 0x4B434E53u /* "KCNS" */
+#define KC_AES_BLOCK 16
+/* The encrypted bytes one step reads and decrypts; a whole number of blocks. */
+#define KC_CRYPT_BUFFER (64 * 1024)
+struct kc_io_nested {
+    uint32_t      magic;
+    kc_io_bridge *parent;
+    void         *source;       /* the caller's, released through parent->opener.close_fn */
+    int64_t       size;
+    AVIOContext  *pb;           /* the context FFmpeg reads */
+    kc_io_nested *next;         /* the parent's list of open sources */
+    struct AVAES *aes;          /* NULL for a plain source */
+    uint8_t       iv[KC_AES_BLOCK];
+    uint8_t      *cipher;       /* encrypted input not decrypted yet */
+    int           cipher_len;
+    uint8_t      *plain;        /* decrypted bytes not handed to FFmpeg yet */
+    int           plain_pos;
+    int           plain_len;
+    int           ended;        /* the source has no more bytes */
+};
+
+static int kc_io_nested_read(void *opaque, uint8_t *buf, int len) {
+    kc_io_nested *n = (kc_io_nested *)opaque;
+    return kc_io_read_through(n->parent->opener.read_fn, n->source, n->parent->cell, buf, len);
+}
+
+static int64_t kc_io_nested_seek(void *opaque, int64_t offset, int whence) {
+    kc_io_nested *n = (kc_io_nested *)opaque;
+    return kc_io_seek_through(n->parent->opener.seek_fn, n->source, n->parent->cell, n->size,
+                              offset, whence);
+}
+
+/* Hands FFmpeg the next decrypted bytes. The last whole block stays back until the source ends,
+   because it may carry the padding, which must not reach FFmpeg. */
+static int kc_io_crypt_read(void *opaque, uint8_t *buf, int len) {
+    kc_io_nested *n = (kc_io_nested *)opaque;
+    kc_io_bridge *p = n->parent;
+    while (n->plain_pos == n->plain_len) {
+        if (kc_cell_raised(p->cell)) return AVERROR_EXIT;
+        while (!n->ended && n->cipher_len < 2 * KC_AES_BLOCK) {
+            int room = KC_CRYPT_BUFFER - n->cipher_len;
+            int r = p->opener.read_fn(n->source, n->cipher + n->cipher_len, room);
+            if (r > room) return AVERROR(EIO);
+            if (r > 0) n->cipher_len += r;
+            else if (r == KC_IO_EOF) n->ended = 1;
+            else return AVERROR(EIO);
+        }
+        /* Ciphertext always comes in whole blocks. */
+        if (n->ended && n->cipher_len % KC_AES_BLOCK) return AVERROR_INVALIDDATA;
+        int blocks = n->cipher_len / KC_AES_BLOCK - (n->ended ? 0 : 1);
+        if (blocks <= 0) return AVERROR_EOF;
+        av_aes_crypt(n->aes, n->plain, n->cipher, blocks, n->iv, 1);
+        int used = blocks * KC_AES_BLOCK;
+        memmove(n->cipher, n->cipher + used, (size_t)(n->cipher_len - used));
+        n->cipher_len -= used;
+        n->plain_pos = 0;
+        n->plain_len = used;
+        if (n->ended && n->cipher_len == 0) {
+            /* The final block: its last byte says how many padding bytes to drop. */
+            int pad = n->plain[used - 1];
+            if (pad >= 1 && pad <= KC_AES_BLOCK) n->plain_len -= pad;
+        }
+    }
+    int take = FFMIN(len, n->plain_len - n->plain_pos);
+    memcpy(buf, n->plain + n->plain_pos, (size_t)take);
+    n->plain_pos += take;
+    return take;
+}
+
+/* Releases one nested source: the caller's state through close_fn, then this layer's. */
+static void kc_io_nested_free(kc_io_nested *n) {
+    kc_io_bridge *p = n->parent;
+    if (n->source) p->opener.close_fn(p->opener.opaque, n->source);
+    if (n->pb) {
+        av_freep(&n->pb->buffer);
+        avio_context_free(&n->pb);
+    }
+    av_free(n->aes);
+    av_free(n->cipher);
+    av_free(n->plain);
+    av_free(n);
+}
+
+static void kc_io_nested_unlink(kc_io_bridge *p, kc_io_nested *n) {
+    for (kc_io_nested **at = &p->nested; *at; at = &(*at)->next) {
+        if (*at == n) {
+            *at = n->next;
+            return;
+        }
+    }
+}
+
+static int kc_hex_digit(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+/* The 16 bytes behind the 32 hex digits that hls.c passes as the "key" or "iv" option. */
+static int kc_hex_block(const AVDictionary *options, const char *name, uint8_t out[KC_AES_BLOCK]) {
+    const AVDictionaryEntry *e = av_dict_get(options, name, NULL, 0);
+    if (!e || strlen(e->value) != 2 * KC_AES_BLOCK) return AVERROR(EINVAL);
+    for (int i = 0; i < KC_AES_BLOCK; i++) {
+        int hi = kc_hex_digit(e->value[2 * i]);
+        int lo = kc_hex_digit(e->value[2 * i + 1]);
+        if (hi < 0 || lo < 0) return AVERROR(EINVAL);
+        out[i] = (uint8_t)(hi << 4 | lo);
+    }
+    return 0;
+}
+
+/* The context's io_open while it has an opener. With the trust_io_open patch, the HLS demuxer
+   sends every playlist, segment and key URL here without checking its protocol first. */
+static int kc_io_open_nested(AVFormatContext *s, AVIOContext **pb, const char *url, int flags,
+                             AVDictionary **options) {
+    kc_io_bridge *p = s ? (kc_io_bridge *)s->opaque : NULL;
+    if (!pb || !url || !p || p->magic != KC_IO_BRIDGE_MAGIC || !p->opener.open_fn)
+        return AVERROR(EINVAL);
+    *pb = NULL;
+    if (kc_cell_raised(p->cell)) return AVERROR_EXIT;
+    /* A data: URL carries its bytes inline, and FFmpeg's data protocol reads them. */
+    if (av_strstart(url, "data:", NULL)) return p->default_io_open(s, pb, url, flags, options);
+    if (flags & AVIO_FLAG_WRITE) return AVERROR(EACCES);
+
+    /* An AES-128 segment arrives as crypto+URL, or crypto:URL, with its key and IV as options.
+       The opener gets the plain URL, and this layer decrypts. */
+    const char *inner = url;
+    int encrypted = av_strstart(url, "crypto+", &inner) || av_strstart(url, "crypto:", &inner);
+    uint8_t key[KC_AES_BLOCK];
+    uint8_t iv[KC_AES_BLOCK];
+    if (encrypted) {
+        const AVDictionary *given = options ? *options : NULL;
+        if (kc_hex_block(given, "key", key) < 0 || kc_hex_block(given, "iv", iv) < 0)
+            return AVERROR(EINVAL);
+    }
+
+    void *source = NULL;
+    int64_t size = -1;
+    int seekable = 0;
+    int rc = p->opener.open_fn(p->opener.opaque, inner, &source, &size, &seekable);
+    if (rc == KC_IO_REFUSED) return AVERROR(EACCES);
+    if (rc < 0 || !source) return AVERROR(EIO);
+
+    kc_io_nested *n = av_mallocz(sizeof(*n));
+    if (!n) {
+        p->opener.close_fn(p->opener.opaque, source);
+        return AVERROR(ENOMEM);
+    }
+    n->magic = KC_IO_NESTED_MAGIC;
+    n->parent = p;
+    n->source = source;
+    n->size = size;
+    int can_seek = !encrypted && seekable && p->opener.seek_fn;
+    unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
+    if (encrypted) {
+        n->aes = av_aes_alloc();
+        n->cipher = av_malloc(KC_CRYPT_BUFFER);
+        n->plain = av_malloc(KC_CRYPT_BUFFER);
+    }
+    if (!buffer || (encrypted && (!n->aes || !n->cipher || !n->plain ||
+                                  av_aes_init(n->aes, key, 128, 1) < 0))) {
+        av_free(buffer);
+        kc_io_nested_free(n);
+        return AVERROR(ENOMEM);
+    }
+    if (encrypted) memcpy(n->iv, iv, KC_AES_BLOCK);
+    n->pb = avio_alloc_context(buffer, KC_IO_BUFFER_SIZE, 0, n,
+                               encrypted ? kc_io_crypt_read : kc_io_nested_read, NULL,
+                               can_seek ? kc_io_nested_seek : NULL);
+    if (!n->pb) {
+        av_free(buffer);
+        kc_io_nested_free(n);
+        return AVERROR(ENOMEM);
+    }
+    n->pb->seekable = can_seek ? AVIO_SEEKABLE_NORMAL : 0;
+    n->next = p->nested;
+    p->nested = n;
+    *pb = n->pb;
+    return 0;
+}
+
+/* The context's io_close2 while it has an opener: a nested source goes back to the caller, and
+   anything else is a data: URL that FFmpeg's own io_open opened. */
+static int kc_io_close_nested(AVFormatContext *s, AVIOContext *pb) {
+    kc_io_bridge *p = s ? (kc_io_bridge *)s->opaque : NULL;
+    if (!pb) return 0;
+    if (pb->read_packet != kc_io_nested_read && pb->read_packet != kc_io_crypt_read)
+        return (p && p->default_io_close2) ? p->default_io_close2(s, pb) : 0;
+    kc_io_nested *n = (kc_io_nested *)pb->opaque;
+    if (!p || !n || n->magic != KC_IO_NESTED_MAGIC || n->parent != p) return AVERROR(EINVAL);
+    kc_io_nested_unlink(p, n);
+    kc_io_nested_free(n);
+    return 0;
+}
+
+/* Frees the bridge and every nested source FFmpeg left open, once the demuxer is gone. */
+static void kc_io_bridge_free(kc_io_bridge *bridge) {
+    while (bridge->nested) {
+        kc_io_nested *n = bridge->nested;
+        bridge->nested = n->next;
+        kc_io_nested_free(n);
+    }
+    av_freep(&bridge->mime_type);
+    av_free(bridge);
+}
+
+/* Frees a custom input's AVIOContext, its buffer and its bridge, once the demuxer is gone. */
+static void kc_io_input_free(AVIOContext *pb) {
+    kc_io_bridge *bridge = (kc_io_bridge *)pb->opaque;
+    if (bridge && bridge->magic == KC_IO_BRIDGE_MAGIC) kc_io_bridge_free(bridge);
+    av_freep(&pb->buffer);
+    avio_context_free(&pb);
+}
+
+KC_API int ffkmp_fmt_nested_io_available(void) {
+    if (!KC_GATE_OPEN()) return 0;
+    const AVInputFormat *hls = av_find_input_format("hls");
+    if (!hls) return 1;
+    const AVClass *cls = hls->priv_class;
+    return cls && av_opt_find(&cls, KC_TRUST_IO_OPEN_KEY, NULL, 0, AV_OPT_SEARCH_FAKE_OBJ) ? 1 : 0;
+}
+
+KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
+                                    void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
+                                    int64_t size, const char *url, const char *mime_type,
+                                    const kc_io_opener *opener,
+                                    const char *const *keys, const char *const *values,
+                                    int n, AVDictionary **unused, kc_interrupt *interrupt) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
@@ -403,6 +697,10 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     if (!read_fn) return AVERROR(EINVAL);
     if (n < 0) return AVERROR(EINVAL);
     if (n > 0 && (!keys || !values)) return AVERROR(EINVAL);
+    if (opener && (!opener->open_fn || !opener->read_fn || !opener->close_fn))
+        return AVERROR(EINVAL);
+    /* A tree built without the trust_io_open patch would refuse every https URL quietly. */
+    if (opener && !ffkmp_fmt_nested_io_available()) return AVERROR(ENOSYS);
     if (interrupt && kc_cell_raised(&interrupt->raised)) return AVERROR_EXIT;
 
     kc_io_bridge *bridge = av_mallocz(sizeof(kc_io_bridge));
@@ -413,56 +711,74 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
     bridge->seek_fn = seek_fn;
     bridge->size = size;
     bridge->cell = interrupt ? &interrupt->raised : &bridge->interrupted;
+    if (opener) bridge->opener = *opener;
+    if (mime_type) {
+        bridge->mime_type = av_strdup(mime_type);
+        if (!bridge->mime_type) { kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
+        bridge->av_class = &kc_io_bridge_class;
+    }
 
     unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
-    if (!buffer) { av_freep(&bridge); return AVERROR(ENOMEM); }
+    if (!buffer) { kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
 
     AVIOContext *pb = avio_alloc_context(buffer, KC_IO_BUFFER_SIZE, 0, bridge,
                                          kc_io_read_packet, NULL,
                                          seek_fn ? kc_io_seek : NULL);
-    if (!pb) { av_freep(&buffer); av_freep(&bridge); return AVERROR(ENOMEM); }
+    if (!pb) { av_freep(&buffer); kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
     /* Seekability truth for demuxers that ask the pb instead of probing a seek. */
     pb->seekable = seek_fn ? AVIO_SEEKABLE_NORMAL : 0;
+    if (mime_type) pb->av_class = &kc_io_context_class;
 
     AVFormatContext *c = avformat_alloc_context();
-    if (!c) {
-        av_freep(&pb->buffer);
-        avio_context_free(&pb);
-        av_freep(&bridge);
-        return AVERROR(ENOMEM);
-    }
+    if (!c) { kc_io_input_free(pb); return AVERROR(ENOMEM); }
     c->pb = pb;
     c->flags |= AVFMT_FLAG_CUSTOM_IO;
     /* The bridge's own cell is interior to the bridge, freed with it by the IO close; the
        path close never frees a custom-io context's cell, whichever poll it carries. */
     c->interrupt_callback.callback = interrupt ? kc_interrupt_check_borrowed : kc_interrupt_check;
     c->interrupt_callback.opaque = (void *)bridge->cell;
+    if (opener) {
+        bridge->default_io_open = c->io_open;
+        bridge->default_io_close2 = c->io_close2;
+        c->opaque = bridge;
+        c->io_open = kc_io_open_nested;
+        c->io_close2 = kc_io_close_nested;
+    }
 
     AVDictionary *options = NULL;
     const AVInputFormat *forced = NULL;
     int built = kc_open_options(keys, values, n, &options, &forced);
+    if (built >= 0 && opener) built = av_dict_set(&options, KC_TRUST_IO_OPEN_KEY, "1", 0);
     if (built < 0) {
+        av_dict_free(&options);
         avformat_free_context(c);
-        av_freep(&pb->buffer);
-        avio_context_free(&pb);
-        av_freep(&bridge);
+        kc_io_input_free(pb);
         return built;
     }
 
-    /* On failure avformat_open_input frees the context but, per AVFMT_FLAG_CUSTOM_IO, never
-       the caller's pb; the bridge and the AVIO state are this function's to unwind. */
-    int rc = avformat_open_input(&c, NULL, forced, &options);
+    /* On failure avformat_open_input frees the context but, per AVFMT_FLAG_CUSTOM_IO, never the
+       caller's pb; the bridge, the AVIO state and any nested source are this function's to unwind. */
+    int rc = avformat_open_input(&c, url, forced, &options);
     if (rc < 0) {
         av_dict_free(&options);
-        av_freep(&pb->buffer);
-        avio_context_free(&pb);
-        av_freep(&bridge);
+        kc_io_input_free(pb);
         return rc;
     }
+    /* The key this layer added is not the caller's, so it never shows as unused. */
+    if (opener) av_dict_set(&options, KC_TRUST_IO_OPEN_KEY, NULL, 0);
     if (unused) *unused = options;
     else av_dict_free(&options);
     *out = c;
     return 0;
+}
+
+KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
+                                   void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
+                                   int64_t size,
+                                   const char *const *keys, const char *const *values,
+                                   int n, AVDictionary **unused, kc_interrupt *interrupt) {
+    return ffkmp_fmt_open_input_io2(out, opaque, read_fn, seek_fn, size, NULL, NULL, NULL,
+                                    keys, values, n, unused, interrupt);
 }
 
 KC_API void ffkmp_fmt_close_input_io(AVFormatContext **ctx) {
@@ -471,13 +787,7 @@ KC_API void ffkmp_fmt_close_input_io(AVFormatContext **ctx) {
     AVIOContext *pb = (c->flags & AVFMT_FLAG_CUSTOM_IO) ? c->pb : NULL;
     avformat_close_input(&c);
     *ctx = NULL;
-    if (!pb) return;
-    kc_io_bridge *bridge = (kc_io_bridge *)pb->opaque;
-    if (bridge && bridge->magic == KC_IO_BRIDGE_MAGIC) {
-        av_freep(&pb->opaque);
-    }
-    av_freep(&pb->buffer);
-    avio_context_free(&pb);
+    if (pb) kc_io_input_free(pb);
 }
 
 KC_API void *ffkmp_fmt_io_opaque(AVFormatContext *ctx) {

@@ -25,6 +25,15 @@
 -keep class io.github.yuroyami.kiteffmpeg.JniByteIo {
     int read(byte[], int);
     long seek(long, int);
+    long size();
+    boolean seekable();
+}
+
+# The nested opener: kj_format.c resolves these two on the opener's class, and size and seekable
+# above on JniByteIo's, when a byte-source open has a nested opener.
+-keep class io.github.yuroyami.kiteffmpeg.JniByteOpener {
+    io.github.yuroyami.kiteffmpeg.JniByteIo open(java.lang.String);
+    void close(io.github.yuroyami.kiteffmpeg.JniByteIo);
 }
 
 # The output twin: kj_format.c resolves these two the same way at custom-io output open time.

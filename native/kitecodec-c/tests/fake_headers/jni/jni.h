@@ -62,8 +62,11 @@ struct JNINativeInterface_ {
     void (*ExceptionClear)(JNIEnv *env);
     jclass (*GetObjectClass)(JNIEnv *env, jobject obj);
     jmethodID (*GetMethodID)(JNIEnv *env, jclass clazz, const char *name, const char *sig);
+    jobject (*CallObjectMethod)(JNIEnv *env, jobject obj, jmethodID method, ...);
+    jboolean (*CallBooleanMethod)(JNIEnv *env, jobject obj, jmethodID method, ...);
     jint (*CallIntMethod)(JNIEnv *env, jobject obj, jmethodID method, ...);
     jlong (*CallLongMethod)(JNIEnv *env, jobject obj, jmethodID method, ...);
+    void (*CallVoidMethod)(JNIEnv *env, jobject obj, jmethodID method, ...);
     jobject (*NewGlobalRef)(JNIEnv *env, jobject obj);
     void (*DeleteGlobalRef)(JNIEnv *env, jobject obj);
     void (*DeleteLocalRef)(JNIEnv *env, jobject obj);

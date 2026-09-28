@@ -559,6 +559,10 @@ KC_API void ffkmp_interrupt_free(kc_interrupt **cell);
  * demuxer to use, as the command line's -f does, so the open does not probe. That is what opens
  * headerless input such as s16le or rawvideo. A name this build does not carry fails the open
  * with AVERROR_DEMUXER_NOT_FOUND. ffkmp_fmt_open_input_io honours the same key.
+ *
+ * One key is refused with AVERROR(EINVAL): "trust_io_open", the HLS option the trust_io_open
+ * patch adds. Only ffkmp_fmt_open_input_io2 sets it, together with the io_open that decides every
+ * URL. Set anywhere else, it would let a playlist open any URL through FFmpeg's own protocols.
  */
 KC_API int  ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path,
                                   const char *const *keys, const char *const *values,
@@ -602,9 +606,61 @@ KC_API int  ffkmp_fmt_open_input_io(kc_fmt_ctx **out,
                                     const char *const *keys, const char *const *values,
                                     int n, kc_dict **unused, kc_interrupt *interrupt);
 
-/* Ownership. The one close for ffkmp_fmt_open_input_io contexts: closes the demuxer, then
- * frees the custom AVIOContext, its buffer and the bridge state, and writes NULL through
- * ctx. Safe on NULL and on an already-NULL pointer. Using ffkmp_fmt_close_input on a
+/* What an open_fn returns when the caller declines a URL. It becomes AVERROR(EACCES). */
+#define KC_IO_REFUSED (-3)
+
+/* The nested opener: it serves the other URLs a demuxer opens while it reads, such as the variant
+ * playlists, segments and keys that an HLS playlist names.
+ *
+ * open_fn gets an absolute URL. To serve it, it sets *source to the caller's state for those
+ * bytes, *size to their length (negative when unknown) and *seekable to 1 or 0, and returns 0.
+ * To decline it, it returns KC_IO_REFUSED; any other negative value is a failure (AVERROR(EIO)).
+ * The bytes are then read through read_fn and seek_fn, with *source as their opaque and the same
+ * contracts as the custom AVIO bridge above. A NULL seek_fn makes every nested source unseekable.
+ * close_fn releases a *source that open_fn produced, exactly once, either when FFmpeg is done with
+ * it or at the paired close. Every call runs on the thread that drives the demuxer. */
+typedef struct kc_io_opener {
+    void *opaque;
+    int  (*open_fn)(void *opaque, const char *url, void **source, int64_t *size, int *seekable);
+    kc_io_read_fn read_fn;
+    kc_io_seek_fn seek_fn;
+    void (*close_fn)(void *opaque, void *source);
+} kc_io_opener;
+
+/* Ownership as ffkmp_fmt_open_input_io, whose paired close this shares. Three additions, each of
+ * which may be NULL:
+ *
+ * url names the bytes. The probe matches it as it matches a file name, and relative URLs inside
+ * the media resolve against it. It is never opened to read the input itself.
+ *
+ * mime_type is the type the bytes arrived with. The probe weighs it as it weighs an HTTP
+ * Content-Type, so an HLS playlist whose url has no .m3u8 name opens with an HLS MIME type.
+ *
+ * opener serves the nested URLs, as kc_io_opener describes. The struct is copied, so it may live
+ * on the caller's stack, but its opaque must stay valid until the paired close returns. With an
+ * opener, the HLS demuxer hands every URL to it unchecked (the trust_io_open patch), except a
+ * data: URL, which FFmpeg's data protocol still reads. An AES-128 segment reaches the opener as its
+ * plain URL, and this layer decrypts it. The segment extension check still runs. When the linked
+ * FFmpeg lacks the trust_io_open patch, the open is refused with AVERROR(ENOSYS); see
+ * ffkmp_fmt_nested_io_available. An opener with a NULL open_fn, read_fn or close_fn is refused
+ * with AVERROR(EINVAL).
+ */
+KC_API int  ffkmp_fmt_open_input_io2(kc_fmt_ctx **out,
+                                     void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
+                                     int64_t size, const char *url, const char *mime_type,
+                                     const kc_io_opener *opener,
+                                     const char *const *keys, const char *const *values,
+                                     int n, kc_dict **unused, kc_interrupt *interrupt);
+
+/* 1 when ffkmp_fmt_open_input_io2 can take an opener: the linked FFmpeg's HLS demuxer carries the
+ * trust_io_open patch, or the build has no HLS demuxer at all. 0 for a tree built without the
+ * patch, and when the identity gate refused this build. */
+KC_API int  ffkmp_fmt_nested_io_available(void);
+
+/* Ownership. The one close for ffkmp_fmt_open_input_io and ffkmp_fmt_open_input_io2 contexts:
+ * closes the demuxer, then frees the custom AVIOContext, its buffer and the bridge state, and
+ * writes NULL through ctx. A nested source that FFmpeg left open is released here through the
+ * opener's close_fn. Safe on NULL and on an already-NULL pointer. Using ffkmp_fmt_close_input on a
  * custom-io context leaks the AVIO state; using this on a path-opened context is refused
  * by the absence of the bridge marker and falls back to the plain close.
  */
@@ -619,8 +675,8 @@ KC_API void ffkmp_fmt_close_input_io(kc_fmt_ctx **ctx);
  * close. No-op on NULL and on a context this layer did not open. */
 KC_API void ffkmp_fmt_interrupt(kc_fmt_ctx *ctx);
 
-/* The opaque the caller gave ffkmp_fmt_open_input_io, or NULL when ctx is NULL, was not
- * opened by that call, or the bridge marker is absent. Callers that park per-open state
+/* The opaque the caller gave ffkmp_fmt_open_input_io or ffkmp_fmt_open_input_io2, or NULL when
+ * ctx is NULL, was not opened by either call, or the bridge marker is absent. Callers that park per-open state
  * behind opaque (the JNI adapter's callback refs) recover it here BEFORE the close frees
  * the bridge. Borrowed; never freed by the caller through this.
  */

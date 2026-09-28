@@ -62,8 +62,8 @@ NM="${KC_NM:-/usr/bin/nm}"
 
 # The exact number of normalized public declarations check 7 expects, and how many of them are
 # helper prototypes. Both move deliberately, in the commit that changes the C surface.
-SIGNATURE_SCOPE=263
-HELPER_PROTOTYPES=240
+SIGNATURE_SCOPE=265
+HELPER_PROTOTYPES=242
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -204,9 +204,13 @@ abi_is_newer_than() {
 # called per pixel. sqrt is called per pixel and compiles to one instruction, so it has no entry.
 # _ffkmp_frame_convert_pixfmt joined the same day. It is this library's OWN symbol, which
 # src/helpers_display.c calls across units for the conversion it builds on, as with _kc_init.
+# _memmove joined 2026-09-29 with the AES-128 reader of the nested opener in src/helpers_format.c.
+# After each decrypt step the ciphertext not yet decrypted, at most 31 bytes, moves to the front of
+# its buffer, and the two ranges can overlap, so memcpy would be wrong there.
 ALLOWED_UNDEFINED="_memcpy _snprintf _strstr _bzero ___stack_chk_fail ___stack_chk_guard __tlv_bootstrap
 _pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk _kc_init
-_pthread_key_create _pthread_getspecific _pthread_setspecific _pow _exp _ffkmp_frame_convert_pixfmt"
+_pthread_key_create _pthread_getspecific _pthread_setspecific _pow _exp _ffkmp_frame_convert_pixfmt
+_memmove"
 
 # Calls that must never appear. A library does not print, does not log through its host's logger,
 # and does not reach into an Apple runtime from portable C. The av_log patterns name the logging

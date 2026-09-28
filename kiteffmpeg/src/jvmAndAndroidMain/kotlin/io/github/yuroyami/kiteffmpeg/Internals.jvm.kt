@@ -67,11 +67,15 @@ internal object Internals {
         io: JniByteIo,
         seekable: Boolean,
         size: Long,
+        url: String?,
+        mimeType: String?,
+        opener: JniByteOpener?,
         keys: Array<String>?,
         values: Array<String>?,
         unusedKeysOut: Array<String?>?,
         interruptToken: Long,
     ): Long
+    private external fun nativeFmtNestedIoAvailable(): Boolean
     private external fun nativeFmtAllocOutputIo(cb: JniByteSink, format: String, seekable: Boolean): Long
     private external fun nativeFmtFreeOutputIo(token: Long): Int
     private external fun nativeInterruptNew(): Long
@@ -400,11 +404,17 @@ internal object Internals {
         io: JniByteIo,
         seekable: Boolean,
         size: Long,
+        url: String?,
+        mimeType: String?,
+        opener: JniByteOpener?,
         keys: Array<String>?,
         values: Array<String>?,
         unusedKeysOut: Array<String?>?,
         interruptToken: Long = 0L,
-    ) = token("custom io open") { nativeFmtOpenInputIo(io, seekable, size, keys, values, unusedKeysOut, interruptToken) }
+    ) = token("custom io open") {
+        nativeFmtOpenInputIo(io, seekable, size, url, mimeType, opener, keys, values, unusedKeysOut, interruptToken)
+    }
+    internal fun fmtNestedIoAvailable(): Boolean = checked { nativeFmtNestedIoAvailable() }
     internal fun fmtAllocOutputIo(cb: JniByteSink, format: String) =
         token("custom io output") { nativeFmtAllocOutputIo(cb, format, cb.seekable) }
     internal fun fmtFreeOutputIo(token: Long) = checked { nativeFmtFreeOutputIo(token) }

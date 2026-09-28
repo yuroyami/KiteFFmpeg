@@ -145,6 +145,35 @@ class WebIoBridgeTest {
     }
 
     @Test
+    fun theUrlAndTheMimeTypeReachTheOpen() {
+        val module = fakePacketReaderCodecModule()
+        useCodecModule(module)
+        val media = MediaSource.open(
+            FakeByteSource(ByteArray(1000) { it.toByte() }),
+            url = "https://cdn.example/live/index",
+            mimeType = "application/vnd.apple.mpegurl",
+        )
+        try {
+            assertEquals(
+                "https://cdn.example/live/index application/vnd.apple.mpegurl 0",
+                fakeLastOpenHints(module),
+                "the url and the MIME type must reach the C open, with no opener",
+            )
+        } finally {
+            media.close()
+        }
+    }
+
+    @Test
+    fun aNestedOpenerIsRefusedOnTheWeb() {
+        useCodecModule(fakePacketReaderCodecModule())
+        val failure = assertFailsWith<FFmpegException> {
+            MediaSource.open(FakeByteSource(ByteArray(1000) { it.toByte() }), nestedOpener = { null })
+        }
+        assertIs<FFmpegError.Unsupported>(failure.error, "the web says it cannot serve nested opens")
+    }
+
+    @Test
     fun aNonSeekableSourceIsNeverSeeked() {
         attachFake()
         val source = FakeByteSource(ByteArray(1000) { it.toByte() }, seekable = false)

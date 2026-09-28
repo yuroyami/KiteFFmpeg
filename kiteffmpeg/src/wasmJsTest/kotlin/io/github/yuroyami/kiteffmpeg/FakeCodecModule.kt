@@ -124,6 +124,12 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
             openCount++;
             return 0;
         };
+        m._ffkmp_fmt_open_input_io2 = (out, opaque, readFn, seekFn, size, url, mime, opener, keys, values, n, unused, interrupt) => {
+            m.__lastOpenUrl = url === 0 ? null : m.UTF8ToString(url);
+            m.__lastOpenMime = mime === 0 ? null : m.UTF8ToString(mime);
+            m.__lastOpenOpener = opener;
+            return m._ffkmp_fmt_open_input_io(out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt);
+        };
         m._ffkmp_fmt_find_stream_info = () => 0;
         m._ffkmp_fmt_start_time = () => 0n;
         m._ffkmp_fmt_nb_streams = (ctx) => ctx === CONTEXT ? 2 : 0;
@@ -335,6 +341,11 @@ internal external fun setFakeDecodeScript(module: JsAny, script: String)
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, v) => m.__setDecoderOpenFails(v)")
 internal external fun setFakeDecoderOpenFails(module: JsAny, fails: Boolean)
+
+/** The url and MIME type the last byte-source open with either one told FFmpeg, joined by a space. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => String(m.__lastOpenUrl) + ' ' + String(m.__lastOpenMime) + ' ' + String(m.__lastOpenOpener)")
+internal external fun fakeLastOpenHints(module: JsAny): String
 
 /** The size the last open told FFmpeg, or -1 before any open. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

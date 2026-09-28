@@ -278,8 +278,8 @@ public expect class MediaSource : AutoCloseable {
          * )
          * ```
          *
-         * On the web, [nestedOpener] fails the open with [FFmpegError.Unsupported], because a nested
-         * open needs a read that blocks.
+         * On the web, [nestedOpener] fails the open with [FFmpegError.Unsupported], because the web
+         * binding does not carry nested opens yet.
          */
         @Throws(FFmpegException::class)
         public fun open(

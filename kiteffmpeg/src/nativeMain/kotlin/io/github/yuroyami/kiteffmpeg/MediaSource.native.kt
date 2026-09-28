@@ -49,7 +49,8 @@ import ffmpeg.ffkmp_packet_unref
 import ffmpeg.ffkmp_rescale_q
 import ffmpeg.ffkmp_fmt_close_input
 import ffmpeg.ffkmp_fmt_close_input_io
-import ffmpeg.ffkmp_fmt_open_input_io
+import ffmpeg.ffkmp_fmt_nested_io_available
+import ffmpeg.ffkmp_fmt_open_input_io2
 import ffmpeg.ffkmp_fmt_duration
 import ffmpeg.ffkmp_fmt_find_stream_info
 import ffmpeg.ffkmp_fmt_iformat_name
@@ -98,6 +99,7 @@ import ffmpeg.kc_codec_ctx
 import ffmpeg.kc_codec_par
 import ffmpeg.kc_dict
 import ffmpeg.kc_fmt_ctx
+import ffmpeg.kc_io_opener
 import ffmpeg.kc_packet
 import ffmpeg.kc_stream
 import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
@@ -122,6 +124,8 @@ import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.set
 import kotlinx.cinterop.value
 import kotlinx.cinterop.COpaquePointer
+import kotlinx.cinterop.COpaquePointerVar
+import kotlinx.cinterop.pointed
 import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.UByteVar
 import kotlinx.cinterop.asStableRef
@@ -720,9 +724,8 @@ public actual class MediaSource internal constructor(
         ): MediaSource {
             requireCompatibleFFmpeg()
             refuseSeekBreakingOptions(options)
-            refuseByteSourceHints(url, mimeType, nestedOpener)
             return openUnder(interrupt, ::newInterruptCell, { ffkmp_interrupt_raise(it) }, ::freeInterruptCell) { cell ->
-                openMediaSourceIo(io, options, cell)
+                openMediaSourceIo(io, options, cell, url, mimeType, nestedOpener)
             }
         }
 
@@ -892,7 +895,11 @@ private fun assembleMediaSource(
 }
 
 /** The per-open state the AVIO trampolines reach through the C bridge's opaque. */
-internal class ByteSourceState(val io: MediaByteSource) {
+internal class ByteSourceState(
+    val io: MediaByteSource,
+    /** The nested opener of a top-level open, whose failures this reports too. Null for a nested source. */
+    val nested: NestedOpenerState? = null,
+) {
     var position: Long = 0
     val scratch = ByteArray(64 * 1024)
 
@@ -903,7 +910,22 @@ internal class ByteSourceState(val io: MediaByteSource) {
      */
     var failure: Throwable? = null
 
-    /** The parked exception, once. */
+    /** The parked exception, once; when this source parked none, the nested opener's. */
+    fun takeFailure(): Throwable? = failure?.also { failure = null } ?: nested?.takeFailure()
+}
+
+/**
+ * The Kotlin half of a nested opener, reached through the opener's opaque StableRef. Each source
+ * the caller's [opener] returns gets a [ByteSourceState] of its own, read by the same trampolines
+ * as the top-level source.
+ */
+internal class NestedOpenerState(val opener: MediaByteOpener) {
+    /** The exception the last failed open or nested read swallowed, kept for the error it causes. */
+    var failure: Throwable? = null
+
+    /** Every exception a nested close threw. FFmpeg closed those where no caller could hear it. */
+    val closeFailures = mutableListOf<Throwable>()
+
     fun takeFailure(): Throwable? = failure.also { failure = null }
 }
 
@@ -962,17 +984,71 @@ private val byteSourceSeek = staticCFunction { opaque: COpaquePointer?, offset: 
     }
 }
 
+/* The nested opener's trampolines, contract as kc_io_opener in kitecodec_helpers.h: open returns 0
+ * with the new source's StableRef, size and seekability written out, KC_IO_REFUSED (-3) for a
+ * declined address and KC_IO_ERR (-2) for a failure; close releases one source exactly once. */
+private val nestedOpen = staticCFunction {
+        opaque: COpaquePointer?, url: CPointer<ByteVar>?, source: CPointer<COpaquePointerVar>?,
+        size: CPointer<LongVar>?, seekable: CPointer<IntVar>? ->
+    val nested = opaque!!.asStableRef<NestedOpenerState>().get()
+    var io: MediaByteSource? = null
+    try {
+        io = nested.opener.open(url!!.toKString()) ?: return@staticCFunction -3
+        val total = io.size ?: -1L
+        val canSeek = io.seekable
+        source!!.pointed.value = StableRef.create(ByteSourceState(io)).asCPointer()
+        size!!.pointed.value = total
+        seekable!!.pointed.value = if (canSeek) 1 else 0
+        0
+    } catch (failure: Throwable) {
+        nested.failure = failure
+        // A source the opener returned but this could not hand over is still the caller's to close.
+        io?.let { opened -> runCatching { opened.close() }.exceptionOrNull()?.let { nested.closeFailures += it } }
+        -2
+    }
+}
+
+private val nestedClose = staticCFunction { opaque: COpaquePointer?, source: COpaquePointer? ->
+    val nested = opaque!!.asStableRef<NestedOpenerState>().get()
+    val ref = source!!.asStableRef<ByteSourceState>()
+    val state = ref.get()
+    ref.dispose()
+    state.failure?.let { nested.failure = it }
+    try {
+        state.io.close()
+    } catch (failure: Throwable) {
+        nested.closeFailures += failure
+    }
+}
+
 internal fun openMediaSourceIo(
     io: MediaByteSource,
     options: Map<String, String> = emptyMap(),
     interrupt: CPointer<kc_interrupt>? = null,
+    url: String? = null,
+    mimeType: String? = null,
+    nestedOpener: MediaByteOpener? = null,
 ): MediaSource {
-    val state = ByteSourceState(io)
+    val nested = nestedOpener?.let(::NestedOpenerState)
+    val nestedRef = nested?.let { StableRef.create(it) }
+    val state = ByteSourceState(io, nested)
     val stableRef = StableRef.create(state)
     val cleanup: () -> Unit = {
-        // Disposed first, so a throwing close cannot keep the reference alive.
+        // Disposed first, so a throwing close cannot keep the references alive.
         stableRef.dispose()
-        io.close()
+        nestedRef?.dispose()
+        var primary: Throwable? = null
+        try {
+            io.close()
+        } catch (failure: Throwable) {
+            primary = failure
+        }
+        nested?.closeFailures?.forEach { failure -> primary?.addSuppressed(failure) ?: run { primary = failure } }
+        primary?.let { throw it }
+    }
+    if (nested != null && ffkmp_fmt_nested_io_available() == 0) {
+        cleanup()
+        throw nestedOpenerNeedsPatchedFFmpeg()
     }
     var unusedKeys: List<String> = emptyList()
     val ctx: CPointer<kc_fmt_ctx> = memScoped {
@@ -985,12 +1061,25 @@ internal fun openMediaSourceIo(
             values[index] = value.cstr.ptr
         }
         val unusedVar = allocPointerTo<ffmpeg.kc_dict>()
-        val rc = ffkmp_fmt_open_input_io(
+        // Copied by the C side, so it may live in this scope; the StableRef behind it may not.
+        val opener = nestedRef?.let { ref ->
+            alloc<kc_io_opener>().apply {
+                opaque = ref.asCPointer()
+                open_fn = nestedOpen
+                read_fn = byteSourceRead
+                seek_fn = byteSourceSeek
+                close_fn = nestedClose
+            }
+        }
+        val rc = ffkmp_fmt_open_input_io2(
             ctxVar.ptr,
             stableRef.asCPointer(),
             byteSourceRead,
             if (io.seekable) byteSourceSeek else null,
             io.size ?: -1L,
+            url,
+            mimeType,
+            opener?.ptr,
             keys, values, n, unusedVar.ptr, interrupt,
         )
         if (rc < 0) {

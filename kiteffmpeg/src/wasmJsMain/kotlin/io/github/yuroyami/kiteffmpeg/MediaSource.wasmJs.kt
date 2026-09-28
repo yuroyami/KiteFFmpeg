@@ -579,8 +579,8 @@ public actual class MediaSource internal constructor(
             nestedOpener: MediaByteOpener?,
         ): MediaSource {
             refuseSeekBreakingOptions(options)
-            refuseByteSourceHints(url, mimeType, nestedOpener)
-            return openUnderSingleThreaded(interrupt) { openIo(io, options) }
+            if (nestedOpener != null) throw nestedOpenerIsNotOnTheWeb()
+            return openUnderSingleThreaded(interrupt) { openIo(io, options, url, mimeType) }
         }
 
         @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)
@@ -590,7 +590,12 @@ public actual class MediaSource internal constructor(
             interrupt: OpenInterrupt?,
         ): MediaSource = open(io, options, interrupt, url = null, mimeType = null, nestedOpener = null)
 
-        private fun openIo(io: MediaByteSource, options: Map<String, String>): MediaSource {
+        private fun openIo(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            url: String? = null,
+            mimeType: String? = null,
+        ): MediaSource {
             val m = requireModule()
             val bridge = WebIoBridge.install(io)
             val slot = wasmAlloc(m, 4)
@@ -602,10 +607,25 @@ public actual class MediaSource internal constructor(
             writeInt32(m, unusedSlot, 0)
             val opts = CStringArrays.of(m, options)
             val rc = try {
-                openInputIo(
-                    m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
-                    opts.keys, opts.values, options.size, unusedSlot,
-                )
+                if (url == null && mimeType == null) {
+                    openInputIo(
+                        m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
+                        opts.keys, opts.values, options.size, unusedSlot,
+                    )
+                } else {
+                    // Input only, copied by the C side, so both go back right after the call.
+                    val urlPointer = url?.let { allocCString(m, it) } ?: 0
+                    val mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
+                    try {
+                        openInputIo2(
+                            m, slot, bridge.readPointer, bridge.seekPointer, bridge.size, urlPointer,
+                            mimePointer, opts.keys, opts.values, options.size, unusedSlot,
+                        )
+                    } finally {
+                        if (urlPointer != 0) wasmFree(m, urlPointer)
+                        if (mimePointer != 0) wasmFree(m, mimePointer)
+                    }
+                }
             } catch (failure: Throwable) {
                 // The option arrays are released by the finally below on this path too, so they
                 // are deliberately absent here: freeing them twice corrupts the module's heap.
@@ -790,6 +810,37 @@ private external fun openInputIo(
     count: Int,
     unused: Int,
 ): Int
+
+/** The byte-source open with a url and a MIME type for the probe, and no nested opener. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    "(m, out, readFn, seekFn, size, url, mime, keys, values, n, unused) => " +
+        "m._ffkmp_fmt_open_input_io2(out, 0, readFn, seekFn, BigInt(size), url, mime, 0, keys, values, n, unused, 0)",
+)
+private external fun openInputIo2(
+    module: kotlin.js.JsAny,
+    out: Int,
+    readFn: Int,
+    seekFn: Int,
+    size: Long,
+    url: Int,
+    mime: Int,
+    keys: Int,
+    values: Int,
+    count: Int,
+    unused: Int,
+): Int
+
+/**
+ * The web binding does not carry nested opens yet. Every read here must answer at once, so an
+ * opener could only serve bytes it already holds.
+ */
+private fun nestedOpenerIsNotOnTheWeb(): FFmpegException = FFmpegException(
+    FFmpegError.Unsupported(
+        FFmpegError.AVERROR_PATCHWELCOME,
+        "a nested opener is not available on the web yet, so an HLS playlist cannot load its segments here",
+    ),
+)
 
 /**
  * Runs [block] with [text] staged as a NUL-terminated C string, and frees it afterwards.

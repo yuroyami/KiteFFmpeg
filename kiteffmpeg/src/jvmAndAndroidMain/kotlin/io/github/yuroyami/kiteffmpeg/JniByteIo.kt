@@ -12,7 +12,11 @@ package io.github.yuroyami.kiteffmpeg
  * cross into C: they are caught here, parked, and reported as -2. [explain] then attaches the
  * parked exception to the error FFmpeg reports, so the caller sees what the source threw.
  */
-internal class JniByteIo(private val io: MediaByteSource) {
+internal class JniByteIo(
+    private val io: MediaByteSource,
+    /** The nested opener of a top-level open, whose failures this reports too. Null for a nested source. */
+    private val nested: JniByteOpener? = null,
+) {
 
     private var position = 0L
 
@@ -70,16 +74,51 @@ internal class JniByteIo(private val io: MediaByteSource) {
         -2L
     }
 
+    /** Called from C for a nested source: the total size, or -1 when it is unknown or the getter threw. */
+    @Suppress("unused")
+    fun size(): Long = try {
+        io.size ?: -1L
+    } catch (t: Throwable) {
+        failure = t
+        -1L
+    }
+
+    /** Called from C for a nested source. False when the getter threw. */
+    @Suppress("unused")
+    fun seekable(): Boolean = try {
+        io.seekable
+    } catch (t: Throwable) {
+        failure = t
+        false
+    }
+
     /**
      * Attaches the swallowed exception to [error] as its cause, once. [error] is what FFmpeg's error
-     * code became, and without the cause it only says that an I/O operation failed.
+     * code became, and without the cause it only says that an I/O operation failed. When this source
+     * swallowed nothing, a failure of the nested opener explains the error instead.
      */
     fun explain(error: FFmpegException) {
-        val swallowed = failure ?: return
-        failure = null
+        val swallowed = takeFailure() ?: nested?.takeFailure() ?: return
         if (error.cause == null) error.initCause(swallowed)
     }
 
-    /** Runs on MediaSource.close, after the C side dropped its refs. */
-    fun closeSource() = io.close()
+    /** The swallowed exception, once. */
+    fun takeFailure(): Throwable? = failure.also { failure = null }
+
+    /**
+     * Runs on MediaSource.close, after the C side dropped its refs. A nested source that failed to
+     * close is reported here too, because FFmpeg closed it where no caller could hear it.
+     */
+    fun closeSource() {
+        var primary: Throwable? = null
+        try {
+            io.close()
+        } catch (t: Throwable) {
+            primary = t
+        }
+        nested?.takeCloseFailures()?.forEach { failure ->
+            primary?.addSuppressed(failure) ?: run { primary = failure }
+        }
+        primary?.let { throw it }
+    }
 }

@@ -12,10 +12,11 @@ package io.github.yuroyami.kiteffmpeg
  * - An AES-128 segment arrives as the address of its encrypted bytes. The key arrives through
  *   this opener too, and KiteFFmpeg decrypts the segment itself.
  * - A live playlist asks for its own address again each time it reloads.
+ * - A `data:` address never arrives. FFmpeg reads the bytes inside it itself.
  *
- * The addresses come from the media, and the media is untrusted input. FFmpeg's own address
- * checks do not run when a source has an opener, so the opener is the only gate. Open only the
- * schemes and hosts you expect, and return null for every other address.
+ * The addresses come from the media, and the media is untrusted input. FFmpeg does not check the
+ * scheme of an address when a source has an opener, so the opener decides which addresses open.
+ * Open only the schemes and hosts you expect, and return null for every other address.
  *
  * Threading and blocking follow [MediaByteSource]. Calls arrive on the thread that drives the
  * demuxer, one at a time, and [open] may block, for example on a network request. A null or an
@@ -31,13 +32,14 @@ public fun interface MediaByteOpener {
     public fun open(url: String): MediaByteSource?
 }
 
-/** Until the C bridge serves them, the byte-source open refuses the three parameters that describe its bytes. */
-internal fun refuseByteSourceHints(url: String?, mimeType: String?, nestedOpener: MediaByteOpener?) {
-    if (url == null && mimeType == null && nestedOpener == null) return
-    throw FFmpegException(
-        FFmpegError.Unsupported(
-            FFmpegError.AVERROR_PATCHWELCOME,
-            "url, mimeType and nestedOpener do not reach FFmpeg yet",
-        ),
-    )
-}
+/**
+ * The error for a nested opener when the linked FFmpeg lacks KiteFFmpeg's trust_io_open patch.
+ * Without the patch, FFmpeg's HLS demuxer refuses every https address before the opener sees it.
+ */
+internal fun nestedOpenerNeedsPatchedFFmpeg(): FFmpegException = FFmpegException(
+    FFmpegError.Unsupported(
+        FFmpegError.AVERROR_PATCHWELCOME,
+        "the linked FFmpeg lacks KiteFFmpeg's trust_io_open patch, so a nested opener cannot serve " +
+            "HLS. Build the FFmpeg tree from this KiteFFmpeg version's recipe.",
+    ),
+)

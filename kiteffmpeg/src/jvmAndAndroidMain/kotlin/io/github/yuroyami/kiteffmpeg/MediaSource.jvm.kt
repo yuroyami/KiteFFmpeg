@@ -479,9 +479,8 @@ public actual class MediaSource internal constructor(
         ): MediaSource {
             Internals.requireCompatible()
             refuseSeekBreakingOptions(options)
-            refuseByteSourceHints(url, mimeType, nestedOpener)
             return openUnder(interrupt, Internals::interruptNew, { Internals.interruptRaise(it) }, { Internals.interruptFree(it) }) { cell ->
-                openMediaSourceIo(io, options, cell ?: 0L)
+                openMediaSourceIo(io, options, cell ?: 0L, url, mimeType, nestedOpener)
             }
         }
 
@@ -584,18 +583,26 @@ private fun openMediaSourceIo(
     io: MediaByteSource,
     options: Map<String, String>,
     interruptToken: Long = 0L,
+    url: String? = null,
+    mimeType: String? = null,
+    nestedOpener: MediaByteOpener? = null,
 ): MediaSource {
-    val adapter = JniByteIo(io)
+    val nested = nestedOpener?.let(::JniByteOpener)
+    val adapter = JniByteIo(io, nested)
     var unusedKeys: List<String> = emptyList()
     val unusedSlot = arrayOfNulls<String>(1)
     // Ownership of the byte source transfers here, at the adapter, so the open ITSELF has to sit
     // inside a scope that closes it. A throw from fmtOpenInputIo escaped before the try below
     // began and left the caller's source open for ever.
     val context = try {
+        if (nested != null && !Internals.fmtNestedIoAvailable()) throw nestedOpenerNeedsPatchedFFmpeg()
         Internals.fmtOpenInputIo(
             adapter,
             io.seekable,
             io.size ?: -1L,
+            url,
+            mimeType,
+            nested,
             options.keys.toTypedArray().takeIf { it.isNotEmpty() },
             options.values.toTypedArray().takeIf { it.isNotEmpty() },
             unusedSlot,

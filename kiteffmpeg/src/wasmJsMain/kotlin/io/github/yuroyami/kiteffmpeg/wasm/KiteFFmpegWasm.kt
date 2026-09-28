@@ -273,11 +273,17 @@ internal external fun ffkmp_fmt_io_open(module: JsAny, a0: Int, a1: Int): Int
 @JsFun("(m, a0) => m._ffkmp_fmt_is_seekable(a0)")
 internal external fun ffkmp_fmt_is_seekable(module: JsAny, a0: Int): Int
 
+@JsFun("(m) => m._ffkmp_fmt_nested_io_available()")
+internal external fun ffkmp_fmt_nested_io_available(module: JsAny): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_open_input(a0, a1)")
 internal external fun ffkmp_fmt_open_input(module: JsAny, a0: Int, a1: Int): Int
 
 @JsFun("(m, a0, a1, a2, a3, a4, a5, a6) => m._ffkmp_fmt_open_input2(a0, a1, a2, a3, a4, a5, a6)")
 internal external fun ffkmp_fmt_open_input2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int): Int
+
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => m._ffkmp_fmt_open_input_io2(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)")
+internal external fun ffkmp_fmt_open_input_io2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Long, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int): Int
 
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_read_frame(a0, a1)")
 internal external fun ffkmp_fmt_read_frame(module: JsAny, a0: Int, a1: Int): Int
