@@ -389,7 +389,9 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         //   .mka → matroska_audio (not matroska)   .m4a → ipod (not mp4)
         // mpegts is what every "trim a broadcast capture" path needs, and it is the format whose
         // nonzero container start time the timestamp code is written against.
-        "--enable-muxer=mp4,mov,ipod,webm,matroska,matroska_audio,mp3,wav,flac,ogg,opus,mpegts,image2",
+        // srt, ass and webvtt joined on 2026-09-28 (#86), so a text subtitle track can be written
+        // to its own file. They need no other library.
+        "--enable-muxer=mp4,mov,ipod,webm,matroska,matroska_audio,mp3,wav,flac,ogg,opus,mpegts,image2,srt,ass,webvtt",
         // Encoders that need no third-party library, so every profile (desktop LGPL, desktop GPL,
         // Android) has them. mpeg4 is the dependency-free video baseline: without it an LGPL build
         // can only encode video via libsvtav1 (slow) or mjpeg (intra-only), and the library's own
@@ -405,7 +407,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // encoder is dependency-free, which is the same reason every other name on this line is
         // here. The flag had simply landed in an Apple-only block. mp4/mov without an AAC encoder
         // is also the odd combination, since that is the pairing the format is usually written with.
-        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg",
+        //
+        // The text subtitle encoders joined on 2026-09-28 (#86): movtext is how MP4 stores
+        // subtitles, and srt and subrip are two names for the one SubRip encoder. They are native
+        // FFmpeg code under the LGPL, like everything else on this line.
+        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg,movtext,srt,subrip,ass,webvtt",
 
         // buffer/buffersink/abuffer/abuffersink are how KiteFFmpeg feeds and drains every graph.
         // Without them ffkmp_graph_build_* returns AVERROR_FILTER_NOT_FOUND.

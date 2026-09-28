@@ -925,8 +925,8 @@ class BuildFFmpegTaskTest {
         // The wide demuxer class SELECTS udp and rtp via rtsp/sdp, and a named disable beats a
         // select, so these two are hard-off instead of coming back through the class.
         "--disable-protocol=udp,rtp",
-        "--enable-muxer=mp4,mov,ipod,webm,matroska,matroska_audio,mp3,wav,flac,ogg,opus,mpegts,image2",
-        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg",
+        "--enable-muxer=mp4,mov,ipod,webm,matroska,matroska_audio,mp3,wav,flac,ogg,opus,mpegts,image2,srt,ass,webvtt",
+        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg,movtext,srt,subrip,ass,webvtt",
         "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter,crop,transpose,hflip,vflip,fps,drawbox,fade,setsar,setdar,pan",
         "--enable-pthreads",
         "--enable-pic",

@@ -41,6 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Every build carries the `crop`, `transpose`, `hflip`, `vflip`, `fps`, `drawbox`, `fade`,
   `setsar`, `setdar` and `pan` filters, so the filter DSL's `crop()`, `transpose()`, `fps()`,
   `drawBox()` and `pan()` steps build (#77).
+- Every build carries the `srt`, `ass` and `webvtt` muxers, so `Remuxer.remux` writes a text
+  subtitle track to its own `.srt`, `.ass` or `.vtt` file. The builds also carry the `mov_text`,
+  SubRip, `ass` and `webvtt` encoders, which no public call uses yet (#86).
 - `Frame.copyPlanesInto(destination)` copies the same bytes as `copyPlanesToByteArray` into an
   array that the caller keeps. `Frame.planesByteCount()` gives the size that array needs. A
   converter that reuses one array allocates nothing per frame (#122).

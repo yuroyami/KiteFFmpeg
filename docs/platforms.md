@@ -57,7 +57,7 @@ The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yu
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
-The filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry them. The next release carries them in every column.
+The subtitle encoders, the subtitle muxers and the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry them. The next release carries them in every column.
 
 | | macOS LGPL | Mobile Apple LGPL | Linux / Windows LGPL | Android LGPL |
 |---|---|---|---|---|
@@ -65,7 +65,8 @@ The filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox an
 | **Audio encode** | `aac`, `flac`, `pcm_s16le`/`s24le`/`f32le` | same | same | same |
 | **Decode** | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; on Windows, the D3D11VA hwaccel behind h264/hevc/vp9/mpeg2/vc1/wmv3 | every native FFmpeg decoder + MediaCodec h264/hevc |
 | **Demux** | every native FFmpeg demuxer | same | same | same |
-| **Mux (write)** | mp4/mov, matroska/webm (including `.mka`), mpegts, mp3, wav, flac, ogg/opus, image2 | same | same | same |
+| **Subtitle encode** | `mov_text`, `srt`/`subrip`, `ass`, `webvtt` | same | same | same |
+| **Mux (write)** | mp4/mov, matroska/webm (including `.mka`), mpegts, mp3, wav, flac, ogg/opus, image2, and the subtitle files srt, ass and webvtt | same | same | same |
 | **Protocols** | `file`, `fd`, `pipe`, `data`, `http`, `tcp` | same | same | same |
 | **Filters** | the shared set: scale, pad, crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox, overlay, hue, unsharp, vignette, colorbalance, colorlevels, curves, lut, colorchannelmixer, split, trim/setpts, the deinterlacers yadif and bwdif, and the audio set with pan and the loudness filters loudnorm, ebur128 and alimiter | same | same | same |
 | **Bitstream filters** | all of them (they ride with the wide demuxer class) | same | same | same |
