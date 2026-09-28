@@ -73,6 +73,11 @@ public expect object Transcoder {
      * @param subtitleCopy stream-copy every subtitle stream into the output. Works for
      *                     subtitle codecs the output container accepts (mkv: almost all;
      *                     mp4: mov_text). Otherwise the muxer raises a typed error.
+     * @param subtitleCodec convert every subtitle stream to this codec instead of copying it, such
+     *                      as [CodecId.MovText], the one text codec MP4 stores. A text subtitle
+     *                      converts to any text codec this build encodes. An image subtitle, such
+     *                      as a DVD or Blu-ray track, cannot become text, and the transcode fails
+     *                      with a typed error. Mutually exclusive with [subtitleCopy].
      * @param startMicros trim start, a position in the input relative to the start of the content
      *                    (see [MediaSource.startTimeMicros]). Re-encoded video keeps the frames
      *                    that start at or after it, and re-encoded audio keeps the samples from it
@@ -113,6 +118,7 @@ public expect object Transcoder {
         audioFilter: String? = null,
         audioCopy: Boolean = false,
         subtitleCopy: Boolean = false,
+        subtitleCodec: CodecId? = null,
         startMicros: Long = 0L,
         endMicros: Long = Long.MAX_VALUE,
         metadata: Map<String, String> = emptyMap(),
@@ -140,6 +146,7 @@ public expect object Transcoder {
         audioFilter: String? = null,
         audioCopy: Boolean = false,
         subtitleCopy: Boolean = false,
+        subtitleCodec: CodecId? = null,
         startMicros: Long = 0L,
         endMicros: Long = Long.MAX_VALUE,
         metadata: Map<String, String> = emptyMap(),
@@ -175,10 +182,22 @@ public expect object Transcoder {
         audioFilter: String? = null,
         audioCopy: Boolean = false,
         subtitleCopy: Boolean = false,
+        subtitleCodec: CodecId? = null,
         startMicros: Long = 0L,
         endMicros: Long = Long.MAX_VALUE,
         metadata: Map<String, String> = emptyMap(),
         dispatcher: CoroutineDispatcher? = null,
         onProgress: ((TranscodeProgress) -> Unit)? = null,
+    )
+}
+
+/** Refuses a subtitle conversion until the backends can encode subtitles. */
+internal fun refuseSubtitleConversionUntilWired(subtitleCodec: CodecId?) {
+    if (subtitleCodec == null) return
+    throw FFmpegException(
+        FFmpegError.Unsupported(
+            FFmpegError.AVERROR_PATCHWELCOME,
+            "converting subtitles to ${subtitleCodec.name} is not wired into this backend yet",
+        ),
     )
 }

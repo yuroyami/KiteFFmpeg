@@ -22,6 +22,7 @@ public actual object Transcoder {
         audioFilter: String?,
         audioCopy: Boolean,
         subtitleCopy: Boolean,
+        subtitleCodec: CodecId?,
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
@@ -29,7 +30,7 @@ public actual object Transcoder {
         onProgress: ((TranscodeProgress) -> Unit)?,
     ): Unit = transcodeEnds(
         inputAt(input, emptyMap()), outputAt(output),
-        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy,
+        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy, subtitleCodec,
             startMicros, endMicros, metadata, dispatcher, onProgress,
     )
 
@@ -45,6 +46,7 @@ public actual object Transcoder {
         audioFilter: String?,
         audioCopy: Boolean,
         subtitleCopy: Boolean,
+        subtitleCodec: CodecId?,
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
@@ -52,7 +54,7 @@ public actual object Transcoder {
         onProgress: ((TranscodeProgress) -> Unit)?,
     ): Unit = transcodeEnds(
         inputAt(input, inputOptions), outputAt(output),
-        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy,
+        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy, subtitleCodec,
             startMicros, endMicros, metadata, dispatcher, onProgress,
     )
 
@@ -69,6 +71,7 @@ public actual object Transcoder {
         audioFilter: String?,
         audioCopy: Boolean,
         subtitleCopy: Boolean,
+        subtitleCodec: CodecId?,
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
@@ -76,7 +79,7 @@ public actual object Transcoder {
         onProgress: ((TranscodeProgress) -> Unit)?,
     ): Unit = transcodeEnds(
         inputFrom(input), outputInto(output, format, outputOptions),
-        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy,
+        spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy, subtitleCopy, subtitleCodec,
             startMicros, endMicros, metadata, dispatcher, onProgress,
     )
 
@@ -91,6 +94,7 @@ public actual object Transcoder {
         audioFilter: String?,
         audioCopy: Boolean,
         subtitleCopy: Boolean,
+        subtitleCodec: CodecId?,
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
@@ -106,9 +110,13 @@ public actual object Transcoder {
             "audioCopy is mutually exclusive with audioSpec/audioFilter: copied packets never touch a decoder, so they can't be filtered or re-encoded"
         }
         require(spec != null || videoFilter == null) { "videoFilter requires a video encoder spec" }
-        require(spec != null || videoCopy || audioSpec != null || audioCopy || subtitleCopy) {
-            "Nothing to output: no video spec or copy, no audio, no subtitle copy"
+        require(!(subtitleCopy && subtitleCodec != null)) {
+            "subtitleCopy is mutually exclusive with subtitleCodec: a subtitle stream is either copied or converted"
         }
+        require(spec != null || videoCopy || audioSpec != null || audioCopy || subtitleCopy || subtitleCodec != null) {
+            "Nothing to output: no video spec or copy, no audio, no subtitle copy or conversion"
+        }
+        refuseSubtitleConversionUntilWired(subtitleCodec)
         require(startMicros >= 0 && endMicros > startMicros) { "Invalid trim window [$startMicros, $endMicros]" }
         runTranscode(dispatcher ?: Dispatchers.IO, onProgress) { publish ->
             transcodeHere(

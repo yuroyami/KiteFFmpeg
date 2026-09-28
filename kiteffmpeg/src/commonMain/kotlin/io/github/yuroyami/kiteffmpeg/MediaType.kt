@@ -75,5 +75,7 @@ public value class CodecId(public val name: String) {
         public val Aac    : CodecId = CodecId("aac");         public val Mp3    : CodecId = CodecId("mp3")
         public val Opus   : CodecId = CodecId("opus");        public val Vorbis : CodecId = CodecId("vorbis")
         public val Flac   : CodecId = CodecId("flac");        public val PcmS16 : CodecId = CodecId("pcm_s16le")
+        public val MovText: CodecId = CodecId("mov_text");    public val SubRip : CodecId = CodecId("subrip")
+        public val Ass    : CodecId = CodecId("ass");         public val WebVtt : CodecId = CodecId("webvtt")
     }
 }

@@ -149,19 +149,23 @@ public final class io/github/yuroyami/kiteffmpeg/CodecId {
 
 public final class io/github/yuroyami/kiteffmpeg/CodecId$Companion {
 	public final fun getAac-lIZ29Oc ()Ljava/lang/String;
+	public final fun getAss-lIZ29Oc ()Ljava/lang/String;
 	public final fun getAv1-lIZ29Oc ()Ljava/lang/String;
 	public final fun getFlac-lIZ29Oc ()Ljava/lang/String;
 	public final fun getH264-lIZ29Oc ()Ljava/lang/String;
 	public final fun getHevc-lIZ29Oc ()Ljava/lang/String;
 	public final fun getMjpeg-lIZ29Oc ()Ljava/lang/String;
+	public final fun getMovText-lIZ29Oc ()Ljava/lang/String;
 	public final fun getMp3-lIZ29Oc ()Ljava/lang/String;
 	public final fun getMpeg4-lIZ29Oc ()Ljava/lang/String;
 	public final fun getOpus-lIZ29Oc ()Ljava/lang/String;
 	public final fun getPcmS16-lIZ29Oc ()Ljava/lang/String;
 	public final fun getPng-lIZ29Oc ()Ljava/lang/String;
+	public final fun getSubRip-lIZ29Oc ()Ljava/lang/String;
 	public final fun getVorbis-lIZ29Oc ()Ljava/lang/String;
 	public final fun getVp8-lIZ29Oc ()Ljava/lang/String;
 	public final fun getVp9-lIZ29Oc ()Ljava/lang/String;
+	public final fun getWebVtt-lIZ29Oc ()Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/ColorInfo {
@@ -1270,12 +1274,12 @@ public final class io/github/yuroyami/kiteffmpeg/TranscodeProgress {
 
 public final class io/github/yuroyami/kiteffmpeg/Transcoder {
 	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/Transcoder;
-	public final fun transcode (Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun transcode (Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun transcode (Lkotlin/jvm/functions/Function0;Lio/github/yuroyami/kiteffmpeg/MediaByteSink;Ljava/lang/String;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun transcode$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static synthetic fun transcode$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static synthetic fun transcode$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Lkotlin/jvm/functions/Function0;Lio/github/yuroyami/kiteffmpeg/MediaByteSink;Ljava/lang/String;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZJJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun transcode-G_cwJks (Lkotlin/jvm/functions/Function0;Lio/github/yuroyami/kiteffmpeg/MediaByteSink;Ljava/lang/String;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZLjava/lang/String;JJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun transcode-G_cwJks$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Lkotlin/jvm/functions/Function0;Lio/github/yuroyami/kiteffmpeg/MediaByteSink;Ljava/lang/String;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZLjava/lang/String;JJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun transcode-o33rAVM (Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZLjava/lang/String;JJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun transcode-o33rAVM$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZLjava/lang/String;JJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun transcode-xu9yb-E (Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZLjava/lang/String;JJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun transcode-xu9yb-E$default (Lio/github/yuroyami/kiteffmpeg/Transcoder;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/VideoEncoderSpec;Ljava/lang/String;ZLio/github/yuroyami/kiteffmpeg/AudioEncoderSpec;Ljava/lang/String;ZZLjava/lang/String;JJLjava/util/Map;Lkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/Versions {
