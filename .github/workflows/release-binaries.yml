@@ -17,7 +17,8 @@
 # triple builds on a stock runner:
 #   - android arm64 / arm32 / x64: NDK clang, MediaCodec. Self-contained by profile.
 #   - ios-arm64 / ios-simulator-arm64 / ios-x64, macos-arm64 / macos-x64: Xcode clang,
-#     VideoToolbox/AudioToolbox from the SDK. macOS additionally gets the VideoToolbox encoders.
+#     VideoToolbox/AudioToolbox from the SDK. macOS and ios-arm64 also get the VideoToolbox
+#     encoders; the simulators do not.
 #   - linux-x64 / linux-arm64 / mingw-x64: konan's own clang over konan's own sysroot (decision
 #     W-D3), which is the toolchain the consumer's Kotlin/Native link uses. The konan warmup step
 #     is what drops that toolchain into ~/.konan/dependencies.

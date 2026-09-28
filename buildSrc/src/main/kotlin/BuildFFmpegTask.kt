@@ -33,13 +33,13 @@ private val TargetTriple.isIos: Boolean
  *
  * Every profile is LGPL and PORTABLE (owner decision 2026-08-22): the shared software playback
  * core plus platform services only, no third-party desktop stack. macOS gets SDK zlib and
- * VideoToolbox/AudioToolbox exactly like iOS (plus the VideoToolbox encoders, which do not exist
- * on the simulator); Linux and Windows get the reduced W-D4 profile. The fat macOS profile
- * (vpx/aom/opus/lame/webp encoders, freetype/harfbuzz/fribidi/libass, drawtext) is GONE: every
- * one of those had to come from Homebrew, Homebrew ships graphite2 shared-only, and a Release
- * asset that only links on a machine with Homebrew is not an asset. Decoding is untouched; the
- * read side is wide by class in [sharedCoreArgs]. Software AV1 is dav1d, MANDATORY in every bake
- * since 2026-08-22: the on/off axis is dead.
+ * VideoToolbox/AudioToolbox exactly like iOS, and macOS and the iPhone also get the VideoToolbox
+ * encoders, which do not exist on the simulator; Linux and Windows get the reduced W-D4 profile.
+ * The fat macOS profile (vpx/aom/opus/lame/webp encoders, freetype/harfbuzz/fribidi/libass,
+ * drawtext) is GONE: every one of those had to come from Homebrew, Homebrew ships graphite2
+ * shared-only, and a Release asset that only links on a machine with Homebrew is not an asset.
+ * Decoding is untouched; the read side is wide by class in [sharedCoreArgs]. Software AV1 is
+ * dav1d, MANDATORY in every bake since 2026-08-22: the on/off axis is dead.
  *
  * The **Android** profile: nothing GPL, nothing external;
  * hardware video encode/decode via MediaCodec (`h264_mediacodec`, `hevc_mediacodec`) plus FFmpeg's

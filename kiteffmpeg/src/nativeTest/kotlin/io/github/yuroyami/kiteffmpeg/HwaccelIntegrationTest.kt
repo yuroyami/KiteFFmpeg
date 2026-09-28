@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * [HardwareAccel.VideoToolbox] produces frames that live in hardware memory, and
  * [Frame.downloadFromHardware] brings their pixels back with the presentation properties intact.
  *
- * The clip is encoded here with `h264_videotoolbox`, which the desktop Apple profile carries, so
+ * The clip is encoded here with `h264_videotoolbox`, which the macOS and iPhone profiles carry, so
  * the arm also proves encode and decode agree about the hardware. On a target whose FFmpeg has
  * no VideoToolbox encoder (the simulator: decode exists there, encode does not) the arm degrades
  * to the attach proof alone, and says so, rather than pretending the full path ran.
