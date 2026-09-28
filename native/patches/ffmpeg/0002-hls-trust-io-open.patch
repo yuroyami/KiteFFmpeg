@@ -1,0 +1,60 @@
+Let a caller's own io_open decide every HLS URL, behind an option that is off by default.
+
+FFmpeg's HLS demuxer checks the protocol of every playlist, segment and key URL before it calls
+io_open. A URL whose scheme the build has no protocol for fails with AVERROR_INVALIDDATA, and
+io_open never sees it. The KiteFFmpeg build has no https protocol on purpose, because https comes
+from the caller's own HTTP client. So an https playlist opened through a caller's AVIO could not
+load a single segment.
+
+The new private option trust_io_open skips that check and hands every URL to io_open. It is off
+by default, so the demuxer behaves as before unless a caller sets it. The KiteFFmpeg C bridge sets
+it only when it installs its own io_open for a caller's nested opener, and that opener then
+decides which URLs open. The segment extension check (extension_picky) still runs.
+
+AES-128 segments then reach io_open as crypto+<url> with the key and iv options, and the C bridge
+decrypts them itself, because this build has no crypto protocol either.
+
+Applied by BuildFFmpegTask before configure. The C bridge refuses a nested opener when the linked
+FFmpeg lacks this option, so a tree built without the patch fails loudly instead of quietly.
+
+diff --git a/libavformat/hls.c b/libavformat/hls.c
+index 0e1a1ba4..ab8452ee 100644
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -244,6 +244,7 @@ typedef struct HLSContext {
+     int http_multiple;
+     int http_seekable;
+     int seg_max_retry;
++    int trust_io_open;
+     AVIOContext *playlist_pb;
+     HLSCryptoContext  crypto_ctx;
+ } HLSContext;
+@@ -688,6 +689,11 @@ static int open_url(AVFormatContext *s, AVIOContext **pb, const char *url,
+     int ret;
+     int is_http = 0;
+ 
++    /* KiteFFmpeg: with trust_io_open set, the caller's own io_open decides every URL, including
++     * a scheme this build has no protocol for, such as https. */
++    if (c->trust_io_open)
++        goto open;
++
+     if (av_strstart(url, "crypto", NULL)) {
+         if (url[6] == '+' || url[6] == ':')
+             proto_name = avio_find_protocol_name(url + 7);
+@@ -727,6 +733,7 @@ static int open_url(AVFormatContext *s, AVIOContext **pb, const char *url,
+     else if (strcmp(proto_name, "file") || !strncmp(url, "file,", 5))
+         return AVERROR_INVALIDDATA;
+ 
++open:
+     av_dict_copy(&tmp, *opts, 0);
+     av_dict_copy(&tmp, opts2, 0);
+ 
+@@ -3065,6 +3072,8 @@ static const AVOption hls_options[] = {
+         OFFSET(seg_format_opts), AV_OPT_TYPE_DICT, {.str = NULL}, 0, 0, FLAGS},
+     {"seg_max_retry", "Maximum number of times to reload a segment on error.",
+      OFFSET(seg_max_retry), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, FLAGS},
++    {"trust_io_open", "Hand every URL to io_open unchecked, for a caller whose own io_open decides",
++        OFFSET(trust_io_open), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, FLAGS},
+     {NULL}
+ };
+ 
