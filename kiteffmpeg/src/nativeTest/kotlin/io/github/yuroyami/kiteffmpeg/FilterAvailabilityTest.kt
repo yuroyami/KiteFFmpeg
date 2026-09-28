@@ -3,6 +3,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.dsl.Deinterlacer
+import io.github.yuroyami.kiteffmpeg.dsl.QuarterTurn
 import io.github.yuroyami.kiteffmpeg.dsl.audioFilters
 import io.github.yuroyami.kiteffmpeg.dsl.videoFilters
 import kotlin.math.PI
@@ -22,21 +23,23 @@ import kotlin.test.assertTrue
  * reading whatever it said, which is a parse error about a string rather than an answer about a
  * filter. The chain knows its own filter names, and [FFmpeg.hasFilter] is one call each.
  *
- * `eq` stands in for a missing filter: FFmpeg's own build marks it GPL-only, so no recipe this
- * permissive library builds can carry it.
+ * transpose and drawbox stand in for a missing filter. They joined the recipe after 0.3.0 (#77), so
+ * the released trees that the Linux and Windows jobs link lack them, while a tree baked from the
+ * current recipe carries them. Each test holds either way, and the logic itself is pinned against a
+ * supplied predicate in FilterAvailabilityLogicTest.
  */
 class FilterAvailabilityTest {
 
     @Test
     fun `a chain names every filter this build lacks not just the first`() {
         val chain = videoFilters {
-            eq(brightness = 0.1)
+            transpose(QuarterTurn.Clockwise)
             scale(320, 240)
             drawBox(0, 0, 8, 8)
-            eq(contrast = 1.2)
+            transpose(QuarterTurn.CounterClockwise)
         }
         val missing = chain.missingFilters()
-        // scale is in every recipe this project builds; eq and drawbox are not.
+        // scale is in every recipe this project builds.
         assertTrue("scale" !in missing, "scale is compiled in, so it cannot be missing: $missing")
         assertEquals(
             missing.distinct(),
@@ -58,7 +61,7 @@ class FilterAvailabilityTest {
     @Test
     fun `requireAvailable refuses typed and names every missing filter at once`() {
         val chain = videoFilters {
-            eq(brightness = 0.1)
+            transpose(QuarterTurn.Clockwise)
             scale(320, 240)
         }
         val missing = chain.missingFilters()
@@ -80,7 +83,7 @@ class FilterAvailabilityTest {
     @Test
     fun `building from a chain refuses before FFmpeg is asked to parse anything`() {
         val chain = videoFilters {
-            eq(brightness = 0.1)
+            transpose(QuarterTurn.Clockwise)
             scale(320, 240)
         }
         if (chain.missingFilters().isEmpty()) return

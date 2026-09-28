@@ -1738,27 +1738,6 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/EncoderPreset : java/lang/E
 	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/dsl/EncoderPreset;
 }
 
-public final class io/github/yuroyami/kiteffmpeg/dsl/Eq : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
-	public fun <init> ()V
-	public fun <init> (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;)V
-	public synthetic fun <init> (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun compile ()Ljava/lang/String;
-	public final fun component1 ()Ljava/lang/Double;
-	public final fun component2 ()Ljava/lang/Double;
-	public final fun component3 ()Ljava/lang/Double;
-	public final fun component4 ()Ljava/lang/Double;
-	public final fun copy (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;)Lio/github/yuroyami/kiteffmpeg/dsl/Eq;
-	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/dsl/Eq;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/dsl/Eq;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getBrightness ()Ljava/lang/Double;
-	public final fun getContrast ()Ljava/lang/Double;
-	public fun getFilterName ()Ljava/lang/String;
-	public final fun getGamma ()Ljava/lang/Double;
-	public final fun getSaturation ()Ljava/lang/Double;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
 public final class io/github/yuroyami/kiteffmpeg/dsl/ErrorDetection : java/lang/Enum {
 	public static final field Aggressive Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
 	public static final field Bitstream Lio/github/yuroyami/kiteffmpeg/dsl/ErrorDetection;
@@ -1999,8 +1978,6 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder {
 	public static synthetic fun deinterlace$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;Lio/github/yuroyami/kiteffmpeg/dsl/Deinterlacer;ILjava/lang/Object;)V
 	public final fun drawBox (IIIILjava/lang/String;I)V
 	public static synthetic fun drawBox$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;IIIILjava/lang/String;IILjava/lang/Object;)V
-	public final fun eq (Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;)V
-	public static synthetic fun eq$default (Lio/github/yuroyami/kiteffmpeg/dsl/VideoFilterBuilder;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;ILjava/lang/Object;)V
 	public final fun format-oEp0PZg (Ljava/lang/String;)V
 	public final fun fps (Lio/github/yuroyami/kiteffmpeg/Rational;)V
 	public final fun pad (IIIILjava/lang/String;)V

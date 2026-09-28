@@ -105,26 +105,6 @@ public data class Format(val format: PixelFormat) : FilterStep {
     override fun compile(): String = "format=${format.name}"
 }
 
-/** Neutral values compile away, so `Eq(brightness = 0.1)` sends exactly one knob. */
-public data class Eq(
-    val brightness: Double? = null,
-    val contrast: Double? = null,
-    val saturation: Double? = null,
-    val gamma: Double? = null,
-) : FilterStep {
-    override val filterName: String get() = "eq"
-    override fun compile(): String {
-        val args = buildList {
-            brightness?.let { add("brightness=${it.ffmpegText()}") }
-            contrast?.let { add("contrast=${it.ffmpegText()}") }
-            saturation?.let { add("saturation=${it.ffmpegText()}") }
-            gamma?.let { add("gamma=${it.ffmpegText()}") }
-        }
-        require(args.isNotEmpty()) { "eq with every knob absent does nothing; drop the step instead" }
-        return "eq=${args.joinToString(":")}"
-    }
-}
-
 /** The deinterlacing filters [Deinterlace] can use. */
 public enum class Deinterlacer(internal val ff: String) { Yadif("yadif"), Bwdif("bwdif") }
 
@@ -324,13 +304,6 @@ public class VideoFilterBuilder internal constructor() {
     public fun fps(rate: Rational) { steps += Fps(rate) }
     /** Adds a [Format] step. */
     public fun format(format: PixelFormat) { steps += Format(format) }
-    /** Adds an [Eq] step. */
-    public fun eq(
-        brightness: Double? = null,
-        contrast: Double? = null,
-        saturation: Double? = null,
-        gamma: Double? = null,
-    ) { steps += Eq(brightness, contrast, saturation, gamma) }
     /** Adds a [Deinterlace] step. */
     public fun deinterlace(with: Deinterlacer = Deinterlacer.Bwdif) { steps += Deinterlace(with) }
     /** Adds a [DrawBox] step. */

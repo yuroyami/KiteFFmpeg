@@ -30,7 +30,6 @@ class KdGoldensTest {
             transpose(QuarterTurn.Clockwise)
             fps(Rational(30, 1))
             format(PixelFormat("yuv420p"))
-            eq(brightness = 0.1)
             deinterlace(Deinterlacer.Yadif)
             drawBox(0, 0, 100, 50)
         }
@@ -41,7 +40,6 @@ class KdGoldensTest {
                 "transpose=clock," +
                 "fps=30/1," +
                 "format=yuv420p," +
-                "eq=brightness=0.1," +
                 "yadif," +
                 "drawbox=0:0:100:50:red:3",
             chain.compile(),
@@ -107,7 +105,6 @@ class KdGoldensTest {
     fun degenerateStepsRefuseTyped() {
         assertFailsWith<IllegalArgumentException> { Scale(0, 720) }
         assertFailsWith<IllegalArgumentException> { Atempo(0.4) }
-        assertFailsWith<IllegalArgumentException> { Eq().compile() }
         assertFailsWith<IllegalArgumentException> { AudioFormat().compile() }
         assertFailsWith<IllegalArgumentException> { Pan("stereo", emptyList()) }
         assertFailsWith<IllegalArgumentException> { FilterChain(emptyList()) }

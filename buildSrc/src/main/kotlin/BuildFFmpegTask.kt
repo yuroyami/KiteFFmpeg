@@ -425,7 +425,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // ordinary player features, and the filter DSL offers deinterlace() and loudnorm().
         // FFmpeg's configure puts none of the five behind --enable-gpl, so every profile here
         // can carry them. The web list in BuildFFmpegWasmTask stays minimal on purpose.
-        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter",
+        // crop, transpose, hflip, vflip, fps, drawbox, fade, setsar, setdar and pan joined on
+        // 2026-09-28 (#77): the filter DSL offers crop(), transpose(), fps(), drawBox() and pan(),
+        // and every published build refused them. None is GPL-only in FFmpeg's configure, and pan
+        // needs only libswresample, which aresample already needs.
+        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter,crop,transpose,hflip,vflip,fps,drawbox,fade,setsar,setdar,pan",
 
         "--enable-pthreads",
         "--enable-pic",

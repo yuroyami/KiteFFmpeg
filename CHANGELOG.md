@@ -32,9 +32,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `WebRgbaConverter` uses (#120).
 - The C ABI is 3.14, which adds `ffkmp_frame_a53_cc`, the reader behind `Frame.closedCaptions`
   (#84).
+- The filter DSL no longer offers `eq()` or its `Eq` step. No KiteFFmpeg build carried `eq`,
+  because FFmpeg builds it only under the GPL, so a chain that used it failed on every build. Use
+  `hue`, `colorlevels` or `curves` through `raw()`, which every build carries (#77).
 
 ### Added
 
+- Every build carries the `crop`, `transpose`, `hflip`, `vflip`, `fps`, `drawbox`, `fade`,
+  `setsar`, `setdar` and `pan` filters, so the filter DSL's `crop()`, `transpose()`, `fps()`,
+  `drawBox()` and `pan()` steps build (#77).
 - `Frame.copyPlanesInto(destination)` copies the same bytes as `copyPlanesToByteArray` into an
   array that the caller keeps. `Frame.planesByteCount()` gives the size that array needs. A
   converter that reuses one array allocates nothing per frame (#122).

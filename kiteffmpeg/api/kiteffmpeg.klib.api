@@ -749,31 +749,6 @@ final class io.github.yuroyami.kiteffmpeg.dsl/DrawBox : io.github.yuroyami.kitef
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/DrawBox.toString|toString(){}[0]
 }
 
-final class io.github.yuroyami.kiteffmpeg.dsl/Eq : io.github.yuroyami.kiteffmpeg.dsl/FilterStep { // io.github.yuroyami.kiteffmpeg.dsl/Eq|null[0]
-    constructor <init>(kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ...) // io.github.yuroyami.kiteffmpeg.dsl/Eq.<init>|<init>(kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?){}[0]
-
-    final val brightness // io.github.yuroyami.kiteffmpeg.dsl/Eq.brightness|{}brightness[0]
-        final fun <get-brightness>(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.brightness.<get-brightness>|<get-brightness>(){}[0]
-    final val contrast // io.github.yuroyami.kiteffmpeg.dsl/Eq.contrast|{}contrast[0]
-        final fun <get-contrast>(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.contrast.<get-contrast>|<get-contrast>(){}[0]
-    final val filterName // io.github.yuroyami.kiteffmpeg.dsl/Eq.filterName|{}filterName[0]
-        final fun <get-filterName>(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/Eq.filterName.<get-filterName>|<get-filterName>(){}[0]
-    final val gamma // io.github.yuroyami.kiteffmpeg.dsl/Eq.gamma|{}gamma[0]
-        final fun <get-gamma>(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.gamma.<get-gamma>|<get-gamma>(){}[0]
-    final val saturation // io.github.yuroyami.kiteffmpeg.dsl/Eq.saturation|{}saturation[0]
-        final fun <get-saturation>(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.saturation.<get-saturation>|<get-saturation>(){}[0]
-
-    final fun compile(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/Eq.compile|compile(){}[0]
-    final fun component1(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.component1|component1(){}[0]
-    final fun component2(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.component2|component2(){}[0]
-    final fun component3(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.component3|component3(){}[0]
-    final fun component4(): kotlin/Double? // io.github.yuroyami.kiteffmpeg.dsl/Eq.component4|component4(){}[0]
-    final fun copy(kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ...): io.github.yuroyami.kiteffmpeg.dsl/Eq // io.github.yuroyami.kiteffmpeg.dsl/Eq.copy|copy(kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg.dsl/Eq.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg.dsl/Eq.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/Eq.toString|toString(){}[0]
-}
-
 final class io.github.yuroyami.kiteffmpeg.dsl/FilterChain { // io.github.yuroyami.kiteffmpeg.dsl/FilterChain|null[0]
     constructor <init>(kotlin.collections/List<io.github.yuroyami.kiteffmpeg.dsl/FilterStep>) // io.github.yuroyami.kiteffmpeg.dsl/FilterChain.<init>|<init>(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.dsl.FilterStep>){}[0]
 
@@ -971,7 +946,6 @@ final class io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder { // io.github.
     final fun crop(kotlin/Int, kotlin/Int, kotlin/Int? = ..., kotlin/Int? = ...) // io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder.crop|crop(kotlin.Int;kotlin.Int;kotlin.Int?;kotlin.Int?){}[0]
     final fun deinterlace(io.github.yuroyami.kiteffmpeg.dsl/Deinterlacer = ...) // io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder.deinterlace|deinterlace(io.github.yuroyami.kiteffmpeg.dsl.Deinterlacer){}[0]
     final fun drawBox(kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/String = ..., kotlin/Int = ...) // io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder.drawBox|drawBox(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.String;kotlin.Int){}[0]
-    final fun eq(kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ...) // io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder.eq|eq(kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?){}[0]
     final fun format(io.github.yuroyami.kiteffmpeg/PixelFormat) // io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder.format|format(io.github.yuroyami.kiteffmpeg.PixelFormat){}[0]
     final fun fps(io.github.yuroyami.kiteffmpeg/Rational) // io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder.fps|fps(io.github.yuroyami.kiteffmpeg.Rational){}[0]
     final fun pad(kotlin/Int, kotlin/Int, kotlin/Int = ..., kotlin/Int = ..., kotlin/String = ...) // io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder.pad|pad(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.String){}[0]
