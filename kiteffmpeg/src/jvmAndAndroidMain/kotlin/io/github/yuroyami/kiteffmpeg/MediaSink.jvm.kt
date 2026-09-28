@@ -207,6 +207,39 @@ public actual class MediaSink internal constructor(
         }
     }
 
+    /**
+     * An output stream that carries the text subtitle [stream] converted to [codec], for
+     * `Transcoder`'s subtitleCodec. It keeps the stream's language, title and disposition, and its
+     * packets arrive on the input stream's time base, so they write like copied packets.
+     */
+    internal fun addSubtitleConversion(source: MediaSource, stream: StreamInfo, codec: CodecId): SubtitleConversion =
+        synchronized(muxLock) {
+            check(!headerWritten) { "Cannot add streams after the muxer has started writing." }
+            val format = checkOpen()
+            source.withCodecParameters(stream) { sourceStream, _ ->
+                val outputStream = Internals.fmtNewStream(format)
+                var outputParameters = 0L
+                var converter = 0L
+                try {
+                    outputParameters = Internals.streamCodecPar(outputStream)
+                    converter = source.openSubtitleConverter(stream, codec, outputParameters)
+                    check0(Internals.streamCopyIdentity(outputStream, sourceStream), "stream identity copy")
+                    Internals.streamSetTimeBase(outputStream, stream.timeBase)
+                    declaredStreams += 1
+                    SubtitleConversion(CopyStream(this, outputStream, stream.timeBase, stream.index), converter)
+                } catch (error: Throwable) {
+                    if (converter != 0L) Internals.subtitleConverterFree(converter)
+                    Internals.borrowedRelease(outputStream, Internals.KIND_STREAM)
+                    // A new stream is in the muxer already, so a failure poisons the sink, as in addCopyStream.
+                    poison(error)
+                } finally {
+                    if (outputParameters != 0L) {
+                        Internals.borrowedRelease(outputParameters, Internals.KIND_CODEC_PAR)
+                    }
+                }
+            }
+        }
+
     private inline fun newEncoderContext(
         codecName: String,
         configure: (codec: Long, context: Long) -> Unit,
@@ -667,6 +700,26 @@ internal inline fun <T> withPacket(block: (Long) -> T): T {
     } finally {
         Internals.packetFree(packet)
     }
+}
+
+/** One text subtitle stream converted to another codec: see [MediaSink.addSubtitleConversion]. */
+internal class SubtitleConversion(
+    private val output: CopyStream,
+    private val converter: Long,
+) : AutoCloseable {
+    val sourceIndex: Int get() = output.sourceIndex
+
+    /** Converts one packet of the input stream, and writes the subtitle it completes, if any. */
+    fun convert(packet: Long) {
+        val converted = Internals.packetAlloc()
+        try {
+            if (Internals.subtitleConverterConvert(converter, packet, converted) == 1) output.writeCopyPacket(converted)
+        } finally {
+            Internals.packetFree(converted)
+        }
+    }
+
+    override fun close(): Unit = Internals.subtitleConverterFree(converter)
 }
 
 public actual class CopyStream internal constructor(

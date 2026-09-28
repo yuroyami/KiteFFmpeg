@@ -56,6 +56,7 @@ suspend fun transcode(
     audioFilter: String? = null,
     audioCopy: Boolean = false,
     subtitleCopy: Boolean = false,
+    subtitleCodec: CodecId? = null,
     startMicros: Long = 0L,
     endMicros: Long = Long.MAX_VALUE,
     metadata: Map<String, String> = emptyMap(),
@@ -75,6 +76,7 @@ suspend fun transcode(
 | `audioFilter` | `null` | Filter chain for the audio stream. `null` plain resamples and reformats to what the encoder needs. |
 | `audioCopy` | `false` | Stream-copy audio instead of re-encoding. Mutually exclusive with `audioSpec` and `audioFilter`. |
 | `subtitleCopy` | `false` | Stream-copy every subtitle stream the output container accepts. |
+| `subtitleCodec` | `null` | Convert every subtitle stream to this text codec instead of copying it, such as `CodecId.MovText` for MP4. Mutually exclusive with `subtitleCopy`. |
 | `startMicros` | `0L` | Trim start, in microseconds. |
 | `endMicros` | `Long.MAX_VALUE` | Trim end, in microseconds. The default means no upper bound. |
 | `metadata` | `emptyMap()` | Container tags written into the output header. |
@@ -311,6 +313,25 @@ Transcoder.transcode(
     subtitleCopy = true,
 )
 ```
+
+Set `subtitleCodec` instead when the output container cannot hold the input's subtitle codec. Each
+subtitle stream is decoded and encoded again with that codec, and keeps its language, title and
+disposition. MP4 stores text subtitles only as `mov_text`, so a SubRip track from an MKV reaches an
+MP4 like this:
+
+```kotlin
+Transcoder.transcode(
+    input  = "film.mkv",
+    output = "film.mp4",
+    videoCopy = true,
+    audioCopy = true,
+    subtitleCodec = CodecId.MovText,
+)
+```
+
+`CodecId.MovText`, `SubRip`, `Ass` and `WebVtt` are the text codecs the build encodes. A text
+subtitle converts to any of them. An image subtitle, such as a DVD or Blu-ray track, has no text to
+encode, and the transcode fails with `FFmpegError.Unsupported`.
 
 ## Metadata
 

@@ -111,14 +111,13 @@ public actual object Transcoder {
         require(spec != null || videoCopy || audioSpec != null || audioCopy || subtitleCopy || subtitleCodec != null) {
             "Nothing to output: no video spec or copy, no audio, no subtitle copy or conversion"
         }
-        refuseSubtitleConversionUntilWired(subtitleCodec)
         require(startMicros >= 0L && endMicros > startMicros) {
             "Invalid trim window [$startMicros, $endMicros]"
         }
         runTranscode(dispatcher ?: Dispatchers.IO, onProgress) { publish ->
             transcodeHere(
                 input, output, spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy,
-                subtitleCopy, startMicros, endMicros, metadata, publish,
+                subtitleCopy, subtitleCodec, startMicros, endMicros, metadata, publish,
             )
         }
     }
@@ -134,6 +133,7 @@ public actual object Transcoder {
         audioFilter: String?,
         audioCopy: Boolean,
         subtitleCopy: Boolean,
+        subtitleCodec: CodecId?,
         startMicros: Long,
         endMicros: Long,
         metadata: Map<String, String>,
@@ -150,7 +150,7 @@ public actual object Transcoder {
                     ?: throw FFmpegException(FFmpegError.Internal("No video stream in ${input.name}"))
             } else null
             val audioStream = if (audioSpec != null || audioCopy) source.primaryAudio else null
-            val subtitles = if (subtitleCopy) {
+            val subtitles = if (subtitleCopy || subtitleCodec != null) {
                 source.streams.filter { it.type == MediaType.Subtitle }
             } else emptyList()
             // Video, else audio, else the first copied subtitle. Subtitles were left out, so
@@ -198,7 +198,22 @@ public actual object Transcoder {
                 val audioCopyStream = if (audioCopy && audioStream != null) {
                     sink.addCopyStream(source, audioStream)
                 } else null
-                val subtitleCopies = subtitles.associate { it.index to sink.addCopyStream(source, it) }
+                val subtitleCopies = if (subtitleCodec == null) {
+                    subtitles.associate { it.index to sink.addCopyStream(source, it) }
+                } else {
+                    emptyMap()
+                }
+                // Each one holds a decoder and an encoder, so every one made is closed, even when
+                // a later one fails to open.
+                val subtitleConversions = mutableMapOf<Int, SubtitleConversion>()
+                if (subtitleCodec != null) {
+                    try {
+                        subtitles.forEach { subtitleConversions[it.index] = sink.addSubtitleConversion(source, it, subtitleCodec) }
+                    } catch (failure: Throwable) {
+                        subtitleConversions.values.forEach(SubtitleConversion::close)
+                        throw failure
+                    }
+                }
 
                 // Built from what each stream declares and rebuilt whenever a frame's shape differs
                 // (see ShapedGraph). The vars live at this scope so the finally below owns them.
@@ -337,9 +352,14 @@ public actual object Transcoder {
                                             audioCopyStream.writeCopyPacket(packet)
                                             if (ptsMicros != Long.MIN_VALUE) noteCopied(ptsMicros)
                                         }
-                                        else -> subtitleCopies[info.index]?.let { copy ->
-                                            copy.writeCopyPacket(packet)
-                                            if (ptsMicros != Long.MIN_VALUE) noteCopied(ptsMicros)
+                                        else -> {
+                                            val copy = subtitleCopies[info.index]
+                                            val conversion = subtitleConversions[info.index]
+                                            copy?.writeCopyPacket(packet)
+                                            conversion?.convert(packet)
+                                            if ((copy != null || conversion != null) && ptsMicros != Long.MIN_VALUE) {
+                                                noteCopied(ptsMicros)
+                                            }
                                         }
                                     }
                                     // A copy-only run has no encoder to drive the report.
@@ -358,6 +378,7 @@ public actual object Transcoder {
                 } finally {
                     videoGraph?.close()
                     audioGraph?.close()
+                    subtitleConversions.values.forEach(SubtitleConversion::close)
                     videoRate?.close()
                     videoEncoder?.close()
                     audioEncoder?.close()

@@ -502,6 +502,30 @@ KC_API const char *ffkmp_subtitle_rect_text(const kc_subtitle *s, int i);
  * NULL either way. */
 KC_API void ffkmp_subtitle_free(kc_subtitle **s);
 
+/* Subtitle conversion: the packets of one text subtitle stream, decoded and encoded again with
+ * another text codec, such as SubRip to mov_text for an MP4. */
+typedef struct kc_subtitle_converter kc_subtitle_converter;
+
+/* Ownership. Opens a converter for subtitle stream `stream_index` of ctx into *out, which the
+ * caller frees with ffkmp_subtitle_converter_free. `codec` is the output codec's name, such as
+ * "mov_text". The encoder gets the decoder's ASS header, as FFmpeg's own tool gives it, and its
+ * parameters are written into out_par, the output stream's. An image subtitle stream has no text
+ * to encode and is refused with AVERROR_PATCHWELCOME. A codec that is not a text subtitle codec is
+ * refused with AVERROR(EINVAL), and one this build cannot encode with AVERROR_ENCODER_NOT_FOUND.
+ * NULL arguments and an index outside ctx are refused with AVERROR(EINVAL). *out is NULL on every
+ * failure. */
+KC_API int ffkmp_subtitle_converter_open(kc_fmt_ctx *ctx, int stream_index, const char *codec,
+                                         kc_codec_par *out_par, kc_subtitle_converter **out);
+
+/* Decodes packet `in` and encodes the subtitle it completes into `out`, replacing what out held.
+ * out's timestamps and duration are on the input stream's time base, so it writes like a copied
+ * packet of that stream. Returns 1 when out holds a packet, 0 when `in` completed no subtitle or one
+ * with no text, and a negative AVERROR on failure. NULL arguments are refused with AVERROR(EINVAL). */
+KC_API int ffkmp_subtitle_converter_convert(kc_subtitle_converter *c, const kc_packet *in, kc_packet *out);
+
+/* Ownership. Frees *c and writes NULL through the pointer; safe on NULL either way. */
+KC_API void ffkmp_subtitle_converter_free(kc_subtitle_converter **c);
+
 /* An interrupt cell a caller creates BEFORE an open, so another thread can stop the open while
  * it runs: ffkmp_fmt_open_input2 and ffkmp_fmt_open_input_io poll it instead of allocating a
  * cell of their own, and the context they return keeps polling it. No close ever frees it. The

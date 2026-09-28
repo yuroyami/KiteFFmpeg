@@ -191,13 +191,26 @@ public expect object Transcoder {
     )
 }
 
-/** Refuses a subtitle conversion until the backends can encode subtitles. */
-internal fun refuseSubtitleConversionUntilWired(subtitleCodec: CodecId?) {
-    if (subtitleCodec == null) return
-    throw FFmpegException(
-        FFmpegError.Unsupported(
-            FFmpegError.AVERROR_PATCHWELCOME,
-            "converting subtitles to ${subtitleCodec.name} is not wired into this backend yet",
-        ),
-    )
-}
+/**
+ * The typed failure of a subtitle conversion that could not open, from the C converter's code.
+ * [other] maps any code the converter does not give a meaning of its own.
+ */
+internal fun subtitleConversionFailure(
+    code: Int,
+    stream: StreamInfo,
+    codec: CodecId,
+    other: (Int) -> FFmpegError,
+): FFmpegException = FFmpegException(
+    when (code) {
+        FFmpegError.AVERROR_PATCHWELCOME -> FFmpegError.Unsupported(
+            code,
+            "subtitle stream ${stream.index} is an image subtitle (${stream.codec.name}), which cannot become ${codec.name} text",
+        )
+        FFmpegError.AVERROR_ENCODER_NOT_FOUND -> FFmpegError.EncoderNotFound(code, "this build has no ${codec.name} encoder")
+        AVERROR_EINVAL -> FFmpegError.InvalidArgument(code, "${codec.name} is not a text subtitle codec")
+        else -> other(code)
+    },
+)
+
+/** AVERROR(EINVAL), which is -22 on every platform this library builds for. */
+private const val AVERROR_EINVAL = -22

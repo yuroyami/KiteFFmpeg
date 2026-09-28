@@ -211,6 +211,9 @@ internal object Internals {
     private external fun nativeSubtitleRectRgba(token: Long, index: Int): ByteArray
     private external fun nativeSubtitleRectText(token: Long, index: Int): String?
     private external fun nativeSubtitleFree(token: Long)
+    private external fun nativeSubtitleConverterOpen(fmtToken: Long, streamIndex: Int, codec: String, parToken: Long): Long
+    private external fun nativeSubtitleConverterConvert(token: Long, inPacket: Long, outPacket: Long): Int
+    private external fun nativeSubtitleConverterFree(token: Long)
     private external fun nativeCodecCtxSetColor(context: Long, primaries: Int, transfer: Int, matrix: Int, range: Int, chromaLocation: Int): Int
     private external fun nativeCodecCtxSetSar(context: Long, num: Int, den: Int): Int
     private external fun nativeCodecCtxSetChannelLayout(context: Long, mask: Long): Int
@@ -549,6 +552,11 @@ internal object Internals {
     internal fun subtitleRectRgba(token: Long, index: Int) = checked { nativeSubtitleRectRgba(token, index) }
     internal fun subtitleRectText(token: Long, index: Int) = checked { nativeSubtitleRectText(token, index) }
     internal fun subtitleFree(token: Long) = checked { nativeSubtitleFree(token) }
+    internal fun subtitleConverterOpen(fmtToken: Long, streamIndex: Int, codec: String, parToken: Long) =
+        token("subtitle converter") { nativeSubtitleConverterOpen(fmtToken, streamIndex, codec, parToken) }
+    internal fun subtitleConverterConvert(token: Long, inPacket: Long, outPacket: Long) =
+        checked { nativeSubtitleConverterConvert(token, inPacket, outPacket) }
+    internal fun subtitleConverterFree(token: Long) = checked { nativeSubtitleConverterFree(token) }
     internal fun codecCtxSetColor(context: Long, primaries: Int, transfer: Int, matrix: Int, range: Int, chromaLocation: Int) =
         checked { nativeCodecCtxSetColor(context, primaries, transfer, matrix, range, chromaLocation) }
     internal fun codecCtxSetSar(context: Long, sar: Rational) = checked { nativeCodecCtxSetSar(context, sar.num, sar.den) }

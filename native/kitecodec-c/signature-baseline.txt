@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 3.14
+# abi-version 3.15
 #
-# Exact scope: 237 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 240 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 260 records.
+# records are sorted without deduplication. There must be exactly 263 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -158,6 +158,8 @@ KC_API int ffkmp_stream_index(kc_stream *s);
 KC_API int ffkmp_stream_mirrored(kc_stream *s);
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);
 KC_API int ffkmp_stream_set_sample_aspect_ratio(kc_stream *s, int num, int den);
+KC_API int ffkmp_subtitle_converter_convert(kc_subtitle_converter *c, const kc_packet *in, kc_packet *out);
+KC_API int ffkmp_subtitle_converter_open(kc_fmt_ctx *ctx, int stream_index, const char *codec, kc_codec_par *out_par, kc_subtitle_converter **out);
 KC_API int ffkmp_subtitle_decode(kc_codec_ctx *c, const kc_packet *p, kc_subtitle **out);
 KC_API int ffkmp_subtitle_decoder_open(kc_fmt_ctx *ctx, int stream_index, kc_codec_ctx **out);
 KC_API int ffkmp_subtitle_rect(const kc_subtitle *s, int i, int *type, int *x, int *y, int *w, int *h, int *forced);
@@ -251,6 +253,7 @@ KC_API void ffkmp_stream_discard_all(kc_stream *s);
 KC_API void ffkmp_stream_discard_none(kc_stream *s);
 KC_API void ffkmp_stream_set_time_base(kc_stream *s, int n, int d);
 KC_API void ffkmp_stream_time_base(kc_stream *s, int *n, int *d);
+KC_API void ffkmp_subtitle_converter_free(kc_subtitle_converter **c);
 KC_API void ffkmp_subtitle_free(kc_subtitle **s);
 KC_API void ffkmp_swr_free(kc_swr **s);
 KC_API void kc_ffmpeg_report_get(kc_ffmpeg_report *out);

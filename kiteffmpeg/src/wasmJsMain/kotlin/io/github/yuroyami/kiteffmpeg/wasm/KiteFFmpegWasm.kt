@@ -456,6 +456,12 @@ internal external fun ffkmp_stream_rotation_degrees(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1, a2) => m._ffkmp_stream_set_sample_aspect_ratio(a0, a1, a2)")
 internal external fun ffkmp_stream_set_sample_aspect_ratio(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_subtitle_converter_convert(a0, a1, a2)")
+internal external fun ffkmp_subtitle_converter_convert(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
+@JsFun("(m, a0, a1, a2, a3, a4) => m._ffkmp_subtitle_converter_open(a0, a1, a2, a3, a4)")
+internal external fun ffkmp_subtitle_converter_open(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_subtitle_decode(a0, a1, a2)")
 internal external fun ffkmp_subtitle_decode(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
@@ -728,6 +734,9 @@ internal external fun ffkmp_stream_set_time_base(module: JsAny, a0: Int, a1: Int
 
 @JsFun("(m, a0, a1, a2) => m._ffkmp_stream_time_base(a0, a1, a2)")
 internal external fun ffkmp_stream_time_base(module: JsAny, a0: Int, a1: Int, a2: Int): Unit
+
+@JsFun("(m, a0) => m._ffkmp_subtitle_converter_free(a0)")
+internal external fun ffkmp_subtitle_converter_free(module: JsAny, a0: Int): Unit
 
 @JsFun("(m, a0) => m._ffkmp_subtitle_free(a0)")
 internal external fun ffkmp_subtitle_free(module: JsAny, a0: Int): Unit

@@ -383,6 +383,21 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    /**
+     * A converter from the text subtitle [stream] into [codec], which writes the output stream's
+     * parameters into the codecpar behind [outParameters]; see [MediaSink.addSubtitleConversion].
+     */
+    internal fun openSubtitleConverter(stream: StreamInfo, codec: CodecId, outParameters: Long): Long {
+        requireOwnStream(stream)
+        return synchronized(stateLock) {
+            try {
+                Internals.subtitleConverterOpen(checkOpen(), stream.index, codec.name, outParameters)
+            } catch (failure: FFmpegException) {
+                throw subtitleConversionFailure(failure.error.code, stream, codec) { failure.error }
+            }
+        }
+    }
+
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
     public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder {

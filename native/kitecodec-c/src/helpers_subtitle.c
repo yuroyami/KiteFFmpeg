@@ -1,15 +1,18 @@
 /* Subtitle decoding: avcodec_decode_subtitle2 behind an opaque AVSubtitle, and the conversion of
  * its palette images to premultiplied RGBA. Blu-ray, DVB and DVD subtitles are palette images, so
- * the conversion is the part every image format shares. */
+ * the conversion is the part every image format shares. The converter at the end encodes decoded
+ * text subtitles again with another text codec, which is how a transcode changes their format. */
 
 #include "kitecodec_helpers.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/error.h>
+#include <libavutil/mathematics.h>
 #include <libavutil/mem.h>
 
 #include <stdint.h>
+#include <string.h>
 
 KC_API int ffkmp_subtitle_decoder_open(AVFormatContext *ctx, int stream_index, AVCodecContext **out) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
@@ -124,4 +127,111 @@ KC_API void ffkmp_subtitle_free(AVSubtitle **s) {
     if (!s || !*s) return;
     avsubtitle_free(*s);
     av_freep(s);
+}
+
+/* ---- Subtitle conversion ---- */
+
+struct kc_subtitle_converter {
+    AVCodecContext *dec;
+    AVCodecContext *enc;
+    /* The input stream's time base, which every converted packet is stamped on. */
+    AVRational stream_tb;
+    /* The encoder's output, reused for every subtitle. */
+    uint8_t *buf;
+};
+
+/* 1 MiB, the buffer FFmpeg's own tool gives a subtitle encoder. */
+#define KC_SUBTITLE_OUT_MAX (1 << 20)
+
+KC_API void ffkmp_subtitle_converter_free(kc_subtitle_converter **c) {
+    if (!c || !*c) return;
+    avcodec_free_context(&(*c)->dec);
+    avcodec_free_context(&(*c)->enc);
+    av_freep(&(*c)->buf);
+    av_freep(c);
+}
+
+KC_API int ffkmp_subtitle_converter_open(AVFormatContext *ctx, int stream_index, const char *codec,
+                                         AVCodecParameters *out_par, kc_subtitle_converter **out) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
+    if (!out) return AVERROR(EINVAL);
+    *out = NULL;
+    if (!ctx || !codec || !out_par || stream_index < 0 || (unsigned)stream_index >= ctx->nb_streams) {
+        return AVERROR(EINVAL);
+    }
+    const AVStream *st = ctx->streams[stream_index];
+    if (st->codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) return AVERROR(EINVAL);
+    const AVCodecDescriptor *in_desc = avcodec_descriptor_get(st->codecpar->codec_id);
+    if (!in_desc || !(in_desc->props & AV_CODEC_PROP_TEXT_SUB)) return AVERROR_PATCHWELCOME;
+    const AVCodecDescriptor *out_desc = avcodec_descriptor_get_by_name(codec);
+    if (!out_desc || out_desc->type != AVMEDIA_TYPE_SUBTITLE || !(out_desc->props & AV_CODEC_PROP_TEXT_SUB)) {
+        return AVERROR(EINVAL);
+    }
+    const AVCodec *encoder = avcodec_find_encoder(out_desc->id);
+    if (!encoder) return AVERROR_ENCODER_NOT_FOUND;
+
+    kc_subtitle_converter *c = av_mallocz(sizeof(*c));
+    if (!c) return AVERROR(ENOMEM);
+    int rc = ffkmp_subtitle_decoder_open(ctx, stream_index, &c->dec);
+    if (rc < 0) goto fail;
+    c->enc = avcodec_alloc_context3(encoder);
+    c->buf = av_malloc(KC_SUBTITLE_OUT_MAX);
+    if (!c->enc || !c->buf) {
+        rc = AVERROR(ENOMEM);
+        goto fail;
+    }
+    c->enc->time_base = AV_TIME_BASE_Q;
+    if (c->dec->subtitle_header && c->dec->subtitle_header_size > 0) {
+        c->enc->subtitle_header = av_mallocz((size_t)c->dec->subtitle_header_size + 1);
+        if (!c->enc->subtitle_header) {
+            rc = AVERROR(ENOMEM);
+            goto fail;
+        }
+        memcpy(c->enc->subtitle_header, c->dec->subtitle_header, (size_t)c->dec->subtitle_header_size);
+        c->enc->subtitle_header_size = c->dec->subtitle_header_size;
+    }
+    rc = avcodec_open2(c->enc, encoder, NULL);
+    if (rc >= 0) rc = avcodec_parameters_from_context(out_par, c->enc);
+    if (rc < 0) goto fail;
+    c->stream_tb = st->time_base;
+    *out = c;
+    return 0;
+fail:
+    ffkmp_subtitle_converter_free(&c);
+    return rc;
+}
+
+KC_API int ffkmp_subtitle_converter_convert(kc_subtitle_converter *c, const AVPacket *in, AVPacket *out) {
+    if (!c || !in || !out) return AVERROR(EINVAL);
+    AVSubtitle sub;
+    memset(&sub, 0, sizeof(sub));
+    int got = 0;
+    int rc = avcodec_decode_subtitle2(c->dec, &sub, &got, in);
+    if (rc < 0) return rc;
+    if (!got) return 0;
+    if (sub.num_rects == 0 || sub.pts == AV_NOPTS_VALUE) {
+        avsubtitle_free(&sub);
+        return 0;
+    }
+    /* The encoder takes the start in pts and a start_display_time of zero, as FFmpeg's own tool
+     * hands it over. UINT32_MAX says the stream gives no end, which stays unset. */
+    int has_end = sub.end_display_time != UINT32_MAX && sub.end_display_time > sub.start_display_time;
+    int64_t duration_ms = has_end ? (int64_t)sub.end_display_time - sub.start_display_time : 0;
+    sub.pts += av_rescale_q(sub.start_display_time, (AVRational){ 1, 1000 }, AV_TIME_BASE_Q);
+    sub.end_display_time = has_end ? (uint32_t)duration_ms : UINT32_MAX;
+    sub.start_display_time = 0;
+    int size = avcodec_encode_subtitle(c->enc, c->buf, KC_SUBTITLE_OUT_MAX, &sub);
+    int64_t pts = sub.pts;
+    avsubtitle_free(&sub);
+    if (size < 0) return size;
+    if (size == 0) return 0;
+    av_packet_unref(out);
+    rc = av_new_packet(out, size);
+    if (rc < 0) return rc;
+    memcpy(out->data, c->buf, (size_t)size);
+    out->pts = av_rescale_q(pts, AV_TIME_BASE_Q, c->stream_tb);
+    out->dts = out->pts;
+    if (has_end) out->duration = av_rescale_q(duration_ms, (AVRational){ 1, 1000 }, c->stream_tb);
+    out->flags |= AV_PKT_FLAG_KEY;
+    return 1;
 }

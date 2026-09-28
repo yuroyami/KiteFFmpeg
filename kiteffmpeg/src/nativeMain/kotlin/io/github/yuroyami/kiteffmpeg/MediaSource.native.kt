@@ -1,6 +1,8 @@
 package io.github.yuroyami.kiteffmpeg
 
 import cnames.structs.kc_interrupt
+import cnames.structs.kc_subtitle_converter
+import ffmpeg.ffkmp_subtitle_converter_open
 import ffmpeg.ffkmp_subtitle_decoder_open
 import ffmpeg.ffkmp_codec_id_name
 import ffmpeg.ffkmp_codecctx_alloc
@@ -477,6 +479,25 @@ public actual class MediaSource internal constructor(
         check(!isClosed) { "MediaSource is closed" }
         requireOwnStream(stream)
         return ffkmp_fmt_stream(ctx, stream.index.toUInt())
+    }
+
+    /**
+     * A converter from the text subtitle [stream] into [codec], which writes the output stream's
+     * parameters into [outPar]; see [MediaSink.addSubtitleConversion].
+     */
+    internal fun openSubtitleConverter(
+        stream: StreamInfo,
+        codec: CodecId,
+        outPar: CPointer<kc_codec_par>,
+    ): CPointer<kc_subtitle_converter> {
+        check(!isClosed) { "MediaSource is closed" }
+        requireOwnStream(stream)
+        return memScoped {
+            val slot = alloc<CPointerVar<kc_subtitle_converter>>()
+            val rc = ffkmp_subtitle_converter_open(ctx, stream.index, codec.name, outPar, slot.ptr)
+            if (rc < 0) throw subtitleConversionFailure(rc, stream, codec, ::avError)
+            slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle converter open returned no converter"))
+        }
     }
 
     internal fun codecparOf(stream: StreamInfo): CPointer<kc_codec_par>? {

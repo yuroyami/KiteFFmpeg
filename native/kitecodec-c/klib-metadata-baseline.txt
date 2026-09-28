@@ -791,6 +791,18 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_subtitle_free(s: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */> */>?): kotlin/Unit
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_converter_open")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_converter_open(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?, stream_index: kotlin/Int, @kotlinx/cinterop/internal/CCall.CString codec: kotlin/String?, out_par: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecParameters /* = ffmpeg/kc_codec_par^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/kc_subtitle_converter>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/kc_subtitle_converter> */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_converter_convert")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_converter_convert(c: kotlinx/cinterop/CValuesRef<cnames/structs/kc_subtitle_converter>?, in: kotlinx/cinterop/CValuesRef<cnames/structs/AVPacket /* = ffmpeg/kc_packet^ */>?, out: kotlinx/cinterop/CValuesRef<cnames/structs/AVPacket /* = ffmpeg/kc_packet^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_converter_free")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_subtitle_converter_free(c: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/kc_subtitle_converter>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/kc_subtitle_converter> */>?): kotlin/Unit
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_interrupt_new")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_interrupt_new(): kotlinx/cinterop/CPointer<cnames/structs/kc_interrupt>?
@@ -1192,7 +1204,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 14 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 15 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1222,6 +1234,13 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_LIB_SWRESAMPLE: kotlin/Int /* = 5 */
         public final get
+    }
+  }
+
+  library fragment {
+    // package name: ffmpeg
+
+    package {
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_REF: kotlin/Int /* = 32 */
@@ -1234,13 +1253,6 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_LIST: kotlin/Int /* = 128 */
         public final get
-    }
-  }
-
-  library fragment {
-    // package name: ffmpeg
-
-    package {
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_PATH: kotlin/Int /* = 512 */

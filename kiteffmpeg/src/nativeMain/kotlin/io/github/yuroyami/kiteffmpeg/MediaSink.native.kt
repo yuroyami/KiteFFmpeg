@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import cnames.structs.kc_subtitle_converter
 import ffmpeg.ffkmp_fmt_free_output_io
 import ffmpeg.ffkmp_codec_first_sample_fmt
 import ffmpeg.ffkmp_codecctx_alloc
@@ -37,6 +38,8 @@ import ffmpeg.ffkmp_frame_width
 import ffmpeg.ffkmp_packet_alloc
 import ffmpeg.ffkmp_packet_dts
 import ffmpeg.ffkmp_packet_free
+import ffmpeg.ffkmp_subtitle_converter_convert
+import ffmpeg.ffkmp_subtitle_converter_free
 import ffmpeg.ffkmp_packet_pts
 import ffmpeg.ffkmp_packet_rescale_ts
 import ffmpeg.ffkmp_packet_set_dts
@@ -251,6 +254,37 @@ public actual class MediaSink internal constructor(
         declaredStreams += 1
         CopyStream(sink = this, stream = outStream, sourceTimeBase = stream.timeBase, sourceIndex = stream.index)
     }
+
+    /**
+     * An output stream that carries the text subtitle [stream] converted to [codec], for
+     * `Transcoder`'s subtitleCodec. It keeps the stream's language, title and disposition, and its
+     * packets arrive on the input stream's time base, so they write like copied packets.
+     */
+    internal fun addSubtitleConversion(source: MediaSource, stream: StreamInfo, codec: CodecId): SubtitleConversion =
+        synchronized(muxLock) {
+            check(!closeBegun) { "MediaSink is closed" }
+            checkUsable()
+            check(!headerWritten) { "Cannot add streams after the muxer has started writing." }
+            val outStream = ffkmp_fmt_new_stream(ctx, null)
+                ?: throw FFmpegException(FFmpegError.Internal("avformat_new_stream returned NULL"))
+            // A new stream is in the muxer from here, so a failure poisons the sink, as in addCopyStream.
+            var converter: CPointer<kc_subtitle_converter>? = null
+            try {
+                val outPar = ffkmp_stream_codecpar(outStream)
+                    ?: throw FFmpegException(FFmpegError.Internal("New stream missing codecpar"))
+                converter = source.openSubtitleConverter(stream, codec, outPar)
+                check0(ffkmp_stream_copy_identity(outStream, source.streamOf(stream)), "stream identity copy")
+                ffkmp_stream_set_time_base(outStream, stream.timeBase.num, stream.timeBase.den)
+            } catch (error: Throwable) {
+                converter?.let(::freeSubtitleConverter)
+                poison(error)
+            }
+            declaredStreams += 1
+            SubtitleConversion(
+                CopyStream(sink = this, stream = outStream, sourceTimeBase = stream.timeBase, sourceIndex = stream.index),
+                converter,
+            )
+        }
 
     @Throws(FFmpegException::class)
     public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
@@ -942,6 +976,34 @@ public actual class CopyStream internal constructor(
         }
         sink.writePacket(packet)
     }
+}
+
+/** One text subtitle stream converted to another codec: see [MediaSink.addSubtitleConversion]. */
+internal class SubtitleConversion(
+    private val output: CopyStream,
+    private val converter: CPointer<kc_subtitle_converter>,
+) : AutoCloseable {
+    val sourceIndex: Int get() = output.sourceIndex
+
+    /** Converts one packet of the input stream, and writes the subtitle it completes, if any. */
+    fun convert(packet: CPointer<kc_packet>) {
+        val converted = ffkmp_packet_alloc() ?: throw FFmpegException(FFmpegError.OutOfMemory(0, "no packet for a converted subtitle"))
+        try {
+            val rc = ffkmp_subtitle_converter_convert(converter, packet, converted)
+            if (rc < 0) throw FFmpegException(avError(rc))
+            if (rc == 1) output.writeCopyPacket(converted)
+        } finally {
+            ffkmp_packet_free(converted)
+        }
+    }
+
+    override fun close(): Unit = freeSubtitleConverter(converter)
+}
+
+private fun freeSubtitleConverter(converter: CPointer<kc_subtitle_converter>) = memScoped {
+    val slot = alloc<CPointerVar<kc_subtitle_converter>>()
+    slot.value = converter
+    ffkmp_subtitle_converter_free(slot.ptr)
 }
 
 public actual class VideoEncoder internal constructor(

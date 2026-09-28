@@ -43,7 +43,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `drawBox()` and `pan()` steps build (#77).
 - Every build carries the `srt`, `ass` and `webvtt` muxers, so `Remuxer.remux` writes a text
   subtitle track to its own `.srt`, `.ass` or `.vtt` file. The builds also carry the `mov_text`,
-  SubRip, `ass` and `webvtt` encoders, which no public call uses yet (#86).
+  SubRip, `ass` and `webvtt` encoders, which `subtitleCodec` uses (#86).
+- `Transcoder.transcode` gains `subtitleCodec`, which converts every subtitle stream to a text
+  codec instead of copying it, so a SubRip track from an MKV reaches an MP4 as `mov_text`. An image
+  subtitle cannot become text and fails with `FFmpegError.Unsupported`. `CodecId` gains `MovText`,
+  `SubRip`, `Ass` and `WebVtt`. The parameter sits after `subtitleCopy`, and a nullable `CodecId`
+  changes the JVM names of the three overloads, so recompile. The C ABI is 3.15, which adds the
+  `ffkmp_subtitle_converter_*` functions (#86).
 - The iPhone build carries the `h264_videotoolbox` and `hevc_videotoolbox` encoders, as the macOS
   build does, so `EncoderId.H264VideoToolbox` and `EncoderId.HevcVideoToolbox` work on an iPhone.
   The simulator builds stay without them, because VideoToolbox encode is not available there

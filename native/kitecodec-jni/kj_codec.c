@@ -377,3 +377,65 @@ JNIEXPORT void JNICALL kj_subtitle_free(JNIEnv *env, jclass cls, jlong token)
     (void)env; (void)cls;
     if (s != NULL) ffkmp_subtitle_free(&s);
 }
+
+/* ── Subtitle conversion ── */
+
+/* A converter from subtitle stream stream_index of the source behind fmt_token into codec. It
+ * writes the output stream's parameters into the codecpar behind par_token, and the caller frees it
+ * with kj_subtitle_converter_free. */
+JNIEXPORT jlong JNICALL kj_subtitle_converter_open(JNIEnv *env, jclass cls, jlong fmt_token, jint stream_index,
+                                                   jstring codec, jlong par_token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, fmt_token, KJ_KIND_FMT_CTX);
+    kc_codec_par *par;
+    kc_subtitle_converter *conv = NULL;
+    char *name;
+    jlong token;
+    int rc;
+    (void)cls;
+    if (ctx == NULL) return 0;
+    par = (kc_codec_par *)kj_handle_get(env, par_token, KJ_KIND_CODEC_PAR);
+    if (par == NULL) return 0;
+    name = kj_string_dup(env, codec);
+    if (name == NULL) return 0;
+    rc = ffkmp_subtitle_converter_open(ctx, stream_index, name, par, &conv);
+    free(name);
+    if (rc < 0 || conv == NULL) {
+        kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "subtitle_converter_open");
+        return 0;
+    }
+    token = kj_handle_put_checked(env, KJ_KIND_SUBTITLE_CONVERTER, conv);
+    if (token == 0) ffkmp_subtitle_converter_free(&conv);
+    return token;
+}
+
+/* Converts the packet behind in_token into the packet behind out_token: 1 when out holds a
+ * packet, 0 when the input completed no subtitle. */
+JNIEXPORT jint JNICALL kj_subtitle_converter_convert(JNIEnv *env, jclass cls, jlong token, jlong in_token,
+                                                     jlong out_token)
+{
+    kc_subtitle_converter *conv =
+        (kc_subtitle_converter *)kj_handle_get(env, token, KJ_KIND_SUBTITLE_CONVERTER);
+    kc_packet *in;
+    kc_packet *out;
+    int rc;
+    (void)cls;
+    if (conv == NULL) return 0;
+    in = (kc_packet *)kj_handle_get(env, in_token, KJ_KIND_PACKET);
+    if (in == NULL) return 0;
+    out = (kc_packet *)kj_handle_get(env, out_token, KJ_KIND_PACKET);
+    if (out == NULL) return 0;
+    rc = ffkmp_subtitle_converter_convert(conv, in, out);
+    if (rc < 0) {
+        kj_throw_ffmpeg(env, rc, "subtitle_converter_convert");
+        return 0;
+    }
+    return rc;
+}
+
+JNIEXPORT void JNICALL kj_subtitle_converter_free(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_subtitle_converter *conv = (kc_subtitle_converter *)kj_handle_close(token, KJ_KIND_SUBTITLE_CONVERTER);
+    (void)env; (void)cls;
+    if (conv != NULL) ffkmp_subtitle_converter_free(&conv);
+}
