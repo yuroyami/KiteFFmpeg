@@ -113,6 +113,7 @@ you collect them.
 | Cut a clip between two times | `transcode(..., startMicros, endMicros)` | [Transcoding](docs/transcoding.md) |
 | Change the file type without re-encoding | `Remuxer.remux(...)` | [Remuxing](docs/remuxing.md) |
 | Convert bytes you hold, or a picked Android file, with no copy | the `transcode` and `remux` overloads with `inputOptions`, or with a `MediaByteSource` and a `MediaByteSink` | [Platform support](docs/platforms.md) |
+| Play an HLS stream through your own HTTP client | `MediaSource.open(io, url = ..., nestedOpener = ...)` | [Decoding](docs/decoding.md#hls-through-your-own-http-client) |
 | Grab a single picture from a video | `MediaSource.extractFrame(...)` | [Decoding](docs/decoding.md) |
 | Read every frame yourself | `MediaSource.decodedFrames(...)` | [Decoding](docs/decoding.md) |
 | Read video and audio frames together | `MediaSource.decodeStreams(...)` | [Decoding](docs/decoding.md) |

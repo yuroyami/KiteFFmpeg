@@ -28,6 +28,59 @@ MediaSource.open("input.mp4").use { source ->
 !!! note
     Opening a file does not start decoding. It only reads the container header. Decoding happens lazily when you collect one of the frame flows below.
 
+## Opening bytes from your own code
+
+`MediaSource.open(io)` demuxes whatever a `MediaByteSource` reads, with no path. Use it when the
+bytes come from your own HTTP client, a cache or an encrypted store. The source must block until it
+has bytes, and the returned `MediaSource` closes it.
+
+Three optional parameters say where the bytes come from:
+
+- `url` is the address the bytes came from. FFmpeg recognises formats by it, as it does by a file
+  name, and resolves relative addresses inside the media against it.
+- `mimeType` is the type the bytes arrived with, such as a server's `Content-Type`. FFmpeg's probe
+  uses it.
+- `nestedOpener` is a `MediaByteOpener`. It opens the other addresses that the media names.
+
+### HLS through your own HTTP client
+
+An HLS playlist names its segments, its variant playlists and its keys by address. FFmpeg asks
+`nestedOpener` for each one, and the opener answers with a `MediaByteSource`, or with null to
+refuse the address. That is how an https playlist plays: the build has no https of its own, so
+your client fetches every address.
+
+!!! warning
+    The addresses come from the playlist, and the playlist is untrusted input. With an opener,
+    FFmpeg does not check the scheme of an address, so the opener decides what opens. Open only the
+    schemes and hosts you expect, and return null for everything else.
+
+```kotlin
+val playlist = MediaSource.open(
+    io = fetch("https://cdn.example/live/index"),
+    url = "https://cdn.example/live/index",
+    mimeType = "application/vnd.apple.mpegurl",
+    nestedOpener = { address ->
+        if (address.startsWith("https://cdn.example/")) fetch(address) else null
+    },
+)
+```
+
+Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`.
+
+- Every address reaches the opener absolute, already resolved against `url`.
+- `mimeType` matters when `url` does not end in `.m3u8` or `.m3u`. Without it, the probe does not
+  recognise the playlist and the open fails.
+- An AES-128 segment reaches the opener as the address of its encrypted bytes. The key comes through
+  the opener too, and KiteFFmpeg decrypts the segment.
+- A `data:` address never reaches the opener. FFmpeg reads the bytes inside it itself.
+- FFmpeg still checks each segment's file extension against the format it finds. A segment address
+  with no media extension is refused, unless you pass `options = mapOf("extension_picky" to "0")`.
+
+The opener runs on the thread that drives the demuxer, and it may block. The `MediaSource` closes
+every source the opener returned. On the web, `nestedOpener` fails the open with
+`FFmpegError.Unsupported` for now, and `url` and `mimeType` reach the probe as on the other
+platforms.
+
 ## Streams
 
 Every input carries a list of `StreamInfo`. Each entry describes one track: its index, type, codec, and time-base. Iterate the full list, or read a primary track directly:

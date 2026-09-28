@@ -57,7 +57,7 @@ The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yu
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
-Four groups joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The next release carries them.
+Four groups joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The next release carries them. The trees of 0.3.0 also lack the `trust_io_open` patch to FFmpeg's HLS demuxer, which a nested opener needs, and the next release carries that too.
 
 | | macOS LGPL | Mobile Apple LGPL | Linux / Windows LGPL | Android LGPL |
 |---|---|---|---|---|
@@ -73,7 +73,7 @@ Four groups joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry th
 
 There is no GPL column and no `drawtext`/`eq`/`boxblur` anywhere: this project bakes the LGPL portable profile only. Use `hue` (it has a brightness parameter `b`), `colorlevels` or `curves` where you reached for `eq`. The bitstream filters are never named by KiteFFmpeg. libavformat inserts them during a stream copy, which is a copy of encoded packets with no decode or encode. Without them, a copy between container families produces a *corrupt file* rather than an error.
 
-`mpeg4` is the dependency-free video baseline: it is always present, in every flavour, so code that must encode *something* without pulling in a GPL or hardware encoder has a target. `https` is **not** built. It needs a TLS backend cross-compiled for every target, and this profile does not include one. Use `http`, a local file, or link a system FFmpeg that has TLS.
+`mpeg4` is the dependency-free video baseline: it is always present, in every flavour, so code that must encode *something* without pulling in a GPL or hardware encoder has a target. `https` is **not** built. It needs a TLS backend cross-compiled for every target, and this profile does not include one. Use `http`, a local file, or link a system FFmpeg that has TLS. To read https media through this profile, fetch the bytes with your own HTTP client and open them through a `MediaByteSource`. An HLS playlist also needs a nested opener for its segments; see [Decoding](decoding.md#hls-through-your-own-http-client).
 
 The `fd` protocol is what makes an Android `content://` file playable. Open a descriptor with `ContentResolver.openFileDescriptor`, then open `"fd:"` with the pre-open option `fd` set to the descriptor number:
 

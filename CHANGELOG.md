@@ -35,9 +35,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The filter DSL no longer offers `eq()` or its `Eq` step. No KiteFFmpeg build carried `eq`,
   because FFmpeg builds it only under the GPL, so a chain that used it failed on every build. Use
   `hue`, `colorlevels` or `curves` through `raw()`, which every build carries (#77).
+- The byte-source `MediaSource.open` gains `url`, `mimeType` and `nestedOpener`, after
+  `interrupt`. The old overload stays, hidden, so code compiled against 0.3.0 still links. The C ABI
+  is 3.16, which adds `ffkmp_fmt_open_input_io2`, `kc_io_opener` and
+  `ffkmp_fmt_nested_io_available` (#76).
 
 ### Added
 
+- An HLS playlist opens through a `MediaByteSource`, including over https. Pass `url`, and
+  `mimeType` when the url has no `.m3u8` name, so that FFmpeg's probe recognises the playlist. Pass
+  `nestedOpener`, a new `MediaByteOpener`, to serve the variant playlists, segments and keys the
+  playlist names, for example through your own HTTP client. KiteFFmpeg decrypts AES-128 segments
+  itself. The addresses come from the playlist, so the opener decides which ones open. This needs a
+  small patch to FFmpeg's HLS demuxer, which the FFmpeg builds of this release carry; an FFmpeg
+  build without it refuses the opener with `FFmpegError.Unsupported`. On the web, `url` and
+  `mimeType` reach the probe, and `nestedOpener` fails the open with `FFmpegError.Unsupported`
+  (#76).
 - Every build carries the `crop`, `transpose`, `hflip`, `vflip`, `fps`, `drawbox`, `fade`,
   `setsar`, `setdar` and `pan` filters, so the filter DSL's `crop()`, `transpose()`, `fps()`,
   `drawBox()` and `pan()` steps build (#77).

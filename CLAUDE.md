@@ -80,6 +80,15 @@ Each line is something that bit someone. Delete a line when it stops being true.
 - `recipeFingerprint` must stay idempotent, because the check fingerprints an
   already-fingerprinted set on the way back out; a non-idempotent token silently drops from the
   expected side and every tree reports stale.
+- `checkFFmpegRecipes` compares configure flags only, never the patches under
+  `native/patches/ffmpeg`, so a tree baked before a patch still reads as current. Rebuild every
+  tree when a patch is added or changed. Each tree names the patches it carries in
+  `lib/kiteffmpeg/ffmpeg-patches.txt`.
+- The host C suites link Homebrew's FFmpeg through pkg-config, locally and in CI, so
+  `test_nested_io` runs only its patch-free cases there. Run it against the vendored tree with
+  `KC_FFMPEG_PREFIX=native-libs/lgpl/macos-arm64`. Against that tree, `test_args`, `test_buffers`
+  and `test_filter` fail, because they need the `null` muxer and filters that the reduced profile
+  does not carry. That is not a regression.
 - The macOS deployment floor is one constant in the FFmpeg build task, set to 12.0 because the
   Kotlin/Native compiler imposes it, and it is read by both macOS FFmpeg branches and both
   macOS C targets.
@@ -173,6 +182,19 @@ Each line is something that bit someone. Delete a line when it stops being true.
   That makes hardware AV1 a policy problem, not a hardware problem.
 - FFmpeg's `fd:` protocol dups the descriptor but never rewinds it, and a POSIX dup shares the
   file offset, so reopening a descriptor-backed item mutates the caller's descriptor.
+- HLS through a byte source works only because of `0002-hls-trust-io-open.patch`. FFmpeg's
+  `open_url` in `hls.c` checks every playlist, segment and key URL against the build's protocols
+  before it calls `io_open`, and the build has no https, so without the patch no https address
+  ever reaches the nested opener. On every FFmpeg upgrade, check that the patch still applies and
+  that `test_nested_io` runs its HLS cases. A tree without the patch refuses the opener with
+  `AVERROR(ENOSYS)`, so the failure is loud (#76).
+- FFmpeg's probe reads a MIME type only from an AVIOContext that has an AVClass, and
+  `avio_alloc_context` gives it none, so a MIME type handed to a custom input reaches nothing by
+  itself. The byte-source open installs a class whose one child answers `mime_type` (#76).
+- The HLS segment check (`extension_picky`) still runs under a nested opener. A segment whose
+  address has no media extension is refused, and so is a WAV segment, because the WAV demuxer
+  declares no extension. The C suite turns the check off for its WAV segments; the Kotlin suite
+  uses MPEG-TS and keeps it on.
 - FFmpeg polls the interrupt callback only inside stream-info discovery and the URL protocol
   loop. The HLS header reader leaves the callback zeroed on its sample-AES and subtitle-context
   branches, so child contexts need the callback copied explicitly.
