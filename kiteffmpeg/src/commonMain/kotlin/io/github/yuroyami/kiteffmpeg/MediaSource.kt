@@ -248,12 +248,54 @@ public expect class MediaSource : AutoCloseable {
         ): MediaSource
 
         /**
-         * Open over caller-supplied bytes: FFmpeg demuxes whatever [io] reads, with no path and
-         * no FFmpeg protocol involved. The returned source OWNS [io] and closes it when it
-         * closes. Pre-open [options] and [interrupt] behave exactly like the path overload's.
-         * Blocking, like every open here: call it off the UI thread, and expect [io]'s own read
-         * latency to shape the open time.
+         * Open over caller-supplied bytes: FFmpeg demuxes whatever [io] reads, with no path
+         * involved. The returned source OWNS [io] and closes it when it closes. Pre-open
+         * [options] and [interrupt] behave exactly like the path overload's. Blocking, like every
+         * open here: call it off the UI thread, and expect [io]'s own read latency to shape the
+         * open time.
+         *
+         * Three optional parameters say where the bytes come from:
+         *
+         * - [url] is the address that [io] reads. The bytes still come from [io]. FFmpeg uses the
+         *   address to recognise the format, as it uses a file name, and to resolve the relative
+         *   addresses inside the media.
+         * - [mimeType] is the type the bytes arrived with, such as a server's `Content-Type`. The
+         *   probe uses it. An HLS playlist whose [url] does not end in `.m3u8` or `.m3u` opens only
+         *   with an HLS type, such as `application/vnd.apple.mpegurl`.
+         * - [nestedOpener] opens the other addresses that the media names, such as the segments and
+         *   keys of an HLS playlist. Without it, FFmpeg opens those addresses with its own
+         *   protocols, which have no https.
+         *
+         * An HLS stream over https needs [url] and [nestedOpener], and [mimeType] too when [url]
+         * does not end in `.m3u8`:
+         *
+         * ```kotlin
+         * val source = MediaSource.open(
+         *     io = playlistBytes,
+         *     url = "https://cdn.example/live/index",
+         *     mimeType = "application/vnd.apple.mpegurl",
+         *     nestedOpener = { address -> if (address.startsWith("https://cdn.example/")) fetch(address) else null },
+         * )
+         * ```
+         *
+         * On the web, [nestedOpener] fails the open with [FFmpegError.Unsupported], because a nested
+         * open needs a read that blocks.
          */
+        @Throws(FFmpegException::class)
+        public fun open(
+            io: MediaByteSource,
+            options: Map<String, String> = emptyMap(),
+            interrupt: OpenInterrupt? = null,
+            url: String? = null,
+            mimeType: String? = null,
+            nestedOpener: MediaByteOpener? = null,
+        ): MediaSource
+
+        /**
+         * The byte-source open before `url`, `mimeType` and `nestedOpener`, kept so that compiled
+         * callers still link. The defaults stay too, because a call that used them links to them.
+         */
+        @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)
         @Throws(FFmpegException::class)
         public fun open(
             io: MediaByteSource,

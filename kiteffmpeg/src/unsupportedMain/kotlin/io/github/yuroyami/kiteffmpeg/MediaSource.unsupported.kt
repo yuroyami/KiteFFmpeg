@@ -89,6 +89,17 @@ public actual class MediaSource private constructor() : AutoCloseable {
             io: MediaByteSource,
             options: Map<String, String>,
             interrupt: OpenInterrupt?,
+            url: String?,
+            mimeType: String?,
+            nestedOpener: MediaByteOpener?,
+        ): MediaSource = placeholderBackendUnavailable("Opening media")
+
+        @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)
+        @Throws(FFmpegException::class)
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
         ): MediaSource = placeholderBackendUnavailable("Opening media")
     }
 }

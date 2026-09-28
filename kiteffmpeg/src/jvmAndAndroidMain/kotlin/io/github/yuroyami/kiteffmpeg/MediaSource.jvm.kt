@@ -473,13 +473,25 @@ public actual class MediaSource internal constructor(
             io: MediaByteSource,
             options: Map<String, String>,
             interrupt: OpenInterrupt?,
+            url: String?,
+            mimeType: String?,
+            nestedOpener: MediaByteOpener?,
         ): MediaSource {
             Internals.requireCompatible()
             refuseSeekBreakingOptions(options)
+            refuseByteSourceHints(url, mimeType, nestedOpener)
             return openUnder(interrupt, Internals::interruptNew, { Internals.interruptRaise(it) }, { Internals.interruptFree(it) }) { cell ->
                 openMediaSourceIo(io, options, cell ?: 0L)
             }
         }
+
+        @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)
+        @Throws(FFmpegException::class)
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource = open(io, options, interrupt, url = null, mimeType = null, nestedOpener = null)
 
         private const val DECODE_SEEK_BACKOFF_MICROS = 5_000_000L
     }

@@ -574,10 +574,21 @@ public actual class MediaSource internal constructor(
             io: MediaByteSource,
             options: Map<String, String>,
             interrupt: OpenInterrupt?,
+            url: String?,
+            mimeType: String?,
+            nestedOpener: MediaByteOpener?,
         ): MediaSource {
             refuseSeekBreakingOptions(options)
+            refuseByteSourceHints(url, mimeType, nestedOpener)
             return openUnderSingleThreaded(interrupt) { openIo(io, options) }
         }
+
+        @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource = open(io, options, interrupt, url = null, mimeType = null, nestedOpener = null)
 
         private fun openIo(io: MediaByteSource, options: Map<String, String>): MediaSource {
             val m = requireModule()

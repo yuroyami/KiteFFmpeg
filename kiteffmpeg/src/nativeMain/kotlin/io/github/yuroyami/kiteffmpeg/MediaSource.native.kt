@@ -714,13 +714,25 @@ public actual class MediaSource internal constructor(
             io: MediaByteSource,
             options: Map<String, String>,
             interrupt: OpenInterrupt?,
+            url: String?,
+            mimeType: String?,
+            nestedOpener: MediaByteOpener?,
         ): MediaSource {
             requireCompatibleFFmpeg()
             refuseSeekBreakingOptions(options)
+            refuseByteSourceHints(url, mimeType, nestedOpener)
             return openUnder(interrupt, ::newInterruptCell, { ffkmp_interrupt_raise(it) }, ::freeInterruptCell) { cell ->
                 openMediaSourceIo(io, options, cell)
             }
         }
+
+        @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)
+        @Throws(FFmpegException::class)
+        public actual fun open(
+            io: MediaByteSource,
+            options: Map<String, String>,
+            interrupt: OpenInterrupt?,
+        ): MediaSource = open(io, options, interrupt, url = null, mimeType = null, nestedOpener = null)
 
         /**
          * How far before the requested time [seekForDecode] aims. Must comfortably exceed one GOP:
