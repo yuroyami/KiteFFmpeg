@@ -467,8 +467,9 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
      * `--disable-encoders` every encoder must additionally be named in `--enable-encoder=`, or
      * the resulting build advertises VideoToolbox support and then has no `h264_videotoolbox`
      * encoder to find at runtime. The Android profile avoids that mistake by listing
-     * `h264_mediacodec` explicitly. Simulator targets are excluded: VideoToolbox encode is not
-     * available there.
+     * `h264_mediacodec` explicitly. The iPhone profile names the same two encoders in
+     * [mobileAppleArgs], and the simulators get none, because VideoToolbox encode is not available
+     * there.
      */
     private fun appleHardwareArgs(): List<String> = listOf(
         "--enable-videotoolbox",
@@ -722,12 +723,21 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // for free, so AAC, ALAC and both Dolby formats decoded on the CPU with no platform path
         // available at all. Enabling the framework compiles the `*_at` decoder class; naming one at
         // open is the player's decision, not this build's.
+        //
+        // VideoToolbox ENCODE is on for the iPhone only (#78). VTCompressionSession exists from
+        // iOS 8, and FFmpeg's videotoolboxenc supports iOS. The simulators stay without it, because
+        // VideoToolbox encode is not available there.
+        val encodeArgs = if (target == TargetTriple.IosArm64) {
+            listOf("--enable-encoder=h264_videotoolbox,hevc_videotoolbox")
+        } else {
+            emptyList()
+        }
         return listOf(
             "--disable-autodetect",
             "--enable-zlib",
             "--enable-videotoolbox",
             "--enable-audiotoolbox",
-        ) + appleHwaccelDecodeArgs() + crossArgs
+        ) + encodeArgs + appleHwaccelDecodeArgs() + crossArgs
     }
 
     /** Resolves an Apple SDK sysroot via `xcrun`, so the path tracks the installed Xcode. */

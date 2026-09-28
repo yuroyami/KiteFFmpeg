@@ -214,12 +214,14 @@ class BuildFFmpegTaskTest {
         // AudioToolbox must be REQUESTED (autodetect is off, so an unasked framework is absent and
         // the `*_at` decoder class never compiles), and NO `--disable-asm` may appear on an arm64
         // iOS target, because that flag is what built every iPhone a C-only libavcodec.
+        // The iPhone names the two VideoToolbox encoders, and the simulator does not (#78).
         assertEquals(
             expectedSharedCoreArguments() + listOf(
                 "--disable-autodetect",
                 "--enable-zlib",
                 "--enable-videotoolbox",
                 "--enable-audiotoolbox",
+                "--enable-encoder=h264_videotoolbox,hevc_videotoolbox",
                 "--enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox",
                 "--arch=arm64",
                 "--target-os=darwin",

@@ -57,11 +57,11 @@ The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yu
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
-The subtitle encoders, the subtitle muxers and the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry them. The next release carries them in every column.
+Four groups joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The next release carries them.
 
 | | macOS LGPL | Mobile Apple LGPL | Linux / Windows LGPL | Android LGPL |
 |---|---|---|---|---|
-| **Video encode** | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p` | same as Mobile Apple | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `h264_mediacodec`, `hevc_mediacodec` |
+| **Video encode** | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, and on the iPhone, not the simulators, `h264_videotoolbox` and `hevc_videotoolbox` | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p` | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `h264_mediacodec`, `hevc_mediacodec` |
 | **Audio encode** | `aac`, `flac`, `pcm_s16le`/`s24le`/`f32le` | same | same | same |
 | **Decode** | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; VideoToolbox hwaccel behind h264/hevc | every native FFmpeg decoder; on Windows, the D3D11VA hwaccel behind h264/hevc/vp9/mpeg2/vc1/wmv3 | every native FFmpeg decoder + MediaCodec h264/hevc |
 | **Demux** | every native FFmpeg demuxer | same | same | same |
@@ -127,7 +127,7 @@ On an arm64 Mac, the local phone selector registers exactly `macosArm64`, `iosAr
   -Pkiteffmpeg.applePhoneTargetsOnly=true
 ```
 
-The mobile Apple profile is the current STANDARD software-playback set from `sharedCoreArgs()`, `--disable-autodetect`, SDK zlib and SDK cross flags. It has no desktop third-party archives, GPL flags or hardware encoders. It does carry VideoToolbox and AudioToolbox: `libavcodec.a` holds the ten VideoToolbox decode hwaccels, so the iOS link flags are `-lz -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework AudioToolbox`, which `ffmpeg.def` passes. `buildFFmpegForIos*Gpl` tasks do not exist, and repository build/path resolution refuses GPL for every iOS target before tree lookup with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
+The mobile Apple profile is the current STANDARD software-playback set from `sharedCoreArgs()`, `--disable-autodetect`, SDK zlib and SDK cross flags. It has no desktop third-party archives and no GPL flags. The iPhone profile carries the VideoToolbox H.264 and HEVC encoders, and the simulator profiles carry no hardware encoder. Every profile carries VideoToolbox and AudioToolbox: `libavcodec.a` holds the ten VideoToolbox decode hwaccels, so the iOS link flags are `-lz -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework AudioToolbox`, which `ffmpeg.def` passes. `buildFFmpegForIos*Gpl` tasks do not exist, and repository build/path resolution refuses GPL for every iOS target before tree lookup with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
 
 `-Pkiteffmpeg.applePhoneTargetsOnly=true` is mutually exclusive with the stable and host-only selectors. It is accepted by `publishToMavenLocal` for a private consumer proof and explicitly rejected by every remote publish. Generated `native-libs` trees and Maven-local files are never release evidence.
 
@@ -200,7 +200,7 @@ The Apache 2.0 license covers KiteFFmpeg's own Kotlin code. The FFmpeg you link 
 
 | Flavour | FFmpeg license | Encoders | Use for |
 |---|---|---|---|
-| **LGPL** (the only one built here) | LGPL-2.1+ (no `--enable-gpl`) | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `aac`, `flac` and the three `pcm_*` everywhere; plus VideoToolbox encode on macOS and MediaCodec encode on Android. No third-party encoder is linked: no svtav1, opus or mp3lame. | Commercial / closed-source / App Store distribution (mind the [LGPL obligations](licensing.md)) |
+| **LGPL** (the only one built here) | LGPL-2.1+ (no `--enable-gpl`) | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p`, `aac`, `flac` and the three `pcm_*` everywhere; plus VideoToolbox encode on macOS and the iPhone, and MediaCodec encode on Android. No third-party encoder is linked: no svtav1, opus or mp3lame. | Commercial / closed-source / App Store distribution (mind the [LGPL obligations](licensing.md)) |
 | **GPL** (a tree you supply) | GPL, and GPL-3.0 if your own build sets `--enable-version3` | Whatever you configured, typically libx264 / libx265 | GPL-compatible projects only (open-source apps, server tools, internal use) |
 
 `buildFFmpegFor<Target>` produces the LGPL flavour and that is what the build links by default.
