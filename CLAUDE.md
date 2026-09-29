@@ -102,6 +102,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
   variants the run actually published.
 - One cheap check reads bytes rather than the build's opinion of them: unzip the published
   cinterop klib and grep it for the expected FFmpeg version string.
+- A Kotlin bump can change the cinterop metadata with no C change, and only
+  `klib-metadata-diff.sh --check` notices: Kotlin 2.4.20 added a low-priority overload beside
+  every C function that takes a string. Host tests and `apiCheck` stay green, and CI's ratchets
+  job goes red. Run the check after every Kotlin bump and re-baseline with `--update`.
 - The generated wasm binding has two copies, the generator's output and the committed one, and
   `checkWasmBindingMirror` keeps them identical; if it fires, regenerate and commit both rather
   than hand-editing the committed copy.
