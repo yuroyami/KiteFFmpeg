@@ -1,41 +1,80 @@
-# KiteFFmpeg
-
 <p align="center">
-  <img src="art/kiteffmpeg-logo.png" width="180" alt="KiteFFmpeg logo">
+  <img src="art/kiteffmpeg-logo.png" width="200" alt="KiteFFmpeg logo">
 </p>
 
-FFmpeg's libav* libraries as a Kotlin Multiplatform API: demux, decode, filter, encode, mux,
-transcode and remux, with FFmpeg compiled into the artifacts.
+<h1 align="center">KiteFFmpeg</h1>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteFFmpeg/ci.yml?label=CI)](https://github.com/yuroyami/KiteFFmpeg/actions/workflows/ci.yml)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.yuroyami/kiteffmpeg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.yuroyami/kiteffmpeg)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
+<p align="center">
+  FFmpeg for Kotlin Multiplatform, as plain Kotlin calls: convert, cut, filter and read video and
+  audio from <code>commonMain</code>, with FFmpeg already inside the artifact.
+</p>
 
-**[Documentation](https://yuroyami.github.io/KiteFFmpeg/)** · [API reference](https://yuroyami.github.io/KiteFFmpeg/api/) · [Changelog](CHANGELOG.md)
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/io.github.yuroyami/kiteffmpeg"><img src="https://img.shields.io/maven-central/v/io.github.yuroyami/kiteffmpeg?label=Maven%20Central" alt="Maven Central"></a>
+  <a href="https://github.com/yuroyami/KiteFFmpeg/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/yuroyami/KiteFFmpeg/ci.yml?label=CI" alt="CI"></a>
+  <a href="https://yuroyami.github.io/KiteFFmpeg/"><img src="https://img.shields.io/badge/docs-yuroyami.github.io-1f6feb" alt="Docs"></a>
+  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.4.20"></a>
+  <a href="https://ffmpeg.org"><img src="https://img.shields.io/badge/FFmpeg-n9.0.2%20LGPL-007808" alt="FFmpeg n9.0.2, LGPL"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
+</p>
+
+<p align="center">
+  <b><a href="https://yuroyami.github.io/KiteFFmpeg/">Documentation</a></b> ·
+  <a href="https://yuroyami.github.io/KiteFFmpeg/api/">API reference</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
 ## What you get
 
-You call Kotlin functions. No `ffmpeg` process runs, and no log is parsed. The native, JVM and
-Android artifacts carry FFmpeg n9.0.2 (LGPL) with dav1d, and the web gets FFmpeg as a separate
-wasm module. A dependency line is the whole setup, except for an iOS static framework
-([iOS](#ios)) and the web module ([Where it runs](#where-it-runs)). Errors arrive as one
-`FFmpegException` with a typed `FFmpegError`, and decoded frames arrive as a `Flow`.
+You call Kotlin functions. No `ffmpeg` process starts, and no log text is parsed. Every native,
+JVM and Android artifact carries its own copy of FFmpeg, so a dependency line is the whole setup
+on most targets.
 
-Typical uses:
+<table>
+<tr>
+<td width="33%" valign="top">
 
-- Shrink a large video so it uploads faster
-- Cut a clip between two timestamps
-- Grab a thumbnail from any point in a video
-- Add a watermark, a blur, or a colour change
-- Change an `.mkv` into an `.mp4` without re-encoding it
-- Read raw frames and draw them yourself
+**Convert**<br>
+Re-encode a video smaller, or into another format, with video and audio in one pass.
 
-## Example
+</td>
+<td width="33%" valign="top">
 
-This reads a video, scales it down, re-encodes the video and the audio, and writes the result.
-Video and audio are handled together in one pass, and memory stays flat whether the file is one
-minute or three hours long.
+**Cut and copy**<br>
+Cut a clip between two times, or move an `.mkv` into an `.mp4` without re-encoding anything.
+
+</td>
+<td width="33%" valign="top">
+
+**Grab a frame**<br>
+One picture from any point in a video, for a thumbnail or a preview.
+
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+**Filter**<br>
+Scale, blur, watermark or change colour with FFmpeg's own filter syntax.
+
+</td>
+<td width="33%" valign="top">
+
+**Read frames**<br>
+Decoded pictures and audio as a Kotlin `Flow`, to draw or analyse yourself.
+
+</td>
+<td width="33%" valign="top">
+
+**Bring your own bytes**<br>
+Read from memory, a picked Android file, or your own HTTP client, HLS included.
+
+</td>
+</tr>
+</table>
+
+This shrinks a video to 640 by 360 and re-encodes its sound. Memory stays flat whether the file
+lasts one minute or three hours.
 
 ```kotlin
 import io.github.yuroyami.kiteffmpeg.AudioEncoderSpec
@@ -49,7 +88,7 @@ suspend fun shrink(input: String, output: String) {
         input = input,
         output = output,
         spec = VideoEncoderSpec(
-            codec = CodecId.Mpeg4,                  // present in every published build
+            codec = CodecId.Mpeg4,              // in every published build
             width = 640, height = 360,
             frameRate = Rational(30, 1),
             bitrateBps = 1_500_000,
@@ -61,14 +100,12 @@ suspend fun shrink(input: String, output: String) {
 }
 ```
 
-That filter string is FFmpeg's own syntax, so any chain built from the filters listed in
-[Platform support](docs/platforms.md) works as it would with `ffmpeg -vf`.
+When something goes wrong, you get one `FFmpegException` that carries a typed `FFmpegError`. So
+"this build has no AAC encoder" is a case you match in code, not a message you read.
 
-Set `videoCopy` or `audioCopy` if you want to keep a stream exactly as it is instead of
-re-encoding it. That is much faster and loses nothing.
-
-Errors come back as one `FFmpegException` wrapping a sealed `FFmpegError`, so "this device has no
-AAC encoder" is a case you can match on in code, not a string you have to read.
+> [!NOTE]
+> KiteFFmpeg is not at 1.0 yet, so the API can still change between minor versions. A snapshot
+> of the whole public API is checked on every push, so no change slips through unseen.
 
 ## Install
 
@@ -78,143 +115,28 @@ commonMain.dependencies {
 }
 ```
 
-That goes in the `sourceSets` block you already have. Every target you declare gets FFmpeg: the
-artifact for each platform carries its own FFmpeg build, about 10 MB. You do not install FFmpeg or
-add a Gradle plugin. An iOS static framework needs linker flags ([iOS](#ios)), and the web needs
-its codec module ([Where it runs](#where-it-runs)).
+Every target you declare gets FFmpeg, about 10 MB per platform. You do not install FFmpeg, and
+there is no Gradle plugin. In a plain Android or JVM project, put the line in your usual
+`dependencies { }` block.
 
-## The words FFmpeg uses
+### What else you need
 
-FFmpeg has its own vocabulary, and this page uses it.
+> [!IMPORTANT]
+> Three setups need one more step. Without it, the link, the App Store upload or the first call
+> fails.
 
-| Word | Meaning |
-|---|---|
-| **stream** | One track in a file, such as the video or one audio language |
-| **packet** | Compressed data for one stream |
-| **frame** | One decoded picture, or a block of decoded audio samples |
-| **demux** / **mux** | Split a file into its streams / write streams into a file |
-| **decode** / **encode** | Turn packets into frames / turn frames into packets |
-| **transcode** | Decode, then encode again with other settings |
-| **remux** | Copy the packets into another container, with no decode |
-| **filter** | A stage that changes frames, such as scale or volume |
-| **pts** | The time at which a frame is shown, in its stream's time base |
+| If you build | You also need |
+| --- | --- |
+| An iOS app with a **static** framework (`isStatic = true`) | **Linker flags** in Xcode, because Xcode never reads the ones inside the klib. See [iOS setup](#ios-setup). |
+| Any iOS app | **A privacy manifest entry** for file timestamp APIs, which FFmpeg's file reader uses. See [iOS setup](#ios-setup). |
+| A web app (`wasmJs`) | **The codec module**, two files that the page serves. See [Web setup](#web-setup). |
 
-You do not need any of it for the example above. It matters once you start reading frames
-yourself.
+<a name="ios-setup"></a>
+<details>
+<summary><b>iOS setup</b>: the linker flags and the privacy manifest entry</summary>
+<br>
 
-## What you can call
-
-These are suspend functions, so call them from a coroutine. Frame readers are Kotlin `Flow`s, so
-you collect them.
-
-| What you want to do | Call | Guide |
-|---|---|---|
-| Re-save a video smaller, or in another format | `Transcoder.transcode(...)` | [Transcoding](docs/transcoding.md) |
-| Cut a clip between two times | `transcode(..., startMicros, endMicros)` | [Transcoding](docs/transcoding.md) |
-| Change the file type without re-encoding | `Remuxer.remux(...)` | [Remuxing](docs/remuxing.md) |
-| Convert bytes you hold, or a picked Android file, with no copy | the `transcode` and `remux` overloads with `inputOptions`, or with a `MediaByteSource` and a `MediaByteSink` | [Platform support](docs/platforms.md) |
-| Play an HLS stream through your own HTTP client | `MediaSource.open(io, url = ..., nestedOpener = ...)` | [Decoding](docs/decoding.md#hls-through-your-own-http-client) |
-| Grab a single picture from a video | `MediaSource.extractFrame(...)` | [Decoding](docs/decoding.md) |
-| Read every frame yourself | `MediaSource.decodedFrames(...)` | [Decoding](docs/decoding.md) |
-| Read video and audio frames together | `MediaSource.decodeStreams(...)` | [Decoding](docs/decoding.md) |
-| Scale, blur, watermark, adjust colour | `FilterGraph.buildVideo` / `buildVideoMulti` | [Filtering](docs/filtering.md) |
-| Build a file out of frames you made | `MediaSink` plus `Frame.ofVideo` / `ofAudio` | [Encoding and muxing](docs/encoding-muxing.md) |
-| Ask what this build supports | `FFmpeg.hasEncoder(...)` / `hasFilter(...)` | [Platform support](docs/platforms.md) |
-| See FFmpeg's own warnings and errors | `FFmpeg.setLogSink(level) { level, component, message -> }` | below |
-
-Two details that catch people out. Cut times are **microseconds into the video**, counted from the
-start of the content, not the raw numbers stored in the file. And a filter chain names its inputs
-`[in0]`, `[in1]` and so on, with a single output called `[out]`.
-
-### Reading frames
-
-```kotlin
-import io.github.yuroyami.kiteffmpeg.MediaSource
-
-MediaSource.open("input.mp4").use { source ->
-    val video = source.primaryVideo ?: error("no video track")
-    source.decodedFrames(video).collect { frame ->
-        frame.use {
-            val info = it.info
-            println("pts=${info.ptsSeconds}s ${info.width}x${info.height}")
-        }
-    }
-}
-```
-
-Each collected frame holds native memory until you close it, so close every frame: `frame.use { }`
-does that. To buffer frames, use `bufferFrames()`, not `buffer()`. You cannot collect two of
-these at once from the same file: they would both try to move the read position, so the second one
-is rejected. Use `decodeStreams(...)` when you want video and audio together.
-
-FFmpeg's own log lines, such as `moov atom not found`, print nothing unless you install a sink with
-`FFmpeg.setLogSink`. The sink runs on whichever thread FFmpeg logs from, so keep it quick and
-thread safe, and do not call KiteFFmpeg from it.
-
-**Building a media player?** The API above reads a file front to back, which is right for
-converting and wrong for playback: a player needs audio and video to advance separately, and to
-jump around while both are running. There is a second, lower-level API for that, behind an opt-in
-annotation (`@KiteFFmpegLowLevelApi`) because it hands you objects you must free yourself.
-[KitePlayer](https://github.com/yuroyami/KitePlayer) is built on it. If you are not writing a
-player, stay with the API above.
-
-## Where it runs
-
-| | Targets |
-|---|---|
-| **Plays real media** | `macosArm64`, `iosArm64`, `iosSimulatorArm64`, the Android AAR (`minSdk 26`, `arm64-v8a`), `linuxX64`, `linuxArm64`, `mingwX64` |
-| **Plays media, with the codec module from the `web` zip** | `wasmJs`. Reading and decoding work, including seeking. Writing files (encode, mux) and filtering are refused by design |
-| **Builds, nothing has run** | `macosX64`, `iosX64`, the Android AAR's `armeabi-v7a` and `x86_64` libraries, and the `androidNative*` targets, which are for Kotlin/Native on Android and are not what a normal Android app uses |
-| **Placeholder** | `js`. The code compiles and you can ask it what it supports (nothing), but every media call throws `FFmpegError.Unsupported` |
-
-All of these publish at 0.3.0.
-
-Android and iOS play real media on real phones: this is the engine under
-[KitePlayer](https://github.com/yuroyami/KitePlayer), which is device-tested on both, down to
-per-frame GPU timings on a Redmi Note 8. On Android that evidence is for `arm64-v8a`, including
-FFmpeg's MediaCodec decoders, which KitePlayer selects by name. What those platforms do not have is an **automated device
-job in this repository's CI** (nobody runs a phone farm here), so their evidence is hand-verified
-and app-shipped rather than green-on-every-push. Desktop and Windows are the reverse: CI-verified
-on every push.
-
-The JVM jar carries a native library for macOS arm64, Linux x64, Linux arm64 and Windows x64. The
-Linux and Windows ones are link-checked, and no Linux or Windows machine has run them yet. A JVM on
-any other platform resolves the artifact and then gets the typed unavailable placeholder.
-The jar is Java 11 bytecode, so it runs on Java 11 and later. Per-target detail is in
-[Platform support](docs/platforms.md).
-
-`js` is a deliberate placeholder: a build that silently did nothing would be worse than one that
-tells you it cannot.
-
-**`wasmJs` is not a placeholder.** It carries a real playback backend over a generated binding.
-FFmpeg cannot be linked into the same binary in a browser, so it arrives as a separate wasm module
-you load once before anything else:
-
-```kotlin
-KiteFFmpegWeb.load("/kite.mjs")     // or attach() a module the page already instantiated
-check(FFmpeg.identity.isAcceptable)
-```
-
-Calls before that throw `KiteFFmpegWeb.NotLoaded`. The module is two files, `kite.mjs` and
-`kite.wasm`. Each release attaches them to the `wasmJs` publication as one zip with the `web`
-classifier (`kiteffmpeg-wasm-js-<version>-web.zip`), together with the FFmpeg licence texts that
-must travel with them:
-
-1. Download the zip for the version you depend on.
-2. Unpack it beside your page, so the page serves `kite.mjs`, `kite.wasm` and `licenses/`.
-3. Call `KiteFFmpegWeb.load()`, which fetches `./kite.mjs`. Under a bundler, instantiate the module
-   from a plain `<script type="module">` and pass it to `KiteFFmpegWeb.attach()` instead.
-
-To build the two files yourself, run `./gradlew :kiteffmpeg:kiteffmpegWebZip` (needs emscripten).
-Only the single-threaded build ships: the threaded one hangs on import on a page without
-cross-origin isolation. Most web tests run against a scripted fake module, which proves the
-binding reads the right fields; `RealCodecModuleTest` decodes a real clip with the linked module
-under Node when the module has been built.
-
-## iOS
-
-A dynamic framework needs nothing more. A static framework (`isStatic = true`) is linked by Xcode,
-which never sees the linker options inside the klib, so add this to Other Linker Flags:
+A dynamic framework needs no flags. For a static framework, add this to Other Linker Flags:
 
 ```text
 -lz -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework AudioToolbox
@@ -222,93 +144,257 @@ which never sees the linker options inside the klib, so add this to Other Linker
 
 FFmpeg's file reader calls `stat`, `fstat` and `lstat`, which Apple lists as file timestamp APIs.
 Declare `NSPrivacyAccessedAPICategoryFileTimestamp` in the app's `PrivacyInfo.xcprivacy`, with the
-reason that applies: `C617.1` for files inside the app container, and `3B52.1` for files the user
-picked. App Store Connect refuses an upload that uses these APIs without a declared reason.
+reason that applies: `C617.1` for files inside the app container, and `3B52.1` for files that the
+user picked. App Store Connect refuses an upload that uses these APIs without a declared reason.
 
-## What it will not do
+</details>
 
-| Not available | What that means for you |
-|---|---|
-| A JVM distribution beyond macOS arm64, Linux x64, Linux arm64 and Windows x64 | JVM apps on any other platform get the typed unavailable placeholder, not a codec. |
-| Writing or filtering media on the web | Both web targets refuse it. `wasmJs` can read and decode; it cannot produce a file. `js` refuses everything. |
-| Any GPL FFmpeg | There is no GPL build and no way to swap the embedded one. Shipping GPL binaries would make your whole app GPL-3.0, which is not a choice a library should make for you. |
-| `libx264`, `libx265`, `libsvtav1`, `libopus`, `libmp3lame` | No third-party encoder is linked. `mpeg4` is the software video baseline and `aac` the audio one. Decoding is far wider than encoding. |
-| Choosing a bitstream filter yourself | These fix up packet formatting when moving between container types. You cannot pick one by hand, but the common ones are built in and FFmpeg applies them for you during a copy. |
-| Hardware decoding on Linux and the web | Hardware decoding is VideoToolbox on Apple platforms, MediaCodec on Android and Direct3D 11 (`HardwareAccel.D3d11va`) on Windows, which has not yet run on a Windows GPU. Linux decodes in software: VA-API would make libva a required system library. Hardware **encoding** is VideoToolbox and MediaCodec; on virtual machines and CI runners pass `allow_sw`, where the encoder exists but the physical chip does not. |
-| `https` | The embedded build has no TLS backend. Use `http`, a local file, or link your own FFmpeg tree. |
-| An automated device job in CI | Android and iOS are verified by hand and by a shipping app, not by a phone farm on every push. Desktop and Windows are CI-verified. |
-| A frozen API | The 0.x line is pre-1.0, so signatures can still change. What you do get: every public declaration is explicit, and a snapshot of the whole API is checked on every push, so a change fails the build here rather than surprising you at your call site. |
+<a name="web-setup"></a>
+<details>
+<summary><b>Web setup</b>: loading the codec module in a browser</summary>
+<br>
 
-### What the published builds can encode
+A browser cannot link FFmpeg into the Kotlin binary, so FFmpeg comes as a separate WebAssembly
+module that you load once, before any other call:
 
-This list was read out of the shipped binary itself, not copied from a build script.
+```kotlin
+KiteFFmpegWeb.load()                 // fetches ./kite.mjs; or attach() a module the page made
+check(FFmpeg.identity.isAcceptable)
+```
 
-| | macOS | Linux / Windows | iOS | Android |
-|---|---|---|---|---|
+1. Download `kiteffmpeg-wasm-js-<version>-web.zip`, attached to the `wasmJs` publication on Maven
+   Central for the version you depend on.
+2. Unpack it beside your page, so that the page serves `kite.mjs`, `kite.wasm` and `licenses/`.
+3. Call `KiteFFmpegWeb.load()`. Under a bundler, instantiate the module from a plain
+   `<script type="module">` and pass it to `KiteFFmpegWeb.attach()` instead.
+
+A call before the module loads throws `KiteFFmpegWeb.NotLoaded`. The module is single-threaded,
+so the page needs no cross-origin isolation headers. To build the two files yourself, run
+`./gradlew :kiteffmpeg:kiteffmpegWebZip`, which needs emscripten.
+
+</details>
+
+## A quick tour
+
+Run these from a coroutine, because the work calls suspend. The [documentation](https://yuroyami.github.io/KiteFFmpeg/)
+has one guide per task.
+
+### Convert, cut and copy
+
+```kotlin
+import io.github.yuroyami.kiteffmpeg.Remuxer
+
+// Change the container and keep every stream as it is. Fast, and it loses nothing.
+Remuxer.remux(input = "movie.mkv", output = "movie.mp4")
+
+// Keep 0:10 to 0:40, still without re-encoding.
+Remuxer.remux(input = "movie.mp4", output = "clip.mp4", startMicros = 10_000_000, endMicros = 40_000_000)
+```
+
+Times are **microseconds from the start of the content**, not the raw timestamps stored in the
+file. A cut without re-encoding starts at the keyframe at or before `startMicros`, because a copy
+cannot make a new keyframe. `Transcoder.transcode` takes the same two times when you need the
+exact frame. See [Remuxing](docs/remuxing.md) and [Transcoding](docs/transcoding.md).
+
+### Grab one frame
+
+```kotlin
+import io.github.yuroyami.kiteffmpeg.MediaSource
+
+MediaSource.open("movie.mp4").use { source ->
+    source.extractFrame(atMicros = 5_000_000).use { frame ->
+        println("${frame.info.width}x${frame.info.height}")
+        val pixels = frame.copyPlanesToByteArray()
+    }
+}
+```
+
+A `Frame` holds native memory until you close it, so close every frame, as `use { }` does.
+
+### Read every frame
+
+```kotlin
+MediaSource.open("movie.mp4").use { source ->
+    val video = source.primaryVideo ?: error("no video track")
+    source.decodedFrames(video).collect { frame ->
+        frame.use { println("shown at ${it.info.ptsSeconds}s") }
+    }
+}
+```
+
+Use `decodeStreams(...)` to read video and audio together in one pass. To buffer frames, use
+`bufferFrames()`, not `buffer()`, so that each frame still gets closed. See
+[Decoding](docs/decoding.md).
+
+### Filter
+
+A filter string uses FFmpeg's own syntax, so a chain that works with `ffmpeg -vf` works here.
+Pass it as `videoFilter` or `audioFilter` to `transcode`, or build a `FilterGraph` to run frames
+through yourself. A graph names its inputs `[in0]`, `[in1]` and so on, and its one output `[out]`.
+[Platform support](docs/platforms.md) lists the filters that every build carries, and
+[Filtering](docs/filtering.md) shows the graph API.
+
+### Read bytes from your own code
+
+A `MediaByteSource` feeds FFmpeg bytes from memory, a cache, an encrypted store or your own HTTP
+client. For an HLS playlist, a `MediaByteOpener` also serves the segments and keys that the
+playlist names, which is how an https stream plays with no TLS inside FFmpeg:
+
+```kotlin
+val stream = MediaSource.open(
+    io = fetch("https://cdn.example/live/index.m3u8"),
+    url = "https://cdn.example/live/index.m3u8",
+    nestedOpener = { address -> if (address.startsWith("https://cdn.example/")) fetch(address) else null },
+)
+```
+
+Here `fetch` stands for your own HTTP client. The addresses come from the playlist, so open only
+the ones you expect. See [Decoding](docs/decoding.md#hls-through-your-own-http-client). On
+Android, `"fd:"` with the `fd` option reads a file the user picked, without a copy, as
+[Platform support](docs/platforms.md) shows.
+
+### Ask what the build can do
+
+```kotlin
+FFmpeg.hasEncoder("h264_videotoolbox")      // true on macOS
+FFmpeg.hasFilter("scale")                   // true everywhere but the web
+FFmpeg.setLogSink(FFmpegLogLevel.Warning) { level, component, message -> println("$component: $message") }
+```
+
+FFmpeg prints nothing unless you install a log sink. The sink runs on whichever thread FFmpeg logs
+from, so keep it quick, and do not call KiteFFmpeg from inside it.
+
+> [!TIP]
+> **Building a media player?** The calls above read a file from front to back, which suits
+> converting and does not suit playback. A player needs audio and video to move separately and to
+> jump while both run. The lower-level API behind `@KiteFFmpegLowLevelApi` does that, and
+> [KitePlayer](https://github.com/yuroyami/KitePlayer) is built on it. You free its objects
+> yourself, so stay with the calls above unless you write a player.
+
+<details>
+<summary><b>The words FFmpeg uses</b>, for when you start reading frames yourself</summary>
+<br>
+
+| Word | Meaning |
+| --- | --- |
+| **stream** | One track in a file, such as the video or one audio language |
+| **packet** | Compressed data for one stream |
+| **frame** | One decoded picture, or one block of decoded audio samples |
+| **demux** / **mux** | Split a file into its streams / write streams into a file |
+| **decode** / **encode** | Turn packets into frames / turn frames into packets |
+| **transcode** | Decode, then encode again with other settings |
+| **remux** | Copy the packets into another container, with no decode |
+| **filter** | A step that changes frames, such as scale or volume |
+| **pts** | The time at which a frame is shown, in its stream's time base |
+
+</details>
+
+## Where it runs
+
+| | Targets |
+| --- | --- |
+| **Plays real media** | Android (`minSdk` 26, `arm64-v8a`), `iosArm64`, `iosSimulatorArm64`, `macosArm64`, `linuxX64`, `linuxArm64`, `mingwX64`, and the desktop JVM on macOS arm64 |
+| **Plays media with the web codec module** | `wasmJs`: reading, decoding and seeking. Writing files and filtering are refused by design. |
+| **Builds, not run yet** | `macosX64`, `iosX64`, the Android `armeabi-v7a` and `x86_64` libraries, the desktop JVM on Linux and Windows, and the `androidNative*` targets, which serve Kotlin/Native on Android, not a normal Android app |
+| **Placeholder** | `js`. It compiles, and every media call throws `FFmpegError.Unsupported`, so a build never does nothing in silence. |
+
+Android and iOS play real media on phones every day, because this is the engine under KitePlayer.
+No phone runs in this repository's CI, so that evidence is checked by hand and by a shipping app.
+Desktop and Windows are the reverse: CI checks them on every push.
+[Platform support](docs/platforms.md) has the detail for each target.
+
+## Good to know
+
+<details>
+<summary><b>Known limits</b>: what KiteFFmpeg does not do, in one table</summary>
+<br>
+
+| Topic | What to expect |
+| --- | --- |
+| Encoders | No third-party encoder is linked: no `libx264`, `libx265`, `libsvtav1`, `libopus` or `libmp3lame`. `mpeg4` is the software video baseline and `aac` the audio one. Decoding covers far more than encoding. |
+| GPL | There is no GPL build, and the embedded FFmpeg cannot be swapped. A GPL binary would make your whole app GPL-3.0, which a library should not decide for you. |
+| `https` | FFmpeg has no TLS here. Fetch https bytes with your own HTTP client and open them through a `MediaByteSource`, with a `MediaByteOpener` for HLS. |
+| The web | `wasmJs` reads and decodes, and it cannot write a file or filter. It does not take a nested opener yet. |
+| Hardware decoding | VideoToolbox on Apple platforms, MediaCodec on Android, and Direct3D 11 on Windows, which has not run on a Windows GPU yet. Linux decodes in software. |
+| Hardware encoding | VideoToolbox and MediaCodec. On virtual machines and CI runners, pass `allow_sw`, because the encoder exists and the chip does not. |
+| JVM | The jar carries native libraries for macOS arm64, Linux x64, Linux arm64 and Windows x64. Any other platform gets the typed unavailable placeholder. |
+| Bitstream filters | You cannot pick one by hand. FFmpeg applies the right one during a stream copy. |
+
+</details>
+
+<details>
+<summary><b>What each build can encode</b>, read from the shipped binaries</summary>
+<br>
+
+| | macOS | Linux and Windows | iOS | Android |
+| --- | --- | --- | --- | --- |
 | Video, software | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p` | same | same | same |
-| Video, hardware | `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | none | none | `h264_mediacodec`, `hevc_mediacodec` |
+| Video, hardware | `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | none | `h264_videotoolbox`, `hevc_videotoolbox` on the iPhone, not the simulators, and not in 0.3.0 | `h264_mediacodec`, `hevc_mediacodec` |
 | Audio | `aac`, `flac`, `pcm_s16le`, `pcm_s24le`, `pcm_f32le` | same | same | same |
 
-FFmpeg builds differ, so probe rather than assume: `FFmpeg.hasEncoder(...)`, `FFmpeg.hasFilter(...)`,
-`FFmpeg.versions` and `FFmpeg.buildConfiguration` all report what is actually linked. Filters marked
-`deps="gpl"` upstream, such as `eq`, are absent here.
+Builds differ, so ask rather than assume: `FFmpeg.hasEncoder(...)`, `FFmpeg.hasFilter(...)`,
+`FFmpeg.versions` and `FFmpeg.buildConfiguration` report what is really linked. If the linked
+FFmpeg ever disagrees with the headers this artifact was built against, the first call fails with
+a typed error that names both, instead of returning wrong numbers ten frames later.
 
-If the linked FFmpeg ever disagrees with the headers this artifact was compiled against, the first
-call fails with a typed error naming both identities, rather than returning plausible wrong numbers
-ten frames later. Full codec, container and filter lists are in
-[Platform support](docs/platforms.md).
+</details>
 
-## Licensing
+<details>
+<summary><b>Licensing</b>: what an app that ships FFmpeg must do</summary>
+<br>
 
-KiteFFmpeg's own code is Apache-2.0. The embedded FFmpeg is **LGPL-2.1-or-later** and dav1d is
-BSD-2-Clause. There is no GPL anywhere, so your application keeps its own licence. The LGPL puts the
-obligations below on an app that ships FFmpeg, and static linking on the iOS App Store is the
-hardest case of them: [Licensing](https://yuroyami.github.io/KiteFFmpeg/licensing/) explains why.
+KiteFFmpeg's own code is Apache-2.0. The embedded FFmpeg is **LGPL-2.1-or-later**, and dav1d is
+BSD-2-Clause. There is no GPL anywhere, so your app keeps its own licence. An app that links LGPL
+code statically has three duties:
 
-Shipping an app that statically links LGPL code puts three obligations on you: say your app uses
-FFmpeg under the LGPL, keep the corresponding FFmpeg source available, and let users relink against
-a modified FFmpeg. The first is satisfied by a notice with the licence text, which the JVM jar
-carries at `META-INF/licenses/kiteffmpeg-ffmpeg/`. The second is satisfied by the source tarball
-attached to each release. [NOTICE](NOTICE) states this precisely; [Licensing](docs/licensing.md) is
-the full guide.
+| Duty | How to meet it |
+| --- | --- |
+| Say that the app uses FFmpeg, under the LGPL | Ship a notice with the licence text. The JVM jar carries it at `META-INF/licenses/kiteffmpeg-ffmpeg/`. |
+| Keep the matching FFmpeg source available | Point at the source that each release names. [NOTICE](NOTICE) says where. |
+| Let users relink against a modified FFmpeg | Publish your object files, or give a written offer for them. |
 
-## Build and test it here
+Static linking on the iOS App Store is the hardest case.
+[Licensing](https://yuroyami.github.io/KiteFFmpeg/licensing/) explains why, step by step.
 
-The sample is a Kotlin/Native CLI over the whole API. It picks its encoder by probing the linked
-FFmpeg, so it works against the embedded LGPL build and against your own tree alike.
+</details>
+
+<details>
+<summary><b>Build and test it here</b>: for contributors</summary>
+<br>
+
+The sample is a command-line tool over the whole API. It probes the linked FFmpeg for its encoder,
+so it works against the embedded build and against your own FFmpeg alike.
 
 ```bash
 ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
 KEXE=kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
 $KEXE transcode in.mp4 out.mp4 "scale=1280:720" -acopy   # also: info, probe, thumbnail, remux
 
-./gradlew :kiteffmpeg:macosArm64Test          # or linuxX64Test / mingwX64Test
+./gradlew :kiteffmpeg:macosArm64Test          # or linuxX64Test, mingwX64Test
 scripts/e2e.sh "$KEXE"
 ```
 
-The C helper layer builds and tests on its own, outside Gradle:
+The C layer under the Kotlin API builds and tests on its own, outside Gradle:
 
 ```bash
 cd native/kitecodec-c
 ./scripts/build-host.sh plain && ./scripts/run-c-tests.sh plain   # also asan, tsan
-./scripts/symbol-audit.sh         # what the archive needs, exports and keeps private
-./scripts/replay-corpus.sh        # every committed fuzz seed, under ASan and UBSan
 ```
 
-What each instrument can and cannot prove is written out in
-[native/kitecodec-c/README.md](native/kitecodec-c/README.md). Every build step is in
-[Getting started](docs/getting-started.md); the binding design and timestamp rules are in
-[About KiteFFmpeg](docs/about.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) has the ground rules and the test gate,
+[Getting started](docs/getting-started.md) has every build step, and
+[native/kitecodec-c/README.md](native/kitecodec-c/README.md) says what each C check proves.
+
+</details>
 
 ## License
 
-Apache-2.0. See [NOTICE](NOTICE) and [CHANGELOG.md](CHANGELOG.md).
+Apache-2.0. See [NOTICE](NOTICE) and the [changelog](CHANGELOG.md).
 
-Not affiliated with the FFmpeg project. FFmpeg is a trademark of Fabrice Bellard; this is an
-independent Kotlin binding that links FFmpeg's LGPL libraries.
-
-The logo is not official FFmpeg artwork, and KiteFFmpeg's Apache-2.0 grant does not cover it.
-[The artwork credits](art/CREDITS.md) record its sources and the trademark notice.
+Not affiliated with the FFmpeg project. FFmpeg is a trademark of Fabrice Bellard, and KiteFFmpeg
+is an independent Kotlin binding that links FFmpeg's LGPL libraries. The logo is not official
+FFmpeg artwork, and the Apache-2.0 grant does not cover it; [the artwork credits](art/CREDITS.md)
+record its sources.
 
 Part of the Kite family: [KitePlayer](https://github.com/yuroyami/KitePlayer),
 [Kite3D](https://github.com/yuroyami/Kite3D) and [KitePDF](https://github.com/yuroyami/KitePDF).
