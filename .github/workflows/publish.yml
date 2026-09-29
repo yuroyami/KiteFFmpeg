@@ -223,9 +223,13 @@ jobs:
         run: |
           # The Android AAR's JNI libraries link with the NDK.
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          # Each step starts a new shell, so load the emsdk of the web step again and pass the same
+          # llvmBin. Without both, Gradle sees a changed input, rebuilds the web FFmpeg and finds no emcc.
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
           task=publishToMavenCentral
           if [ "${{ inputs.release }}" = "true" ]; then task=publishAndReleaseToMavenCentral; fi
           ./gradlew ":kiteffmpeg:$task" \
             -Pkiteffmpeg.jni.linux=true -Pkiteffmpeg.jni.windows=true -Pkiteffmpeg.web.module=true \
+            -Pkiteffmpeg.emscripten.llvmBin="${EMSDK}/upstream/bin" \
             --no-configuration-cache \
             --stacktrace
