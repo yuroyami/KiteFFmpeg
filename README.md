@@ -9,7 +9,7 @@ transcode and remux, with FFmpeg compiled into the artifacts.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteFFmpeg/ci.yml?label=CI)](https://github.com/yuroyami/KiteFFmpeg/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.yuroyami/kiteffmpeg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.yuroyami/kiteffmpeg)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.10-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
 **[Documentation](https://yuroyami.github.io/KiteFFmpeg/)** · [API reference](https://yuroyami.github.io/KiteFFmpeg/api/) · [Changelog](CHANGELOG.md)

@@ -1556,6 +1556,7 @@ public final class io/github/yuroyami/kiteffmpeg/dsl/AudioFilterBuilder {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/dsl/AudioFormat : io/github/yuroyami/kiteffmpeg/dsl/FilterStep {
+	public fun <init> ()V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun compile ()Ljava/lang/String;

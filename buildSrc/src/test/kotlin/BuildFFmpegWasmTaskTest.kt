@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class BuildFFmpegWasmTaskTest {
 
     private fun task() = ProjectBuilder.builder().build().tasks
-        .create("ffmpegWasm", BuildFFmpegWasmTask::class.java)
+        .register("ffmpegWasm", BuildFFmpegWasmTask::class.java).get()
 
     private fun args(variant: String) = task().configureArgs(variant, Path.of("/tmp/prefix"))
 

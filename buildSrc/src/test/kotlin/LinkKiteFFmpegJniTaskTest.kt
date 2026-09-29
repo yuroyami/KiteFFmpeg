@@ -417,7 +417,7 @@ class LinkKiteFFmpegJniTaskTest {
         val ffmpegLibDir = root.resolve("$name-ffmpeg-lib").apply { mkdirs() }
         val source = jniDir.resolve("kj_probe.c").apply { writeText("int kj_probe(void) { return 0; }\n") }
         val archive = root.resolve("$name-libkitecodec.a").apply { writeText("fixture") }
-        return project.tasks.create(name, LinkKiteFFmpegJniTask::class.java).apply {
+        return project.tasks.register(name, LinkKiteFFmpegJniTask::class.java).get().apply {
             jniSources.from(source)
             opaqueIncludeDir.set(includeDir)
             helperArchive.from(archive)

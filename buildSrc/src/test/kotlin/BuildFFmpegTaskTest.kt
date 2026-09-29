@@ -135,7 +135,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun androidArm64AndX64UseTheExactApi24MediaCodecJniPicArguments() {
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
         val root = Files.createTempDirectory("kiteffmpeg-android-args-test")
         try {
             val toolchainBin = root.resolve("toolchains/llvm/prebuilt/test-host/bin").createDirectories()
@@ -189,7 +189,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun iosProfilesUseTheExactStandardCoreZlibAndCrossArguments() {
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
 
         val device = task.configureArguments(
             target = TargetTriple.IosArm64,
@@ -274,7 +274,7 @@ class BuildFFmpegTaskTest {
      */
     @Test
     fun onlyX8664TargetsMayDisableAsm() {
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
 
         listOf(TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64).forEach { target ->
             val args = task.configureArguments(
@@ -324,7 +324,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun linuxAndMingwUseTheExactKonanCrossCompileArguments() {
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
 
         fun argumentsFor(target: TargetTriple) = task.configureArguments(
             target = target,
@@ -392,7 +392,7 @@ class BuildFFmpegTaskTest {
 
     @Test
     fun linuxAndMingwCarryNoneOfTheDesktopThirdPartyStack() {
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
         // By decision, these three triples get the REDUCED desktop profile,
         // because none of these libraries has ever been cross-built for them. If one grows back,
         // configure fails and the cross build dies, so pin its absence.
@@ -438,7 +438,7 @@ class BuildFFmpegTaskTest {
     fun everyRecipeCarriesTheThreeDav1dArgumentsBeforeThePrefix() {
         // The dav1d switch is dead, dav1d is recipe. The three arguments
         // sit immediately before --prefix on every profile.
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
         val root = Files.createTempDirectory("kiteffmpeg-av1sw-args-test")
         try {
             val toolchainBin = root.resolve("toolchains/llvm/prebuilt/test-host/bin").createDirectories()
@@ -1026,7 +1026,7 @@ class BuildFFmpegTaskTest {
      */
     @Test
     fun `both macOS targets pin the same deployment floor Kotlin Native links against`() {
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
 
         fun ccFor(target: TargetTriple): String =
             task.configureArguments(
@@ -1053,7 +1053,7 @@ class BuildFFmpegTaskTest {
      */
     @Test
     fun `the two macOS targets cannot drift apart because they read one constant`() {
-        val task = ProjectBuilder.builder().build().tasks.create("ffmpeg", BuildFFmpegTask::class.java)
+        val task = ProjectBuilder.builder().build().tasks.register("ffmpeg", BuildFFmpegTask::class.java).get()
 
         fun floorIn(target: TargetTriple): String =
             task.configureArguments(

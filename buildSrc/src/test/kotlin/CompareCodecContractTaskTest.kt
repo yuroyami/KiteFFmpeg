@@ -22,10 +22,10 @@ class CompareCodecContractTaskTest {
         try {
             val jvm = root.resolve("jvm.txt").apply { writeText("identity=accepted\n") }
             val macos = root.resolve("macosArm64.txt").apply { writeText("identity=accepted\n") }
-            val task = ProjectBuilder.builder().build().tasks.create(
+            val task = ProjectBuilder.builder().build().tasks.register(
                 "compareCodecContract",
                 CompareCodecContractTask::class.java,
-            ).apply {
+            ).get().apply {
                 jvmTranscript.set(jvm)
                 macosArm64Transcript.set(macos)
             }
