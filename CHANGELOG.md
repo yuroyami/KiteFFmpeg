@@ -77,6 +77,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- The subtitle chain that KitePlayer links, the `ass-chain` release assets, builds HarfBuzz
+  14.5.0 instead of 14.2.1. HarfBuzz's own notes for 14.4.0 and 14.5.0 list fixes for crashes and
+  hangs with malformed fonts, and a video file can carry its own fonts.
 - `copyPlanesToByteArray` of a frame with no picture and no samples returns an empty array on the
   JVM, Android and the web, as the documentation says. It threw `FFmpegException` there (#122).
 - On the web, `WebRgbaConverter` tone maps a PQ or HLG picture to SDR. It drew the code values,
