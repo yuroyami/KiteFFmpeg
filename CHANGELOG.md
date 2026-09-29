@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-29
+
+HLS through your own HTTP client, subtitle conversion and subtitle files, more filters, the
+iPhone's hardware encoders, and closed captions. The FFmpeg builds carry a patch to the HLS
+demuxer. The upgrade notes come first.
+
 ### Upgrading
 
 - Not binary compatible with 0.3.0: `StreamInfo` and `DemuxOptions` gained fields, which changes
@@ -664,7 +670,8 @@ Everything below grew from `0.0.1` and is listed for orientation rather than as 
 
 Initial development baseline: project structure, consolidated FFmpeg cinterop binding (`ffmpeg.def` + `ffkmp_*` helpers), and the first working decode/encode paths on macOS arm64. Everything listed under [Unreleased] grew from here; treat 0.0.1 as the "it exists and transcodes" milestone rather than a supported release.
 
-[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.3.0...HEAD
+[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.4.0...HEAD
+[0.4.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.4.0
 [0.3.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.3.0
 [0.2.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.2.0
 [0.1.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.1.0

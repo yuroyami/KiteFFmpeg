@@ -43,7 +43,7 @@ Everything routes through one demux pass. When you decode several streams, or co
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.3.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.4.0")
 }
 ```
 
@@ -62,7 +62,7 @@ checkout, where you build FFmpeg yourself.
 
     ```bash
     # The prebuilt static tree from this repository's release, as CI uses it.
-    tag=ffmpeg-n9.0.2
+    tag=ffmpeg-n9.0.2-r2
     asset=ffmpeg-n9.0.2-lgpl-linux-x64.zip
     curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset"
     curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset.sha256"

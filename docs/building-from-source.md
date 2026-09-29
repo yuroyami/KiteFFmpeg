@@ -26,7 +26,7 @@ glibc 2.19 sysroot. Use the prebuilt static tree from this repository's release 
 what CI does:
 
 ```bash
-tag=ffmpeg-n9.0.2
+tag=ffmpeg-n9.0.2-r2
 asset=ffmpeg-n9.0.2-lgpl-linux-x64.zip   # or ffmpeg-n9.0.2-lgpl-linux-arm64.zip
 curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset"
 curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset.sha256"

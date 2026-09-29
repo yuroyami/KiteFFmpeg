@@ -27,7 +27,7 @@ Two points decide whether KiteFFmpeg is usable for you:
   this repository's CI. `wasmJs` is a real playback backend once its wasm module is loaded, while
   `js` reports no capabilities and rejects every media operation with typed
   `FFmpegError.Unsupported`.
-- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.3.0` on Maven Central, one
+- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.4.0` on Maven Central, one
   dependency line, FFmpeg embedded inside the artifacts. There is no Gradle plugin and no FFmpeg
   download step. `mingwX64` builds and tests in CI; `linuxArm64` runs its native suite in an arm64
   container; `iosX64` and `macosX64` remain unqualified.
@@ -57,7 +57,7 @@ The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yu
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
-Four groups joined the recipe after 0.3.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The next release carries them. The trees of 0.3.0 also lack the `trust_io_open` patch to FFmpeg's HLS demuxer, which a nested opener needs, and the next release carries that too.
+Four groups joined the recipe in 0.4.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The trees of 0.3.0 also lack the `trust_io_open` patch to FFmpeg's HLS demuxer, which a nested opener needs. The trees of 0.4.0 carry all of it.
 
 | | macOS LGPL | Mobile Apple LGPL | Linux / Windows LGPL | Android LGPL |
 |---|---|---|---|---|
@@ -142,7 +142,7 @@ place, which is why the Windows job tests the SHIPPED profile rather than somebo
 
 ```powershell
 # Tag and asset are pinned, never "latest", and the checksum is verified before use.
-$tag  = "ffmpeg-n9.0.2"
+$tag  = "ffmpeg-n9.0.2-r2"
 $name = "ffmpeg-n9.0.2-lgpl-mingw-x64.zip"
 Invoke-WebRequest -Uri "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$name" -OutFile $name
 Expand-Archive $name -DestinationPath native-libs\lgpl\mingw-x64

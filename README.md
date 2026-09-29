@@ -111,7 +111,7 @@ When something goes wrong, you get one `FFmpegException` that carries a typed `F
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.3.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.4.0")
 }
 ```
 
@@ -329,7 +329,7 @@ Desktop and Windows are the reverse: CI checks them on every push.
 | | macOS | Linux and Windows | iOS | Android |
 | --- | --- | --- | --- | --- |
 | Video, software | `mpeg4`, `mjpeg`, `png`, `apng`, `h263`, `h263p` | same | same | same |
-| Video, hardware | `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | none | `h264_videotoolbox`, `hevc_videotoolbox` on the iPhone, not the simulators, and not in 0.3.0 | `h264_mediacodec`, `hevc_mediacodec` |
+| Video, hardware | `h264_videotoolbox`, `hevc_videotoolbox`, `prores_videotoolbox` | none | `h264_videotoolbox`, `hevc_videotoolbox` on the iPhone from 0.4.0, not the simulators | `h264_mediacodec`, `hevc_mediacodec` |
 | Audio | `aac`, `flac`, `pcm_s16le`, `pcm_s24le`, `pcm_f32le` | same | same | same |
 
 Builds differ, so ask rather than assume: `FFmpeg.hasEncoder(...)`, `FFmpeg.hasFilter(...)`,
