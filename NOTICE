@@ -9,12 +9,13 @@ Version 2.0. See LICENSE.
 FFmpeg artwork and trademark
 --------------------------------------------------------------------------------
 
-KiteFFmpeg stores an unmodified copy of the white FFmpeg mark published in the
+KiteFFmpeg retains an unmodified copy of the white FFmpeg mark published in the
 official FFmpeg website repository and a normalised copy of the logo
-vectorisation hosted by Wikimedia Commons. The independently designed logo uses
-the graphic-only vector silhouette as a pale membrane window inside the shared
-KitePlayer outer sail. The resulting composition is not official FFmpeg
-artwork. The original artwork is credited to illustrator Hervé Flores; the
+vectorisation hosted by Wikimedia Commons as design references. Its default
+logo is an independently constructed green kite inspired by FFmpeg's folded
+zigzag motif, with alternating maze-like cuts and stepped ends. The composition
+is not official FFmpeg artwork and does not embed the reference marks. The
+original FFmpeg artwork is credited to illustrator Hervé Flores; the retained
 vectorisation is credited to Vulphere and VulcanSphere. The derivative
 references KiteFFmpeg's FFmpeg dependency as part of KiteFFmpeg's own library
 branding. FFmpeg is a trademark of Fabrice Bellard. KiteFFmpeg is not endorsed

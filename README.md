@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="art/kiteffmpeg-logo.png" width="200" alt="KiteFFmpeg logo">
+  <img src="art/kiteffmpeg-logo.svg" width="200" height="200" alt="KiteFFmpeg logo">
 </p>
 
 <h1 align="center">KiteFFmpeg</h1>

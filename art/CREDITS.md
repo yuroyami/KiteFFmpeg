@@ -24,12 +24,23 @@ mark published in the official FFmpeg website repository:
 - Retrieved: 2026-09-01
 - Local SHA-256: `5f8445672293c9d9e18c2a31f48dd6176ab1cc748cefe06de916d9f5b1e524a2`
 
-The source PNG is stored byte-for-byte unchanged and remains embedded in the
-final SVGs for provenance. To avoid enlarging a 102-pixel bitmap, the rendered
-inlay uses only the graphic portion of the credited vectorisation; the FFmpeg
-wordmark is omitted. The mark becomes a pale membrane window inside the same
-wind-loaded outer kite used by KitePlayer. Sail seams terminate at that window,
-so it is part of the construction rather than a separate badge.
+The original FFmpeg vector artwork is also available from its illustrator:
+
+- Source: <https://www.movieconverter-studio.com/_PUBLIC/ffmpeg/logo-new/ffmpeg-logo-src/ffmpeg-logo.svg>
+- Original artwork: Hervé Flores
+- Used as a design reference for the folded zigzag motif and green palette.
+
+## Default KiteFFmpeg artwork
+
+The default artwork, approved on 2026-09-30, is a green kite formed by a folded
+zigzag ribbon with six alternating maze-like cuts and stepped ends. It is
+constructed directly as vector geometry, with aligned tips, parallel bands,
+and consistent fold depth. It does not embed either reference mark.
+
+`kiteffmpeg-logo.svg` is the editable source. `kiteffmpeg-logo.png` is the
+1024 by 1024 transparent export. The documentation logo, icon, and favicon use
+the same artwork, as does the KiteFFmpeg entry in the yuroyami profile README.
+The retained third-party source files above remain unchanged for provenance.
 
 That KiteFFmpeg composition is independently designed and is not official
 FFmpeg artwork. It references KiteFFmpeg's FFmpeg dependency as part of
