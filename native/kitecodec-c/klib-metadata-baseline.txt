@@ -996,6 +996,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_duration(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Long /* = platform/posix/int64_t^ */
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_duration_origin")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_fmt_duration_origin(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_start_time")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_start_time(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Long /* = platform/posix/int64_t^ */
@@ -1389,7 +1393,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 19 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 20 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

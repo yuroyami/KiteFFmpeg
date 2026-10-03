@@ -112,6 +112,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtFindStreamInfo","
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtNbStreams",     "(J)I",                   kj_fmt_nb_streams)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtStream",        "(JI)J",                  kj_fmt_stream)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtDurationMicros","(J)J",                   kj_fmt_duration_micros)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtDurationOrigin","(J)I",                   kj_fmt_duration_origin)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtReadFrame",     "(JJ)I",                  kj_fmt_read_frame)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtSeekMicros",    "(JIJ)I",                 kj_fmt_seek_micros)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtSetOpt",        "(JLjava/lang/String;Ljava/lang/String;)I", kj_fmt_set_opt)

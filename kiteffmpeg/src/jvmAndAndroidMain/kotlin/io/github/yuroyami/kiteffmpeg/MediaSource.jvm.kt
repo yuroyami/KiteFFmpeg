@@ -101,8 +101,9 @@ public actual class MediaSource internal constructor(
 
     public actual val bitrateBps: Long? = Internals.fmtBitrate(formatToken).takeIf { it > 0L }
 
-    // Not read yet: the next commit wires it to FFmpeg's duration_estimation_method (#134).
-    public actual val durationOrigin: DurationOrigin? get() = null
+    // Read once: FFmpeg settles it while it finds the stream info, before this source exists (#134).
+    public actual val durationOrigin: DurationOrigin? =
+        if (durationMicros == null) null else DurationOrigin.ofCode(Internals.fmtDurationOrigin(formatToken))
     public actual val isSeekable: Boolean = Internals.fmtIsSeekable(formatToken)
     public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)
     public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams)

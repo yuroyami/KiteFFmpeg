@@ -115,6 +115,7 @@ internal object Internals {
     private external fun nativeFmtNbStreams(token: Long): Int
     private external fun nativeFmtStream(token: Long, index: Int): Long
     private external fun nativeFmtDurationMicros(token: Long): Long
+    private external fun nativeFmtDurationOrigin(token: Long): Int
     private external fun nativeFmtReadFrame(token: Long, packet: Long): Int
     private external fun nativeFmtSeekMicros(token: Long, stream: Int, micros: Long): Int
     private external fun nativeFmtSetOpt(token: Long, key: String, value: String?): Int
@@ -453,6 +454,7 @@ internal object Internals {
     internal fun fmtNbStreams(token: Long) = checked { nativeFmtNbStreams(token) }
     internal fun fmtStream(token: Long, index: Int) = token("stream lookup") { nativeFmtStream(token, index) }
     internal fun fmtDuration(token: Long) = checked { nativeFmtDurationMicros(token) }
+    internal fun fmtDurationOrigin(token: Long) = checked { nativeFmtDurationOrigin(token) }
     internal fun fmtReadFrame(token: Long, packet: Long) = checked { nativeFmtReadFrame(token, packet) }
     internal fun fmtSeekMicros(token: Long, stream: Int, micros: Long) = checked { nativeFmtSeekMicros(token, stream, micros) }
     internal fun fmtSetOpt(token: Long, key: String, value: String?) = checked { nativeFmtSetOpt(token, key, value) }

@@ -256,6 +256,13 @@ JNIEXPORT jlong JNICALL kj_fmt_duration_micros(JNIEnv *env, jclass cls, jlong to
     return ctx ? (jlong)ffkmp_fmt_duration(ctx) : 0;
 }
 
+JNIEXPORT jint JNICALL kj_fmt_duration_origin(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    return ctx ? (jint)ffkmp_fmt_duration_origin(ctx) : -1;
+}
+
 JNIEXPORT jint JNICALL kj_fmt_read_frame(JNIEnv *env, jclass cls, jlong token, jlong packet_token)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);

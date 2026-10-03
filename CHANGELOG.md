@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `MediaSource.durationOrigin` says where `durationMicros` came from (#134): the streams'
+  timestamps, a length the container or a stream declares, or an estimate from the bit rate of the
+  first frames, which FFmpeg makes for an input that states no length, such as ADTS AAC or an MP3
+  without its Xing header, and which variable bit rate audio puts minutes out. A caller can then
+  treat an estimated length as a hint. The C ABI is 3.20 and adds `ffkmp_fmt_duration_origin`.
 - Dolby Vision (#137). `VideoStreamInfo.dolbyVision` holds the configuration record a stream
   declares, and its `baseLayerPlaysAlone` says whether the base layer is a picture of its own.
   `Frame.dolbyVision()` reads the RPU FFmpeg's decoder attached to the frame: the source's range,

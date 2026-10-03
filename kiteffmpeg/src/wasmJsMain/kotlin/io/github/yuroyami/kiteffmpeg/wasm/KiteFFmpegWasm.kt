@@ -261,6 +261,9 @@ internal external fun ffkmp_fmt_chapter_count(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1, a2, a3, a4) => m._ffkmp_fmt_chapter_get(a0, a1, a2, a3, a4)")
 internal external fun ffkmp_fmt_chapter_get(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_fmt_duration_origin(a0)")
+internal external fun ffkmp_fmt_duration_origin(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_fmt_find_stream_info(a0)")
 internal external fun ffkmp_fmt_find_stream_info(module: JsAny, a0: Int): Int
 

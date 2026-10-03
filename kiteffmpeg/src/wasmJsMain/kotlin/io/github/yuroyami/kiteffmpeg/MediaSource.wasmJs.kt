@@ -43,6 +43,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_close_input_io
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_nested_io_available
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_interrupt
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_duration
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_duration_origin
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_find_stream_info
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_iformat_name
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_is_seekable
@@ -164,8 +165,9 @@ public actual class MediaSource internal constructor(
     public actual val bitrateBps: Long?
         get() = ffkmp_fmt_bit_rate(requireModule(), alive()).takeIf { it > 0L }
 
-    // Not read yet: the next commit wires it to FFmpeg's duration_estimation_method (#134).
-    public actual val durationOrigin: DurationOrigin? get() = null
+    // Read on demand like durationMicros: FFmpeg settles it while it finds the stream info (#134).
+    public actual val durationOrigin: DurationOrigin?
+        get() = if (durationMicros == null) null else DurationOrigin.ofCode(ffkmp_fmt_duration_origin(requireModule(), alive()))
 
     public actual val isSeekable: Boolean
         get() = ffkmp_fmt_is_seekable(requireModule(), alive()) != 0

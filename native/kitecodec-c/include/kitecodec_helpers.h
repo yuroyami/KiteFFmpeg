@@ -748,6 +748,10 @@ KC_API int  ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t mic
  */
 KC_API int  ffkmp_fmt_read_frame(kc_fmt_ctx *c, kc_packet *p);
 KC_API int64_t       ffkmp_fmt_duration(kc_fmt_ctx *c);
+/* Where ffkmp_fmt_duration's length came from: FFmpeg's duration_estimation_method, 0 for the
+ * streams' timestamps, 1 for a declared duration and 2 for an estimate from the bit rate, which
+ * is a guess. Meaningful once stream info was found. -1 for a NULL context. */
+KC_API int           ffkmp_fmt_duration_origin(kc_fmt_ctx *c);
 KC_API int64_t       ffkmp_fmt_start_time(kc_fmt_ctx *c);
 KC_API unsigned      ffkmp_fmt_nb_streams(kc_fmt_ctx *c);
 KC_API kc_stream*     ffkmp_fmt_stream(kc_fmt_ctx *c, unsigned i);

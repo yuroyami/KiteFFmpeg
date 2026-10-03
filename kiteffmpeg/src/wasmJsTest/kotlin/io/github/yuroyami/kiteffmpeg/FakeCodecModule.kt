@@ -749,6 +749,7 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         const formatName = cstr("matroska,webm");
         m._ffkmp_fmt_iformat_name = () => formatName;
         m._ffkmp_fmt_duration = () => 2000000n;
+        m._ffkmp_fmt_duration_origin = () => 1;
         m._ffkmp_fmt_is_seekable = () => 1;
 
         // The subtitle-only base fake never needed a pixel format; the video branch reads one and

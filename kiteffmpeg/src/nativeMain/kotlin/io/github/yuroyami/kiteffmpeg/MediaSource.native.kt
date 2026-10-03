@@ -52,6 +52,7 @@ import ffmpeg.ffkmp_fmt_close_input_io
 import ffmpeg.ffkmp_fmt_nested_io_available
 import ffmpeg.ffkmp_fmt_open_input_io2
 import ffmpeg.ffkmp_fmt_duration
+import ffmpeg.ffkmp_fmt_duration_origin
 import ffmpeg.ffkmp_fmt_find_stream_info
 import ffmpeg.ffkmp_fmt_iformat_name
 import ffmpeg.ffkmp_fmt_is_seekable
@@ -259,8 +260,9 @@ public actual class MediaSource internal constructor(
      */
     public actual val bitrateBps: Long? = ffkmp_fmt_bit_rate(ctx).takeIf { it > 0L }
 
-    // Not read yet: the next commit wires it to FFmpeg's duration_estimation_method (#134).
-    public actual val durationOrigin: DurationOrigin? get() = null
+    // Read once: FFmpeg settles it while it finds the stream info, before this source exists (#134).
+    public actual val durationOrigin: DurationOrigin? =
+        if (durationMicros == null) null else DurationOrigin.ofCode(ffkmp_fmt_duration_origin(ctx))
     public actual val isSeekable: Boolean = ffkmp_fmt_is_seekable(ctx) != 0
 
     public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)

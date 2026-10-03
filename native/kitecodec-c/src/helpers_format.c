@@ -229,6 +229,9 @@ KC_API int  ffkmp_fmt_read_frame(AVFormatContext *c, AVPacket *p) {
 }
 
 KC_API int64_t       ffkmp_fmt_duration(AVFormatContext *c)   { return c ? c->duration : 0; }
+KC_API int           ffkmp_fmt_duration_origin(AVFormatContext *c) {
+    return c ? (int)c->duration_estimation_method : -1;
+}
 /* Where the media's timeline BEGINS, in microseconds (AV_TIME_BASE units), i.e. the earliest
    start_time across streams. MPEG-TS commonly reports ~1.4s; mp4 usually 0. Every timestamp the
    demuxer hands out is absolute (includes this), while KiteFFmpeg's public API, meaning seeks, trim
