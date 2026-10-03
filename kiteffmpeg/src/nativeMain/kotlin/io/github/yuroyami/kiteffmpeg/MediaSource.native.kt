@@ -1046,65 +1046,70 @@ internal fun openMediaSourceIo(
         nested?.closeFailures?.forEach { failure -> primary?.addSuppressed(failure) ?: run { primary = failure } }
         primary?.let { throw it }
     }
-    if (nested != null && ffkmp_fmt_nested_io_available() == 0) {
-        cleanup()
-        throw nestedOpenerNeedsPatchedFFmpeg()
-    }
+    // Ownership of the byte source transfers here, with the two references, so everything up to
+    // the context sits inside one scope that releases them: the caller's own size and seekable
+    // getters, the option strings and the C call. A getter that threw used to leave both references,
+    // the scratch buffer and the source alive for ever (#131).
     var unusedKeys: List<String> = emptyList()
-    val ctx: CPointer<kc_fmt_ctx> = memScoped {
-        val ctxVar = allocPointerTo<kc_fmt_ctx>()
-        val n = options.size
-        val keys = allocArray<CPointerVar<ByteVar>>(n)
-        val values = allocArray<CPointerVar<ByteVar>>(n)
-        options.entries.forEachIndexed { index, (key, value) ->
-            keys[index] = key.cstr.ptr
-            values[index] = value.cstr.ptr
-        }
-        val unusedVar = allocPointerTo<ffmpeg.kc_dict>()
-        // Copied by the C side, so it may live in this scope; the StableRef behind it may not.
-        val opener = nestedRef?.let { ref ->
-            alloc<kc_io_opener>().apply {
-                opaque = ref.asCPointer()
-                open_fn = nestedOpen
-                read_fn = byteSourceRead
-                seek_fn = byteSourceSeek
-                close_fn = nestedClose
+    val ctx: CPointer<kc_fmt_ctx> = try {
+        if (nested != null && ffkmp_fmt_nested_io_available() == 0) throw nestedOpenerNeedsPatchedFFmpeg()
+        val canSeek = io.seekable
+        val total = io.size ?: -1L
+        memScoped {
+            val ctxVar = allocPointerTo<kc_fmt_ctx>()
+            val n = options.size
+            val keys = allocArray<CPointerVar<ByteVar>>(n)
+            val values = allocArray<CPointerVar<ByteVar>>(n)
+            options.entries.forEachIndexed { index, (key, value) ->
+                keys[index] = key.cstr.ptr
+                values[index] = value.cstr.ptr
             }
-        }
-        val rc = ffkmp_fmt_open_input_io2(
-            ctxVar.ptr,
-            stableRef.asCPointer(),
-            byteSourceRead,
-            if (io.seekable) byteSourceSeek else null,
-            io.size ?: -1L,
-            url,
-            mimeType,
-            opener?.ptr,
-            keys, values, n, unusedVar.ptr, interrupt,
-        )
-        if (rc < 0) {
-            // The FULL cleanup, not just the reference: ownership of the byte source transfers to
-            // this function the moment the adapter is built, so an open that fails still owes the
-            // caller a close. Disposing the StableRef alone left the source open for ever.
-            cleanup()
-            // The byte source's own exception is the cause, because FFmpeg only saw an error code.
-            throw FFmpegException(avError(rc), state.takeFailure())
-        }
-        val dict = unusedVar.value
-        if (dict != null) {
-            unusedKeys = buildList {
-                var entry = ffkmp_dict_get(dict, null)
-                while (entry != null) {
-                    ffkmp_dict_entry_key(entry)?.toKString()?.let(::add)
-                    entry = ffkmp_dict_get(dict, entry)
+            val unusedVar = allocPointerTo<ffmpeg.kc_dict>()
+            // Copied by the C side, so it may live in this scope; the StableRef behind it may not.
+            val opener = nestedRef?.let { ref ->
+                alloc<kc_io_opener>().apply {
+                    opaque = ref.asCPointer()
+                    open_fn = nestedOpen
+                    read_fn = byteSourceRead
+                    seek_fn = byteSourceSeek
+                    close_fn = nestedClose
                 }
             }
-            ffkmp_dict_free(unusedVar.ptr)
+            val rc = ffkmp_fmt_open_input_io2(
+                ctxVar.ptr,
+                stableRef.asCPointer(),
+                byteSourceRead,
+                if (canSeek) byteSourceSeek else null,
+                total,
+                url,
+                mimeType,
+                opener?.ptr,
+                keys, values, n, unusedVar.ptr, interrupt,
+            )
+            // The byte source's own exception is the cause, because FFmpeg only saw an error code.
+            if (rc < 0) throw FFmpegException(avError(rc), state.takeFailure())
+            val dict = unusedVar.value
+            if (dict != null) {
+                unusedKeys = buildList {
+                    var entry = ffkmp_dict_get(dict, null)
+                    while (entry != null) {
+                        ffkmp_dict_entry_key(entry)?.toKString()?.let(::add)
+                        entry = ffkmp_dict_get(dict, entry)
+                    }
+                }
+                ffkmp_dict_free(unusedVar.ptr)
+            }
+            ctxVar.value ?: throw FFmpegException(FFmpegError.Internal("open_input_io returned NULL"))
         }
-        ctxVar.value ?: run {
+    } catch (failure: Throwable) {
+        // The FULL cleanup, not just the references: an open that fails still owes the caller a
+        // close. The failure stays the one the caller sees, and a close that fails too rides on it.
+        try {
             cleanup()
-            throw FFmpegException(FFmpegError.Internal("open_input_io returned NULL"))
+        } catch (closeFailure: Throwable) {
+            failure.addSuppressed(closeFailure)
         }
+        throw failure
     }
     return assembleMediaSource(ctx, unusedKeys, ioCleanup = cleanup, ioState = state)
 }

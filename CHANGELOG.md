@@ -51,6 +51,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   converter, as it does for nine channels in no named order sent to a stereo encoder, the refusal
   was right but the frame stayed open with its buffers. So did a frame that arrived while the
   encoder failed on the samples the previous converter still held (#127).
+- On Kotlin/Native, `MediaSource.open` closes a byte source whose `size` or `seekable` throws while
+  it opens. The open took the source first and read both properties outside the scope that closes
+  it, so the source, its two references and a 64 KiB scratch buffer stayed alive for the rest of
+  the process. The getter's own exception reaches the caller, with a close that fails as well
+  added as suppressed (#131).
 
 ## [0.4.0] - 2026-09-29
 

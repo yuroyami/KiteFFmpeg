@@ -12,7 +12,9 @@ import platform.posix.remove
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -198,6 +200,71 @@ class AvioBridgeTest {
         }
         assertFailsWith<FFmpegException> { MediaSource.open(source) }
         assertEquals(1, source.closes, "a source that throws on read must still be closed once")
+    }
+
+    /**
+     * The open takes the source before it asks the source anything, so a getter that throws there
+     * is a failed open like any other and still owes the caller one close. Native read both
+     * properties outside the scope that closes, and the source stayed open for ever (#131).
+     */
+    @Test
+    fun aByteSourceWhoseSizeThrowsIsClosedOnce() {
+        val source = InspectionFailingSource(failSize = true)
+        assertSame(source.refusal, assertFails { MediaSource.open(source) }, "the getter's own failure reaches the caller")
+        assertEquals(1, source.closes, "a source whose size threw must still be closed once")
+    }
+
+    @Test
+    fun aByteSourceWhoseSeekableThrowsIsClosedOnce() {
+        val source = InspectionFailingSource(failSeekable = true)
+        assertSame(source.refusal, assertFails { MediaSource.open(source) }, "the getter's own failure reaches the caller")
+        assertEquals(1, source.closes, "a source whose seekable threw must still be closed once")
+    }
+
+    @Test
+    fun aByteSourceWhoseSizeThrowsIsClosedOnceBesideANestedOpener() {
+        val source = InspectionFailingSource(failSize = true)
+        val opener = MediaByteOpener { null }
+        // A build without the nested IO patch refuses the opener first; either way the source is closed.
+        assertFails { MediaSource.open(source, nestedOpener = opener) }
+        assertEquals(1, source.closes, "a source whose size threw beside an opener must still be closed once")
+    }
+
+    @Test
+    fun aByteSourceWhoseSizeThrowsIsClosedOnceAndUnbindsItsInterrupt() {
+        val source = InspectionFailingSource(failSize = true)
+        val cancel = OpenInterrupt()
+        assertSame(source.refusal, assertFails { MediaSource.open(source, emptyMap(), cancel) })
+        assertEquals(1, source.closes, "a source whose size threw under an interrupt must still be closed once")
+        assertEquals(0, cancel.boundCount, "the failed open must unbind its interrupt")
+    }
+
+    @Test
+    fun aCloseThatFailsAfterAGetterThrewRidesOnTheGettersFailure() {
+        val closeRefusal = IllegalStateException("the source refused to close")
+        val source = InspectionFailingSource(failSize = true, onClose = { throw closeRefusal })
+        val thrown = assertFails { MediaSource.open(source) }
+        assertSame(source.refusal, thrown, "the getter's failure stays the one the caller sees")
+        assertTrue(closeRefusal in thrown.suppressedExceptions, "the close failure must ride on it as suppressed")
+        assertEquals(1, source.closes)
+    }
+
+    /** A source that fails when the open asks for its [size] or whether it is [seekable]. */
+    private class InspectionFailingSource(
+        private val failSize: Boolean = false,
+        private val failSeekable: Boolean = false,
+        private val onClose: () -> Unit = {},
+    ) : MediaByteSource {
+        val refusal = IllegalStateException("cannot inspect")
+        var closes = 0
+        override val size: Long? get() = if (failSize) throw refusal else null
+        override val seekable: Boolean get() = if (failSeekable) throw refusal else false
+        override fun read(into: ByteArray, offset: Int, length: Int): Int = -1
+        override fun seek(position: Long) = Unit
+        override fun close() {
+            closes++
+            onClose()
+        }
     }
 
     /** Counts closes rather than recording a flag, so a double close is a failure too. */
