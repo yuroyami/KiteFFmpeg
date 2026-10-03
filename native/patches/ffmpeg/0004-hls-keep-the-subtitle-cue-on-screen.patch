@@ -1,0 +1,44 @@
+Keep a subtitle cue that is still on screen when an HLS subtitle playlist starts or seeks.
+
+FFmpeg's HLS demuxer drops every packet of a playlist that starts before the playlist's target
+time: after a seek, and when a playlist starts late. A subtitle rendition always starts late, because
+the demuxer leaves it out while the stream information is probed, and it then catches up to the
+newest packet read. A cue that began before that moment and was still on screen was dropped with the
+rest, so a rendition read from the start lost its first line.
+
+For a subtitle packet with a duration, the comparison now uses its last tick instead of its first,
+so a cue arrives when it is still showing at the target, and one that has ended stays dropped.
+Pictures and sound keep the comparison of their start.
+
+Applied by BuildFFmpegTask before configure, after 0003. Fixes yuroyami/KiteFFmpeg#126.
+
+diff --git a/libavformat/hls.c b/libavformat/hls.c
+index ab8452e..b129900 100644
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -2709,7 +2709,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
+          * stream */
+         if (pls->needed && !pls->pkt->data) {
+             while (1) {
+-                int64_t ts_diff;
++                int64_t ts_diff, pkt_ts;
+                 AVRational tb;
+                 struct segment *seg = NULL;
+                 if (pls->is_subtitle)
+@@ -2774,7 +2774,15 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
+                     }
+ 
+                     tb = get_timebase(pls);
+-                    ts_diff = av_rescale_rnd(pls->pkt->dts, AV_TIME_BASE,
++                    pkt_ts = pls->pkt->dts;
++                    /* KiteFFmpeg: a subtitle cue that began before the target and is still on
++                     * screen there belongs to it, so its last tick is compared rather than its
++                     * first. A subtitle playlist that starts late catches up to the newest packet
++                     * read, and comparing the start lost the cue showing at that moment. */
++                    if (pls->pkt->duration > 0 &&
++                        pls->ctx->streams[pls->pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE)
++                        pkt_ts += pls->pkt->duration - 1;
++                    ts_diff = av_rescale_rnd(pkt_ts, AV_TIME_BASE,
+                                             tb.den, AV_ROUND_DOWN) -
+                             pls->seek_timestamp;
+                     if (ts_diff >= 0 && (pls->seek_flags  & AVSEEK_FLAG_ANY ||

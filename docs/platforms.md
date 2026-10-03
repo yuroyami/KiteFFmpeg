@@ -57,7 +57,7 @@ The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yu
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
-Four groups joined the recipe in 0.4.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The trees of 0.3.0 also lack the `trust_io_open` patch to FFmpeg's HLS demuxer, which a nested opener needs. The trees of 0.4.0 carry all of it. A later patch is not in the trees of 0.4.0: `0003`, which lets a playlist of WebM or Matroska segments seek after its end.
+Four groups joined the recipe in 0.4.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The trees of 0.3.0 also lack the `trust_io_open` patch to FFmpeg's HLS demuxer, which a nested opener needs. The trees of 0.4.0 carry all of it. Two later patches are not in the trees of 0.4.0: `0003`, which lets a playlist of WebM or Matroska segments seek after its end, and `0004`, which keeps the subtitle cue that is showing when an HLS subtitle rendition starts.
 
 | | macOS LGPL | Mobile Apple LGPL | Linux / Windows LGPL | Android LGPL |
 |---|---|---|---|---|

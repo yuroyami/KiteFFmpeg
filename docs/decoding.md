@@ -75,6 +75,8 @@ Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`
 - A `data:` address never reaches the opener. FFmpeg reads the bytes inside it itself.
 - FFmpeg still checks each segment's file extension against the format it finds. A segment address
   with no media extension is refused, unless you pass `options = mapOf("extension_picky" to "0")`.
+- A subtitle rendition is read only once a packet reader asks for it. Turned on in the middle of a
+  cue, it delivers that cue and then the ones after it, never the ones that have already ended.
 - A playlist of WebM or Matroska segments seeks after it has been read to its end, as MP4 and
   MPEG-TS segments do.
 

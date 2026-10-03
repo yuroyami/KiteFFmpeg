@@ -20,7 +20,8 @@ import kotlin.test.assertTrue
  *
  * A linked FFmpeg without the trust_io_open patch, such as a prebuilt tree from an older release,
  * refuses the opener with [FFmpegError.Unsupported]. Each test then checks that refusal and stops.
- * The last test needs a later FFmpeg patch as well, `0003`, and fails on a tree built before it.
+ * The last two tests need two later FFmpeg patches as well, `0003` and `0004`, and fail on a tree
+ * built before them.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 class HlsByteSourceContractTest {
@@ -181,6 +182,43 @@ class HlsByteSourceContractTest {
         assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
     }
 
+    /**
+     * A subtitle rendition turned on in the middle of a cue delivers that cue (#126). FFmpeg reads
+     * a subtitle rendition only once a reader asks for it, and catches it up to the newest packet
+     * read. The catch-up dropped every cue that began before that moment, the one still showing
+     * among them, so a viewer who turned subtitles on saw nothing until the next cue.
+     */
+    @Test
+    fun aSubtitleRenditionTurnedOnMidCueDeliversTheCueShowing() {
+        val opener = RecordingOpener(
+            mapOf(
+                "$BASE_URL/video.m3u8" to mediaPlaylist("v0.mkv", seconds = 4).encodeToByteArray(),
+                "$BASE_URL/v0.mkv" to matroskaSegment,
+                "$BASE_URL/subs.m3u8" to SUBTITLE_PLAYLIST.encodeToByteArray(),
+                "$BASE_URL/s0.vtt" to cue("00:00:00.000", "00:00:01.900", "line 0"),
+                "$BASE_URL/s1.vtt" to cue("00:00:02.000", "00:00:03.900", "line 1"),
+            ),
+        )
+        val media = openPlaylist(opener, playlist = MASTER_PLAYLIST) ?: return
+        media.use {
+            val video = media.primaryVideo ?: error("the playlist has no video stream")
+            val subtitle = media.streams.firstOrNull { it.type == MediaType.Subtitle } ?: error("the playlist has no subtitle stream")
+            val cues = mutableListOf<Long>()
+            media.openPacketReader(listOf(video)).use { reader ->
+                // One second of video, then the subtitles: the first cue shows until 1.9 s.
+                repeat(30) { assertNotNull(reader.read(), "the video ended early").close() }
+                reader.reselect(listOf(video, subtitle))
+                while (true) {
+                    val packet = reader.read() ?: break
+                    packet.use { if (it.streamIndex == subtitle.index) cues += (it.ptsMicros ?: 0L) - media.startTimeMicros }
+                }
+            }
+            println("HLS contract: subtitle cues at $cues us")
+            assertEquals(2, cues.size, "expected the cue showing at 1 s and the next one, got cues at $cues us")
+            assertTrue(cues[0] in -100_000L..100_000L, "the cue showing at 1 s starts at 0 s, not at ${cues[0]} us")
+        }
+    }
+
     private companion object {
         const val BASE_URL = "https://media.example/live"
         const val PLAYLIST_URL = "https://media.example/live/index"
@@ -209,6 +247,32 @@ class HlsByteSourceContractTest {
             $segment
             #EXT-X-ENDLIST
         """.trimIndent() + "\n"
+
+        /** A video variant with an English subtitle rendition, as KitePlayer writes one for DASH. */
+        val MASTER_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=YES,AUTOSELECT=YES,URI="subs.m3u8"
+            #EXT-X-STREAM-INF:BANDWIDTH=800000,SUBTITLES="subs"
+            video.m3u8
+        """.trimIndent() + "\n"
+
+        /** Two WebVTT segments of two seconds, one cue each. */
+        val SUBTITLE_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-TARGETDURATION:2
+            #EXT-X-MEDIA-SEQUENCE:0
+            #EXT-X-PLAYLIST-TYPE:VOD
+            #EXTINF:2.0,
+            s0.vtt
+            #EXTINF:2.0,
+            s1.vtt
+            #EXT-X-ENDLIST
+        """.trimIndent() + "\n"
+
+        /** A WebVTT segment that holds one cue. */
+        fun cue(start: String, end: String, text: String): ByteArray = "WEBVTT\n\n$start --> $end\n$text\n".encodeToByteArray()
 
         /** A 320x240 YUV 4:2:0 frame whose bytes change with [index], so every frame costs the encoder work. */
         fun frameBytes(index: Int): ByteArray = ByteArray(320 * 240 * 3 / 2) { ((it * 31 + index * 17) % 251).toByte() }

@@ -14,8 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   Matroska reader kept answering end of file once the HLS reader had reset its input, so every
   later seek returned and no packet followed. The fix is the FFmpeg patch
   `0003-matroska-read-on-after-the-input-moves.patch` (#125).
-- That fix lives in FFmpeg, so it reaches a platform only with an FFmpeg tree built from the
-  patch. The trees of 0.4.0 do not carry it.
+- An HLS subtitle rendition turned on in the middle of a cue delivers that cue. FFmpeg catches a
+  rendition that starts late up to the newest packet it read, and it dropped every cue that began
+  before that moment, the one on screen among them. A cue now arrives while it is still showing at
+  that moment. The fix is the FFmpeg patch `0004-hls-keep-the-subtitle-cue-on-screen.patch`
+  (#126).
+- Both fixes live in FFmpeg, so they reach a platform only with an FFmpeg tree built from these
+  patches. The trees of 0.4.0 do not carry them.
 
 ## [0.4.0] - 2026-09-29
 
