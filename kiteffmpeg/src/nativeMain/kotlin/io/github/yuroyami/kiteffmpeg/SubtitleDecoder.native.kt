@@ -85,6 +85,9 @@ public actual class SubtitleDecoder internal constructor(
         }
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun drain(): Subtitle? = throw FFmpegException(FFmpegError.Unsupported(0, "SubtitleDecoder.drain is not wired yet (#149)"))
+
     public actual fun flush(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
         check(!closed) { "SubtitleDecoder is closed" }
         ffkmp_codecctx_flush(codecCtx)

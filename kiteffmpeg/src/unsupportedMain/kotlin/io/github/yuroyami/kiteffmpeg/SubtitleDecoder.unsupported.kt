@@ -7,6 +7,9 @@ public actual class SubtitleDecoder private constructor() : AutoCloseable {
     @Throws(FFmpegException::class)
     public actual fun decode(packet: Packet): Subtitle? = placeholderBackendUnavailable("Decoding a subtitle")
 
+    @Throws(FFmpegException::class)
+    public actual fun drain(): Subtitle? = placeholderBackendUnavailable("Draining a subtitle decoder")
+
     public actual fun flush(): Unit = placeholderBackendUnavailable("Flushing a subtitle decoder")
 
     actual override fun close(): Unit = Unit

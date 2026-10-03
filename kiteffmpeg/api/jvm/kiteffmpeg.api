@@ -1301,6 +1301,7 @@ public final class io/github/yuroyami/kiteffmpeg/Subtitle {
 public final class io/github/yuroyami/kiteffmpeg/SubtitleDecoder : java/lang/AutoCloseable {
 	public fun close ()V
 	public final fun decode (Lio/github/yuroyami/kiteffmpeg/Packet;)Lio/github/yuroyami/kiteffmpeg/Subtitle;
+	public final fun drain ()Lio/github/yuroyami/kiteffmpeg/Subtitle;
 	public final fun flush ()V
 	public final fun getStream ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
 }

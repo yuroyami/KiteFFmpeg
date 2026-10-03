@@ -1949,6 +1949,7 @@ final class io.github.yuroyami.kiteffmpeg/SubtitleDecoder : kotlin/AutoCloseable
 
     final fun close() // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.close|close(){}[0]
     final fun decode(io.github.yuroyami.kiteffmpeg/Packet): io.github.yuroyami.kiteffmpeg/Subtitle? // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.decode|decode(io.github.yuroyami.kiteffmpeg.Packet){}[0]
+    final fun drain(): io.github.yuroyami.kiteffmpeg/Subtitle? // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.drain|drain(){}[0]
     final fun flush() // io.github.yuroyami.kiteffmpeg/SubtitleDecoder.flush|flush(){}[0]
 }
 

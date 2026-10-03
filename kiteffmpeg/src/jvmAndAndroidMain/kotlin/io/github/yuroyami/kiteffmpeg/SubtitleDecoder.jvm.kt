@@ -29,6 +29,9 @@ public actual class SubtitleDecoder internal constructor(
         }
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun drain(): Subtitle? = throw FFmpegException(FFmpegError.Unsupported(0, "SubtitleDecoder.drain is not wired yet (#149)"))
+
     public actual fun flush(): Unit = synchronized(lock) {
         check(codecContext != 0L) { "SubtitleDecoder is closed" }
         Internals.codecCtxFlush(codecContext)

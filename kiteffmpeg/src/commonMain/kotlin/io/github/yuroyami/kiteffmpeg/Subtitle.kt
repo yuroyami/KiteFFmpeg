@@ -83,6 +83,19 @@ public expect class SubtitleDecoder : AutoCloseable {
     @Throws(FFmpegException::class)
     public fun decode(packet: Packet): Subtitle?
 
+    /**
+     * What the decoder still holds once the packets of [stream] have run out, or null when it holds
+     * nothing, which is the answer of every decoder but a few.
+     *
+     * Those few keep their last subtitle until they learn that the stream has ended. A CEA-608
+     * closed caption is given only when the screen next changes, because only then is its end
+     * known, so the caption on screen at the end of a stream stays in the decoder; teletext holds
+     * its page the same way. Call this once the reader has no more packets of [stream]. Decoding
+     * again afterwards needs a [flush] first, as after a seek.
+     */
+    @Throws(FFmpegException::class)
+    public fun drain(): Subtitle?
+
     /** Forgets the partial subtitle the decoder holds, after a seek. */
     public fun flush()
 
