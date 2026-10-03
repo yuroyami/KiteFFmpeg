@@ -119,6 +119,10 @@ jobs:
       # Same cache key as the vendored-lgpl job, so whichever runs first pays for the build and the
       # other restores it. On a cold cache both build, which is the accepted cost of keeping the two
       # jobs independent. Merging them is the obvious follow-up and is deliberately not done here.
+      #
+      # Every FFmpeg cache key in this file carries the source patches as well as the build tasks,
+      # because the build applies them and the recipe check never reads them. A key without them
+      # restores a tree built before a new patch, and the tests that need the patch then read it.
       - name: Install build deps + the ffmpeg CLI (for e2e assertions only)
         run: brew install nasm meson ninja svt-av1 aom libvpx opus lame webp freetype harfbuzz fribidi libass ffmpeg jq
       - name: Cache the vendored FFmpeg and dav1d builds
@@ -128,7 +132,7 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
@@ -395,13 +399,13 @@ jobs:
           brew install emscripten
           echo "version=$(emcc --version | head -1 | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
       # A web FFmpeg is only as good as the compiler that built it, so the key carries the emcc
-      # version as well as the build task and the FFmpeg tag.
+      # version as well as the build task, the source patches and the FFmpeg tag.
       - name: Cache the web FFmpeg build
         id: ffmpeg-web
         uses: actions/cache@v4
         with:
           path: native-libs/lgpl/wasm32
-          key: ffmpeg-wasm32-lgpl-n9.0.2-emcc-${{ steps.emscripten.outputs.version }}-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegWasmTask.kt') }}
+          key: ffmpeg-wasm32-lgpl-n9.0.2-emcc-${{ steps.emscripten.outputs.version }}-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the web FFmpeg from source
         if: steps.ffmpeg-web.outputs.cache-hit != 'true'
         run: |
@@ -579,7 +583,7 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
@@ -655,7 +659,7 @@ jobs:
           path: |
             native-libs/lgpl/${{ matrix.triple }}
             native-libs/deps/${{ matrix.triple }}
-          key: ffmpeg-${{ matrix.triple }}-lgpl-n9.0.2-api24-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt') }}
+          key: ffmpeg-${{ matrix.triple }}-lgpl-n9.0.2-api24-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Install the dav1d build tools
         if: steps.ffmpeg-android.outputs.cache-hit != 'true'
         run: |
