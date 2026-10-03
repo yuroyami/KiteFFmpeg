@@ -247,8 +247,13 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
          * draft, which carried their decoders but no way to open a bare `.mp3` or `.flac`. The
          * matrix run caught it as `open -29` on two rows: a decoder without its demuxer is a
          * codec nobody can reach.
+         *
+         * `hls` reads a playlist whose segments a nested opener serves (#123). FFmpeg's configure
+         * selects the readers its segments need along with it: `mpegts`, `mov` and the raw `aac`,
+         * `ac3` and `eac3` ones. It opens nothing by itself, because the web build carries no
+         * network protocol, so every playlist, segment and key arrives through the caller's opener.
          */
-        const val DEMUXERS = "mov,matroska,mp3,flac"
+        const val DEMUXERS = "mov,matroska,mp3,flac,hls"
 
         const val PARSERS = "h264,hevc,vp9,aac,aac_latm,mpegaudio,flac,opus,vorbis"
 

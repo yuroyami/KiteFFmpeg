@@ -140,6 +140,18 @@ class BuildFFmpegWasmTaskTest {
     }
 
     /**
+     * A page plays HLS, and DASH as the HLS playlists KitePlayer writes for it, through a nested
+     * opener that serves every segment (#123). The opener has nothing to serve unless FFmpeg can
+     * read the playlist first, and the segment readers come with the HLS one.
+     */
+    @Test
+    fun theHlsDemuxerIsBuiltSoThatAPlaylistOpens() {
+        val demuxers = args("base").single { it.startsWith("--enable-demuxer=") }
+            .substringAfter("=").split(",").toSet()
+        assertTrue("hls" in demuxers, "hls demuxer missing: a playlist cannot open on the web")
+    }
+
+    /**
      * A decoder the tier carries with no parser to feed it is the silent half of the same bug, and
      * webm's audio is where it bites: matroska hands opus packets to a decoder that needs framing.
      */

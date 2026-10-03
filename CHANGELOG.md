@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   FFmpeg lets a file reach only `file`, `crypto` and `data`. Measured on Linux x64, the recipe adds
   0.44 MB to `libavformat.a` and 0.25 MB to the JVM's linked library, which grows from 25.05 MB to
   25.29 MB. The trees of 0.4.0 do not carry any of it.
+- The web module's FFmpeg reads HLS playlists. Its recipe gains the `hls` demuxer, and FFmpeg's
+  configure brings the segment readers `mpegts`, `aac`, `ac3` and `eac3` along with it. The web
+  build still carries no network protocol, so every playlist, segment and key has to come through a
+  nested opener (#123). Built with emscripten 6.0.11, `kite.wasm` grows by 81,846 bytes, from
+  4,576,446 to 4,658,292, which is 37,726 bytes after gzip. The `web` zip of 0.4.0 does not carry
+  it.
 
 ### Fixed
 
