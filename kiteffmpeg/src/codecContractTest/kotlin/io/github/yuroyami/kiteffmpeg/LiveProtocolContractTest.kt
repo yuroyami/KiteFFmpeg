@@ -125,6 +125,11 @@ class LiveProtocolContractTest {
      * The `rtsp` demuxer listens and the command line publishes to it over [transport], which
      * proves the demuxer, both transports and the transport option. A camera is the other role,
      * where the demuxer dials a server, and the command line cannot be that server.
+     *
+     * The publisher sends an RTCP BYE, so the reading ends on it. Without one the publisher ends
+     * with a TEARDOWN and closes at once, the listener answers the TEARDOWN into the closed
+     * connection, and the reset that comes back can reach a macOS read before the end of file
+     * does, which failed this test over TCP with "Connection reset by peer" now and then.
      */
     private fun rtspPublished(transport: String) {
         runMediaOracle("ffmpeg", listOf("-version")) ?: return println("live protocols degraded: no ffmpeg")
@@ -143,8 +148,8 @@ class LiveProtocolContractTest {
                 // the listener has already failed and its own error is the one to report.
                 val start = TimeSource.Monotonic.markNow()
                 while (!receiver.isCompleted) {
-                    val publisher = startMediaOracle("ffmpeg", clip(3) + listOf("-f", "rtsp", "-rtsp_transport", transport, url))
-                        ?: error("ffmpeg stopped starting")
+                    val publish = listOf("-f", "rtsp", "-rtsp_transport", transport, "-rtpflags", "send_bye", url)
+                    val publisher = startMediaOracle("ffmpeg", clip(3) + publish) ?: error("ffmpeg stopped starting")
                     if (publisher.await() == 0) break
                     check(start.elapsedNow() < 10.seconds) { "nothing listened on $url" }
                     delay(200)
