@@ -63,7 +63,9 @@ internal fun requireEncodableAudio(
  * leaves the sample count, and so the chunk size, unchanged. A frame that names no layout is taken
  * to have the encoder's. The sample rate is converted only when [frameSize] is 0, meaning the codec
  * takes any chunk size; a rate change into a fixed-size encoder such as AAC is refused by
- * [requireEncodableAudio]. The resampler's held samples are emitted when [input] ends.
+ * [requireEncodableAudio]. A rate change holds some samples back, and they are emitted before the
+ * next frame that takes another path, whether that frame needs another converter or none, and
+ * when [input] ends, so the encoder gets every sample in the order it came (#128).
  *
  * ### Who closes a frame
  *
@@ -89,8 +91,12 @@ internal fun audioForEncoder(
     override suspend fun collect(collector: FlowCollector<Frame>) {
         val target = AudioSpec(sampleRate, channels, sampleFormat, channelLayoutMask)
         var resampler: Resampler? = null
-        suspend fun drain(done: Resampler) {
+        /** Emits the samples the current converter still holds, then closes it. */
+        suspend fun retire() {
+            val done = resampler ?: return
             while (true) collector.emit(done.flush() ?: break)
+            done.close()
+            resampler = null
         }
 
         /**
@@ -105,16 +111,18 @@ internal fun audioForEncoder(
                 info.channelLayoutMask == channelLayoutMask
             val matches = info.sampleRate == sampleRate && info.channelCount == channels &&
                 info.sampleFormat == sampleFormat && sameLayout
-            if (declaresNothing || matches) return frame
+            if (declaresNothing || matches) {
+                // The samples an earlier converter still holds came before this frame, and a
+                // converter kept across a direct stretch would date what it converts next from
+                // before the stretch.
+                retire()
+                return frame
+            }
             if (info.sampleRate != sampleRate && frameSize != 0) {
                 requireEncodableAudio(frame, sampleFormat, sampleRate, channels)
             }
             val current = resampler?.takeIf { it.input == source } ?: run {
-                resampler?.let { previous ->
-                    drain(previous)
-                    previous.close()
-                    resampler = null
-                }
+                retire()
                 Resampler(source, target).also { resampler = it }
             }
             return current.convert(frame).also { frame.close() }
@@ -130,7 +138,7 @@ internal fun audioForEncoder(
                 }
                 if (ready != null) collector.emit(ready)
             }
-            resampler?.let { drain(it) }
+            retire()
         } finally {
             resampler?.close()
         }

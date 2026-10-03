@@ -56,6 +56,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   it, so the source, its two references and a 64 KiB scratch buffer stayed alive for the rest of
   the process. The getter's own exception reaches the caller, with a close that fails as well
   added as suppressed (#131).
+- `AudioEncoder.drive` hands the encoder every sample in the order it came. A sample rate change
+  holds some samples back, and they waited in the converter until the input ended, so they reached
+  an encoder that takes any chunk size, such as PCM, after every newer frame that needed no
+  conversion. A converter kept across that stretch also dated what it converted next from before
+  it. The held samples now go to the encoder before the next frame that takes another path, and
+  that frame starts a converter of its own (#128).
 
 ## [0.4.0] - 2026-09-29
 

@@ -8,6 +8,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -169,6 +170,76 @@ class AudioEncoderMismatchContractTest {
         assertEquals(2, taken, "the held samples never reached the encoder")
         assertFailsWith<IllegalStateException>("the new frame is still open") { second.info }
     }
+
+    @Test
+    fun theSamplesAConverterHoldsComeBeforeAFrameThatNeedsNoConversion() = runBlocking {
+        // A rate change holds samples back, and they used to wait in the converter until the input
+        // ended, so they reached the encoder after every newer frame that needed no conversion.
+        // The encoder repairs timestamps that go backwards, which hid the reversal (#128).
+        val out = encoderInput(
+            stereoS16(480, 48_000, 8192, 0L),
+            stereoS16(441, RATE, 24576, 10_000L),
+        )
+        assertBlocksInOrder(out, listOf(8192 to 441, 24576 to 441))
+    }
+
+    @Test
+    fun aConversionAfterADirectStretchIsDatedFromItsOwnFrame() = runBlocking {
+        // A converter kept across a stretch of frames that needed none dated what it converted
+        // next from the samples it had made before the stretch, so the third block came out
+        // stamped before the second (#128).
+        val out = encoderInput(
+            stereoS16(480, 48_000, 8192, 0L),
+            stereoS16(441, RATE, 24576, 10_000L),
+            stereoS16(480, 48_000, -16384, 20_000L),
+        )
+        assertBlocksInOrder(out, listOf(8192 to 441, 24576 to 441, -16384 to 441))
+        assertEquals(20_000L, out.first { it.firstSample < 0 }.ptsMicros, "the third block starts at its own time")
+    }
+
+    /** What one frame handed to the encoder held: its time, its length and its first sample. */
+    private class Delivered(val ptsMicros: Long?, val samples: Int, val firstSample: Int)
+
+    /** What [audioForEncoder] hands a PCM encoder at 44.1 kHz stereo for [frames], in order. */
+    @OptIn(KiteFFmpegLowLevelApi::class)
+    private suspend fun encoderInput(vararg frames: Frame): List<Delivered> {
+        val out = mutableListOf<Delivered>()
+        audioForEncoder(flowOf(*frames), SampleFormat.S16, RATE, CHANNELS, frameSize = 0, channelLayoutMask = 3L)
+            .collect { frame ->
+                frame.use {
+                    val bytes = it.copyPlanesToByteArray()
+                    val first = (bytes[0].toInt() and 0xFF) or (bytes[1].toInt() shl 8)
+                    out += Delivered(it.ptsMicros, it.info.sampleCount, first)
+                }
+            }
+        return out
+    }
+
+    /**
+     * [out] is the [blocks] in order, each a run of frames whose first sample is near the block's
+     * value and whose lengths add up to the block's count, with every timestamp after the last.
+     */
+    private fun assertBlocksInOrder(out: List<Delivered>, blocks: List<Pair<Int, Int>>) {
+        val seen = out.map { delivered -> blocks.indexOfFirst { (value, _) -> kotlin.math.abs(delivered.firstSample - value) < 1024 } }
+        val described = out.joinToString { "${it.ptsMicros}us ${it.samples} samples from ${it.firstSample}" }
+        assertTrue(-1 !in seen, "a frame matches no block: $described")
+        assertEquals(seen.sorted(), seen, "the blocks arrived out of order: $described")
+        blocks.forEachIndexed { index, (_, samples) ->
+            assertEquals(samples, out.filterIndexed { at, _ -> seen[at] == index }.sumOf { it.samples }, "block $index: $described")
+        }
+        val times = out.map { assertNotNull(it.ptsMicros, "a frame has no time: $described") }
+        assertTrue(times.zipWithNext().all { (a, b) -> b > a }, "the times go backwards: $described")
+    }
+
+    /** [samples] of stereo S16 at [rate], every sample [value]. */
+    private fun stereoS16(samples: Int, rate: Int, value: Int, ptsMicros: Long) = Frame.ofAudio(
+        bytes = ByteArray(samples * CHANNELS * 2) { i -> (if (i % 2 == 0) value and 0xFF else value shr 8).toByte() },
+        sampleCount = samples,
+        sampleRate = rate,
+        channels = CHANNELS,
+        sampleFormat = SampleFormat.S16,
+        ptsMicros = ptsMicros,
+    )
 
     /** A decoded frame of nine channels in no named order, which [Frame.ofAudio] cannot build. */
     private suspend fun nineChannelFrame(): Frame {
