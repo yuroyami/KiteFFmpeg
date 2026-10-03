@@ -136,6 +136,12 @@ public data class VideoStreamInfo(
      * level. Null when it declares neither, which includes every SDR stream.
      */
     val hdr: HdrMetadata? = null,
+    /**
+     * The Dolby Vision configuration the container declares, or null when the stream is not Dolby
+     * Vision. When [DolbyVisionConfig.baseLayerPlaysAlone] is false, the frames need
+     * [Frame.composeDolbyVision] before they mean anything.
+     */
+    val dolbyVision: DolbyVisionConfig? = null,
 )
 
 /**

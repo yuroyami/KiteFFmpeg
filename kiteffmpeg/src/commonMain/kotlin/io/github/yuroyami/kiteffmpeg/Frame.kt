@@ -73,6 +73,46 @@ public expect class Frame : AutoCloseable {
     public fun closedCaptions(): ByteArray?
 
     /**
+     * The Dolby Vision metadata of this video frame, from the RPU that FFmpeg's HEVC or AV1
+     * decoder parsed and attached to it. A decoder attaches it on its own, with no option, to
+     * every frame of a stream that carries an RPU, whether the decoder runs in software or hands
+     * the picture to hardware.
+     *
+     * @return the metadata, or null when the frame carries none
+     * @throws FFmpegException if the metadata cannot be read
+     */
+    @Throws(FFmpegException::class)
+    public fun dolbyVision(): DolbyVisionMetadata?
+
+    /**
+     * Starts the Dolby Vision composition of this video frame, which turns its base layer and RPU
+     * into an HDR10 picture. See [DolbyVisionComposition] for what the picture is and how to
+     * spread the work over several threads.
+     *
+     * The frame must be in memory: download a hardware frame with [downloadFromHardware] first.
+     * Its picture must be 4:2:0, planar such as yuv420p10le or semi-planar such as p010le, which
+     * is every Dolby Vision profile's.
+     *
+     * @return the composition, or null when the frame carries no Dolby Vision metadata
+     * @throws FFmpegException on a hardware frame, on a picture that is not 4:2:0, or when the
+     *         output picture cannot be allocated
+     */
+    @Throws(FFmpegException::class)
+    public fun beginDolbyVisionComposition(): DolbyVisionComposition?
+
+    /**
+     * The Dolby Vision composition of this video frame in one call, on the calling thread:
+     * [beginDolbyVisionComposition], every row, and the picture. The frame itself is untouched.
+     *
+     * @return a new HDR10 frame that the caller owns, or null when this frame carries no Dolby
+     *         Vision metadata
+     * @throws FFmpegException as [beginDolbyVisionComposition] and
+     *         [DolbyVisionComposition.composeRows] do
+     */
+    @Throws(FFmpegException::class)
+    public fun composeDolbyVision(): Frame?
+
+    /**
      * An owned snapshot of this frame. Use it to keep a callback-scoped frame past that call.
      * O(1): it takes new references to the same refcounted buffers, with no pixel copy.
      * The returned frame survives the source being recycled. Close it yourself.

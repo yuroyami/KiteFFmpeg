@@ -404,6 +404,78 @@ public final class io/github/yuroyami/kiteffmpeg/DivergentField : java/lang/Enum
 	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/DivergentField;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/DolbyVisionBrightness {
+	public fun <init> (III)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun copy (III)Lio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;IIIILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAveragePq ()I
+	public final fun getMaxPq ()I
+	public final fun getMinPq ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/DolbyVisionComposition : java/lang/AutoCloseable {
+	public fun close ()V
+	public final fun composeRows (II)V
+	public final fun finish ()Lio/github/yuroyami/kiteffmpeg/Frame;
+	public final fun getHeight ()I
+}
+
+public final class io/github/yuroyami/kiteffmpeg/DolbyVisionConfig {
+	public fun <init> (IIIIZZZI)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()Z
+	public final fun component6 ()Z
+	public final fun component7 ()Z
+	public final fun component8 ()I
+	public final fun copy (IIIIZZZI)Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;IIIIZZZIILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBaseLayerCompatibility ()I
+	public final fun getBaseLayerPlaysAlone ()Z
+	public final fun getHasBaseLayer ()Z
+	public final fun getHasEnhancementLayer ()Z
+	public final fun getHasRpu ()Z
+	public final fun getLevel ()I
+	public final fun getProfile ()I
+	public final fun getVersionMajor ()I
+	public final fun getVersionMinor ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/DolbyVisionMetadata {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/DolbyVisionMetadata$Companion;
+	public fun <init> (IZIILio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;)V
+	public final fun component1 ()I
+	public final fun component2 ()Z
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()Lio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;
+	public final fun copy (IZIILio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;)Lio/github/yuroyami/kiteffmpeg/DolbyVisionMetadata;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/DolbyVisionMetadata;IZIILio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/DolbyVisionMetadata;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBaseLayerBitDepth ()I
+	public final fun getSceneBrightness ()Lio/github/yuroyami/kiteffmpeg/DolbyVisionBrightness;
+	public final fun getSourceMaxPq ()I
+	public final fun getSourceMinPq ()I
+	public final fun getUsesEnhancementLayer ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/DolbyVisionMetadata$Companion {
+	public final fun nitsOfPq (I)D
+}
+
 public final class io/github/yuroyami/kiteffmpeg/EncoderId {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/EncoderId$Companion;
 	public static final synthetic fun box-impl (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/EncoderId;
@@ -699,11 +771,14 @@ public final class io/github/yuroyami/kiteffmpeg/FilterGraphKt {
 
 public final class io/github/yuroyami/kiteffmpeg/Frame : java/lang/AutoCloseable {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/Frame$Companion;
+	public final fun beginDolbyVisionComposition ()Lio/github/yuroyami/kiteffmpeg/DolbyVisionComposition;
 	public fun close ()V
 	public final fun closedCaptions ()[B
+	public final fun composeDolbyVision ()Lio/github/yuroyami/kiteffmpeg/Frame;
 	public final fun copy ()Lio/github/yuroyami/kiteffmpeg/Frame;
 	public final fun copyPlanesInto ([B)I
 	public final fun copyPlanesToByteArray ()[B
+	public final fun dolbyVision ()Lio/github/yuroyami/kiteffmpeg/DolbyVisionMetadata;
 	public final fun downloadFromHardware ()Lio/github/yuroyami/kiteffmpeg/Frame;
 	public final fun encodeImage-vVKjmHM (Ljava/lang/String;)[B
 	public static synthetic fun encodeImage-vVKjmHM$default (Lio/github/yuroyami/kiteffmpeg/Frame;Ljava/lang/String;ILjava/lang/Object;)[B
@@ -1384,9 +1459,10 @@ public final class io/github/yuroyami/kiteffmpeg/VideoInput {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
-	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()I
+	public final fun component10 ()Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;
 	public final fun component2 ()I
 	public final fun component3-OLR4av4 ()Ljava/lang/String;
 	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Rational;
@@ -1395,10 +1471,11 @@ public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
 	public final fun component7 ()Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
 	public final fun component8 ()Lio/github/yuroyami/kiteffmpeg/FieldOrder;
 	public final fun component9 ()Lio/github/yuroyami/kiteffmpeg/HdrMetadata;
-	public final fun copy-Ioyas-0 (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
-	public static synthetic fun copy-Ioyas-0$default (Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public final fun copy-v7NKRe8 (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public static synthetic fun copy-v7NKRe8$default (Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getColor ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun getDolbyVision ()Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;
 	public final fun getFieldOrder ()Lio/github/yuroyami/kiteffmpeg/FieldOrder;
 	public final fun getFrameRate ()Lio/github/yuroyami/kiteffmpeg/Rational;
 	public final fun getHdr ()Lio/github/yuroyami/kiteffmpeg/HdrMetadata;

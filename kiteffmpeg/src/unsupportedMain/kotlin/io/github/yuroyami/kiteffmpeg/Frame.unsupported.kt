@@ -19,6 +19,16 @@ public actual class Frame private constructor() : AutoCloseable {
     public actual fun closedCaptions(): ByteArray? = placeholderBackendUnavailable("Reading closed captions")
 
     @Throws(FFmpegException::class)
+    public actual fun dolbyVision(): DolbyVisionMetadata? = placeholderBackendUnavailable("Reading Dolby Vision metadata")
+
+    @Throws(FFmpegException::class)
+    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? =
+        placeholderBackendUnavailable("Composing Dolby Vision")
+
+    @Throws(FFmpegException::class)
+    public actual fun composeDolbyVision(): Frame? = placeholderBackendUnavailable("Composing Dolby Vision")
+
+    @Throws(FFmpegException::class)
     public actual fun copy(): Frame = placeholderBackendUnavailable("Copying a frame")
 
     @Throws(FFmpegException::class)
@@ -55,3 +65,7 @@ public actual class Frame private constructor() : AutoCloseable {
 
 internal actual fun rescaleQ(value: Long, source: Rational, destination: Rational): Long =
     placeholderBackendUnavailable("Rescaling an FFmpeg timestamp")
+
+internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int) {
+    placeholderBackendUnavailable("Composing Dolby Vision")
+}

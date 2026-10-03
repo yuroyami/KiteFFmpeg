@@ -209,6 +209,15 @@ public actual class Frame internal constructor(
         bytes
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun dolbyVision(): DolbyVisionMetadata? = dolbyVisionNotWired()
+
+    @Throws(FFmpegException::class)
+    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = dolbyVisionNotWired()
+
+    @Throws(FFmpegException::class)
+    public actual fun composeDolbyVision(): Frame? = beginDolbyVisionComposition()?.let(::composeWhole)
+
     /** The packed byte count, 0 for a frame that holds no picture or samples. Call under [withNative]. */
     private fun planesByteCountOpen(): Int = when (streamType) {
         MediaType.Video -> {
@@ -484,4 +493,8 @@ internal object FrameOps {
         streamType: MediaType,
         timeBase: Rational,
     ): Frame = Frame(raw, ownsPointer = false, streamIndex = streamIndex, streamType = streamType, streamTimeBase = timeBase)
+}
+
+internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int) {
+    dolbyVisionNotWired()
 }

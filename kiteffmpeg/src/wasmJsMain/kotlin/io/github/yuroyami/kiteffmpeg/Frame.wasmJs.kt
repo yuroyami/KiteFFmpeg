@@ -160,6 +160,12 @@ public actual class Frame internal constructor(
         }
     }
 
+    public actual fun dolbyVision(): DolbyVisionMetadata? = dolbyVisionNotWired()
+
+    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = dolbyVisionNotWired()
+
+    public actual fun composeDolbyVision(): Frame? = beginDolbyVisionComposition()?.let(::composeWhole)
+
     /** Copies the frame's [size] bytes through a module buffer into the start of [destination]. */
     private fun copyPlanes(destination: ByteArray, size: Int) {
         val m = requireModule()
@@ -245,3 +251,7 @@ private const val AVCOL_RANGE_JPEG = 2
 
 internal actual fun rescaleQ(value: Long, source: Rational, destination: Rational): Long =
     ffkmp_rescale_q(requireModule(), value, source.num, source.den, destination.num, destination.den)
+
+internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int) {
+    dolbyVisionNotWired()
+}

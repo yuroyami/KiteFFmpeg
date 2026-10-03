@@ -92,6 +92,15 @@ public actual class Frame internal constructor(
     public actual fun closedCaptions(): ByteArray? = locked { Internals.frameClosedCaptions(it) }
 
     @Throws(FFmpegException::class)
+    public actual fun dolbyVision(): DolbyVisionMetadata? = dolbyVisionNotWired()
+
+    @Throws(FFmpegException::class)
+    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = dolbyVisionNotWired()
+
+    @Throws(FFmpegException::class)
+    public actual fun composeDolbyVision(): Frame? = beginDolbyVisionComposition()?.let(::composeWhole)
+
+    @Throws(FFmpegException::class)
     public actual fun copy(): Frame = locked { open ->
         Frame(
             token = Internals.frameClone(open),
@@ -328,4 +337,8 @@ internal object FrameOps {
 
     fun wrap(token: Long, streamIndex: Int, streamType: MediaType, timeBase: Rational): Frame =
         Frame(token, false, streamIndex, streamType, timeBase)
+}
+
+internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int) {
+    dolbyVisionNotWired()
 }

@@ -1256,6 +1256,99 @@ final class io.github.yuroyami.kiteffmpeg/Disposition { // io.github.yuroyami.ki
     }
 }
 
+final class io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness { // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Int) // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+
+    final val averagePq // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.averagePq|{}averagePq[0]
+        final fun <get-averagePq>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.averagePq.<get-averagePq>|<get-averagePq>(){}[0]
+    final val maxPq // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.maxPq|{}maxPq[0]
+        final fun <get-maxPq>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.maxPq.<get-maxPq>|<get-maxPq>(){}[0]
+    final val minPq // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.minPq|{}minPq[0]
+        final fun <get-minPq>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.minPq.<get-minPq>|<get-minPq>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.component3|component3(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.copy|copy(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/DolbyVisionComposition : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/DolbyVisionComposition|null[0]
+    final val height // io.github.yuroyami.kiteffmpeg/DolbyVisionComposition.height|{}height[0]
+        final fun <get-height>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionComposition.height.<get-height>|<get-height>(){}[0]
+
+    final fun close() // io.github.yuroyami.kiteffmpeg/DolbyVisionComposition.close|close(){}[0]
+    final fun composeRows(kotlin/Int, kotlin/Int) // io.github.yuroyami.kiteffmpeg/DolbyVisionComposition.composeRows|composeRows(kotlin.Int;kotlin.Int){}[0]
+    final fun finish(): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/DolbyVisionComposition.finish|finish(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/DolbyVisionConfig { // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Int) // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Int){}[0]
+
+    final val baseLayerCompatibility // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.baseLayerCompatibility|{}baseLayerCompatibility[0]
+        final fun <get-baseLayerCompatibility>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.baseLayerCompatibility.<get-baseLayerCompatibility>|<get-baseLayerCompatibility>(){}[0]
+    final val baseLayerPlaysAlone // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.baseLayerPlaysAlone|{}baseLayerPlaysAlone[0]
+        final fun <get-baseLayerPlaysAlone>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.baseLayerPlaysAlone.<get-baseLayerPlaysAlone>|<get-baseLayerPlaysAlone>(){}[0]
+    final val hasBaseLayer // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.hasBaseLayer|{}hasBaseLayer[0]
+        final fun <get-hasBaseLayer>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.hasBaseLayer.<get-hasBaseLayer>|<get-hasBaseLayer>(){}[0]
+    final val hasEnhancementLayer // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.hasEnhancementLayer|{}hasEnhancementLayer[0]
+        final fun <get-hasEnhancementLayer>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.hasEnhancementLayer.<get-hasEnhancementLayer>|<get-hasEnhancementLayer>(){}[0]
+    final val hasRpu // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.hasRpu|{}hasRpu[0]
+        final fun <get-hasRpu>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.hasRpu.<get-hasRpu>|<get-hasRpu>(){}[0]
+    final val level // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.level|{}level[0]
+        final fun <get-level>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.level.<get-level>|<get-level>(){}[0]
+    final val profile // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.profile|{}profile[0]
+        final fun <get-profile>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.profile.<get-profile>|<get-profile>(){}[0]
+    final val versionMajor // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.versionMajor|{}versionMajor[0]
+        final fun <get-versionMajor>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.versionMajor.<get-versionMajor>|<get-versionMajor>(){}[0]
+    final val versionMinor // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.versionMinor|{}versionMinor[0]
+        final fun <get-versionMinor>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.versionMinor.<get-versionMinor>|<get-versionMinor>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component4|component4(){}[0]
+    final fun component5(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component5|component5(){}[0]
+    final fun component6(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component6|component6(){}[0]
+    final fun component7(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component7|component7(){}[0]
+    final fun component8(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.component8|component8(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/DolbyVisionConfig // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.copy|copy(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Int){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/DolbyVisionConfig.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata { // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata|null[0]
+    constructor <init>(kotlin/Int, kotlin/Boolean, kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness?) // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.<init>|<init>(kotlin.Int;kotlin.Boolean;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.DolbyVisionBrightness?){}[0]
+
+    final val baseLayerBitDepth // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.baseLayerBitDepth|{}baseLayerBitDepth[0]
+        final fun <get-baseLayerBitDepth>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.baseLayerBitDepth.<get-baseLayerBitDepth>|<get-baseLayerBitDepth>(){}[0]
+    final val sceneBrightness // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.sceneBrightness|{}sceneBrightness[0]
+        final fun <get-sceneBrightness>(): io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness? // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.sceneBrightness.<get-sceneBrightness>|<get-sceneBrightness>(){}[0]
+    final val sourceMaxPq // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.sourceMaxPq|{}sourceMaxPq[0]
+        final fun <get-sourceMaxPq>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.sourceMaxPq.<get-sourceMaxPq>|<get-sourceMaxPq>(){}[0]
+    final val sourceMinPq // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.sourceMinPq|{}sourceMinPq[0]
+        final fun <get-sourceMinPq>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.sourceMinPq.<get-sourceMinPq>|<get-sourceMinPq>(){}[0]
+    final val usesEnhancementLayer // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.usesEnhancementLayer|{}usesEnhancementLayer[0]
+        final fun <get-usesEnhancementLayer>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.usesEnhancementLayer.<get-usesEnhancementLayer>|<get-usesEnhancementLayer>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.component1|component1(){}[0]
+    final fun component2(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.component4|component4(){}[0]
+    final fun component5(): io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness? // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.component5|component5(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionBrightness? = ...): io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.copy|copy(kotlin.Int;kotlin.Boolean;kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.DolbyVisionBrightness?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.toString|toString(){}[0]
+
+    final object Companion { // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.Companion|null[0]
+        final fun nitsOfPq(kotlin/Int): kotlin/Double // io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata.Companion.nitsOfPq|nitsOfPq(kotlin.Int){}[0]
+    }
+}
+
 final class io.github.yuroyami.kiteffmpeg/FFmpegException : kotlin/RuntimeException { // io.github.yuroyami.kiteffmpeg/FFmpegException|null[0]
     constructor <init>(io.github.yuroyami.kiteffmpeg/FFmpegError) // io.github.yuroyami.kiteffmpeg/FFmpegException.<init>|<init>(io.github.yuroyami.kiteffmpeg.FFmpegError){}[0]
 
@@ -1356,11 +1449,14 @@ final class io.github.yuroyami.kiteffmpeg/Frame : kotlin/AutoCloseable { // io.g
     final val info // io.github.yuroyami.kiteffmpeg/Frame.info|{}info[0]
         final fun <get-info>(): io.github.yuroyami.kiteffmpeg/FrameInfo // io.github.yuroyami.kiteffmpeg/Frame.info.<get-info>|<get-info>(){}[0]
 
+    final fun beginDolbyVisionComposition(): io.github.yuroyami.kiteffmpeg/DolbyVisionComposition? // io.github.yuroyami.kiteffmpeg/Frame.beginDolbyVisionComposition|beginDolbyVisionComposition(){}[0]
     final fun close() // io.github.yuroyami.kiteffmpeg/Frame.close|close(){}[0]
     final fun closedCaptions(): kotlin/ByteArray? // io.github.yuroyami.kiteffmpeg/Frame.closedCaptions|closedCaptions(){}[0]
+    final fun composeDolbyVision(): io.github.yuroyami.kiteffmpeg/Frame? // io.github.yuroyami.kiteffmpeg/Frame.composeDolbyVision|composeDolbyVision(){}[0]
     final fun copy(): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/Frame.copy|copy(){}[0]
     final fun copyPlanesInto(kotlin/ByteArray): kotlin/Int // io.github.yuroyami.kiteffmpeg/Frame.copyPlanesInto|copyPlanesInto(kotlin.ByteArray){}[0]
     final fun copyPlanesToByteArray(): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/Frame.copyPlanesToByteArray|copyPlanesToByteArray(){}[0]
+    final fun dolbyVision(): io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata? // io.github.yuroyami.kiteffmpeg/Frame.dolbyVision|dolbyVision(){}[0]
     final fun downloadFromHardware(): io.github.yuroyami.kiteffmpeg/Frame // io.github.yuroyami.kiteffmpeg/Frame.downloadFromHardware|downloadFromHardware(){}[0]
     final fun encodeImage(io.github.yuroyami.kiteffmpeg/CodecId = ...): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/Frame.encodeImage|encodeImage(io.github.yuroyami.kiteffmpeg.CodecId){}[0]
     final fun planesByteCount(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Frame.planesByteCount|planesByteCount(){}[0]
@@ -2042,10 +2138,12 @@ final class io.github.yuroyami.kiteffmpeg/VideoInput { // io.github.yuroyami.kit
 }
 
 final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyami.kiteffmpeg/VideoStreamInfo|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?){}[0]
 
     final val color // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color|{}color[0]
         final fun <get-color>(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color.<get-color>|<get-color>(){}[0]
+    final val dolbyVision // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.dolbyVision|{}dolbyVision[0]
+        final fun <get-dolbyVision>(): io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.dolbyVision.<get-dolbyVision>|<get-dolbyVision>(){}[0]
     final val fieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.fieldOrder|{}fieldOrder[0]
         final fun <get-fieldOrder>(): io.github.yuroyami.kiteffmpeg/FieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.fieldOrder.<get-fieldOrder>|<get-fieldOrder>(){}[0]
     final val frameRate // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.frameRate|{}frameRate[0]
@@ -2064,6 +2162,7 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
         final fun <get-width>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.width.<get-width>|<get-width>(){}[0]
 
     final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component1|component1(){}[0]
+    final fun component10(): io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component10|component10(){}[0]
     final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component2|component2(){}[0]
     final fun component3(): io.github.yuroyami.kiteffmpeg/PixelFormat // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component3|component3(){}[0]
     final fun component4(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component4|component4(){}[0]
@@ -2072,7 +2171,7 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
     final fun component7(): io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component7|component7(){}[0]
     final fun component8(): io.github.yuroyami.kiteffmpeg/FieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component8|component8(){}[0]
     final fun component9(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component9|component9(){}[0]
-    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.toString|toString(){}[0]
