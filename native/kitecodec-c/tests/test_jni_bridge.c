@@ -397,6 +397,12 @@ jintArray kj_hdr_new(JNIEnv *caller, int display_rc, const int *q, int flags, in
     KC_FAIL("the bridge built an HDR array, which no case here expects");
 }
 
+jintArray kj_ints_new(JNIEnv *caller, const jint *values, int32_t count)
+{
+    (void)caller; (void)values; (void)count;
+    KC_FAIL("the bridge built an int array, which no case here expects");
+}
+
 /* ---- Fixture ---- */
 
 static char wav_path[1024];
