@@ -1,0 +1,37 @@
+Let the Matroska demuxer read on when its input moves after its end.
+
+The Matroska demuxer sets its done flag when it meets the end of its input, and from then on
+matroska_read_packet answers end of file. Only matroska_read_seek clears the flag. FFmpeg's HLS
+demuxer never calls it: an HLS seek resets the byte reader under the playlist's inner demuxer and
+feeds it the segment it seeks to. So once an HLS playlist of WebM or Matroska segments had been read
+to its end, every later seek returned without an error and no packet ever followed. Before the end,
+the same seek worked, and MP4 and MPEG-TS segments seek after the end too.
+
+When the flag is set but the input is no longer at its end, something moved the input since, so
+the demuxer clears the flag and resynchronises on the next level 1 element, as it already does
+after a parse error. A file read to its end stays at its end, because nothing clears the input's
+end flag but a seek.
+
+Applied by BuildFFmpegTask before configure, after 0002. Fixes yuroyami/KiteFFmpeg#125.
+
+diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
+index 18849af..7ce49b8 100644
+--- a/libavformat/matroskadec.c
++++ b/libavformat/matroskadec.c
+@@ -4486,6 +4486,16 @@ static int matroska_read_packet(AVFormatContext *s, AVPacket *pkt)
+         matroska->resync_pos = avio_tell(s->pb);
+     }
+ 
++    /* KiteFFmpeg: the input moved after its end was reached, without matroska_read_seek, as
++     * when an HLS playlist of WebM segments seeks and hls.c resets the byte reader under this
++     * demuxer. Resynchronise on the next level 1 element instead of answering EOF for ever. */
++    if (matroska->done && !avio_feof(s->pb)) {
++        matroska->done = 0;
++        ret = matroska_resync(matroska, avio_tell(s->pb) - 1);
++        if (ret < 0)
++            return ret;
++    }
++
+     while (matroska_deliver_packet(matroska, pkt)) {
+         if (matroska->done)
+             return (ret < 0) ? ret : AVERROR_EOF;

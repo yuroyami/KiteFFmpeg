@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A playlist of WebM or Matroska segments seeks after it has been read to its end. FFmpeg's
+  Matroska reader kept answering end of file once the HLS reader had reset its input, so every
+  later seek returned and no packet followed. The fix is the FFmpeg patch
+  `0003-matroska-read-on-after-the-input-moves.patch` (#125).
+- That fix lives in FFmpeg, so it reaches a platform only with an FFmpeg tree built from the
+  patch. The trees of 0.4.0 do not carry it.
+
 ## [0.4.0] - 2026-09-29
 
 HLS through your own HTTP client, subtitle conversion and subtitle files, more filters, the

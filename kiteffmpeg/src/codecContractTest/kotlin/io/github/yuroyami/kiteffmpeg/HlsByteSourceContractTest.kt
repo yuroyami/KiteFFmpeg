@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -19,6 +20,7 @@ import kotlin.test.assertTrue
  *
  * A linked FFmpeg without the trust_io_open patch, such as a prebuilt tree from an older release,
  * refuses the opener with [FFmpegError.Unsupported]. Each test then checks that refusal and stops.
+ * The last test needs a later FFmpeg patch as well, `0003`, and fails on a tree built before it.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 class HlsByteSourceContractTest {
@@ -66,9 +68,14 @@ class HlsByteSourceContractTest {
     }
 
     /** Opens the playlist through a byte source, or null when the linked FFmpeg lacks the patch. */
-    private fun openPlaylist(opener: MediaByteOpener, url: String = PLAYLIST_URL, mimeType: String? = HLS_TYPE): MediaSource? =
+    private fun openPlaylist(
+        opener: MediaByteOpener,
+        url: String = PLAYLIST_URL,
+        mimeType: String? = HLS_TYPE,
+        playlist: String = PLAYLIST,
+    ): MediaSource? =
         try {
-            MediaSource.open(MemorySource(PLAYLIST.encodeToByteArray()), url = url, mimeType = mimeType, nestedOpener = opener)
+            MediaSource.open(MemorySource(playlist.encodeToByteArray()), url = url, mimeType = mimeType, nestedOpener = opener)
         } catch (error: FFmpegException) {
             if (error.error !is FFmpegError.Unsupported || "trust_io_open" !in error.message.orEmpty()) throw error
             println("HLS contract degraded: the linked FFmpeg lacks the trust_io_open patch")
@@ -139,7 +146,43 @@ class HlsByteSourceContractTest {
         assertEquals(0, opener.opened)
     }
 
+    /**
+     * A playlist of Matroska segments read to its end still seeks (#125). FFmpeg's Matroska reader
+     * kept answering end of file after the HLS reader reset its input, so the seek returned and no
+     * packet ever followed. WebM is the same reader.
+     */
+    @Test
+    fun aMatroskaPlaylistReadToItsEndStillSeeks() {
+        val opener = RecordingOpener(mapOf("$BASE_URL/seg0.mkv" to matroskaSegment))
+        val media = openPlaylist(opener, playlist = mediaPlaylist("seg0.mkv", seconds = 4)) ?: return
+        media.use {
+            val video = media.primaryVideo ?: error("the playlist has no video stream")
+            media.openPacketReader(listOf(video)).use { reader ->
+                var packets = 0
+                while (true) {
+                    val packet = reader.read() ?: break
+                    packet.close()
+                    packets++
+                }
+                assertTrue(packets >= 100, "expected the whole segment before the seek, got $packets packets")
+                reader.seek(2_000_000L, SeekDirection.Forward)
+                val first = assertNotNull(reader.read(), "no packet after a seek from the end")
+                val landed = first.use { (it.ptsMicros ?: 0L) - media.startTimeMicros }
+                assertTrue(landed in 1_900_000L..2_100_000L, "the seek to 2 s landed at $landed us")
+                var after = 1
+                while (true) {
+                    val packet = reader.read() ?: break
+                    packet.close()
+                    after++
+                }
+                assertTrue(after >= 50, "expected the last two seconds after the seek, got $after packets")
+            }
+        }
+        assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
+    }
+
     private companion object {
+        const val BASE_URL = "https://media.example/live"
         const val PLAYLIST_URL = "https://media.example/live/index"
         const val SEGMENT_URL = "https://media.example/live/seg0.ts"
         const val HLS_TYPE = "application/vnd.apple.mpegurl"
@@ -152,6 +195,18 @@ class HlsByteSourceContractTest {
             #EXT-X-PLAYLIST-TYPE:VOD
             #EXTINF:2.0,
             seg0.ts
+            #EXT-X-ENDLIST
+        """.trimIndent() + "\n"
+
+        /** A media playlist of one [seconds] long segment at [segment]. */
+        fun mediaPlaylist(segment: String, seconds: Int): String = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-TARGETDURATION:$seconds
+            #EXT-X-MEDIA-SEQUENCE:0
+            #EXT-X-PLAYLIST-TYPE:VOD
+            #EXTINF:$seconds.0,
+            $segment
             #EXT-X-ENDLIST
         """.trimIndent() + "\n"
 
@@ -175,6 +230,35 @@ class HlsByteSourceContractTest {
                     runBlocking {
                         encoder.drive(
                             (0 until 60).asFlow().map { index ->
+                                Frame.ofVideo(frameBytes(index), 320, 240, PixelFormat.Yuv420p, index * 1_000_000L / 30)
+                            },
+                        )
+                    }
+                }
+                readContractBytes(path)
+            } finally {
+                deleteContractPath(path)
+            }
+        }
+
+        /** Four seconds of Matroska video: 120 mpeg4 frames at 320x240, with a keyframe every second. */
+        val matroskaSegment: ByteArray by lazy {
+            val path = contractOutputPath("mkv")
+            try {
+                MediaSink.open(path).use { sink ->
+                    val encoder = sink.addVideoEncoder(
+                        VideoEncoderSpec(
+                            codec = CodecId("mpeg4"),
+                            width = 320,
+                            height = 240,
+                            frameRate = Rational(30, 1),
+                            bitrateBps = 800_000,
+                            keyframeIntervalFrames = 30,
+                        ),
+                    )
+                    runBlocking {
+                        encoder.drive(
+                            (0 until 120).asFlow().map { index ->
                                 Frame.ofVideo(frameBytes(index), 320, 240, PixelFormat.Yuv420p, index * 1_000_000L / 30)
                             },
                         )
