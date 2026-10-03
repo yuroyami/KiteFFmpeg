@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.FlowCollector
 
 /**
  * Refuses an audio frame the encoder cannot read, before FFmpeg reads it.
@@ -17,11 +17,10 @@ import kotlinx.coroutines.flow.flow
  * has that size. Frames that declare nothing (rate 0, no channels, [SampleFormat.None]) are passed
  * through rather than guessed at, the same way the video guard skips a frame with no dimensions.
  *
- * ### It closes the frame it refuses
+ * ### The frame it refuses stays the caller's
  *
- * `drive` CONSUMES every frame it is handed: `EncoderCore.encode` closes it in a `finally`, on the
- * failure paths too. A guard that threw before reaching that would quietly leak the frame it just
- * refused, which is a poor trade for the crash it prevents.
+ * It only throws. [audioForEncoder], its one caller, owns the frame and closes it on every failure
+ * path, this refusal among them, so closing it here as well would close it twice.
  */
 internal fun requireEncodableAudio(
     frame: Frame,
@@ -45,7 +44,6 @@ internal fun requireEncodableAudio(
         }
     }
     if (problems.isEmpty()) return
-    frame.close()
     throw FFmpegException(
         FFmpegError.InvalidArgument(
             0,
@@ -65,8 +63,20 @@ internal fun requireEncodableAudio(
  * leaves the sample count, and so the chunk size, unchanged. A frame that names no layout is taken
  * to have the encoder's. The sample rate is converted only when [frameSize] is 0, meaning the codec
  * takes any chunk size; a rate change into a fixed-size encoder such as AAC is refused by
- * [requireEncodableAudio]. A source frame is closed once converted, and the resampler's held
- * samples are emitted when [input] ends.
+ * [requireEncodableAudio]. The resampler's held samples are emitted when [input] ends.
+ *
+ * ### Who closes a frame
+ *
+ * `drive` consumes every frame it is handed. A frame of [input] is this function's from the moment
+ * it is collected until the collector's `emit` is called with it, and it is closed on every failure
+ * before that: a refusal, a converter that cannot be built, a conversion that fails, and a
+ * collector that fails while it takes the samples an old converter still held (#127). A frame
+ * that is converted is closed as soon as its conversion is made. A frame that reaches the
+ * collector is the collector's, and `EncoderCore.encode` closes it.
+ *
+ * This implements [Flow] directly rather than through the `flow` builder, for the reason
+ * [bufferFrames] does: the builder's `emit` checks for cancellation before it passes the value on,
+ * so a frame could be refused there and reach no one.
  */
 internal fun audioForEncoder(
     input: Flow<Frame>,
@@ -75,14 +85,19 @@ internal fun audioForEncoder(
     channels: Int,
     frameSize: Int,
     channelLayoutMask: Long?,
-): Flow<Frame> = flow {
-    val target = AudioSpec(sampleRate, channels, sampleFormat, channelLayoutMask)
-    var resampler: Resampler? = null
-    suspend fun drain(done: Resampler) {
-        while (true) emit(done.flush() ?: break)
-    }
-    try {
-        input.collect { frame ->
+): Flow<Frame> = object : Flow<Frame> {
+    override suspend fun collect(collector: FlowCollector<Frame>) {
+        val target = AudioSpec(sampleRate, channels, sampleFormat, channelLayoutMask)
+        var resampler: Resampler? = null
+        suspend fun drain(done: Resampler) {
+            while (true) collector.emit(done.flush() ?: break)
+        }
+
+        /**
+         * [frame] when the encoder takes it as it is, or else its conversion, after which [frame]
+         * is closed.
+         */
+        suspend fun forEncoder(frame: Frame): Frame? {
             val info = frame.info
             val declaresNothing = info.sampleRate <= 0 || info.channelCount <= 0 || info.sampleFormat == SampleFormat.None
             val source = AudioSpec(info.sampleRate, info.channelCount, info.sampleFormat, info.channelLayoutMask)
@@ -90,10 +105,7 @@ internal fun audioForEncoder(
                 info.channelLayoutMask == channelLayoutMask
             val matches = info.sampleRate == sampleRate && info.channelCount == channels &&
                 info.sampleFormat == sampleFormat && sameLayout
-            if (declaresNothing || matches) {
-                emit(frame)
-                return@collect
-            }
+            if (declaresNothing || matches) return frame
             if (info.sampleRate != sampleRate && frameSize != 0) {
                 requireEncodableAudio(frame, sampleFormat, sampleRate, channels)
             }
@@ -101,18 +113,26 @@ internal fun audioForEncoder(
                 resampler?.let { previous ->
                     drain(previous)
                     previous.close()
+                    resampler = null
                 }
                 Resampler(source, target).also { resampler = it }
             }
-            val converted = try {
-                current.convert(frame)
-            } finally {
-                frame.close()
-            }
-            if (converted != null) emit(converted)
+            return current.convert(frame).also { frame.close() }
         }
-        resampler?.let { drain(it) }
-    } finally {
-        resampler?.close()
+
+        try {
+            input.collect { frame ->
+                val ready = try {
+                    forEncoder(frame)
+                } catch (failure: Throwable) {
+                    frame.close()
+                    throw failure
+                }
+                if (ready != null) collector.emit(ready)
+            }
+            resampler?.let { drain(it) }
+        } finally {
+            resampler?.close()
+        }
     }
 }

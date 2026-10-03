@@ -47,6 +47,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   (#126).
 - Both fixes live in FFmpeg, so they reach a platform only with an FFmpeg tree built from these
   patches. The trees of 0.4.0 do not carry them.
+- `AudioEncoder.drive` closes a frame it cannot convert. When FFmpeg refused to build the
+  converter, as it does for nine channels in no named order sent to a stereo encoder, the refusal
+  was right but the frame stayed open with its buffers. So did a frame that arrived while the
+  encoder failed on the samples the previous converter still held (#127).
 
 ## [0.4.0] - 2026-09-29
 
