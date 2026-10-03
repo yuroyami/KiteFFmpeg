@@ -16,3 +16,5 @@ public actual class Resampler actual constructor(
 
     actual override fun close(): Unit = Unit
 }
+
+internal actual fun defaultLayoutMask(channels: Int): Long = placeholderBackendUnavailable("Resampling audio")

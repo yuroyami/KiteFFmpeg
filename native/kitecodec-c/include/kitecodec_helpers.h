@@ -456,6 +456,12 @@ KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in)
 /* Ownership. Frees *s and writes NULL through the pointer; safe on NULL either way. */
 KC_API void ffkmp_swr_free(kc_swr **s);
 
+/* FFmpeg's default layout for `channels` channels as a native channel mask: the layout
+ * av_channel_layout_default picks, which is the first native layout with that count and the one
+ * ffkmp_swr_create takes for a mask of 0. Returns 0 when the linked FFmpeg has no native layout
+ * with that count, and for a count that is not positive. */
+KC_API int64_t ffkmp_ch_layout_default_mask(int channels);
+
 /* Subtitle decoding. A decoded subtitle is FFmpeg's AVSubtitle behind kc_subtitle: its times, and
  * rectangles that are images or text. */
 #define KC_SUBTITLE_BITMAP 1

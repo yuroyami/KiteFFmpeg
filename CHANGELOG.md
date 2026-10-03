@@ -70,6 +70,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   adopted. Every overlapping call now waits for the first one's module, a call that is cancelled
   leaves the others waiting, a load that fails is forgotten so that the next call tries again, and
   a load of another address while one is in flight is refused with an error that names it (#132).
+- A `Resampler` whose `AudioSpec` names no layout takes a decoded frame of 10, 12, 14, 16 or 24
+  channels in FFmpeg's default layout for that count. The check compared the frame with a copy of
+  FFmpeg's defaults in Kotlin that stopped at eight channels and answered 0 above, so it refused a
+  frame the C side would have converted. The default now comes from the linked FFmpeg through the
+  new C helper `ffkmp_ch_layout_default_mask`, and the C ABI is 3.17 (#129).
 
 ## [0.4.0] - 2026-09-29
 

@@ -844,6 +844,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_swr_free(s: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/kc_swr>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/kc_swr> */>?): kotlin/Unit
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_ch_layout_default_mask")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_ch_layout_default_mask(channels: kotlin/Int): kotlin/Long /* = platform/posix/int64_t^ */
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_decoder_open")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_subtitle_decoder_open(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?, stream_index: kotlin/Int, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */> */>?): kotlin/Int
@@ -1369,7 +1373,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 16 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 17 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

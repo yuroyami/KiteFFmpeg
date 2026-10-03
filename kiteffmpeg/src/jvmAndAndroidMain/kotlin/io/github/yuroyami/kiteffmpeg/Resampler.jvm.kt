@@ -56,3 +56,5 @@ public actual class Resampler actual constructor(
         Internals.swrFree(closing)
     }
 }
+
+internal actual fun defaultLayoutMask(channels: Int): Long = Internals.swrDefaultLayoutMask(channels)

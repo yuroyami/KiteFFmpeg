@@ -62,8 +62,8 @@ NM="${KC_NM:-/usr/bin/nm}"
 
 # The exact number of normalized public declarations check 7 expects, and how many of them are
 # helper prototypes. Both move deliberately, in the commit that changes the C surface.
-SIGNATURE_SCOPE=265
-HELPER_PROTOTYPES=242
+SIGNATURE_SCOPE=266
+HELPER_PROTOTYPES=243
 
 while [ $# -gt 0 ]; do
     case "$1" in

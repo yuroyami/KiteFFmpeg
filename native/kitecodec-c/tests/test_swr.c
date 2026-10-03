@@ -1,6 +1,6 @@
 /* The resampler behind ffkmp_swr_*: argument refusals, the sample count a rate change must come
- * to after the drain, and the refusal of a frame that does not match what the resampler was
- * created for. */
+ * to after the drain, the refusal of a frame that does not match what the resampler was
+ * created for, and the default layout a mask of 0 stands for. */
 
 #include "harness.h"
 
@@ -146,6 +146,40 @@ static void case_exact_layouts(void)
     av_frame_free(&out);
 }
 
+static void case_the_default_layout_is_ffmpegs_own(void)
+{
+    kc_case("each count's default mask is the layout av_channel_layout_default picks, and converts with a mask of 0");
+    KC_EQ_I64(ffkmp_ch_layout_default_mask(0), 0);
+    KC_EQ_I64(ffkmp_ch_layout_default_mask(-2), 0);
+    KC_EQ_I64(ffkmp_ch_layout_default_mask(6), 0x3F);
+    for (int channels = 1; channels <= 32; channels++) {
+        AVChannelLayout layout;
+        av_channel_layout_default(&layout, channels);
+        int64_t expected = layout.order == AV_CHANNEL_ORDER_NATIVE ? (int64_t)layout.u.mask : 0;
+        av_channel_layout_uninit(&layout);
+        KC_EQ_I64(ffkmp_ch_layout_default_mask(channels), expected);
+        if (expected == 0) continue;
+        /* A frame in that layout is what a resampler created with a mask of 0 takes. */
+        kc_swr *s = NULL;
+        AVFrame *in = av_frame_alloc();
+        AVFrame *out = av_frame_alloc();
+        KC_NOT_NULL(in);
+        KC_NOT_NULL(out);
+        in->nb_samples = 64;
+        in->sample_rate = 48000;
+        in->format = AV_SAMPLE_FMT_S16;
+        KC_EQ_INT(av_channel_layout_from_mask(&in->ch_layout, (uint64_t)expected), 0);
+        KC_EQ_INT(av_frame_get_buffer(in, 0), 0);
+        KC_EQ_INT(av_samples_set_silence(in->data, 0, 64, channels, AV_SAMPLE_FMT_S16), 0);
+        KC_EQ_INT(ffkmp_swr_create(&s, 48000, channels, AV_SAMPLE_FMT_S16, 48000, channels, AV_SAMPLE_FMT_FLTP, 0, 0), 0);
+        KC_EQ_INT(ffkmp_swr_convert_frame(s, out, in), 0);
+        KC_EQ_I64((int64_t)out->ch_layout.u.mask, expected);
+        ffkmp_swr_free(&s);
+        av_frame_free(&in);
+        av_frame_free(&out);
+    }
+}
+
 int main(void)
 {
     kc_suite_begin("test_swr");
@@ -154,6 +188,7 @@ int main(void)
     case_a_rate_change_keeps_the_sample_count_after_the_drain();
     case_a_frame_that_does_not_match_is_refused();
     case_exact_layouts();
+    case_the_default_layout_is_ffmpegs_own();
 
     return kc_suite_end();
 }

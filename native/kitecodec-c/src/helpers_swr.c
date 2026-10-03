@@ -101,6 +101,17 @@ KC_API int ffkmp_swr_convert_frame(kc_swr *s, kc_frame *out, const kc_frame *in)
     return rc;
 }
 
+/* The default this layer means by a mask of 0, asked of the linked FFmpeg rather than copied, so
+   the Kotlin side agrees with it for every count FFmpeg has a layout for, above eight channels too. */
+KC_API int64_t ffkmp_ch_layout_default_mask(int channels) {
+    if (channels <= 0) return 0;
+    AVChannelLayout layout;
+    av_channel_layout_default(&layout, channels);
+    int64_t mask = layout.order == AV_CHANNEL_ORDER_NATIVE ? (int64_t)layout.u.mask : 0;
+    av_channel_layout_uninit(&layout);
+    return mask;
+}
+
 KC_API void ffkmp_swr_free(kc_swr **s) {
     if (!s || !*s) return;
     swr_free(&(*s)->ctx);

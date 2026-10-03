@@ -1,8 +1,10 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.dsl.DemuxOptions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import kotlin.math.abs
@@ -301,14 +303,80 @@ private suspend fun Flow<Frame>.collectFirst(check: (Frame) -> Unit) {
     }
 }
 
-/** The default layout table [defaultLayoutMask] mirrors, checked against FFmpeg itself. */
+/**
+ * [defaultLayoutMask] is the linked FFmpeg's own default layout for each channel count. It was a
+ * copy in Kotlin that stopped at eight channels, so a decoded frame of 10, 12, 14, 16 or 24
+ * channels in FFmpeg's default layout was refused by a [Resampler] whose spec named no mask (#129).
+ */
 internal class DefaultLayoutContractTest {
+
+    private companion object {
+        /**
+         * What `av_channel_layout_default` answers in FFmpeg 9.0.2, the first native layout with each
+         * count, measured with a C program against the vendored tree. A count missing here has none.
+         */
+        val FFMPEG_DEFAULTS: Map<Int, Long> = mapOf(
+            1 to 0x4L, 2 to 0x3L, 3 to 0xBL, 4 to 0x107L, 5 to 0x37L, 6 to 0x3FL, 7 to 0x70FL, 8 to 0x63FL,
+            10 to 0x2D60FL, 12 to 0x2D63FL, 14 to 0x2D6FFL, 16 to 0x300002D6FFL, 24 to 0x1F80003FFFFL,
+        )
+    }
+
     @Test
     fun theDefaultLayoutForEachCountIsFfmpegsOwn() {
+        for (channels in 1..32) {
+            assertEquals(FFMPEG_DEFAULTS[channels] ?: 0L, defaultLayoutMask(channels), "the default for $channels channels")
+        }
+        // A frame built from bytes takes its layout through another helper, and must agree.
         for (channels in 1..8) {
             Frame.ofAudio(ByteArray(64 * channels * 4), 64, 48_000, channels, SampleFormat.FltP, 0L).use { frame ->
-                assertEquals(frame.info.channelLayoutMask, defaultLayoutMask(channels), "the default for $channels channels")
+                assertEquals(frame.info.channelLayoutMask, defaultLayoutMask(channels), "a built frame of $channels channels")
             }
         }
+    }
+
+    @Test
+    fun aDecodedFrameInTheDefaultLayoutPassesAResamplerThatNamesNoMask() = runBlocking {
+        for ((channels, mask) in FFMPEG_DEFAULTS) {
+            val frame = decodedPcm(channels, mask)
+            frame.use {
+                assertEquals(mask, it.info.channelLayoutMask, "the decoded layout of $channels channels")
+                Resampler(AudioSpec(48_000, channels, SampleFormat.S16), AudioSpec(48_000, channels, SampleFormat.FltP)).use { resampler ->
+                    val converted = assertNotNull(resampler.convert(it), "$channels channels came out empty")
+                    converted.use { out -> assertEquals(64, out.info.sampleCount, "$channels channels") }
+                }
+            }
+        }
+    }
+
+    /** The first frame of 64 silent s16 samples per channel at 48 kHz, decoded in the layout [mask]. */
+    private suspend fun decodedPcm(channels: Int, mask: Long): Frame {
+        val options = DemuxOptions(
+            format = "s16le",
+            options = mapOf("sample_rate" to "48000", "ch_layout" to "0x${mask.toString(16)}"),
+        )
+        return MediaSource.open(PcmBytes(ByteArray(64 * channels * 2)), options).use { source ->
+            source.decodedFrames(source.primaryAudio!!).first()
+        }
+    }
+
+    /** [bytes] as a seekable input. */
+    private class PcmBytes(private val bytes: ByteArray) : MediaByteSource {
+        private var position = 0
+        override val size: Long get() = bytes.size.toLong()
+        override val seekable: Boolean = true
+
+        override fun read(into: ByteArray, offset: Int, length: Int): Int {
+            if (position >= bytes.size) return -1
+            val count = minOf(length, bytes.size - position)
+            bytes.copyInto(into, offset, position, position + count)
+            position += count
+            return count
+        }
+
+        override fun seek(position: Long) {
+            this.position = position.toInt()
+        }
+
+        override fun close(): Unit = Unit
     }
 }

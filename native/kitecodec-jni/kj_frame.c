@@ -432,3 +432,9 @@ JNIEXPORT void JNICALL kj_swr_free(JNIEnv *env, jclass cls, jlong token)
     (void)env; (void)cls;
     ffkmp_swr_free(&s); /* NULL-safe; double close resolved to NULL by the table */
 }
+/* FFmpeg's default layout mask for a channel count, 0 when it has none. */
+JNIEXPORT jlong JNICALL kj_swr_default_layout_mask(JNIEnv *env, jclass cls, jint channels)
+{
+    (void)env; (void)cls;
+    return (jlong)ffkmp_ch_layout_default_mask((int)channels);
+}

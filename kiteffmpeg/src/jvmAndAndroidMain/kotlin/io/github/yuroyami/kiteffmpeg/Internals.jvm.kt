@@ -93,6 +93,7 @@ internal object Internals {
     ): Long
     private external fun nativeSwrConvertFrame(swrToken: Long, outToken: Long, inToken: Long): Int
     private external fun nativeSwrFree(token: Long)
+    private external fun nativeSwrDefaultLayoutMask(channels: Int): Long
     private external fun nativeComponentNames(kind: Int): String
     private external fun nativeStreamCopyIdentity(dstToken: Long, srcToken: Long): Int
     private external fun nativeStreamSetSar(token: Long, num: Int, den: Int): Int
@@ -426,6 +427,7 @@ internal object Internals {
     internal fun swrConvertFrame(swrToken: Long, outToken: Long, inToken: Long) =
         checked { nativeSwrConvertFrame(swrToken, outToken, inToken) }
     internal fun swrFree(token: Long) = checked { nativeSwrFree(token) }
+    internal fun swrDefaultLayoutMask(channels: Int): Long = checked { nativeSwrDefaultLayoutMask(channels) }
     internal fun componentNames(kind: Int): String = checked { nativeComponentNames(kind) }
     internal fun streamCopyIdentity(dstToken: Long, srcToken: Long) = checked { nativeStreamCopyIdentity(dstToken, srcToken) }
     internal fun streamSetSar(token: Long, sar: Rational) = checked { nativeStreamSetSar(token, sar.num, sar.den) }

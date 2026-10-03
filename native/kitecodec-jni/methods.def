@@ -97,6 +97,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeInterruptFree",    "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSwrCreate",        "(IIIIIIJJ)J",                   kj_swr_create)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSwrConvertFrame",  "(JJJ)I",                        kj_swr_convert_frame)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSwrFree",          "(J)V",                          kj_swr_free)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSwrDefaultLayoutMask", "(I)J",                    kj_swr_default_layout_mask)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeComponentNames",   "(I)Ljava/lang/String;",         kj_component_names)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamCopyIdentity", "(JJ)I",                       kj_stream_copy_identity)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamSetSar",       "(JII)I",                       kj_stream_set_sar)

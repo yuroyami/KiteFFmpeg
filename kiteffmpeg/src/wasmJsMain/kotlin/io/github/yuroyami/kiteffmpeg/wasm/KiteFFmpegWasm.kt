@@ -498,6 +498,9 @@ internal external fun kc_init(module: JsAny): Int
 @JsFun("(m, a0) => m._ffkmp_codecpar_field_order(a0)")
 internal external fun ffkmp_codecpar_field_order(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_ch_layout_default_mask(a0)")
+internal external fun ffkmp_ch_layout_default_mask(module: JsAny, a0: Int): Long
+
 @JsFun("(m, a0) => m._ffkmp_codecctx_ch_layout_mask(a0)")
 internal external fun ffkmp_codecctx_ch_layout_mask(module: JsAny, a0: Int): Long
 

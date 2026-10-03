@@ -91,18 +91,13 @@ internal fun resampledPtsMicros(startMicros: Long, samplesBefore: Long, sampleRa
 internal fun AudioSpec.layoutMaskOrDefault(): Long = channelLayoutMask ?: defaultLayoutMask(channels)
 
 /**
- * FFmpeg's default layout for [channels] channels, as `av_channel_layout_default` picks it: the
- * first native layout with that count. Six channels are 5.1 with back surrounds. 0 when FFmpeg has
- * no native default, which is the case above eight channels except for sixteen.
+ * FFmpeg's default layout for [channels] channels, as `av_channel_layout_default` picks it in the
+ * linked FFmpeg: the first native layout with that count. Six channels are 5.1 with back
+ * surrounds, and in FFmpeg 9.0.2 ten, twelve, fourteen, sixteen and twenty-four channels have one
+ * too. 0 when FFmpeg has no native layout with that count.
+ *
+ * It is asked of FFmpeg rather than copied, because the resampler takes the same default on the C
+ * side. A copy in Kotlin stopped at eight channels, so a frame decoded in FFmpeg's default layout
+ * for ten channels was refused for not being a layout of 0 (#129).
  */
-internal fun defaultLayoutMask(channels: Int): Long = when (channels) {
-    1 -> 0x4L            // mono: FC
-    2 -> 0x3L            // stereo
-    3 -> 0xBL            // 2.1
-    4 -> 0x107L          // 4.0
-    5 -> 0x37L           // 5.0 (back)
-    6 -> 0x3FL           // 5.1 (back)
-    7 -> 0x70FL          // 6.1
-    8 -> 0x63FL          // 7.1
-    else -> 0L
-}
+internal expect fun defaultLayoutMask(channels: Int): Long

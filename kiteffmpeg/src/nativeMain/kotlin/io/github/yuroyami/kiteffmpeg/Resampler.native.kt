@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import cnames.structs.kc_swr
+import ffmpeg.ffkmp_ch_layout_default_mask
 import ffmpeg.ffkmp_frame_alloc
 import ffmpeg.ffkmp_frame_free
 import ffmpeg.ffkmp_frame_nb_samples
@@ -85,4 +86,11 @@ public actual class Resampler actual constructor(
             ffkmp_swr_free(slot.ptr)
         }
     }
+}
+
+@OptIn(ExperimentalForeignApi::class)
+internal actual fun defaultLayoutMask(channels: Int): Long {
+    // The identity gate first: the answer is read out of an FFmpeg struct.
+    requireCompatibleFFmpeg()
+    return ffkmp_ch_layout_default_mask(channels)
 }
