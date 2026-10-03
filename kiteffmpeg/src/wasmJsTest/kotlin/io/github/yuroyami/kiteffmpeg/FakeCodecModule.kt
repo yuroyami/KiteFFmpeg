@@ -78,6 +78,8 @@ import kotlin.js.JsAny
             _ffkmp_codecpar_content_light: () => 0,
             _ffkmp_frame_mastering_display: () => 0,
             _ffkmp_frame_content_light: () => 0,
+            // Nor Dolby Vision: a stream that declares no configuration record.
+            _ffkmp_codecpar_dovi_config: () => 0,
             _kc_ffmpeg_report_get: (p) => { HEAPU8.copyWithin(p, stage, stage + 2176); },
             _kc_ffmpeg_library_name: (i) => (i >= 0 && i < libs.length) ? libs[i] : 0,
             _kc_verdict_name: (v) => (v >= 0 && v < verdicts.length) ? verdicts[v] : 0,

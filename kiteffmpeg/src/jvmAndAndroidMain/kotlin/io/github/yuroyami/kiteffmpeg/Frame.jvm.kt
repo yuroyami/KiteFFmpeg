@@ -92,10 +92,39 @@ public actual class Frame internal constructor(
     public actual fun closedCaptions(): ByteArray? = locked { Internals.frameClosedCaptions(it) }
 
     @Throws(FFmpegException::class)
-    public actual fun dolbyVision(): DolbyVisionMetadata? = dolbyVisionNotWired()
+    public actual fun dolbyVision(): DolbyVisionMetadata? = locked { Internals.frameDolbyVision(it) }
 
     @Throws(FFmpegException::class)
-    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = dolbyVisionNotWired()
+    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = locked { source ->
+        if (Internals.frameIsHardware(source)) throw dolbyVisionHardwareRefusal()
+        val composed = Internals.frameAlloc()
+        val rc = Internals.frameDolbyVisionPrepare(source, composed)
+        if (rc <= 0) {
+            Internals.frameFree(composed)
+            if (rc == 0) return@locked null
+            throw dolbyVisionPrepareFailure(avError(rc), pixelFormatFromAv(Internals.frameFormat(source)))
+        }
+        val output = Frame(
+            token = composed,
+            ownsToken = true,
+            streamIndex = streamIndex,
+            streamType = streamType,
+            streamTimeBase = streamTimeBase,
+        )
+        val reference = try {
+            Frame(
+                token = Internals.frameClone(source),
+                ownsToken = true,
+                streamIndex = streamIndex,
+                streamType = streamType,
+                streamTimeBase = streamTimeBase,
+            )
+        } catch (failure: Throwable) {
+            output.close()
+            throw failure
+        }
+        DolbyVisionComposition(reference, output, Internals.frameHeight(source))
+    }
 
     @Throws(FFmpegException::class)
     public actual fun composeDolbyVision(): Frame? = beginDolbyVisionComposition()?.let(::composeWhole)
@@ -339,6 +368,10 @@ internal object FrameOps {
         Frame(token, false, streamIndex, streamType, timeBase)
 }
 
+/** Reads both tokens without the frames' locks, so that bands on several threads run at once. */
 internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int) {
-    dolbyVisionNotWired()
+    check0(
+        Internals.frameDolbyVisionRows(source.checkOpen(), output.checkOpen(), startRow, endRowExclusive),
+        "Dolby Vision composition of rows $startRow until $endRowExclusive",
+    )
 }

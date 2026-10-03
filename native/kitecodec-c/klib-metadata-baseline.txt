@@ -1368,12 +1368,28 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_hw_download(src: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, dst: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecpar_dovi_config")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_codecpar_dovi_config(p: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecParameters /* = ffmpeg/kc_codec_par^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_dovi_metadata")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_frame_dovi_metadata(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_dovi_compose_prepare")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_frame_dovi_compose_prepare(src: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, dst: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_dovi_compose_rows")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_frame_dovi_compose_rows(src: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, dst: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, row_start: kotlin/Int, row_end: kotlin/Int): kotlin/Int
+
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KITECODEC_C_ABI_MAJOR: kotlin/Int /* = 3 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 17 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 18 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

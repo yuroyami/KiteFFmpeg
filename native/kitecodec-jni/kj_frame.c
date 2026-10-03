@@ -306,6 +306,43 @@ JNIEXPORT jint JNICALL kj_frame_hw_download(JNIEnv *env, jclass cls, jlong src_t
     return (jint)ffkmp_frame_hw_download(src, dst);
 }
 
+/* The frame's Dolby Vision metadata as eight ints, or NULL when it carries none. */
+JNIEXPORT jintArray JNICALL kj_frame_dovi_metadata(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    int out[8] = { 0 };
+    jint packed[8];
+    (void)cls;
+    if (frame == NULL || ffkmp_frame_dovi_metadata(frame, out) <= 0) return NULL;
+    for (int i = 0; i < 8; i++) packed[i] = out[i];
+    return kj_ints_new(env, packed, 8);
+}
+
+JNIEXPORT jint JNICALL kj_frame_dovi_compose_prepare(JNIEnv *env, jclass cls, jlong src_token, jlong dst_token)
+{
+    kc_frame *src = (kc_frame *)kj_handle_get(env, src_token, KJ_KIND_FRAME);
+    kc_frame *dst;
+    (void)cls;
+    if (src == NULL) return -1;
+    dst = (kc_frame *)kj_handle_get(env, dst_token, KJ_KIND_FRAME);
+    if (dst == NULL) return -1;
+    return (jint)ffkmp_frame_dovi_compose_prepare(src, dst);
+}
+
+/* Runs without the Kotlin frame lock, so bands of one composition can run on several threads; the
+ * composition owns both frames, and the table lookups are safe from any thread. */
+JNIEXPORT jint JNICALL kj_frame_dovi_compose_rows(JNIEnv *env, jclass cls, jlong src_token, jlong dst_token,
+                                                  jint row_start, jint row_end)
+{
+    kc_frame *src = (kc_frame *)kj_handle_get(env, src_token, KJ_KIND_FRAME);
+    kc_frame *dst;
+    (void)cls;
+    if (src == NULL) return -1;
+    dst = (kc_frame *)kj_handle_get(env, dst_token, KJ_KIND_FRAME);
+    if (dst == NULL) return -1;
+    return (jint)ffkmp_frame_dovi_compose_rows(src, dst, (int)row_start, (int)row_end);
+}
+
 JNIEXPORT void JNICALL kj_frame_use_best_effort(JNIEnv *env, jclass cls, jlong token)
 {
     kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);

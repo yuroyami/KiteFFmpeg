@@ -13,6 +13,9 @@ import ffmpeg.ffkmp_codecctx_set_full_range
 import ffmpeg.ffkmp_codecctx_set_video
 import ffmpeg.ffkmp_find_encoder_by_name
 import ffmpeg.ffkmp_frame_a53_cc
+import ffmpeg.ffkmp_frame_dovi_compose_prepare
+import ffmpeg.ffkmp_frame_dovi_compose_rows
+import ffmpeg.ffkmp_frame_dovi_metadata
 import ffmpeg.ffkmp_frame_alloc
 import ffmpeg.ffkmp_frame_channels
 import ffmpeg.ffkmp_frame_clone
@@ -59,6 +62,8 @@ import ffmpeg.ffkmp_frame_sample_aspect_ratio
 import ffmpeg.kc_frame
 import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.get
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import kotlinx.cinterop.CPointer
@@ -210,10 +215,35 @@ public actual class Frame internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun dolbyVision(): DolbyVisionMetadata? = dolbyVisionNotWired()
+    public actual fun dolbyVision(): DolbyVisionMetadata? = withNative { frame ->
+        memScoped {
+            val ints = allocArray<IntVar>(DOLBY_VISION_INTS)
+            val rc = ffkmp_frame_dovi_metadata(frame, ints)
+            check0(rc, "frame Dolby Vision metadata")
+            if (rc == 0) null else dolbyVisionMetadataOf(IntArray(DOLBY_VISION_INTS) { ints[it] })
+        }
+    }
 
     @Throws(FFmpegException::class)
-    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = dolbyVisionNotWired()
+    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = withNative { source ->
+        if (ffkmp_frame_is_hardware(source) != 0) throw dolbyVisionHardwareRefusal()
+        val composed = ffkmp_frame_alloc()
+            ?: throw FFmpegException(FFmpegError.Internal("av_frame_alloc returned NULL"))
+        val rc = ffkmp_frame_dovi_compose_prepare(source, composed)
+        if (rc <= 0) {
+            ffkmp_frame_free(composed)
+            if (rc == 0) return@withNative null
+            throw dolbyVisionPrepareFailure(avError(rc), pixelFormatFromAv(ffkmp_frame_format(source)))
+        }
+        val output = Frame(composed, ownsPointer = true, streamIndex = streamIndex, streamType = streamType, streamTimeBase = streamTimeBase)
+        val cloned = ffkmp_frame_clone(source)
+        if (cloned == null) {
+            output.close()
+            throw FFmpegException(FFmpegError.Internal("av_frame_clone returned NULL"))
+        }
+        val reference = Frame(cloned, ownsPointer = true, streamIndex = streamIndex, streamType = streamType, streamTimeBase = streamTimeBase)
+        DolbyVisionComposition(reference, output, ffkmp_frame_height(source))
+    }
 
     @Throws(FFmpegException::class)
     public actual fun composeDolbyVision(): Frame? = beginDolbyVisionComposition()?.let(::composeWhole)
@@ -495,6 +525,10 @@ internal object FrameOps {
     ): Frame = Frame(raw, ownsPointer = false, streamIndex = streamIndex, streamType = streamType, streamTimeBase = timeBase)
 }
 
+/** Reads both pointers without the frames' locks, so that bands on several threads run at once. */
 internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int) {
-    dolbyVisionNotWired()
+    check0(
+        ffkmp_frame_dovi_compose_rows(source.nativeFrame, output.nativeFrame, startRow, endRowExclusive),
+        "Dolby Vision composition of rows $startRow until $endRowExclusive",
+    )
 }

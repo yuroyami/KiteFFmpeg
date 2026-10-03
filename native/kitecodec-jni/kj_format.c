@@ -512,6 +512,17 @@ JNIEXPORT jintArray JNICALL kj_codecpar_hdr(JNIEnv *env, jclass cls, jlong token
     light_rc = ffkmp_codecpar_content_light(p, &cll, &fall);
     return kj_hdr_new(env, display_rc, q, flags, light_rc, cll, fall);
 }
+/* The stream's Dolby Vision configuration record as eight ints, or NULL when it carries none. */
+JNIEXPORT jintArray JNICALL kj_codecpar_dovi_config(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_codec_par *p = (kc_codec_par *)kj_handle_get(env, token, KJ_KIND_CODEC_PAR);
+    int out[8] = { 0 };
+    jint packed[8];
+    (void)cls;
+    if (p == NULL || ffkmp_codecpar_dovi_config(p, out) <= 0) return NULL;
+    for (int i = 0; i < 8; i++) packed[i] = out[i];
+    return kj_ints_new(env, packed, 8);
+}
 JNIEXPORT jint JNICALL kj_codecpar_from_context(JNIEnv *env,jclass cls,jlong par_token,jlong ctx_token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,par_token,KJ_KIND_CODEC_PAR);kc_codec_ctx*c;(void)cls;if(!p)return-1;c=(kc_codec_ctx*)kj_handle_get(env,ctx_token,KJ_KIND_CODEC_CTX);return c?ffkmp_codecpar_from_context(p,c):-1;}
 JNIEXPORT jint JNICALL kj_codecpar_copy(JNIEnv *env,jclass cls,jlong dst_token,jlong src_token)

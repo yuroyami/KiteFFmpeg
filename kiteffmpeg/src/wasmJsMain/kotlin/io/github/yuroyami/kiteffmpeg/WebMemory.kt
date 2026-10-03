@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_dovi_config
 import kotlin.js.JsAny
 
 /*
@@ -113,5 +114,16 @@ internal inline fun readHdr(
         return hdrMetadataOf(masteringDisplay, contentLight)
     } finally {
         wasmFree(module, scratch)
+    }
+}
+
+/** The Dolby Vision configuration a stream's codec parameters carry, or null when they carry none. */
+internal fun readDolbyVisionConfig(module: JsAny, par: Int): DolbyVisionConfig? {
+    val ints = wasmAlloc(module, DOLBY_VISION_INTS * 4)
+    try {
+        if (ffkmp_codecpar_dovi_config(module, par, ints) <= 0) return null
+        return dolbyVisionConfigOf(IntArray(DOLBY_VISION_INTS) { readInt32(module, ints + it * 4) })
+    } finally {
+        wasmFree(module, ints)
     }
 }

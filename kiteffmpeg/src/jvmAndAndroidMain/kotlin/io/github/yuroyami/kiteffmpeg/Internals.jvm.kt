@@ -172,6 +172,7 @@ internal object Internals {
     private external fun nativeCodecParSar(token: Long): Long
     private external fun nativeCodecParChannelLayout(token: Long): Long
     private external fun nativeCodecParHdr(token: Long): IntArray?
+    private external fun nativeCodecParDoviConfig(token: Long): IntArray?
     private external fun nativeCodecParFromContext(parameters: Long, context: Long): Int
     private external fun nativeCodecParCopy(destination: Long, source: Long): Int
 
@@ -257,6 +258,9 @@ internal object Internals {
     private external fun nativeFrameSampleAspectRatio(token: Long): Long
     private external fun nativeFrameIsHardware(token: Long): Boolean
     private external fun nativeFrameHwDownload(source: Long, destination: Long): Int
+    private external fun nativeFrameDoviMetadata(token: Long): IntArray?
+    private external fun nativeFrameDoviComposePrepare(source: Long, destination: Long): Int
+    private external fun nativeFrameDoviComposeRows(source: Long, destination: Long, rowStart: Int, rowEnd: Int): Int
     private external fun nativeFrameUseBestEffort(token: Long)
     private external fun nativeFrameSetPts(token: Long, value: Long)
     private external fun nativeFrameSetFormat(token: Long, value: Int)
@@ -525,6 +529,8 @@ internal object Internals {
     internal fun codecParSar(token: Long) = unpackRational(checked { nativeCodecParSar(token) })
     internal fun codecParChannelLayout(token: Long) = checked { nativeCodecParChannelLayout(token) }
     internal fun codecParHdr(token: Long): HdrMetadata? = hdrFromInts(checked { nativeCodecParHdr(token) })
+    internal fun codecParDolbyVision(token: Long): DolbyVisionConfig? =
+        checked { nativeCodecParDoviConfig(token) }?.let(::dolbyVisionConfigOf)
     internal fun codecParFromContext(parameters: Long, context: Long) = checked { nativeCodecParFromContext(parameters, context) }
     internal fun codecParCopy(destination: Long, source: Long) = checked { nativeCodecParCopy(destination, source) }
 
@@ -610,6 +616,12 @@ internal object Internals {
     internal fun frameSampleAspectRatio(token: Long) = unpackRational(checked { nativeFrameSampleAspectRatio(token) })
     internal fun frameIsHardware(token: Long) = checked { nativeFrameIsHardware(token) }
     internal fun frameHwDownload(source: Long, destination: Long) = checked { nativeFrameHwDownload(source, destination) }
+    internal fun frameDolbyVision(token: Long): DolbyVisionMetadata? =
+        checked { nativeFrameDoviMetadata(token) }?.let(::dolbyVisionMetadataOf)
+    internal fun frameDolbyVisionPrepare(source: Long, destination: Long) =
+        checked { nativeFrameDoviComposePrepare(source, destination) }
+    internal fun frameDolbyVisionRows(source: Long, destination: Long, rowStart: Int, rowEnd: Int) =
+        checked { nativeFrameDoviComposeRows(source, destination, rowStart, rowEnd) }
     internal fun frameUseBestEffort(token: Long) = checked { nativeFrameUseBestEffort(token) }
     internal fun frameSetPts(token: Long, value: Long) = checked { nativeFrameSetPts(token, value) }
     internal fun frameSetFormat(token: Long, value: Int) = checked { nativeFrameSetFormat(token, value) }

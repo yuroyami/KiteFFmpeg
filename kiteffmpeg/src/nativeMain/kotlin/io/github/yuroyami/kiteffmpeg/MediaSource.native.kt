@@ -1180,6 +1180,7 @@ private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> {
                     display = { q, flags -> ffkmp_codecpar_mastering_display(par, q, flags) },
                     light = { maxCll, maxFall -> ffkmp_codecpar_content_light(par, maxCll, maxFall) },
                 ),
+                dolbyVision = readDolbyVisionConfig(par),
             ) else null,
             audio = if (type == MediaType.Audio) AudioStreamInfo(
                 sampleRate = ffkmp_codecpar_sample_rate(par),

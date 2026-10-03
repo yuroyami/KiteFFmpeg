@@ -8,7 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Upgrading
+
+- `VideoStreamInfo` gains `dolbyVision`, which changes its constructor and `copy`. Recompile a
+  library built against 0.4.0.
+
 ### Added
+
+- Dolby Vision (#137). `VideoStreamInfo.dolbyVision` holds the configuration record a stream
+  declares, and its `baseLayerPlaysAlone` says whether the base layer is a picture of its own.
+  `Frame.dolbyVision()` reads the RPU FFmpeg's decoder attached to the frame: the source's range,
+  and the scene brightness of level 1 when the stream carries it. `Frame.composeDolbyVision()`
+  turns a base layer and its RPU into an ordinary HDR10 frame, 10-bit 4:2:0 in BT.2020 with the
+  PQ curve and the source's range as its mastering display, so a profile 5 picture, which shows
+  green and purple as it is, plays on every renderer that shows HDR10. The composition runs on the
+  CPU, about 70 ms for a 1080p frame on one core, and `beginDolbyVisionComposition()` splits it
+  into bands of rows that may run on several threads at once. Every sample of the test clip lands
+  within 4 codes of libplacebo's composition, and within one code of the same arithmetic done in
+  double precision. The C ABI is 3.18 and adds `ffkmp_codecpar_dovi_config`,
+  `ffkmp_frame_dovi_metadata`, `ffkmp_frame_dovi_compose_prepare` and
+  `ffkmp_frame_dovi_compose_rows`. The `web` zip of 0.4.0 carries none of them, so the web needs a
+  codec module linked from this release.
 
 - Live network streams open through `MediaSource.open`: `udp://` and `rtp://`, an SDP file that
   describes an RTP session, `rtsp://` over UDP or TCP with `rtsp_transport` among the open options,

@@ -189,7 +189,49 @@ internal fun composeWhole(composition: DolbyVisionComposition): Frame = composit
  */
 internal expect fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int)
 
-/** Until the C layer reads them, the Dolby Vision calls refuse instead of answering that a frame carries nothing. */
-internal fun dolbyVisionNotWired(): Nothing = throw FFmpegException(
-    FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "Dolby Vision does not reach FFmpeg yet"),
+/** How many ints each of the C layer's two Dolby Vision readers fills. */
+internal const val DOLBY_VISION_INTS: Int = 8
+
+/** Reads the C layer's eight configuration ints, in the order `ffkmp_codecpar_dovi_config` writes them. */
+internal fun dolbyVisionConfigOf(ints: IntArray): DolbyVisionConfig = DolbyVisionConfig(
+    versionMajor = ints[0],
+    versionMinor = ints[1],
+    profile = ints[2],
+    level = ints[3],
+    hasRpu = ints[4] != 0,
+    hasEnhancementLayer = ints[5] != 0,
+    hasBaseLayer = ints[6] != 0,
+    baseLayerCompatibility = ints[7],
+)
+
+/** Reads the C layer's eight frame ints, in the order `ffkmp_frame_dovi_metadata` writes them. */
+internal fun dolbyVisionMetadataOf(ints: IntArray): DolbyVisionMetadata = DolbyVisionMetadata(
+    baseLayerBitDepth = ints[0],
+    usesEnhancementLayer = ints[1] != 0,
+    sourceMinPq = ints[2],
+    sourceMaxPq = ints[3],
+    sceneBrightness = if (ints[4] != 0) DolbyVisionBrightness(minPq = ints[5], averagePq = ints[6], maxPq = ints[7]) else null,
+)
+
+/** The refusal of a composition on a hardware frame, before the C layer is asked. */
+internal fun dolbyVisionHardwareRefusal(): FFmpegException = FFmpegException(
+    FFmpegError.InvalidArgument(
+        0,
+        "A hardware frame's picture is in GPU memory; download it with downloadFromHardware() before composing its Dolby Vision",
+    ),
+)
+
+/** The C layer's refusal to prepare a composition, [error], said in terms of the frame. */
+internal fun dolbyVisionPrepareFailure(error: FFmpegError, pixelFormat: PixelFormat): FFmpegException = FFmpegException(
+    when (error) {
+        is FFmpegError.Unsupported -> FFmpegError.Unsupported(
+            error.code,
+            "Dolby Vision composition reads 4:2:0 YUV of 8 to 16 bits, and this frame is ${pixelFormat.name}",
+        )
+        is FFmpegError.InvalidArgument -> FFmpegError.InvalidArgument(
+            error.code,
+            "This frame's Dolby Vision RPU cannot be composed, because a curve or a matrix in it is malformed",
+        )
+        else -> error
+    },
 )

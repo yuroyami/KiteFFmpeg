@@ -1015,4 +1015,36 @@ KC_API int ffkmp_codecctx_use_videotoolbox(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_use_d3d11va(kc_codec_ctx *c);
 KC_API int ffkmp_frame_hw_download(kc_frame *src, kc_frame *dst);
 
+/* Dolby Vision.
+ *
+ * ffkmp_codecpar_dovi_config reads the configuration record a stream's codec parameters carry into
+ * out[8]: the version's major and minor, the profile, the level, whether an RPU, an enhancement
+ * layer and a base layer are present (0 or 1), and the base layer's signal compatibility id.
+ *
+ * ffkmp_frame_dovi_metadata reads the RPU a decoder attached to a frame into out[8]: the base
+ * layer's bit depth, whether the composition uses an enhancement layer's residual (0 or 1), the
+ * source's lowest and highest level, whether level 1 is present (0 or 1), and level 1's lowest,
+ * average and highest level. Levels are 12-bit PQ codes. Built against an FFmpeg older than 7.0,
+ * which exports no extension block, level 1 is never present.
+ *
+ * Both return 1 when there is one, 0 when there is none, and AVERROR(EINVAL) for a NULL argument.
+ *
+ * ffkmp_frame_dovi_compose_prepare gives dst, a blank frame, the picture that src's composition
+ * fills: 10-bit 4:2:0 at src's size, BT.2020, PQ, limited range, chroma sited left, src's properties,
+ * the source's range as a mastering display's luminance, level 6's light levels when present, and
+ * no Dolby Vision side data. It returns 1, or 0 when src carries no Dolby Vision metadata and dst is
+ * left blank. A NULL, a hardware src, a dst that holds data, or an RPU whose curves are malformed
+ * answers AVERROR(EINVAL), and a src that is not 4:2:0 little-endian YUV of 8 to 16 bits answers
+ * AVERROR_PATCHWELCOME; dst is left blank on every failure.
+ *
+ * ffkmp_frame_dovi_compose_rows composes rows row_start up to row_end of src into the dst that
+ * prepare gave a picture to. A band starts on an even row and ends on an even row or at the height.
+ * Bands that do not overlap may run at the same time on different threads. It returns 0, or
+ * AVERROR(EINVAL) for a band out of range, a dst that prepare did not make for src, or a src that
+ * lost its metadata. */
+KC_API int ffkmp_codecpar_dovi_config(kc_codec_par *p, int *out);
+KC_API int ffkmp_frame_dovi_metadata(kc_frame *f, int *out);
+KC_API int ffkmp_frame_dovi_compose_prepare(kc_frame *src, kc_frame *dst);
+KC_API int ffkmp_frame_dovi_compose_rows(kc_frame *src, kc_frame *dst, int row_start, int row_end);
+
 #endif /* KITECODEC_HELPERS_H */

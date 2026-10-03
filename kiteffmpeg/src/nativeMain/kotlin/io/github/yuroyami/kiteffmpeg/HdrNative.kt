@@ -2,7 +2,9 @@ package io.github.yuroyami.kiteffmpeg
 
 import ffmpeg.ffkmp_codecctx_add_content_light
 import ffmpeg.ffkmp_codecctx_add_mastering_display
+import ffmpeg.ffkmp_codecpar_dovi_config
 import ffmpeg.kc_codec_ctx
+import ffmpeg.kc_codec_par
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.IntVar
@@ -32,6 +34,13 @@ internal inline fun readHdr(
     val maxFall = alloc<IntVar>()
     val contentLight = if (light(maxCll.ptr, maxFall.ptr) > 0) ContentLightLevel(maxCll.value, maxFall.value) else null
     hdrMetadataOf(masteringDisplay, contentLight)
+}
+
+/** The Dolby Vision configuration a stream's codec parameters carry, or null when they carry none. */
+@OptIn(ExperimentalForeignApi::class)
+internal fun readDolbyVisionConfig(par: CPointer<kc_codec_par>): DolbyVisionConfig? = memScoped {
+    val ints = allocArray<IntVar>(DOLBY_VISION_INTS)
+    if (ffkmp_codecpar_dovi_config(par, ints) > 0) dolbyVisionConfigOf(IntArray(DOLBY_VISION_INTS) { ints[it] }) else null
 }
 
 /** Gives an encoder [hdr] before it opens; each half is written only when present. */

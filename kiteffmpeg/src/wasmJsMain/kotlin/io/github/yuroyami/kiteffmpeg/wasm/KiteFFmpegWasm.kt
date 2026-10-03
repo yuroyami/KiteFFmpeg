@@ -189,6 +189,9 @@ internal external fun ffkmp_codecpar_content_light(module: JsAny, a0: Int, a1: I
 @JsFun("(m, a0, a1) => m._ffkmp_codecpar_copy_for_mux(a0, a1)")
 internal external fun ffkmp_codecpar_copy_for_mux(module: JsAny, a0: Int, a1: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_codecpar_dovi_config(a0, a1)")
+internal external fun ffkmp_codecpar_dovi_config(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_codecpar_extradata(a0, a1, a2)")
 internal external fun ffkmp_codecpar_extradata(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
@@ -335,6 +338,15 @@ internal external fun ffkmp_frame_content_light(module: JsAny, a0: Int, a1: Int,
 
 @JsFun("(m, a0, a1, a2) => m._ffkmp_frame_copy_to_buffer(a0, a1, a2)")
 internal external fun ffkmp_frame_copy_to_buffer(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
+@JsFun("(m, a0, a1) => m._ffkmp_frame_dovi_compose_prepare(a0, a1)")
+internal external fun ffkmp_frame_dovi_compose_prepare(module: JsAny, a0: Int, a1: Int): Int
+
+@JsFun("(m, a0, a1, a2, a3) => m._ffkmp_frame_dovi_compose_rows(a0, a1, a2, a3)")
+internal external fun ffkmp_frame_dovi_compose_rows(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int): Int
+
+@JsFun("(m, a0, a1) => m._ffkmp_frame_dovi_metadata(a0, a1)")
+internal external fun ffkmp_frame_dovi_metadata(module: JsAny, a0: Int, a1: Int): Int
 
 @JsFun("(m, a0, a1, a2) => m._ffkmp_frame_fill_audio(a0, a1, a2)")
 internal external fun ffkmp_frame_fill_audio(module: JsAny, a0: Int, a1: Int, a2: Int): Int

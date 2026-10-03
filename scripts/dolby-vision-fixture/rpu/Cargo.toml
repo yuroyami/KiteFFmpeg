@@ -1,0 +1,11 @@
+[package]
+name = "dolby-vision-fixture-rpu"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "1"
+dolby_vision = { version = "3.4", features = ["serde"] }
+serde_json = "1"
+tinyvec = "1"

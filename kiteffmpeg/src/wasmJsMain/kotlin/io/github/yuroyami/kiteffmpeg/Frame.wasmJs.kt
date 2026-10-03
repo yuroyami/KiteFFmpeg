@@ -3,6 +3,10 @@ package io.github.yuroyami.kiteffmpeg
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_content_light
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_mastering_display
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_a53_cc
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_alloc
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_dovi_compose_prepare
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_dovi_compose_rows
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_dovi_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_ch_layout_mask
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_channels
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_clone
@@ -160,9 +164,43 @@ public actual class Frame internal constructor(
         }
     }
 
-    public actual fun dolbyVision(): DolbyVisionMetadata? = dolbyVisionNotWired()
+    public actual fun dolbyVision(): DolbyVisionMetadata? {
+        val m = requireModule()
+        val p = alive()
+        val ints = wasmAlloc(m, DOLBY_VISION_INTS * 4)
+        try {
+            val rc = ffkmp_frame_dovi_metadata(m, p, ints)
+            if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "reading Dolby Vision metadata failed with $rc"))
+            if (rc == 0) return null
+            return dolbyVisionMetadataOf(IntArray(DOLBY_VISION_INTS) { readInt32(m, ints + it * 4) })
+        } finally {
+            wasmFree(m, ints)
+        }
+    }
 
-    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = dolbyVisionNotWired()
+    public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? {
+        val m = requireModule()
+        val p = alive()
+        if (ffkmp_frame_is_hardware(m, p) != 0) throw dolbyVisionHardwareRefusal()
+        val composed = ffkmp_frame_alloc(m)
+        if (composed == 0) throw FFmpegException(FFmpegError.Internal("could not allocate a frame"))
+        val rc = ffkmp_frame_dovi_compose_prepare(m, p, composed)
+        if (rc <= 0) {
+            ffkmp_frame_free(m, composed)
+            if (rc == 0) return null
+            throw dolbyVisionPrepareFailure(
+                FFmpegError.fromCode(rc, "preparing a Dolby Vision composition failed with $rc"),
+                pixelFormatOf(m, ffkmp_frame_format(m, p)),
+            )
+        }
+        val output = Frame(composed, streamIndex, type, timeBase)
+        val cloned = ffkmp_frame_clone(m, p)
+        if (cloned == 0) {
+            output.close()
+            throw FFmpegException(FFmpegError.Internal("could not clone this frame"))
+        }
+        return DolbyVisionComposition(Frame(cloned, streamIndex, type, timeBase), output, ffkmp_frame_height(m, p))
+    }
 
     public actual fun composeDolbyVision(): Frame? = beginDolbyVisionComposition()?.let(::composeWhole)
 
@@ -253,5 +291,10 @@ internal actual fun rescaleQ(value: Long, source: Rational, destination: Rationa
     ffkmp_rescale_q(requireModule(), value, source.num, source.den, destination.num, destination.den)
 
 internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRow: Int, endRowExclusive: Int) {
-    dolbyVisionNotWired()
+    val rc = ffkmp_frame_dovi_compose_rows(requireModule(), source.pointer, output.pointer, startRow, endRowExclusive)
+    if (rc < 0) {
+        throw FFmpegException(
+            FFmpegError.fromCode(rc, "Dolby Vision composition of rows $startRow until $endRowExclusive failed with $rc"),
+        )
+    }
 }

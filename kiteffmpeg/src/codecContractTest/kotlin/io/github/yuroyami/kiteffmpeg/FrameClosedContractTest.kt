@@ -61,6 +61,9 @@ class FrameClosedContractTest {
         assertFailsWith<IllegalStateException> { frame.planesByteCount() }
         assertFailsWith<IllegalStateException> { frame.copyPlanesInto(ByteArray(128)) }
         assertFailsWith<IllegalStateException> { frame.closedCaptions() }
+        assertFailsWith<IllegalStateException> { frame.dolbyVision() }
+        assertFailsWith<IllegalStateException> { frame.beginDolbyVisionComposition() }
+        assertFailsWith<IllegalStateException> { frame.composeDolbyVision() }
     }
 
     @Test

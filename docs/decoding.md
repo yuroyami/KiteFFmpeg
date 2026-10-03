@@ -312,6 +312,51 @@ Callback-style APIs are different. A frame handed to `FilterGraph.feedInput`'s `
 !!! note
     The native `AVFrame*` pointer is deliberately not exposed in common code. You interact with frames only through `info`, `copyPlanesToByteArray()`, `copyPlanesInto()`, `copy()`, and `encodeImage()`.
 
+### Dolby Vision
+
+A Dolby Vision stream is an ordinary HEVC or AV1 stream, the base layer, with a reference processing unit (the RPU) on every frame that says how to turn the base layer into the picture that was graded. `stream.video?.dolbyVision` holds the configuration record the container declares, and null means the stream is not Dolby Vision.
+
+The first question is whether the base layer is a picture of its own. For profiles 8.1, 8.4 and 7 it is an HDR10 or HLG picture, and showing it as it is gives a correct image. For profile 5, which most streaming services deliver, and profile 10.0, it is coded in Dolby's IPT colour space and shows green and purple until it is composed:
+
+```kotlin
+val dv = stream.video?.dolbyVision
+if (dv != null && !dv.baseLayerPlaysAlone) {
+    // Every frame needs composeDolbyVision() before it means anything.
+}
+```
+
+FFmpeg's decoders parse the RPU on their own and attach it to each frame, whether they decode in software or hand the picture to hardware. `frame.dolbyVision()` reads it: the source's darkest and brightest level, and the brightness of the frame's scene when the stream carries it, each as a 12-bit PQ code that `DolbyVisionMetadata.nitsOfPq` turns into nits. A tone mapper that knows the scene's peak keeps more of a dark scene than one that knows only the title's.
+
+`frame.composeDolbyVision()` returns a new frame that is ordinary HDR10: 10-bit 4:2:0 in BT.2020 with the PQ curve, limited range, chroma sited left, the source's range as its mastering display and no Dolby Vision metadata left on it. Any renderer that shows HDR10 shows it. It returns null for a frame without an RPU, and the source frame is untouched:
+
+```kotlin
+frame.composeDolbyVision()?.use { hdr10 ->
+    render(hdr10)
+}
+```
+
+The composition runs on the CPU and costs about 70 ms for a 1080p frame on one core of a 2.1 GHz Xeon, so a player spreads it over several threads. `beginDolbyVisionComposition()` returns a `DolbyVisionComposition` whose bands of rows may run at the same time, as long as they do not overlap and each starts on an even row:
+
+```kotlin
+frame.beginDolbyVisionComposition()?.use { composition ->
+    val bands = 4
+    val rows = (composition.height / bands + 1) and 1.inv()
+    coroutineScope {
+        (0 until composition.height step rows).forEach { start ->
+            launch(Dispatchers.Default) { composition.composeRows(start, minOf(start + rows, composition.height)) }
+        }
+    }
+    composition.finish().use { hdr10 -> render(hdr10) }
+}
+```
+
+A few things to know:
+
+- The frame must be in memory. Download a hardware frame with `downloadFromHardware()` first.
+- Reshaping happens at each chroma sample, and the result is interpolated to every pixel. Held against libplacebo's composition of the same clip, every sample landed within 4 codes, with a mean difference under half a code.
+- A profile 7 stream with a full enhancement layer adds a residual that FFmpeg does not decode, so its composition is the base layer's share of the picture. `usesEnhancementLayer` says when a frame is one of those.
+- Built against an FFmpeg older than 7.0, which exports no extension blocks, `sceneBrightness` is always null and the composed picture carries no content light level.
+
 ## Subtitles
 
 `openSubtitleDecoder(stream)` decodes a subtitle stream. Blu-ray (PGS), DVB and DVD subtitles decode to images, and the text formats decode to text. It belongs to the low-level API, so opt in with `@OptIn(KiteFFmpegLowLevelApi::class)`. Read the packets with a `PacketReader` and hand each one to `decode`:
