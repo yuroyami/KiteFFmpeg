@@ -242,6 +242,18 @@ final enum class io.github.yuroyami.kiteffmpeg/DivergentField : kotlin/Enum<io.g
     final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/DivergentField> // io.github.yuroyami.kiteffmpeg/DivergentField.values|values#static(){}[0]
 }
 
+final enum class io.github.yuroyami.kiteffmpeg/DurationOrigin : kotlin/Enum<io.github.yuroyami.kiteffmpeg/DurationOrigin> { // io.github.yuroyami.kiteffmpeg/DurationOrigin|null[0]
+    enum entry Bitrate // io.github.yuroyami.kiteffmpeg/DurationOrigin.Bitrate|null[0]
+    enum entry Header // io.github.yuroyami.kiteffmpeg/DurationOrigin.Header|null[0]
+    enum entry Timestamps // io.github.yuroyami.kiteffmpeg/DurationOrigin.Timestamps|null[0]
+
+    final val entries // io.github.yuroyami.kiteffmpeg/DurationOrigin.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.yuroyami.kiteffmpeg/DurationOrigin> // io.github.yuroyami.kiteffmpeg/DurationOrigin.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.yuroyami.kiteffmpeg/DurationOrigin // io.github.yuroyami.kiteffmpeg/DurationOrigin.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/DurationOrigin> // io.github.yuroyami.kiteffmpeg/DurationOrigin.values|values#static(){}[0]
+}
+
 final enum class io.github.yuroyami.kiteffmpeg/FFmpegComponent : kotlin/Enum<io.github.yuroyami.kiteffmpeg/FFmpegComponent> { // io.github.yuroyami.kiteffmpeg/FFmpegComponent|null[0]
     enum entry BitstreamFilters // io.github.yuroyami.kiteffmpeg/FFmpegComponent.BitstreamFilters|null[0]
     enum entry Decoders // io.github.yuroyami.kiteffmpeg/FFmpegComponent.Decoders|null[0]
@@ -1669,6 +1681,8 @@ final class io.github.yuroyami.kiteffmpeg/MediaSource : kotlin/AutoCloseable { /
         final fun <get-chapters>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/Chapter> // io.github.yuroyami.kiteffmpeg/MediaSource.chapters.<get-chapters>|<get-chapters>(){}[0]
     final val durationMicros // io.github.yuroyami.kiteffmpeg/MediaSource.durationMicros|{}durationMicros[0]
         final fun <get-durationMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/MediaSource.durationMicros.<get-durationMicros>|<get-durationMicros>(){}[0]
+    final val durationOrigin // io.github.yuroyami.kiteffmpeg/MediaSource.durationOrigin|{}durationOrigin[0]
+        final fun <get-durationOrigin>(): io.github.yuroyami.kiteffmpeg/DurationOrigin? // io.github.yuroyami.kiteffmpeg/MediaSource.durationOrigin.<get-durationOrigin>|<get-durationOrigin>(){}[0]
     final val formatName // io.github.yuroyami.kiteffmpeg/MediaSource.formatName|{}formatName[0]
         final fun <get-formatName>(): kotlin/String // io.github.yuroyami.kiteffmpeg/MediaSource.formatName.<get-formatName>|<get-formatName>(){}[0]
     final val isSeekable // io.github.yuroyami.kiteffmpeg/MediaSource.isSeekable|{}isSeekable[0]

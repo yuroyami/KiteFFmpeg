@@ -476,6 +476,15 @@ public final class io/github/yuroyami/kiteffmpeg/DolbyVisionMetadata$Companion {
 	public final fun nitsOfPq (I)D
 }
 
+public final class io/github/yuroyami/kiteffmpeg/DurationOrigin : java/lang/Enum {
+	public static final field Bitrate Lio/github/yuroyami/kiteffmpeg/DurationOrigin;
+	public static final field Header Lio/github/yuroyami/kiteffmpeg/DurationOrigin;
+	public static final field Timestamps Lio/github/yuroyami/kiteffmpeg/DurationOrigin;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/DurationOrigin;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/DurationOrigin;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/EncoderId {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/EncoderId$Companion;
 	public static final synthetic fun box-impl (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/EncoderId;
@@ -1010,6 +1019,7 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSource : java/lang/AutoClo
 	public final fun getCorruptData ()Lio/github/yuroyami/kiteffmpeg/CorruptData;
 	public final fun getCorruptDataSkipped ()J
 	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getDurationOrigin ()Lio/github/yuroyami/kiteffmpeg/DurationOrigin;
 	public final fun getFormatName ()Ljava/lang/String;
 	public final fun getMetadata ()Ljava/util/Map;
 	public final fun getPrimaryAudio ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;

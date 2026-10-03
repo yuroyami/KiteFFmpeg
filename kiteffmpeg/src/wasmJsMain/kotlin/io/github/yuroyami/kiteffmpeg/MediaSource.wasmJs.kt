@@ -164,6 +164,9 @@ public actual class MediaSource internal constructor(
     public actual val bitrateBps: Long?
         get() = ffkmp_fmt_bit_rate(requireModule(), alive()).takeIf { it > 0L }
 
+    // Not read yet: the next commit wires it to FFmpeg's duration_estimation_method (#134).
+    public actual val durationOrigin: DurationOrigin? get() = null
+
     public actual val isSeekable: Boolean
         get() = ffkmp_fmt_is_seekable(requireModule(), alive()) != 0
 

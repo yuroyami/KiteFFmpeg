@@ -258,6 +258,9 @@ public actual class MediaSource internal constructor(
      * mean touching the format context, which [close] frees.
      */
     public actual val bitrateBps: Long? = ffkmp_fmt_bit_rate(ctx).takeIf { it > 0L }
+
+    // Not read yet: the next commit wires it to FFmpeg's duration_estimation_method (#134).
+    public actual val durationOrigin: DurationOrigin? get() = null
     public actual val isSeekable: Boolean = ffkmp_fmt_is_seekable(ctx) != 0
 
     public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)

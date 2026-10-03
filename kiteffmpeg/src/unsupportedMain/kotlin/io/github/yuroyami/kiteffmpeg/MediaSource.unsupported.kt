@@ -8,6 +8,8 @@ public actual class MediaSource private constructor() : AutoCloseable {
         get() = placeholderBackendUnavailable("Reading media streams")
     public actual val durationMicros: Long?
         get() = placeholderBackendUnavailable("Reading media duration")
+    public actual val durationOrigin: DurationOrigin?
+        get() = placeholderBackendUnavailable("Reading where the media duration came from")
     public actual val formatName: String
         get() = placeholderBackendUnavailable("Reading the media format")
     public actual val metadata: Map<String, String>

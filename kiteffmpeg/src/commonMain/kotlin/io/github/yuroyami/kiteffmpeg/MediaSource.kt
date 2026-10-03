@@ -14,6 +14,16 @@ public expect class MediaSource : AutoCloseable {
     public val streams: List<StreamInfo>
     /** The container's duration in microseconds, or null when it declares none, as for a live stream. */
     public val durationMicros: Long?
+
+    /**
+     * Where [durationMicros] came from, or null when there is no duration (#134).
+     *
+     * [DurationOrigin.Bitrate] marks a length FFmpeg guessed from the bit rate of the first frames
+     * because the input states none. For variable bit rate audio that guess can be minutes out in
+     * either direction, so a caller should treat it as a hint: not cut a seek at it, and not report
+     * it as the end of the media.
+     */
+    public val durationOrigin: DurationOrigin?
     /** FFmpeg's name for the container format, such as `mov,mp4,m4a,3gp,3g2,mj2` or `matroska,webm`. */
     public val formatName: String
     /** The container-level tags, such as `title` and `artist`, as the file wrote them. */
