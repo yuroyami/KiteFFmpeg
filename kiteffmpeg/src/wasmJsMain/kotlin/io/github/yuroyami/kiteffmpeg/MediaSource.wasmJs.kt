@@ -800,7 +800,7 @@ private fun readTimeBase(m: kotlin.js.JsAny, stream: Int): Rational =
  * undeclared frame rate is 0/1 ("unknown"), an undeclared aspect ratio is 1/1 ("square"), and an
  * undeclared time base is microseconds.
  */
-private inline fun readRational(
+internal inline fun readRational(
     m: kotlin.js.JsAny,
     fallbackNum: Long = 0,
     fallbackDen: Long = 1,

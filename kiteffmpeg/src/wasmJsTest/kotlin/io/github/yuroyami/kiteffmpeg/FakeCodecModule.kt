@@ -450,10 +450,87 @@ internal fun fakeVideoDecodeCodecModule(): JsAny = installFakeVideoDecodeSurface
         m._ffkmp_frame_color_trc = () => 1;
         m._ffkmp_frame_color_range = () => 1;
         m._ffkmp_frame_chroma_location = () => 1;
+        // Square pixels unless a test gives the decoded frames another shape.
+        let decodedSar = [1, 1];
+        m.__setDecodedSar = (n, d) => { decodedSar = [n, d]; };
+        m._ffkmp_frame_sample_aspect_ratio = (f, num, den) => {
+            m.HEAP32[num >> 2] = decodedSar[0];
+            m.HEAP32[den >> 2] = decodedSar[1];
+        };
+        m._ffkmp_frame_ch_layout_mask = () => 0n;
         return m;
     }""",
 )
 private external fun installFakeVideoDecodeSurface(module: JsAny): JsAny
+
+/** Makes the video decode fake's frames declare [num]:[den] pixels, whatever the stream says. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, n, d) => m.__setDecodedSar(n, d)")
+internal external fun setFakeDecodedSampleAspectRatio(module: JsAny, num: Int, den: Int)
+
+/**
+ * The scripted decoder of [fakeDecodeCodecModule], with stream 0 declared as AUDIO: AAC at 48 kHz,
+ * six channels of fltp in 5.1 with side surrounds, and frames of 1024 samples in that shape. Stream
+ * 1 stays a subtitle.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+internal fun fakeAudioDecodeCodecModule(): JsAny = installFakeAudioDecodeSurface(fakeDecodeCodecModule())
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        const CODECPAR = 0x700;
+        const cstr = (s) => {
+            const b = new TextEncoder().encode(s);
+            const p = m._malloc(b.length + 1);
+            m.HEAPU8.set(b, p);
+            m.HEAPU8[p + b.length] = 0;
+            return p;
+        };
+
+        // FFmpeg's real AV_CODEC_ID_AAC and AV_SAMPLE_FMT_FLTP values, and the 5.1(side) mask.
+        const AAC = 86018;
+        const FLTP = 8;
+        const SIDE_51 = 0x60Fn;
+        const aacName = cstr("aac");
+        const otherName = m._ffkmp_codec_id_name(1);
+        const fltpName = cstr("fltp");
+        m._ffkmp_codecpar_codec_type = (par) => par === CODECPAR ? 1 : 3;
+        m._ffkmp_codecpar_codec_id = (par) => par === CODECPAR ? AAC : 1;
+        m._ffkmp_codec_id_name = (id) => id === AAC ? aacName : otherName;
+        m._ffkmp_sample_fmt_name = (id) => id === FLTP ? fltpName : 0;
+
+        // What the container declares.
+        m._ffkmp_codecpar_sample_rate = () => 48000;
+        m._ffkmp_codecpar_channels = () => 6;
+        m._ffkmp_codecpar_format = () => FLTP;
+        m._ffkmp_codecpar_ch_layout_mask = () => SIDE_51;
+
+        // What the decoder produces.
+        m._ffkmp_frame_pts = () => 0n;
+        m._ffkmp_frame_duration = () => 1024n;
+        m._ffkmp_frame_width = () => 0;
+        m._ffkmp_frame_height = () => 0;
+        m._ffkmp_frame_format = () => FLTP;
+        m._ffkmp_frame_nb_samples = () => 1024;
+        m._ffkmp_frame_sample_rate = () => 48000;
+        m._ffkmp_frame_channels = () => 6;
+        m._ffkmp_frame_ch_layout_mask = () => SIDE_51;
+        m._ffkmp_frame_is_keyframe = () => 1;
+        m._ffkmp_frame_is_hardware = () => 0;
+        m._ffkmp_frame_colorspace = () => 2;
+        m._ffkmp_frame_color_primaries = () => 2;
+        m._ffkmp_frame_color_trc = () => 2;
+        m._ffkmp_frame_color_range = () => 0;
+        m._ffkmp_frame_chroma_location = () => 0;
+        m._ffkmp_frame_sample_aspect_ratio = (f, num, den) => {
+            m.HEAP32[num >> 2] = 1;
+            m.HEAP32[den >> 2] = 1;
+        };
+        return m;
+    }""",
+)
+private external fun installFakeAudioDecodeSurface(module: JsAny): JsAny
 
 /** Makes the video decode fake's frames [width] by [height], whatever the stream declares. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

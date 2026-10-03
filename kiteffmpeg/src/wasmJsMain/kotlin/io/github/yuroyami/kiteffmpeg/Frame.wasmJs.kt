@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_content_light
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_mastering_display
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_a53_cc
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_ch_layout_mask
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_channels
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_clone
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_color_range
@@ -19,6 +20,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_is_hardware
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_is_keyframe
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_nb_samples
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_pts
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_sample_aspect_ratio
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_sample_rate
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_width
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_image_get_buffer_size
@@ -61,6 +63,12 @@ public actual class Frame internal constructor(
                 sampleRate = ffkmp_frame_sample_rate(m, p),
                 channelCount = ffkmp_frame_channels(m, p),
                 sampleFormat = if (type == MediaType.Audio) sampleFormatOf(m, ffkmp_frame_format(m, p)) else SampleFormat.None,
+                // Each frame's own layout and pixel shape, as the other backends read them. Left
+                // at their defaults, every web frame said square pixels and no layout, whatever
+                // its stream declared (#130). 0 from the helper means no mask to report.
+                channelLayoutMask = if (type == MediaType.Audio) {
+                    ffkmp_frame_ch_layout_mask(m, p).takeIf { it != 0L }
+                } else null,
                 duration = ffkmp_frame_duration(m, p),
                 isKeyframe = ffkmp_frame_is_keyframe(m, p) != 0,
                 // Only the two fields this backend can currently answer. The rest keep their
@@ -81,6 +89,9 @@ public actual class Frame internal constructor(
                     ),
                     ffkmp_frame_height(m, p),
                 ),
+                sampleAspectRatio = if (type == MediaType.Video) {
+                    readRational(m, fallbackNum = 1, fallbackDen = 1) { n, d -> ffkmp_frame_sample_aspect_ratio(m, p, n, d) }
+                } else Rational(1, 1),
                 isHardware = ffkmp_frame_is_hardware(m, p) != 0,
                 hdr = if (type == MediaType.Video) {
                     readHdr(

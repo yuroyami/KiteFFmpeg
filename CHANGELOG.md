@@ -62,6 +62,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   conversion. A converter kept across that stretch also dated what it converted next from before
   it. The held samples now go to the encoder before the next frame that takes another path, and
   that frame starts a converter of its own (#128).
+- On the web, `Frame.info` reports each frame's own `sampleAspectRatio` and `channelLayoutMask`,
+  as the JVM and native backends do. Both kept the defaults of `FrameInfo`, so every web frame
+  said square pixels and no layout, and an anamorphic picture drew with square pixels (#130).
 
 ## [0.4.0] - 2026-09-29
 
