@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import ffmpeg.ffkmp_codecctx_add_content_light
 import ffmpeg.ffkmp_codecctx_add_mastering_display
 import ffmpeg.ffkmp_codecpar_dovi_config
+import ffmpeg.ffkmp_codecpar_frame_cropping
 import ffmpeg.kc_codec_ctx
 import ffmpeg.kc_codec_par
 import kotlinx.cinterop.CPointer
@@ -41,6 +42,13 @@ internal inline fun readHdr(
 internal fun readDolbyVisionConfig(par: CPointer<kc_codec_par>): DolbyVisionConfig? = memScoped {
     val ints = allocArray<IntVar>(DOLBY_VISION_INTS)
     if (ffkmp_codecpar_dovi_config(par, ints) > 0) dolbyVisionConfigOf(IntArray(DOLBY_VISION_INTS) { ints[it] }) else null
+}
+
+/** The container's crop of [par]'s pictures, or null when it has none (#147). */
+@OptIn(ExperimentalForeignApi::class)
+internal fun readVideoCrop(par: CPointer<kc_codec_par>): VideoCrop? = memScoped {
+    val ints = allocArray<IntVar>(VIDEO_CROP_INTS)
+    if (ffkmp_codecpar_frame_cropping(par, ints) > 0) videoCropOf(IntArray(VIDEO_CROP_INTS) { ints[it] }) else null
 }
 
 /** Gives an encoder [hdr] before it opens; each half is written only when present. */

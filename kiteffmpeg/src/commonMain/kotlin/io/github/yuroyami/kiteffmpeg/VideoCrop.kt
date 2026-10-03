@@ -18,3 +18,10 @@ public data class VideoCrop(
     val left: Int,
     val right: Int,
 )
+
+/** The crop the C helper wrote as four counts, top, bottom, left and right, every backend's one reading of them. */
+internal fun videoCropOf(ints: IntArray): VideoCrop? =
+    if (ints.size < VIDEO_CROP_INTS) null else VideoCrop(top = ints[0], bottom = ints[1], left = ints[2], right = ints[3])
+
+/** How many ints `ffkmp_codecpar_frame_cropping` writes. */
+internal const val VIDEO_CROP_INTS: Int = 4

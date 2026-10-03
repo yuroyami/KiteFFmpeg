@@ -966,6 +966,12 @@ KC_API int ffkmp_disposition_comment(void);
  * ffkmp_stream_rotation_degrees, 0 to 359. A stream without a usable matrix answers 0 to both. */
 KC_API int ffkmp_stream_rotation_degrees(kc_stream *s);
 KC_API int ffkmp_stream_mirrored(kc_stream *s);
+/* The container's crop of a stream's pictures, from a Matroska track's PixelCrop elements or an MP4
+ * track's clean aperture, which FFmpeg reads and does not apply: out[4] gets the rows at the top,
+ * the rows at the bottom, the columns at the left and the columns at the right that are not part
+ * of the image. Returns 1 when the stream has one, 0 when it has none or FFmpeg is older than 7.1,
+ * which does not read it, and AVERROR(EINVAL) for a NULL argument. */
+KC_API int ffkmp_codecpar_frame_cropping(kc_codec_par *p, int *out);
 
 /* Ownership. Moves every reference from src to dst and leaves src blank, so exactly one of
  * the two owns the data afterwards. dst must be blank on entry. Neither packet is freed,

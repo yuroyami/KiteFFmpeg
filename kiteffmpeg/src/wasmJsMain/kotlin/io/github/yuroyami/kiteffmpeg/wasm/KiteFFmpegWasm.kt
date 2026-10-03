@@ -198,6 +198,9 @@ internal external fun ffkmp_codecpar_extradata(module: JsAny, a0: Int, a1: Int, 
 @JsFun("(m, a0) => m._ffkmp_codecpar_format(a0)")
 internal external fun ffkmp_codecpar_format(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_codecpar_frame_cropping(a0, a1)")
+internal external fun ffkmp_codecpar_frame_cropping(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_codecpar_from_context(a0, a1)")
 internal external fun ffkmp_codecpar_from_context(module: JsAny, a0: Int, a1: Int): Int
 

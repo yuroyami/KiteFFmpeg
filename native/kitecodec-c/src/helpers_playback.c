@@ -11,9 +11,11 @@
 #include <libavutil/display.h>
 #include <libavutil/error.h>
 #include <libavutil/frame.h>
+#include <libavutil/intreadwrite.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/samplefmt.h>
 
+#include <limits.h>
 #include <math.h>
 
 /* ════════════ Playback additions ════════════
@@ -138,6 +140,24 @@ KC_API int ffkmp_stream_rotation_degrees(AVStream *s) {
 KC_API int ffkmp_stream_mirrored(AVStream *s) {
     const int32_t *m = display_matrix(s);
     return m ? display_mirrors(m) : 0;
+}
+
+/* AV_PKT_DATA_FRAME_CROPPING, four little-endian 32-bit counts: top, bottom, left, right. FFmpeg
+   reads it from Matroska and MP4 from 7.1 (lavc 61.10.100); older releases have no such side data. */
+KC_API int ffkmp_codecpar_frame_cropping(AVCodecParameters *p, int *out) {
+    if (!p || !out) return AVERROR(EINVAL);
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 10, 100)
+    const AVPacketSideData *sd = av_packet_side_data_get(p->coded_side_data, p->nb_coded_side_data,
+                                                         AV_PKT_DATA_FRAME_CROPPING);
+    if (!sd || sd->size < 16) return 0;
+    for (int i = 0; i < 4; i++) {
+        uint32_t count = AV_RL32(sd->data + 4 * i);
+        out[i] = count > INT_MAX ? INT_MAX : (int)count;
+    }
+    return 1;
+#else
+    return 0;
+#endif
 }
 
 /* --- Packet ownership --- */

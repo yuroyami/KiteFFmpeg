@@ -762,6 +762,7 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                         light = { maxCll, maxFall -> ffkmp_codecpar_content_light(m, par, maxCll, maxFall) },
                     ),
                     dolbyVision = readDolbyVisionConfig(m, par),
+                    crop = readVideoCrop(m, par),
                 )
             } else {
                 null

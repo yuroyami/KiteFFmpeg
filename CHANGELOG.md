@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `VideoStreamInfo.crop` holds the crop a container states for a stream's pictures (#147): a
+  Matroska track's `PixelCrop` elements or an MP4 track's clean aperture, as the rows and columns
+  to leave out at each edge, which FFmpeg reads from 7.1 on and does not apply. A renderer leaves
+  them out; the crop the bitstream carries is still the decoder's. The C ABI is 3.21 and adds
+  `ffkmp_codecpar_frame_cropping`.
 - `MediaSource.durationOrigin` says where `durationMicros` came from (#134): the streams'
   timestamps, a length the container or a stream declares, or an estimate from the bit rate of the
   first frames, which FFmpeg makes for an input that states no length, such as ADTS AAC or an MP3

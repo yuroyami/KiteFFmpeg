@@ -174,6 +174,7 @@ internal object Internals {
     private external fun nativeCodecParChannelLayout(token: Long): Long
     private external fun nativeCodecParHdr(token: Long): IntArray?
     private external fun nativeCodecParDoviConfig(token: Long): IntArray?
+    private external fun nativeCodecParCropping(token: Long): IntArray?
     private external fun nativeCodecParFromContext(parameters: Long, context: Long): Int
     private external fun nativeCodecParCopy(destination: Long, source: Long): Int
 
@@ -533,6 +534,7 @@ internal object Internals {
     internal fun codecParHdr(token: Long): HdrMetadata? = hdrFromInts(checked { nativeCodecParHdr(token) })
     internal fun codecParDolbyVision(token: Long): DolbyVisionConfig? =
         checked { nativeCodecParDoviConfig(token) }?.let(::dolbyVisionConfigOf)
+    internal fun codecParCrop(token: Long): VideoCrop? = checked { nativeCodecParCropping(token) }?.let(::videoCropOf)
     internal fun codecParFromContext(parameters: Long, context: Long) = checked { nativeCodecParFromContext(parameters, context) }
     internal fun codecParCopy(destination: Long, source: Long) = checked { nativeCodecParCopy(destination, source) }
 
