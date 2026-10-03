@@ -1,6 +1,6 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 3.18
+# abi-version 3.19
 #
 # Exact scope: 247 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report

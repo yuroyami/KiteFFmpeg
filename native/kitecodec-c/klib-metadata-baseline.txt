@@ -1389,7 +1389,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 18 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 19 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
