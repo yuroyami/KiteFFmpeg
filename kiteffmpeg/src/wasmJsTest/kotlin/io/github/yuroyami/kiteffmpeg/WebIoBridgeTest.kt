@@ -10,7 +10,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * The staged web reader against its own written contract.
+ * The staged web reader against its own written contract. It is what a page's main thread uses, so
+ * every test here asks for it, whatever the runtime the suite runs in; [WebOnDemandReadTest] covers
+ * the reader a Worker uses.
  *
  * `MediaByteSource`'s KDoc promises two things this backend did not keep: close runs exactly once,
  * and seek is never called on a source that says it is not seekable. JVM honours both, Native
@@ -19,7 +21,10 @@ import kotlin.test.assertTrue
  */
 class WebIoBridgeTest {
 
-    @BeforeTest fun start() = forgetCodecModule()
+    @BeforeTest fun start() {
+        forgetCodecModule()
+        WebIoBridge.readOnDemand = false
+    }
 
     @AfterTest fun finish() = forgetCodecModule()
 

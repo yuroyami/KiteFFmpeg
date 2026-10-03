@@ -120,6 +120,12 @@ allowed, can fetch each address as it is asked. Each source the opener returns i
 the codec module's memory and closed straight away, so a segment is held in memory while FFmpeg
 reads it, up to 512 MB per source. `url` and `mimeType` reach the probe as on the other platforms.
 
+The `MediaByteSource` handed to `open` itself is read on demand in a Web Worker: FFmpeg calls its
+`read` and `seek` as it needs bytes, so a source that answers with synchronous range requests plays
+after its first few reads, with no size cap and no copy of the whole file, and it is closed when the
+`MediaSource` closes. On a page's main thread, where nothing may block, it is read whole into the
+codec module's memory during the open instead, up to 512 MB, and closed then.
+
 ## Streams
 
 Every input carries a list of `StreamInfo`. Each entry describes one track: its index, type, codec, and time-base. Iterate the full list, or read a primary track directly:

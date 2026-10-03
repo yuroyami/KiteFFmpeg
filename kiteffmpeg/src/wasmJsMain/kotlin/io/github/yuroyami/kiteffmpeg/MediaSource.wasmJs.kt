@@ -608,13 +608,15 @@ public actual class MediaSource internal constructor(
             val nested = try {
                 nestedOpener?.let { WebNestedOpener(m, it) }
             } catch (failure: Throwable) {
-                bridge.release()
+                runCatching { bridge.release() }.exceptionOrNull()?.let(failure::addSuppressed)
                 throw failure
             }
             // Every failure below gives back the bridge and the nested callbacks. FFmpeg has
-            // released each nested source by then, on a failed open and in the close alike.
+            // released each nested source by then, on a failed open and in the close alike. A source
+            // read on demand is closed with the bridge, and a close that fails then has nothing to
+            // add to the failure on its way up.
             val releaseIo = {
-                bridge.release()
+                runCatching { bridge.release() }
                 nested?.let { runCatching { it.release() } }
             }
             val slot = wasmAlloc(m, 4)
@@ -662,7 +664,10 @@ public actual class MediaSource internal constructor(
                 // leaves the out-slot at the NULL it wrote on entry.
                 wasmFree(m, unusedSlot); wasmFree(m, slot); releaseIo()
                 // The opener's own exception is the cause, because FFmpeg only saw an error code.
-                throw FFmpegException(FFmpegError.InvalidData(rc, "could not open this media ($rc)"), nested?.takeFailure())
+                throw FFmpegException(
+                    FFmpegError.InvalidData(rc, "could not open this media ($rc)"),
+                    bridge.takeFailure() ?: nested?.takeFailure(),
+                )
             }
             val leftover = drainUnusedKeys(m, unusedSlot)
             wasmFree(m, unusedSlot)
@@ -671,7 +676,10 @@ public actual class MediaSource internal constructor(
                 ffkmp_fmt_close_input_io(m, slot)
                 wasmFree(m, slot)
                 releaseIo()
-                throw FFmpegException(FFmpegError.InvalidData(0, "could not read stream information"), nested?.takeFailure())
+                throw FFmpegException(
+                    FFmpegError.InvalidData(0, "could not read stream information"),
+                    bridge.takeFailure() ?: nested?.takeFailure(),
+                )
             }
             return MediaSource(slot, ctx, bridge, leftover).also { media -> nested?.let { media.releaseAtClose(it::release) } }
         }

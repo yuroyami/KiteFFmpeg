@@ -278,10 +278,13 @@ public expect class MediaSource : AutoCloseable {
          * )
          * ```
          *
-         * On the web, every source that [nestedOpener] returns is read whole as soon as the opener
-         * returns it, and closed, because a read there cannot wait. The opener has to answer at
-         * once as well, which on a page means bytes it already holds, and in a Worker can mean a
-         * synchronous request.
+         * On the web, [io] is read as FFmpeg asks for its bytes wherever a read may block, which is
+         * a Worker, so it can answer with a synchronous range request, and it is closed when the
+         * returned source closes. On a page's main thread, where nothing may block, it is read whole
+         * into the codec module's memory during the open, up to 512 MB, and closed then. Every
+         * source that [nestedOpener] returns is read whole as soon as the opener returns it, and
+         * closed. The opener has to answer at once as well, which on a page means bytes it already
+         * holds, and in a Worker can mean a synchronous request.
          */
         @Throws(FFmpegException::class)
         public fun open(

@@ -34,6 +34,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   do, and a module without the `hls` demuxer, such as the one in the `web` zip of 0.4.0, cannot
   open the playlist at all.
 
+- On the web, a `MediaByteSource` is read on demand wherever a read may block, which is a Web
+  Worker: FFmpeg calls its `read` and `seek` as it needs bytes, so a source that answers with
+  synchronous range requests plays after its first few reads, memory does not grow with the file,
+  and neither a size above 512 MiB nor an unknown size is refused (#133). The source stays open
+  until the `MediaSource` closes, as on the other platforms, and one that cannot seek makes an input
+  that cannot seek either. On a page's main thread, where nothing may block, the source is still
+  read whole during the open, up to 512 MiB. The sources a nested opener returns are still read
+  whole on both.
+
 ### Fixed
 
 - A playlist of WebM or Matroska segments seeks after it has been read to its end. FFmpeg's

@@ -52,8 +52,11 @@ import kotlin.js.JsAny
             _malloc: malloc,
             _free: () => {},
             ccall: () => 0,
-            addFunction: () => 0,
-            removeFunction: () => {},
+            // A function table like emscripten's, so a test can call a registered callback the way
+            // the module would. Index 0 stays empty: it is what C reads as a NULL function.
+            __table: [null],
+            addFunction(f) { this.__table.push(f); return this.__table.length - 1; },
+            removeFunction(i) { this.__table[i] = null; },
             lengthBytesUTF8: (s) => new TextEncoder().encode(s).length,
             stringToUTF8: (s, p, n) => {
                 const b = new TextEncoder().encode(s);
@@ -118,9 +121,16 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         m.stringToUTF8("webvtt", codecName, 9);
 
         m._ffkmp_fmt_open_input_io = (out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt) => {
+            m.__lastOpenRead = readFn;
+            m.__lastOpenSeek = seekFn;
+            m.__lastOpenSize = Number(size);
+            // A probe reads before it can answer; a test turns this on to see a read fail the open.
+            if (m.__openReads) {
+                const scratch = m._malloc(16);
+                if (m.__table[readFn](opaque, scratch, 16) <= 0) return -5;
+            }
             m.HEAP32[out >> 2] = CONTEXT;
             m.HEAP32[unused >> 2] = 0;
-            m.__lastOpenSize = Number(size);
             openCount++;
             return 0;
         };
@@ -351,6 +361,36 @@ internal external fun fakeLastOpenHints(module: JsAny): String
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => { m._ffkmp_fmt_nested_io_available = () => 0; }")
 internal external fun withoutNestedIo(module: JsAny)
+
+/** Makes the packet reader fake's open read 16 bytes through its read callback, as a probe does. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => { m.__openReads = true; }")
+internal external fun fakeOpenReads(module: JsAny)
+
+/** The read callback the last open was handed, as a table index. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__lastOpenRead")
+internal external fun fakeLastOpenRead(module: JsAny): Int
+
+/** The seek callback the last open was handed, as a table index; 0 is no seek at all. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__lastOpenSeek")
+internal external fun fakeLastOpenSeek(module: JsAny): Int
+
+/** Calls the read callback at [index] as the module would: [length] bytes into [destination]. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, index, destination, length) => m.__table[index](0, destination, length)")
+internal external fun fakeCallRead(module: JsAny, index: Int, destination: Int, length: Int): Int
+
+/** Calls the seek callback at [index] as the module would, with a 64-bit [offset]. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, index, offset, whence) => Number(m.__table[index](0, BigInt(offset), whence))")
+internal external fun fakeCallSeek(module: JsAny, index: Int, offset: Double, whence: Int): Double
+
+/** True while the table entry at [index] is registered. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, index) => m.__table[index] !== null && m.__table[index] !== undefined")
+internal external fun fakeTableEntryLive(module: JsAny, index: Int): Boolean
 
 /** The size the last open told FFmpeg, or -1 before any open. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
@@ -583,6 +623,7 @@ internal fun useCodecModule(module: JsAny) {
 internal fun forgetCodecModule() {
     KiteFFmpegWeb.module = null
     KiteFFmpegWeb.inFlight = null
+    WebIoBridge.readOnDemand = null
 }
 
 /**

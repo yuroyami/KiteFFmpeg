@@ -172,9 +172,11 @@ A call before the module loads throws `KiteFFmpegWeb.NotLoaded`. The module is s
 so the page needs no cross-origin isolation headers. To build the two files yourself, run
 `./gradlew :kiteffmpeg:kiteffmpegWebZip`, which needs emscripten.
 
-The module opens no address by itself. An HLS playlist plays through a `nestedOpener` that serves
-each of its segments, and that opener has to answer at once: from bytes the page already holds, or
-from a synchronous request inside a Web Worker. [Decoding](https://yuroyami.github.io/KiteFFmpeg/decoding/#hls-through-your-own-http-client)
+The module opens no address by itself. In a Web Worker, a `MediaByteSource` is read as FFmpeg
+asks for its bytes, so it can stream a large file through synchronous range requests; on the page's
+main thread it is read whole into memory when it opens, up to 512 MB. An HLS playlist plays through
+a `nestedOpener` that serves each of its segments, and that opener has to answer at once: from
+bytes the page already holds, or from a synchronous request inside a Web Worker. [Decoding](https://yuroyami.github.io/KiteFFmpeg/decoding/#hls-through-your-own-http-client)
 has the details.
 
 </details>

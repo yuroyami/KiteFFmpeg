@@ -3,36 +3,95 @@ package io.github.yuroyami.kiteffmpeg
 import kotlin.js.JsAny
 
 /**
- * Hands a [MediaByteSource]'s bytes to FFmpeg through the callbacks it expects.
+ * Hands a [MediaByteSource]'s bytes to FFmpeg through the callbacks it expects, in one of two ways.
  *
- * FFmpeg's IO is synchronous: it calls read and seek and expects an answer before it returns. On
- * the browser's main thread nothing may block, so this bridge does the one thing that is both
- * correct and available today. It drains the source into the codec module's memory ONCE, and the
- * read and seek callbacks are pure JavaScript over that buffer, answering instantly and blocking
- * nothing.
+ * FFmpeg's IO is synchronous: it calls read and seek and expects an answer before it returns.
  *
- * That is not a workaround for the common case, it is the shape of the data: a browser gets media
- * from a `File`, a `fetch` response or an `ArrayBuffer`, and all three are already whole. What it
- * does NOT support is a source larger than memory or one served by range requests, which needs the
- * Worker where a blocking read is legal. Refused explicitly below rather than half-served.
+ * - **On demand**, wherever a read may block: in a Worker, and in Node. FFmpeg's read and seek call
+ *   the source there and then, so a source that answers with a synchronous range request plays
+ *   after its first bytes, memory does not grow with the file, and there is no size cap (#133). The
+ *   source stays open until the media source closes, as on the JVM and native, a source that does
+ *   not know its size streams, and one that cannot seek makes an input that cannot either.
+ * - **Staged**, on a page's main thread, where nothing may block. The bridge drains the source into
+ *   the codec module's memory once, closes it, and the read and seek callbacks are pure JavaScript
+ *   over that buffer, answering instantly. A browser gets media there from a `File`, a `fetch`
+ *   response or an `ArrayBuffer`, which are all whole already. A source larger than
+ *   [MAX_BYTES], or of unknown size, is refused explicitly rather than half served.
  */
 internal class WebIoBridge private constructor(
     private val module: JsAny,
+    /** The staged bytes, or 0 when the source is read on demand. */
     private val buffer: Int,
     val readPointer: Int,
+    /** 0 when FFmpeg may not seek, which the C side takes for an input that cannot seek. */
     val seekPointer: Int,
-    /** The staged byte count. The source is closed by then, so nothing may ask it again (#114). */
+    /**
+     * What FFmpeg is told the size is: the staged byte count, or the source's own size, -1 when it
+     * has none. A staged source is closed by then, so nothing may ask it again (#114).
+     */
     val size: Long,
+    /** The reader of an on-demand source, which closes it at [release]. Null when staged. */
+    private val reader: OnDemandReader?,
 ) {
 
+    /** The exception the source threw inside a read or seek FFmpeg made, which explains the error it got. */
+    fun takeFailure(): Throwable? = reader?.takeFailure()
+
+    /** Removes the callbacks, frees the staged bytes, and closes a source read on demand. */
     fun release() {
         releaseCallbacks(module, readPointer, seekPointer)
-        wasmFree(module, buffer)
+        if (buffer != 0) wasmFree(module, buffer)
+        reader?.io?.close()
     }
 
     companion object {
-        /** Sources above this are refused rather than silently doubling the page's memory use. */
-        private const val MAX_BYTES = 512L * 1024 * 1024
+        /** Staged sources above this are refused rather than silently doubling the page's memory use. */
+        internal const val MAX_BYTES = 512L * 1024 * 1024
+
+        /**
+         * Which way [install] reads a source when its caller does not say: true on demand, false
+         * staged, and null to ask the runtime, which is what every caller but a test does.
+         */
+        internal var readOnDemand: Boolean? = null
+
+        /**
+         * Takes ownership of [io] and hands it to FFmpeg, on demand where a read may block and
+         * staged where it may not; see the class.
+         */
+        fun install(io: MediaByteSource, onDemand: Boolean = readOnDemand ?: blockingReadsAllowed()): WebIoBridge =
+            if (onDemand) attach(io) else stageAndClose(io)
+
+        /**
+         * Lets FFmpeg read [io] as it goes. The bridge owns the source from here and closes it at
+         * [release], so every failure before the bridge exists closes it here, once.
+         */
+        private fun attach(io: MediaByteSource): WebIoBridge {
+            val module = requireModule()
+            try {
+                val seekable = io.seekable
+                val declared = io.size
+                if (declared != null && declared < 0) {
+                    throw FFmpegException(FFmpegError.Io(0, "the byte source reported a size of $declared bytes"))
+                }
+                val size = declared ?: -1L
+                val reader = OnDemandReader(module, io)
+                val callbacks = installOnDemandCallbacks(
+                    module,
+                    seekable,
+                    { destination, length -> reader.read(destination, length) },
+                    { offset, whence -> reader.seek(offset, whence) },
+                )
+                return WebIoBridge(module, 0, callbackRead(callbacks), callbackSeek(callbacks), size, reader)
+            } catch (failure: Throwable) {
+                // The real cause is already on its way up; a close that also fails rides on it.
+                try {
+                    io.close()
+                } catch (closeFailure: Throwable) {
+                    failure.addSuppressed(closeFailure)
+                }
+                throw failure
+            }
+        }
 
         /**
          * Stages [io] and takes ownership of it.
@@ -42,7 +101,7 @@ internal class WebIoBridge private constructor(
          * caller who could know how far it got. `MediaByteSource` promises close runs exactly once
          * and this backend used to never call it at all.
          */
-        fun install(io: MediaByteSource): WebIoBridge {
+        private fun stageAndClose(io: MediaByteSource): WebIoBridge {
             val bridge = try {
                 stage(io)
             } catch (failure: Throwable) {
@@ -68,9 +127,10 @@ internal class WebIoBridge private constructor(
                 ?: throw FFmpegException(
                     FFmpegError.Unsupported(
                         0,
-                        "The web backend needs a MediaByteSource that knows its size, because it " +
-                            "stages the bytes for FFmpeg's synchronous IO. A source of unknown " +
-                            "length has to stream, which needs the Worker.",
+                        "On a page's main thread the web backend needs a MediaByteSource that " +
+                            "knows its size, because it stages the bytes for FFmpeg's synchronous " +
+                            "IO. A source of unknown length streams in a Worker, where it is read " +
+                            "on demand.",
                     ),
                 )
             if (size < 0) {
@@ -80,9 +140,9 @@ internal class WebIoBridge private constructor(
                 throw FFmpegException(
                     FFmpegError.Unsupported(
                         0,
-                        "This media is $size bytes and the web backend stages the whole source in " +
-                            "memory, so it caps at $MAX_BYTES. Streaming larger media needs the " +
-                            "Worker.",
+                        "This media is $size bytes and on a page's main thread the web backend " +
+                            "stages the whole source in memory, so it caps at $MAX_BYTES. In a " +
+                            "Worker the source is read on demand, with no cap.",
                     ),
                 )
             }
@@ -102,6 +162,7 @@ internal class WebIoBridge private constructor(
                 readPointer = callbackRead(callbacks),
                 seekPointer = callbackSeek(callbacks),
                 size = total.toLong(),
+                reader = null,
             )
         }
 
@@ -146,6 +207,106 @@ internal class WebIoBridge private constructor(
         private const val CHUNK = 1 shl 16
     }
 }
+
+/**
+ * Reads [io] for FFmpeg one request at a time, called by the module from inside its own read and
+ * seek, on the contract the native trampolines keep: a read returns its byte count, KC_IO_EOF at
+ * the end and KC_IO_ERR on a failure, and a seek returns the new position or KC_IO_ERR. An
+ * exception must never travel back into the module, so each one is kept for the error it causes.
+ */
+private class OnDemandReader(private val module: JsAny, val io: MediaByteSource) {
+    private val scratch = ByteArray(CHUNK)
+    private var position = 0L
+    private var failure: Throwable? = null
+
+    fun takeFailure(): Throwable? = failure.also { failure = null }
+
+    fun read(destination: Int, length: Int): Int = try {
+        if (length <= 0) {
+            KC_IO_ERR
+        } else {
+            val want = minOf(length, scratch.size)
+            val got = io.read(scratch, 0, want)
+            when {
+                // Checked before the copy: FFmpeg's buffer holds length bytes and the scratch want.
+                got > want -> {
+                    failure = byteSourceOverCount(got, want)
+                    KC_IO_ERR
+                }
+                got > 0 -> {
+                    writeBytes(module, destination, scratch, got)
+                    position += got
+                    failure = null
+                    got
+                }
+                got < 0 -> KC_IO_EOF
+                // 0 breaks the block-or-end contract of MediaByteSource.read.
+                else -> KC_IO_ERR
+            }
+        }
+    } catch (thrown: Throwable) {
+        failure = thrown
+        KC_IO_ERR
+    }
+
+    /** Offsets cross as JavaScript numbers, which hold every byte position below 8 PiB exactly. */
+    fun seek(offset: Double, whence: Int): Double = try {
+        val target = when (whence) {
+            SEEK_SET -> offset.toLong()
+            SEEK_CUR -> position + offset.toLong()
+            SEEK_END -> io.size?.let { it + offset.toLong() } ?: -1L
+            else -> -1L
+        }
+        if (target < 0) {
+            KC_IO_ERR.toDouble()
+        } else {
+            io.seek(target)
+            position = target
+            target.toDouble()
+        }
+    } catch (thrown: Throwable) {
+        failure = thrown
+        KC_IO_ERR.toDouble()
+    }
+
+    private companion object {
+        const val CHUNK = 1 shl 16
+        const val KC_IO_EOF = -1
+        const val KC_IO_ERR = -2
+        const val SEEK_SET = 0
+        const val SEEK_CUR = 1
+        const val SEEK_END = 2
+    }
+}
+
+/**
+ * True where a read may block the thread it runs on: anywhere but a page's main thread, which is
+ * the one place with a `window`. A Worker has none, and neither has Node.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("() => typeof window === 'undefined'")
+private external fun blockingReadsAllowed(): Boolean
+
+/**
+ * Registers read and seek callbacks that call [read] and [seek] in Kotlin, and returns both table
+ * indices. The seek index is 0, which the C side reads as no seek, when the source cannot seek.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m, seekable, read, seek) => {
+        const r = m.addFunction((opaque, dst, len) => read(dst, len), 'iiii');
+        const s = seekable
+            ? m.addFunction((opaque, offset, whence) => BigInt(seek(Number(offset), whence)), 'jiji')
+            : 0;
+        return { read: r, seek: s };
+    }"""
+)
+private external fun installOnDemandCallbacks(
+    module: JsAny,
+    seekable: Boolean,
+    read: (Int, Int) -> Int,
+    seek: (Double, Int) -> Double,
+): JsAny
 
 /**
  * Copies [length] bytes of [bytes] into codec memory at [pointer], in ONE crossing.
@@ -218,5 +379,5 @@ private external fun callbackRead(callbacks: JsAny): Int
 private external fun callbackSeek(callbacks: JsAny): Int
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-@JsFun("(m, r, s) => { m.removeFunction(r); m.removeFunction(s); }")
+@JsFun("(m, r, s) => { m.removeFunction(r); if (s) m.removeFunction(s); }")
 private external fun releaseCallbacks(module: JsAny, read: Int, seek: Int)
