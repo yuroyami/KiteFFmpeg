@@ -1,13 +1,19 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
+import kotlin.js.JsAny
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -113,7 +119,108 @@ class KiteFFmpegWebTest {
         KiteFFmpegWeb.attach(good)
         assertSame(good, KiteFFmpegWeb.module)
     }
+
+    /**
+     * Overlapping loads share one fetch. Each used to call the module's factory, which builds a new
+     * instance with its own wasm memory, and only the first to land was adopted (#132). All four
+     * calls start before any import resolves, because the import is a promise.
+     */
+    @Test
+    fun overlappingLoadsBuildOneModule() = runTest {
+        val module = fakeCodecModule()
+        val url = countingModuleUrl("overlap", module)
+        List(4) { async { KiteFFmpegWeb.load(url) } }.awaitAll()
+        assertEquals(1, factoryCalls(), "four overlapping loads built more than one module")
+        assertSame(module, KiteFFmpegWeb.module)
+    }
+
+    @Test
+    fun aLoadThatFailedIsTriedAgainByTheNextCall() = runTest {
+        val module = fakeCodecModule()
+        val url = countingModuleUrl("retry", module)
+        setFactoryFails(true)
+        assertFailsWith<IllegalStateException> { KiteFFmpegWeb.load(url) }
+        assertFalse(KiteFFmpegWeb.isLoaded)
+        setFactoryFails(false)
+        KiteFFmpegWeb.load(url)
+        assertEquals(2, factoryCalls(), "the failed load was not forgotten, so the retry never fetched")
+        assertSame(module, KiteFFmpegWeb.module)
+    }
+
+    @Test
+    fun aCancelledLoadLeavesTheOthersWaitingForTheSameModule() = runTest {
+        val module = fakeCodecModule()
+        val url = countingModuleUrl("cancel", module)
+        holdFactory()
+        val first = async { KiteFFmpegWeb.load(url) }
+        val second = async { KiteFFmpegWeb.load(url) }
+        testScheduler.runCurrent()
+        first.cancel()
+        testScheduler.runCurrent()
+        assertTrue(first.isCancelled && first.isCompleted, "the cancelled load is still waiting for the module")
+        assertFalse(second.isCompleted, "the other load finished before the module landed")
+        releaseFactory()
+        second.await()
+        assertSame(module, KiteFFmpegWeb.module)
+        assertEquals(1, factoryCalls())
+    }
+
+    @Test
+    fun aLoadOfAnotherAddressWhileOneIsInFlightIsRefusedByName() = runTest {
+        val module = fakeCodecModule()
+        val url = countingModuleUrl("first", module)
+        val other = countingModuleUrl("second", module)
+        holdFactory()
+        val first = async { KiteFFmpegWeb.load(url) }
+        testScheduler.runCurrent()
+        val refused = async { runCatching { KiteFFmpegWeb.load(other) } }
+        testScheduler.runCurrent()
+        assertTrue(refused.isCompleted, "the load of another address waited instead of being refused")
+        val refusal = assertIs<IllegalStateException>(refused.await().exceptionOrNull())
+        assertTrue(url in refusal.message.orEmpty(), "the refusal must name the load in flight, said: ${refusal.message}")
+        releaseFactory()
+        first.await()
+        assertEquals(1, factoryCalls(), "the refused address was fetched anyway")
+        assertSame(module, KiteFFmpegWeb.module)
+    }
 }
+
+/**
+ * A module address whose default export, the factory, counts its calls in [factoryCalls] and
+ * answers [module], or fails while [setFactoryFails] says so, or waits while [holdFactory] says so.
+ * [name] keeps one test's address apart from another's.
+ */
+private fun countingModuleUrl(name: String, module: JsAny): String = countingModuleUrlJs(name, module)
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(name, module) => {
+        globalThis.__kiteFactory = { calls: 0, module: module, fails: false, held: false, waiting: [] };
+        const source = "export default () => { const f = globalThis.__kiteFactory; f.calls++; " +
+            "if (f.fails) return Promise.reject(new Error('the factory failed')); " +
+            "if (!f.held) return f.module; " +
+            "return new Promise((resolve) => f.waiting.push(resolve)); }";
+        return "data:text/javascript," + encodeURIComponent(source + " // " + name);
+    }""",
+)
+private external fun countingModuleUrlJs(name: String, module: JsAny): String
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("() => globalThis.__kiteFactory.calls")
+private external fun factoryCalls(): Int
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(fails) => { globalThis.__kiteFactory.fails = fails; }")
+private external fun setFactoryFails(fails: Boolean)
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("() => { globalThis.__kiteFactory.held = true; }")
+private external fun holdFactory()
+
+/** Lets every held factory call answer, including one whose import has not run yet. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("() => { const f = globalThis.__kiteFactory; f.held = false; f.waiting.splice(0).forEach((resolve) => resolve(f.module)); }")
+private external fun releaseFactory()
 
 /**
  * Runs [block] and fails unless it completed synchronously.

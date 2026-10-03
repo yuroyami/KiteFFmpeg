@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.js.JsAny
 import kotlin.js.Promise
 
@@ -71,19 +73,49 @@ public object KiteFFmpegWeb {
      * Fetches and instantiates the codec module at [url] itself.
      *
      * Convenient when nothing bundles the page. Under a bundler prefer [attach], for the reason
-     * given there. Calling twice is a no-op rather than a second fetch.
+     * given there. Calling twice is a no-op rather than a second fetch, and so is calling again
+     * while the first call is still loading: every call that overlaps it waits for that same
+     * module. A call that stops waiting, because its coroutine was cancelled, leaves the load
+     * running for the others, and a load that fails is forgotten, so the next call tries again.
+     *
+     * @throws IllegalStateException when a load of another address is still in flight. The module
+     *   owns FFmpeg's global codec registry, so a page loads exactly one.
      */
     public suspend fun load(url: String = DEFAULT_URL) {
         if (module != null) return
-        val loaded = awaitModule(loadModule(url))
-        // Checked again after the await: two concurrent loads both saw no module before suspending,
-        // and the second one arriving would otherwise throw at [attach] for being a different
-        // module than the first one that landed. The instance that got there first wins and the
-        // other is simply not adopted, which is what "calling twice is a no-op" has to mean when
-        // the two calls overlap.
+        // Stored before the first suspension, so a call that overlaps this one finds it. Every call
+        // used to start its own fetch and instance and adopt only the first to land, and the
+        // others cost their startup work and their memory for nothing (#132).
+        val running = inFlight ?: InFlightLoad(url, loadModule(url)).also { inFlight = it }
+        if (running.url != url) {
+            throw IllegalStateException(
+                "a load of ${running.url} is still in flight, so $url was not fetched. The codec " +
+                    "module owns FFmpeg's global codec registry, so a page loads one: await the " +
+                    "first load, or load the same address.",
+            )
+        }
+        val loaded = try {
+            awaitModule(running.module)
+        } catch (stopped: CancellationException) {
+            // Only this caller stopped waiting. The load carries on for every other caller, and
+            // the next load of the same address takes it up if none is left.
+            throw stopped
+        } catch (failure: Throwable) {
+            if (inFlight === running) inFlight = null
+            throw failure
+        }
+        if (inFlight === running) inFlight = null
+        // Every caller of one load resumes with the same module, and the first to resume adopts
+        // it. The page may also have attached one of its own meanwhile, which stays.
         if (module != null) return
         attach(loaded)
     }
+
+    /** The [load] still on its way, which every overlapping [load] waits for. */
+    internal var inFlight: InFlightLoad? = null
+
+    /** The address a [load] fetches and the module it will resolve to. */
+    internal class InFlightLoad(val url: String, val module: Promise<JsAny>)
 
     /** The conventional name emscripten writes beside the wasm, resolved against the page. */
     public const val DEFAULT_URL: String = "./kite.mjs"
@@ -120,13 +152,23 @@ internal fun requireModule(): JsAny = KiteFFmpegWeb.module ?: throw KiteFFmpegWe
 @JsFun("(url) => import(/* webpackIgnore: true */ url).then(m => m.default())")
 private external fun loadModule(url: String): Promise<JsAny>
 
-/** Bridges a JS promise into a suspend function without pulling in a coroutines JS dependency. */
+/**
+ * Bridges a JS promise into a suspend function without pulling in a coroutines JS dependency.
+ *
+ * Cancellable, so a caller that stops waiting resumes at once while the promise settles for the
+ * others. A promise settles once, and a continuation already cancelled ignores it.
+ */
 private suspend fun awaitModule(promise: Promise<JsAny>): JsAny =
-    kotlin.coroutines.suspendCoroutine { continuation ->
+    suspendCancellableCoroutine { continuation ->
         promise.then(
-            onFulfilled = { value -> continuation.resumeWith(Result.success(value)); value },
+            onFulfilled = { value ->
+                if (continuation.isActive) continuation.resumeWith(Result.success(value))
+                value
+            },
             onRejected = { error ->
-                continuation.resumeWith(Result.failure(IllegalStateException("codec module failed to load: $error")))
+                if (continuation.isActive) {
+                    continuation.resumeWith(Result.failure(IllegalStateException("codec module failed to load: $error")))
+                }
                 error
             },
         )

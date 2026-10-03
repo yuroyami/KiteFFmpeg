@@ -582,6 +582,7 @@ internal fun useCodecModule(module: JsAny) {
 /** Returns the backend to its unloaded state so the next test starts where a fresh page would. */
 internal fun forgetCodecModule() {
     KiteFFmpegWeb.module = null
+    KiteFFmpegWeb.inFlight = null
 }
 
 /**
