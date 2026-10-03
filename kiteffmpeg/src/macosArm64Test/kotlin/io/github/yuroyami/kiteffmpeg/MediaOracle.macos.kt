@@ -33,3 +33,12 @@ internal actual fun runMediaOracle(tool: String, arguments: List<String>): Strin
     check(status == 0) { "$tool exited with ${status shr 8}: $command" }
     return output.toString()
 }
+
+internal actual fun startMediaOracle(tool: String, arguments: List<String>): RunningOracle? {
+    val command = (listOf(oracleExecutable(tool)) + arguments).joinToString(" ", transform = ::shellWord)
+    // Nothing is read from the pipe: the tool writes to /dev/null, and pclose only waits for it.
+    val pipe = popen("$command >/dev/null 2>&1", "r") ?: error("Could not start $tool")
+    return object : RunningOracle {
+        override fun await(): Int = pclose(pipe) shr 8
+    }
+}

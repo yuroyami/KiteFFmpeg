@@ -57,7 +57,7 @@ The recipe is `sharedCoreArgs()` in [`BuildFFmpegTask.kt`](https://github.com/yu
 
 Every profile is PORTABLE since 2026-08-22: no third-party desktop stack anywhere. The optional dav1d flavour adds the `libdav1d` AV1 software decoder to any column.
 
-Four groups joined the recipe in 0.4.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The trees of 0.3.0 also lack the `trust_io_open` patch to FFmpeg's HLS demuxer, which a nested opener needs. The trees of 0.4.0 carry all of it. Two later patches are not in the trees of 0.4.0: `0003`, which lets a playlist of WebM or Matroska segments seek after its end, and `0004`, which keeps the subtitle cue that is showing when an HLS subtitle rendition starts.
+Four groups joined the recipe in 0.4.0, so the trees of 0.3.0 do not carry them: the subtitle encoders, the subtitle muxers, the filters crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox and pan, and the iPhone's VideoToolbox encoders. The trees of 0.3.0 also lack the `trust_io_open` patch to FFmpeg's HLS demuxer, which a nested opener needs. The trees of 0.4.0 carry all of it. Two later patches are not in the trees of 0.4.0: `0003`, which lets a playlist of WebM or Matroska segments seek after its end, and `0004`, which keeps the subtitle cue that is showing when an HLS subtitle rendition starts. Neither are the live protocols `udp`, `rtp` and `rtmp`, which joined the recipe after 0.4.0, or the `rtsp`, `sdp`, `rtp` and `sap` demuxers that need them: until then a named disable of `udp` and `rtp` dropped those four demuxers from the wide class. A live stream opens as [Decoding](decoding.md#opening-a-live-network-stream) shows.
 
 | | macOS LGPL | Mobile Apple LGPL | Linux / Windows LGPL | Android LGPL |
 |---|---|---|---|---|
@@ -67,7 +67,7 @@ Four groups joined the recipe in 0.4.0, so the trees of 0.3.0 do not carry them:
 | **Demux** | every native FFmpeg demuxer | same | same | same |
 | **Subtitle encode** | `mov_text`, `srt`/`subrip`, `ass`, `webvtt` | same | same | same |
 | **Mux (write)** | mp4/mov, matroska/webm (including `.mka`), mpegts, mp3, wav, flac, ogg/opus, image2, and the subtitle files srt, ass and webvtt | same | same | same |
-| **Protocols** | `file`, `fd`, `pipe`, `data`, `http`, `tcp` | same | same | same |
+| **Protocols** | `file`, `fd`, `pipe`, `data`, `http`, `tcp`, `udp`, `rtp`, `rtmp` | same | same | same |
 | **Filters** | the shared set: scale, pad, crop, transpose, hflip, vflip, fps, fade, setsar, setdar, drawbox, overlay, hue, unsharp, vignette, colorbalance, colorlevels, curves, lut, colorchannelmixer, split, trim/setpts, the deinterlacers yadif and bwdif, and the audio set with pan and the loudness filters loudnorm, ebur128 and alimiter | same | same | same |
 | **Bitstream filters** | all of them (they ride with the wide demuxer class) | same | same | same |
 

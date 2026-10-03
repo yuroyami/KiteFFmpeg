@@ -24,3 +24,24 @@ internal actual fun runMediaOracle(tool: String, arguments: List<String>): Strin
     check(process.exitValue() == 0) { "$tool exited with ${process.exitValue()}: $command\n$errors" }
     return output
 }
+
+internal actual fun startMediaOracle(tool: String, arguments: List<String>): RunningOracle? {
+    val command = listOf(oracleExecutable(tool)) + arguments
+    val process = try {
+        ProcessBuilder(command)
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+    } catch (missing: java.io.IOException) {
+        throw IllegalStateException("The $tool oracle is not installed (brew install ffmpeg)", missing)
+    }
+    return object : RunningOracle {
+        override fun await(): Int {
+            if (!process.waitFor(60, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+                error("$tool did not finish: $command")
+            }
+            return process.exitValue()
+        }
+    }
+}

@@ -367,8 +367,8 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // does not take on. See docs/platforms.md. --enable-network is explicit rather than
         // inherited so a target whose configure probe defaults it off fails loudly here. The
         // wide demuxer class includes members that SELECT network protocols (rtsp and its
-        // relatives); the class disable above must win, so the configure banner's protocol
-        // line is checked against exactly this five-name list after every profile change.
+        // relatives), and a select beats the class disable above, so the configure banner's
+        // protocol line is checked against exactly this nine-name list after every profile change.
         // `fd` is what makes an Android content:// URI playable. The picker hands back a
         // descriptor, and the usual escape of re-opening `/proc/self/fd/N` through the `file`
         // protocol fails with EACCES on a modern device, because re-opening rechecks permissions
@@ -377,13 +377,18 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         // `dup()`s it, so nothing is re-opened, and its fstat sets is_streamed correctly, which
         // keeps a regular file SEEKABLE. `pipe:<fd>` is not a substitute: it dups too, but hard
         // codes is_streamed = 1, so seeking dies and with it any sync.
+        //
+        // udp, rtp and rtmp joined on 2026-10-03 (#124), so an IP camera on rtsp://, a udp:// or
+        // rtp:// stream, an SDP file that describes an RTP session and an rtmp:// feed all open.
+        // None needs a library. udp and rtp were named off until then, and that named disable is
+        // what dropped the rtsp and sdp demuxers, which select them; with the two back, the wide
+        // demuxer class carries rtsp, sdp, rtp and sap again. rtmp is FFmpeg's own client over tcp.
+        // rtmps stays out for the reason https does, and SRT needs libsrt, a new native library.
+        // A wider list does not widen what a playlist reaches: FFmpeg's HLS reader opens only
+        // file, http and data, and an input opened from a file may reach only file, crypto and
+        // data unless DemuxOptions.protocolWhitelist names more.
         "--enable-network",
-        "--enable-protocol=file,fd,pipe,data,http,tcp",
-        // Fixed point 5 of 17.4.9, observed on the first wide configure: the rtsp/sdp demuxers
-        // SELECT udp and rtp, and configure's select is stronger than a class disable, so the
-        // banner grew both. A named disable is stronger than a select: with these two hard-off,
-        // configure drops the demuxers that need them instead of resurrecting the protocols.
-        "--disable-protocol=udp,rtp",
+        "--enable-protocol=file,fd,pipe,data,http,tcp,udp,rtp,rtmp",
         // Several everyday extensions map to their OWN muxer rather than to the obvious one, and
         // `avformat_alloc_output_context2` simply fails to find a format when that muxer is absent:
         //   .mka → matroska_audio (not matroska)   .m4a → ipod (not mp4)

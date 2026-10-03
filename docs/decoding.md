@@ -28,6 +28,37 @@ MediaSource.open("input.mp4").use { source ->
 !!! note
     Opening a file does not start decoding. It only reads the container header. Decoding happens lazily when you collect one of the frame flows below.
 
+## Opening a live network stream
+
+The same `open` takes the live addresses this build carries a protocol for: a `udp://` or `rtp://`
+stream, an `rtsp://` camera, an `rtmp://` feed and a raw `tcp://` stream, as well as an SDP file
+that describes an RTP session. A read waits for the sender. None of them reaches the web, where a
+page has no raw sockets.
+
+```kotlin
+val camera = MediaSource.open(
+    "rtsp://192.168.1.20/stream1",
+    DemuxOptions(options = mapOf("rtsp_transport" to "tcp")),
+)
+```
+
+- `rtsp_transport` chooses `tcp` or `udp`. Over TCP the media travels inside the connection the
+  camera already answers on, which is what gets through a firewall.
+- An SDP file read from disk names the protocols its session needs. FFmpeg lets an input opened
+  from a file reach only `file`, `crypto` and `data`, so the open lists the rest itself:
+  `DemuxOptions(protocolWhitelist = setOf("file", "udp", "rtp"))`.
+- `rtmps://`, `https://` and `srt://` are not in the build. Each fails the open with
+  `FFmpegError.ProtocolNotFound`.
+
+A wider protocol list does not widen what a playlist reaches. Without a nested opener, FFmpeg's HLS
+reader opens only `file`, `http` and `data` addresses, whatever else the build carries, and an
+input opened from a file reaches only the three protocols above. Any other open that must reach no
+further than it needs can say so with `protocolWhitelist`, which holds every nested open to the same
+list.
+
+The tests prove the RTSP demuxer by publishing to it with the `ffmpeg` command line over UDP and
+over TCP. No camera, which is the server the demuxer dials, runs in them.
+
 ## Opening bytes from your own code
 
 `MediaSource.open(io)` demuxes whatever a `MediaByteSource` reads, with no path. Use it when the

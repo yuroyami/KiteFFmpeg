@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Live network streams open through `MediaSource.open`: `udp://` and `rtp://`, an SDP file that
+  describes an RTP session, `rtsp://` over UDP or TCP with `rtsp_transport` among the open options,
+  and `rtmp://` (#124). The recipe gains the `udp`, `rtp` and `rtmp` protocols, and with them the
+  `rtsp`, `sdp`, `rtp` and `sap` demuxers, which a named disable of `udp` and `rtp` used to drop.
+  None needs a library. `rtmps` and SRT stay out, and the web build has none of them. An SDP file
+  read from disk needs `DemuxOptions(protocolWhitelist = setOf("file", "udp", "rtp"))`, because
+  FFmpeg lets a file reach only `file`, `crypto` and `data`. Measured on Linux x64, the recipe adds
+  0.44 MB to `libavformat.a` and 0.25 MB to the JVM's linked library, which grows from 25.05 MB to
+  25.29 MB. The trees of 0.4.0 do not carry any of it.
+
 ### Fixed
 
 - A playlist of WebM or Matroska segments seeks after it has been read to its end. FFmpeg's

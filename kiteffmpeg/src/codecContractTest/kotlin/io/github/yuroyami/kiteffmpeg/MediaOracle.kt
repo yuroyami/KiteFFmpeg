@@ -48,3 +48,16 @@ internal object MediaOracle {
     fun generate(arguments: List<String>, output: String): Boolean =
         runMediaOracle("ffmpeg", listOf("-v", "error", "-y") + arguments + output) != null
 }
+
+/**
+ * Starts the host's `ffmpeg` with [arguments] in the background and throws its output away, so a
+ * test can use it as a live sender or listener on the loopback. Null only where a test cannot start
+ * a process at all, which is an Android device; on a desktop a tool that cannot start throws.
+ */
+internal expect fun startMediaOracle(tool: String, arguments: List<String>): RunningOracle?
+
+/** A command-line tool running in the background. */
+internal interface RunningOracle {
+    /** Waits for the tool to exit and returns its exit code. */
+    fun await(): Int
+}
