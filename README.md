@@ -172,6 +172,11 @@ A call before the module loads throws `KiteFFmpegWeb.NotLoaded`. The module is s
 so the page needs no cross-origin isolation headers. To build the two files yourself, run
 `./gradlew :kiteffmpeg:kiteffmpegWebZip`, which needs emscripten.
 
+The module opens no address by itself. An HLS playlist plays through a `nestedOpener` that serves
+each of its segments, and that opener has to answer at once: from bytes the page already holds, or
+from a synchronous request inside a Web Worker. [Decoding](https://yuroyami.github.io/KiteFFmpeg/decoding/#hls-through-your-own-http-client)
+has the details.
+
 </details>
 
 ## A quick tour
@@ -314,7 +319,7 @@ Desktop and Windows are the reverse: CI checks them on every push.
 | Encoders | No third-party encoder is linked: no `libx264`, `libx265`, `libsvtav1`, `libopus` or `libmp3lame`. `mpeg4` is the software video baseline and `aac` the audio one. Decoding covers far more than encoding. |
 | GPL | There is no GPL build, and the embedded FFmpeg cannot be swapped. A GPL binary would make your whole app GPL-3.0, which a library should not decide for you. |
 | `https` | FFmpeg has no TLS here. Fetch https bytes with your own HTTP client and open them through a `MediaByteSource`, with a `MediaByteOpener` for HLS. |
-| The web | `wasmJs` reads and decodes, and it cannot write a file or filter. It does not take a nested opener yet. |
+| The web | `wasmJs` reads and decodes, and it cannot write a file or filter. Its nested opener has to answer at once, so it fetches only in a Worker. |
 | Hardware decoding | VideoToolbox on Apple platforms, MediaCodec on Android, and Direct3D 11 on Windows, which has not run on a Windows GPU yet. Linux decodes in software. |
 | Hardware encoding | VideoToolbox and MediaCodec. On virtual machines and CI runners, pass `allow_sw`, because the encoder exists and the chip does not. |
 | JVM | The jar carries native libraries for macOS arm64, Linux x64, Linux arm64 and Windows x64. Any other platform gets the typed unavailable placeholder. |

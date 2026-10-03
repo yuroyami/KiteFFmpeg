@@ -25,6 +25,11 @@ package io.github.yuroyami.kiteffmpeg
  *
  * Lifetime. The [MediaSource] owns every byte source that [open] returns. FFmpeg closes each one
  * when it has read what it needs, and the rest close with the MediaSource.
+ *
+ * On the web, a read cannot wait, so each byte source that [open] returns is read whole into the
+ * codec module's memory and closed straight away, up to 512 MB each. [open] itself must answer
+ * without waiting: on a page with bytes it already holds, and in a Worker, where a blocking request
+ * is allowed, with a synchronous one.
  */
 public fun interface MediaByteOpener {
 

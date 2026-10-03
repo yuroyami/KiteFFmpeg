@@ -347,6 +347,11 @@ internal external fun setFakeDecoderOpenFails(module: JsAny, fails: Boolean)
 @JsFun("(m) => String(m.__lastOpenUrl) + ' ' + String(m.__lastOpenMime) + ' ' + String(m.__lastOpenOpener)")
 internal external fun fakeLastOpenHints(module: JsAny): String
 
+/** Makes [module] answer as one linked from an FFmpeg without the trust_io_open patch. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => { m._ffkmp_fmt_nested_io_available = () => 0; }")
+internal external fun withoutNestedIo(module: JsAny)
+
 /** The size the last open told FFmpeg, or -1 before any open. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => m.__lastOpenSize === undefined ? -1 : m.__lastOpenSize")

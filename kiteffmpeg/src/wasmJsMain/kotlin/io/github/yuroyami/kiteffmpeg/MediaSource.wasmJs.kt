@@ -40,6 +40,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_dict_get
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_find_decoder_by_id
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_find_decoder_by_name
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_close_input_io
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_nested_io_available
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_interrupt
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_duration
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_find_stream_info
@@ -579,8 +580,7 @@ public actual class MediaSource internal constructor(
             nestedOpener: MediaByteOpener?,
         ): MediaSource {
             refuseSeekBreakingOptions(options)
-            if (nestedOpener != null) throw nestedOpenerIsNotOnTheWeb()
-            return openUnderSingleThreaded(interrupt) { openIo(io, options, url, mimeType) }
+            return openUnderSingleThreaded(interrupt) { openIo(io, options, url, mimeType, nestedOpener) }
         }
 
         @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)
@@ -595,9 +595,28 @@ public actual class MediaSource internal constructor(
             options: Map<String, String>,
             url: String? = null,
             mimeType: String? = null,
+            nestedOpener: MediaByteOpener? = null,
         ): MediaSource {
             val m = requireModule()
+            if (nestedOpener != null && ffkmp_fmt_nested_io_available(m) == 0) {
+                // The open owns io from here, as WebIoBridge.install does. A close that also fails
+                // has nothing to add to the refusal.
+                runCatching { io.close() }
+                throw nestedOpenerNeedsPatchedFFmpeg()
+            }
             val bridge = WebIoBridge.install(io)
+            val nested = try {
+                nestedOpener?.let { WebNestedOpener(m, it) }
+            } catch (failure: Throwable) {
+                bridge.release()
+                throw failure
+            }
+            // Every failure below gives back the bridge and the nested callbacks. FFmpeg has
+            // released each nested source by then, on a failed open and in the close alike.
+            val releaseIo = {
+                bridge.release()
+                nested?.let { runCatching { it.release() } }
+            }
             val slot = wasmAlloc(m, 4)
             // The unused-option dictionary FFmpeg hands back, as its own out-slot. The binding
             // used to pass a null pointer here and then guess the answer from the key array, which
@@ -607,7 +626,7 @@ public actual class MediaSource internal constructor(
             writeInt32(m, unusedSlot, 0)
             val opts = CStringArrays.of(m, options)
             val rc = try {
-                if (url == null && mimeType == null) {
+                if (url == null && mimeType == null && nested == null) {
                     openInputIo(
                         m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
                         opts.keys, opts.values, options.size, unusedSlot,
@@ -616,20 +635,23 @@ public actual class MediaSource internal constructor(
                     // Input only, copied by the C side, so both go back right after the call.
                     val urlPointer = url?.let { allocCString(m, it) } ?: 0
                     val mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
+                    // Copied by the C side as well; the callbacks it names live until the close.
+                    val openerPointer = nested?.writeStruct() ?: 0
                     try {
                         openInputIo2(
                             m, slot, bridge.readPointer, bridge.seekPointer, bridge.size, urlPointer,
-                            mimePointer, opts.keys, opts.values, options.size, unusedSlot,
+                            mimePointer, openerPointer, opts.keys, opts.values, options.size, unusedSlot,
                         )
                     } finally {
                         if (urlPointer != 0) wasmFree(m, urlPointer)
                         if (mimePointer != 0) wasmFree(m, mimePointer)
+                        if (openerPointer != 0) wasmFree(m, openerPointer)
                     }
                 }
             } catch (failure: Throwable) {
                 // The option arrays are released by the finally below on this path too, so they
                 // are deliberately absent here: freeing them twice corrupts the module's heap.
-                wasmFree(m, unusedSlot); wasmFree(m, slot); bridge.release(); throw failure
+                wasmFree(m, unusedSlot); wasmFree(m, slot); releaseIo(); throw failure
             } finally {
                 // Input only, and consumed by the call: FFmpeg copied what it wanted into its own
                 // dictionary, so these go back whatever the outcome was.
@@ -638,8 +660,9 @@ public actual class MediaSource internal constructor(
             if (rc < 0) {
                 // Nothing to release: on failure the C side frees the dictionary it built and
                 // leaves the out-slot at the NULL it wrote on entry.
-                wasmFree(m, unusedSlot); wasmFree(m, slot); bridge.release()
-                throw FFmpegException(FFmpegError.InvalidData(rc, "could not open this media ($rc)"))
+                wasmFree(m, unusedSlot); wasmFree(m, slot); releaseIo()
+                // The opener's own exception is the cause, because FFmpeg only saw an error code.
+                throw FFmpegException(FFmpegError.InvalidData(rc, "could not open this media ($rc)"), nested?.takeFailure())
             }
             val leftover = drainUnusedKeys(m, unusedSlot)
             wasmFree(m, unusedSlot)
@@ -647,10 +670,10 @@ public actual class MediaSource internal constructor(
             if (ffkmp_fmt_find_stream_info(m, ctx) < 0) {
                 ffkmp_fmt_close_input_io(m, slot)
                 wasmFree(m, slot)
-                bridge.release()
-                throw FFmpegException(FFmpegError.InvalidData(0, "could not read stream information"))
+                releaseIo()
+                throw FFmpegException(FFmpegError.InvalidData(0, "could not read stream information"), nested?.takeFailure())
             }
-            return MediaSource(slot, ctx, bridge, leftover)
+            return MediaSource(slot, ctx, bridge, leftover).also { media -> nested?.let { media.releaseAtClose(it::release) } }
         }
 
         /**
@@ -811,11 +834,11 @@ private external fun openInputIo(
     unused: Int,
 ): Int
 
-/** The byte-source open with a url and a MIME type for the probe, and no nested opener. */
+/** The byte-source open with a url and a MIME type for the probe, and a nested opener or 0. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
-    "(m, out, readFn, seekFn, size, url, mime, keys, values, n, unused) => " +
-        "m._ffkmp_fmt_open_input_io2(out, 0, readFn, seekFn, BigInt(size), url, mime, 0, keys, values, n, unused, 0)",
+    "(m, out, readFn, seekFn, size, url, mime, opener, keys, values, n, unused) => " +
+        "m._ffkmp_fmt_open_input_io2(out, 0, readFn, seekFn, BigInt(size), url, mime, opener, keys, values, n, unused, 0)",
 )
 private external fun openInputIo2(
     module: kotlin.js.JsAny,
@@ -825,22 +848,12 @@ private external fun openInputIo2(
     size: Long,
     url: Int,
     mime: Int,
+    opener: Int,
     keys: Int,
     values: Int,
     count: Int,
     unused: Int,
 ): Int
-
-/**
- * The web binding does not carry nested opens yet. Every read here must answer at once, so an
- * opener could only serve bytes it already holds.
- */
-private fun nestedOpenerIsNotOnTheWeb(): FFmpegException = FFmpegException(
-    FFmpegError.Unsupported(
-        FFmpegError.AVERROR_PATCHWELCOME,
-        "a nested opener is not available on the web yet, so an HLS playlist cannot load its segments here",
-    ),
-)
 
 /**
  * Runs [block] with [text] staged as a NUL-terminated C string, and frees it afterwards.

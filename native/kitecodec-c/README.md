@@ -43,7 +43,7 @@ directory.
 | `tests/test_*.c` | The suites, one binary each. Both scripts find them in this directory, so adding a file adds a suite. |
 | `tests/fake_headers/` | Doctored copies of the private versions header for the identity test, and a stand-in `jni.h` for `test_jni_bridge`, which compiles the JNI units without a JDK. |
 | `coupling-baseline.txt` | The ceilings on direct FFmpeg use from Kotlin, both zero. |
-| `probe/` | `report_offsets.c`, which `scripts/wasm-report-offsets.sh` uses to state the byte layout the web binding reads; `wasm_link_probe.c`, a link check of the web archive run by `scripts/wasm-link-probe.sh`; and a browser demo page. None is part of a gate. |
+| `probe/` | `report_offsets.c` and `opener_offsets.c`, which `scripts/wasm-report-offsets.sh` uses to state the byte layouts the web binding reads and writes; `wasm_link_probe.c`, a link check of the web archive run by `scripts/wasm-link-probe.sh`; and a browser demo page. None is part of a gate. |
 | `build/` | Output. Gitignored. |
 
 ## The FFmpeg identity gate

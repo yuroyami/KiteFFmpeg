@@ -25,6 +25,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   nested opener (#123). Built with emscripten 6.0.11, `kite.wasm` grows by 81,846 bytes, from
   4,576,446 to 4,658,292, which is 37,726 bytes after gzip. The `web` zip of 0.4.0 does not carry
   it.
+- On the web, `MediaSource.open` takes a `nestedOpener`, so an HLS playlist plays in a browser, and
+  DASH does too as the HLS playlists KitePlayer writes for it (#123). A read on the web cannot wait,
+  so each source the opener returns is read whole into the codec module's memory and closed
+  straight away, and the opener has to answer at once: from bytes the page already holds, or from a
+  synchronous request inside a Web Worker. A module linked from an FFmpeg without the
+  `trust_io_open` patch refuses the opener with `FFmpegError.Unsupported`, as the other backends
+  do, and a module without the `hls` demuxer, such as the one in the `web` zip of 0.4.0, cannot
+  open the playlist at all.
 
 ### Fixed
 

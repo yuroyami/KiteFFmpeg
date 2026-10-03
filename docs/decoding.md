@@ -112,9 +112,13 @@ Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`
   MPEG-TS segments do.
 
 The opener runs on the thread that drives the demuxer, and it may block. The `MediaSource` closes
-every source the opener returned. On the web, `nestedOpener` fails the open with
-`FFmpegError.Unsupported` for now, and `url` and `mimeType` reach the probe as on the other
-platforms.
+every source the opener returned.
+
+On the web, a read cannot wait for the network, so the opener has to answer at once. A page can
+serve the bytes it already holds, and a Web Worker, where a synchronous `XMLHttpRequest` is still
+allowed, can fetch each address as it is asked. Each source the opener returns is read whole into
+the codec module's memory and closed straight away, so a segment is held in memory while FFmpeg
+reads it, up to 512 MB per source. `url` and `mimeType` reach the probe as on the other platforms.
 
 ## Streams
 

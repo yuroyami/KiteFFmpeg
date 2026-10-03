@@ -164,13 +164,20 @@ class WebIoBridgeTest {
         }
     }
 
+    /**
+     * A module linked from an FFmpeg without the trust_io_open patch refuses a nested opener before
+     * any work, as the other backends do, and the source the open was handed is still closed once.
+     */
     @Test
-    fun aNestedOpenerIsRefusedOnTheWeb() {
-        useCodecModule(fakePacketReaderCodecModule())
-        val failure = assertFailsWith<FFmpegException> {
-            MediaSource.open(FakeByteSource(ByteArray(1000) { it.toByte() }), nestedOpener = { null })
-        }
-        assertIs<FFmpegError.Unsupported>(failure.error, "the web says it cannot serve nested opens")
+    fun aNestedOpenerIsRefusedByAModuleWithoutThePatch() {
+        val module = fakePacketReaderCodecModule()
+        withoutNestedIo(module)
+        useCodecModule(module)
+        val source = FakeByteSource(ByteArray(1000) { it.toByte() })
+        val failure = assertFailsWith<FFmpegException> { MediaSource.open(source, nestedOpener = { null }) }
+        assertIs<FFmpegError.Unsupported>(failure.error)
+        assertTrue("trust_io_open" in failure.message.orEmpty(), "the refusal must name the patch: ${failure.message}")
+        assertEquals(1, source.closeCount, "the open owns the source, so a refusal closes it")
     }
 
     @Test
