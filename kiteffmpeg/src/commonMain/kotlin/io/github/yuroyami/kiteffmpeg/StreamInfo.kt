@@ -142,6 +142,11 @@ public data class VideoStreamInfo(
      * [Frame.composeDolbyVision] before they mean anything.
      */
     val dolbyVision: DolbyVisionConfig? = null,
+    /**
+     * The rows and columns at the edges of every picture that the container says are not part of
+     * the image, or null when it says nothing. A renderer leaves them out; FFmpeg does not.
+     */
+    val crop: VideoCrop? = null,
 )
 
 /**

@@ -2073,6 +2073,28 @@ final class io.github.yuroyami.kiteffmpeg/Versions { // io.github.yuroyami.kitef
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/Versions.toString|toString(){}[0]
 }
 
+final class io.github.yuroyami.kiteffmpeg/VideoCrop { // io.github.yuroyami.kiteffmpeg/VideoCrop|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int) // io.github.yuroyami.kiteffmpeg/VideoCrop.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+
+    final val bottom // io.github.yuroyami.kiteffmpeg/VideoCrop.bottom|{}bottom[0]
+        final fun <get-bottom>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.bottom.<get-bottom>|<get-bottom>(){}[0]
+    final val left // io.github.yuroyami.kiteffmpeg/VideoCrop.left|{}left[0]
+        final fun <get-left>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.left.<get-left>|<get-left>(){}[0]
+    final val right // io.github.yuroyami.kiteffmpeg/VideoCrop.right|{}right[0]
+        final fun <get-right>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.right.<get-right>|<get-right>(){}[0]
+    final val top // io.github.yuroyami.kiteffmpeg/VideoCrop.top|{}top[0]
+        final fun <get-top>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.top.<get-top>|<get-top>(){}[0]
+
+    final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.component1|component1(){}[0]
+    final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.component3|component3(){}[0]
+    final fun component4(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.component4|component4(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): io.github.yuroyami.kiteffmpeg/VideoCrop // io.github.yuroyami.kiteffmpeg/VideoCrop.copy|copy(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/VideoCrop.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoCrop.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/VideoCrop.toString|toString(){}[0]
+}
+
 final class io.github.yuroyami.kiteffmpeg/VideoEncoder : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/VideoEncoder|null[0]
     final fun close() // io.github.yuroyami.kiteffmpeg/VideoEncoder.close|close(){}[0]
     final suspend fun drive(kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/Frame>, kotlin/Function1<kotlin/Long, kotlin/Unit>? = ..., kotlin/Int = ...) // io.github.yuroyami.kiteffmpeg/VideoEncoder.drive|drive(kotlinx.coroutines.flow.Flow<io.github.yuroyami.kiteffmpeg.Frame>;kotlin.Function1<kotlin.Long,kotlin.Unit>?;kotlin.Int){}[0]
@@ -2153,10 +2175,12 @@ final class io.github.yuroyami.kiteffmpeg/VideoInput { // io.github.yuroyami.kit
 }
 
 final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyami.kiteffmpeg/VideoStreamInfo|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ..., io.github.yuroyami.kiteffmpeg/VideoCrop? = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?;io.github.yuroyami.kiteffmpeg.VideoCrop?){}[0]
 
     final val color // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color|{}color[0]
         final fun <get-color>(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color.<get-color>|<get-color>(){}[0]
+    final val crop // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.crop|{}crop[0]
+        final fun <get-crop>(): io.github.yuroyami.kiteffmpeg/VideoCrop? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.crop.<get-crop>|<get-crop>(){}[0]
     final val dolbyVision // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.dolbyVision|{}dolbyVision[0]
         final fun <get-dolbyVision>(): io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.dolbyVision.<get-dolbyVision>|<get-dolbyVision>(){}[0]
     final val fieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.fieldOrder|{}fieldOrder[0]
@@ -2178,6 +2202,7 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
 
     final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component1|component1(){}[0]
     final fun component10(): io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component10|component10(){}[0]
+    final fun component11(): io.github.yuroyami.kiteffmpeg/VideoCrop? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component11|component11(){}[0]
     final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component2|component2(){}[0]
     final fun component3(): io.github.yuroyami.kiteffmpeg/PixelFormat // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component3|component3(){}[0]
     final fun component4(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component4|component4(){}[0]
@@ -2186,7 +2211,7 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
     final fun component7(): io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component7|component7(){}[0]
     final fun component8(): io.github.yuroyami.kiteffmpeg/FieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component8|component8(){}[0]
     final fun component9(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component9|component9(){}[0]
-    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ..., io.github.yuroyami.kiteffmpeg/VideoCrop? = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?;io.github.yuroyami.kiteffmpeg.VideoCrop?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.toString|toString(){}[0]
