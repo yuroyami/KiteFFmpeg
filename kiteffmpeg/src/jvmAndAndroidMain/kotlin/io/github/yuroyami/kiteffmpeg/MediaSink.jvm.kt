@@ -170,9 +170,22 @@ public actual class MediaSink internal constructor(
         )
     }
 
+    /**
+     * Refuses a copy from [source] when it reads the file this sink is to write. The header
+     * truncates that file, and the source goes on reading what its buffers still hold, so the
+     * caller's media would be gone and the copy would still look as if it worked (#146).
+     */
+    private fun refuseCopyFromOwnFile(source: MediaSource) {
+        val output = outputPath ?: return
+        val input = source.inputPath ?: return
+        refuseSameFile(input, output)
+    }
+
     @Throws(FFmpegException::class)
     public actual fun addCopyStream(source: MediaSource, stream: StreamInfo): CopyStream = synchronized(muxLock) {
         check(!headerWritten) { "Cannot add streams after the muxer has started writing." }
+        // Before the stream goes in, so a refusal leaves the sink usable and the file untouched (#146).
+        refuseCopyFromOwnFile(source)
         val format = checkOpen()
         source.withCodecParameters(stream) { sourceStream, sourceParameters ->
             val outputStream = Internals.fmtNewStream(format)

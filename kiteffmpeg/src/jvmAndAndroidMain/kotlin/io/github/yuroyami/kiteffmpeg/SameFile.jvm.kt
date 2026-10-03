@@ -9,15 +9,20 @@ import java.nio.file.Files
  *
  * The sink truncates on open and the source keeps reading from its buffer, so the same path
  * twice wrote a few frames over the caller's media and returned success. Identity is the file
- * key, which sees through symbolic links, hard links and any spelling of the path. An output
- * that does not exist yet cannot be the input, and an input that does not exist is left for the
- * source open to report.
+ * key, which sees through symbolic links, hard links and any spelling of the path, a `file:`
+ * prefix included. An output that does not exist yet cannot be the input, an input that does
+ * not exist is left for the source open to report, and an address that names no local file is
+ * not compared.
  */
 internal fun refuseSameFile(input: String, output: String) {
+    val inputFile = localFileOf(input) ?: return
+    val outputFile = localFileOf(output) ?: return
     val same = try {
-        val target = File(output).toPath()
-        Files.exists(target) && Files.isSameFile(File(input).toPath(), target)
+        val target = File(outputFile).toPath()
+        Files.exists(target) && Files.isSameFile(File(inputFile).toPath(), target)
     } catch (_: IOException) {
+        false
+    } catch (_: java.nio.file.InvalidPathException) {
         false
     }
     if (same) {

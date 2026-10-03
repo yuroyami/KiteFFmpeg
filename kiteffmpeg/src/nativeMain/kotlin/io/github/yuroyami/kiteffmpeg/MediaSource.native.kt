@@ -160,6 +160,8 @@ public actual class MediaSource internal constructor(
     private val ioCleanup: (() -> Unit)? = null,
     /** The bridge state of a custom-io open, whose parked exception explains a failed read. */
     private val ioState: ByteSourceState? = null,
+    /** The path or address this source was opened from, or null for a byte source; a sink compares it (#146). */
+    internal val inputPath: String? = null,
 ) : AutoCloseable {
 
     /**
@@ -838,7 +840,7 @@ internal fun openMediaSource(
         ?: run { arena.clear(); throw FFmpegException(FFmpegError.Internal("open_input returned NULL")) }
     arena.clear()  // ctxVar was just used to read out the ctx; the ctx pointer is now standalone.
 
-    return assembleMediaSource(ctx, unusedKeys, ioCleanup = null, ioState = null)
+    return assembleMediaSource(ctx, unusedKeys, ioCleanup = null, ioState = null, inputPath = path)
 }
 
 /** Everything between a successfully opened ctx and a constructed MediaSource, shared by the
@@ -848,6 +850,7 @@ private fun assembleMediaSource(
     unusedKeys: List<String>,
     ioCleanup: (() -> Unit)?,
     ioState: ByteSourceState?,
+    inputPath: String? = null,
 ): MediaSource {
     /** Closes the container and the caller's byte source, in that order. */
     fun unwind() {
@@ -891,6 +894,7 @@ private fun assembleMediaSource(
         unusedOpenOptions = unusedKeys,
         ioCleanup = ioCleanup,
         ioState = ioState,
+        inputPath = inputPath,
     )
 }
 

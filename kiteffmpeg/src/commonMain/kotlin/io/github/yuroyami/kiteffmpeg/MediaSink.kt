@@ -33,6 +33,11 @@ public expect class MediaSink : AutoCloseable {
      *
      * Must be called before any frame/packet is written. Packets are pulled by [Remuxer] or
      * [Transcoder]; this only declares the mapping.
+     *
+     * @throws FFmpegException with [FFmpegError.InvalidArgument] when this sink writes the file
+     *         [source] was opened from, through any link or spelling of its path, because writing
+     *         the header would truncate the media being copied. Nothing is added and the file is
+     *         not touched, so the sink stays usable.
      */
     @Throws(FFmpegException::class)
     public fun addCopyStream(source: MediaSource, stream: StreamInfo): CopyStream

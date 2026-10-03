@@ -65,6 +65,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `MediaSink.addCopyStream` refuses a source opened from the file the sink writes, with
+  `FFmpegError.InvalidArgument`, before anything is added or the file is touched (#146). The
+  sink truncates its file when it writes its header, so a tee or a recording taken into the file
+  being read destroyed it while the source went on reading its buffers. The identity is the one
+  `Remuxer` and `Transcoder` already refuse (#47), and every refusal of the three now also sees
+  through a `file:` prefix on either side.
 - A playlist of WebM or Matroska segments seeks after it has been read to its end. FFmpeg's
   Matroska reader kept answering end of file once the HLS reader had reset its input, so every
   later seek returned and no packet followed. The fix is the FFmpeg patch

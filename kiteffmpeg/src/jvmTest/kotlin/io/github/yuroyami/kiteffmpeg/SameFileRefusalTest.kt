@@ -1,3 +1,5 @@
+@file:OptIn(KiteFFmpegLowLevelApi::class)
+
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.flow.asFlow
@@ -8,6 +10,7 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -80,6 +83,79 @@ class SameFileRefusalTest {
         val link = File(input.parentFile, input.nameWithoutExtension + "-link.mkv").also { files += it }
         Files.createSymbolicLink(link.toPath(), input.toPath())
         assertRefusedUntouched(input, link.absolutePath)
+    }
+
+    /**
+     * A sink at [output] refuses to copy a stream from a source opened at [opened], and leaves
+     * [input] as it was. Closing the sink then writes nothing, because no header was written.
+     */
+    private fun assertCopyRefusedUntouched(input: File, output: String, opened: String = input.absolutePath) {
+        val before = input.readBytes()
+        MediaSource.open(opened).use { source ->
+            MediaSink.open(output, format = "matroska").use { sink ->
+                val refused = assertFailsWith<FFmpegException> { sink.addCopyStream(source, source.streams.first()) }
+                assertTrue(refused.error is FFmpegError.InvalidArgument, "refused as ${refused.error}")
+                assertTrue("same file" in refused.message.orEmpty(), "refused for another reason: ${refused.message}")
+            }
+            // The source still reads its own media.
+            source.openPacketReader(listOf(source.streams.first())).use { reader ->
+                assertTrue(reader.read()?.also { it.close() } != null, "the source lost its packets")
+            }
+        }
+        assertContentEquals(before, input.readBytes(), "the input changed (#146)")
+    }
+
+    @Test
+    fun `a sink refuses to copy from the file it writes`() {
+        val input = clip()
+        assertCopyRefusedUntouched(input, input.absolutePath)
+    }
+
+    @Test
+    fun `a sink refuses another spelling of the file it copies from`() {
+        val input = clip()
+        assertCopyRefusedUntouched(input, File(input.parentFile, "./${input.name}").path)
+    }
+
+    @Test
+    fun `a sink refuses a symbolic link and a hard link to the file it copies from`() {
+        val input = clip()
+        val symbolic = File(input.parentFile, input.nameWithoutExtension + "-symbolic.mkv").also { files += it }
+        Files.createSymbolicLink(symbolic.toPath(), input.toPath())
+        assertCopyRefusedUntouched(input, symbolic.absolutePath)
+        val hard = File(input.parentFile, input.nameWithoutExtension + "-hard.mkv").also { files += it }
+        Files.createLink(hard.toPath(), input.toPath())
+        assertCopyRefusedUntouched(input, hard.absolutePath)
+    }
+
+    @Test
+    fun `a sink sees through the file protocol prefix on either side`() {
+        val input = clip()
+        assertCopyRefusedUntouched(input, "file:" + input.absolutePath)
+        assertCopyRefusedUntouched(input, input.absolutePath, opened = "file:" + input.absolutePath)
+    }
+
+    @Test
+    fun `a sink still copies from another file`() {
+        val input = clip()
+        val output = File(input.parentFile, input.nameWithoutExtension + "-tee.mkv").also { files += it }
+        MediaSource.open(input.absolutePath).use { source ->
+            val video = source.streams.first()
+            MediaSink.open(output.absolutePath).use { sink ->
+                val copy = sink.addCopyStream(source, video)
+                source.openPacketReader(listOf(video)).use { reader ->
+                    while (true) {
+                        val packet = reader.read() ?: break
+                        packet.use { copy.write(it) }
+                    }
+                }
+            }
+        }
+        assertEquals(60, MediaSource.open(output.absolutePath).use { source ->
+            source.openPacketReader(listOf(source.streams.first())).use { reader ->
+                generateSequence { reader.read()?.also { it.close() } }.count()
+            }
+        })
     }
 
     @Test

@@ -18,6 +18,8 @@ public actual class MediaSource internal constructor(
     public actual val unusedOpenOptions: List<String> = emptyList(),
     /** Non-null exactly for custom-io opens: close then routes through the io close. */
     private val jniIo: JniByteIo? = null,
+    /** The path or address this source was opened from, or null for a byte source; a sink compares it (#146). */
+    internal val inputPath: String? = null,
 ) : AutoCloseable {
     private val stateLock = Any()
     private var demuxing = false
@@ -570,6 +572,7 @@ private fun openMediaSource(
             startTimeMicros = Internals.fmtStartTime(context),
             chapters = readChapters(context),
             unusedOpenOptions = unusedKeys,
+            inputPath = path,
         )
     } catch (error: Throwable) {
         Internals.fmtCloseInput(context)

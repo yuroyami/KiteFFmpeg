@@ -14,16 +14,19 @@ internal expect fun fileIdentity(path: String): FileIdentity?
  * Refuses an output that names the input, before either is opened. The JVM twin says why.
  *
  * Identity is device and inode, which sees through symbolic links, hard links and any spelling
- * of the path. Windows reports no inode, so there the two spellings are compared as text and a
- * link to the input is not caught. An output that does not exist yet cannot be the input, and an
- * input that does not exist is left for the source open to report.
+ * of the path, a `file:` prefix included. Windows reports no inode, so there the two spellings are
+ * compared as text and a link to the input is not caught. An output that does not exist yet
+ * cannot be the input, an input that does not exist is left for the source open to report, and an
+ * address that names no local file is not compared.
  */
 internal fun refuseSameFile(input: String, output: String) {
-    val a = fileIdentity(input)
-    val b = fileIdentity(output)
+    val inputFile = localFileOf(input) ?: return
+    val outputFile = localFileOf(output) ?: return
+    val a = fileIdentity(inputFile)
+    val b = fileIdentity(outputFile)
     val same = when {
         a == null || b == null -> false
-        a.inode == 0L && b.inode == 0L -> input == output
+        a.inode == 0L && b.inode == 0L -> inputFile == outputFile
         else -> a == b
     }
     if (same) {
