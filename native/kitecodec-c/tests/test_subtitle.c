@@ -193,12 +193,106 @@ static void case_a_blu_ray_subtitle_decodes_to_its_image(void)
     ffkmp_fmt_close_input(&ctx);
 }
 
+/* A NULL packet drains: nothing from a decoder that holds nothing, such as PGS. */
+static void case_a_decoder_that_holds_nothing_drains_to_nothing(void)
+{
+    kc_fmt_ctx *ctx = NULL;
+    kc_codec_ctx *c = NULL;
+    kc_subtitle *s = (kc_subtitle *)0x1;
+
+    kc_case("a PGS decoder drains to no subtitle, and a NULL context is still refused");
+    write_sup();
+    KC_EQ_INT(ffkmp_fmt_open_input(&ctx, sup_path), 0);
+    KC_EQ_INT(ffkmp_subtitle_decoder_open(ctx, 0, &c), 0);
+    KC_EQ_INT(ffkmp_subtitle_decode(c, NULL, &s), 0);
+    KC_NULL(s);
+    s = (kc_subtitle *)0x1;
+    KC_EQ_INT(ffkmp_subtitle_decode(NULL, NULL, &s), AVERROR(EINVAL));
+    KC_NULL(s);
+    ffkmp_codecctx_free(c);
+    ffkmp_fmt_close_input(&ctx);
+}
+
+/*
+ * One CEA-608 pop-on caption, HELLO at one second, that nothing erases. The caption decoder gives
+ * a caption only when the screen next changes, so no packet completes it and only the drain does.
+ * The SCC is the Scenarist text form: resume caption loading, erase non-displayed memory, a row,
+ * the letters with odd parity, end of caption, each control code doubled as broadcasters send it.
+ */
+static const char held_caption[] =
+    "Scenarist_SCC V1.0\n\n"
+    "00:00:01:00\t9420 9420 94ae 94ae 9440 9440 c845 4c4c 4f80 942f 942f\n\n";
+
+static char scc_path[1024];
+
+static void remove_scc(void)
+{
+    remove(scc_path);
+}
+
+static void case_a_held_caption_comes_out_of_the_drain(void)
+{
+    const char *tmp = getenv("TMPDIR");
+    const char *sep = "/";
+    FILE *file;
+    kc_fmt_ctx *ctx = NULL;
+    kc_codec_ctx *c = NULL;
+    kc_packet *pkt = ffkmp_packet_alloc();
+    kc_subtitle *s = NULL;
+    int decoded = 0;
+    int64_t start, end;
+    const char *text;
+
+    kc_case("a closed caption nothing erases is completed by no packet and given by the drain, once");
+    if (tmp == NULL || tmp[0] == '\0') tmp = "/tmp";
+    if (tmp[strlen(tmp) - 1] == '/') sep = "";
+    snprintf(scc_path, sizeof(scc_path), "%s%skc_subtitle_%ld.scc", tmp, sep, (long)getpid());
+    file = fopen(scc_path, "wb");
+    KC_NOT_NULL(file);
+    atexit(remove_scc);
+    KC_EQ_SIZE(fwrite(held_caption, 1, sizeof(held_caption) - 1, file), sizeof(held_caption) - 1);
+    KC_EQ_INT(fclose(file), 0);
+
+    KC_NOT_NULL(pkt);
+    KC_EQ_INT(ffkmp_fmt_open_input(&ctx, scc_path), 0);
+    KC_EQ_INT(ffkmp_subtitle_decoder_open(ctx, 0, &c), 0);
+    while (ffkmp_fmt_read_frame(ctx, pkt) >= 0) {
+        KC_EQ_INT(ffkmp_subtitle_decode(c, pkt, &s), 0);
+        ffkmp_packet_unref(pkt);
+        if (s != NULL) {
+            decoded++;
+            ffkmp_subtitle_free(&s);
+        }
+    }
+    KC_EQ_INT(decoded, 0);
+
+    KC_EQ_INT(ffkmp_subtitle_decode(c, NULL, &s), 0);
+    KC_NOT_NULL(s);
+    KC_EQ_INT(ffkmp_subtitle_times(s, &start, &end), 0);
+    KC_EQ_I64(start, 1000000);
+    KC_EQ_INT(ffkmp_subtitle_rect_count(s), 1);
+    text = ffkmp_subtitle_rect_text(s, 0);
+    KC_NOT_NULL(text);
+    KC_CHECKF(strstr(text, "HELLO") != NULL, "the drained caption reads %s", text);
+    ffkmp_subtitle_free(&s);
+
+    /* It was given once: a second drain finds nothing left. */
+    KC_EQ_INT(ffkmp_subtitle_decode(c, NULL, &s), 0);
+    KC_NULL(s);
+
+    ffkmp_codecctx_free(c);
+    ffkmp_packet_free(pkt);
+    ffkmp_fmt_close_input(&ctx);
+}
+
 int main(void)
 {
     kc_suite_begin("test_subtitle");
 
     case_refusals();
     case_a_blu_ray_subtitle_decodes_to_its_image();
+    case_a_decoder_that_holds_nothing_drains_to_nothing();
+    case_a_held_caption_comes_out_of_the_drain();
 
     return kc_suite_end();
 }

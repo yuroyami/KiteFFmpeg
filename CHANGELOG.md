@@ -65,6 +65,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `SubtitleDecoder.drain()` gives what a subtitle decoder still holds once the packets of its
+  stream have run out (#149). FFmpeg's CEA-608 caption decoder gives a caption only when the screen
+  next changes, and teletext holds its page the same way, so the caption on screen at the end of a
+  stream used to be lost; the drain gives it, and every other decoder drains to null. The C ABI is
+  3.19: `ffkmp_subtitle_decode` takes a NULL packet as the drain, where it refused one before.
 - `MediaSink.addCopyStream` refuses a source opened from the file the sink writes, with
   `FFmpegError.InvalidArgument`, before anything is added or the file is touched (#146). The
   sink truncates its file when it writes its header, so a tee or a recording taken into the file

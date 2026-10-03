@@ -42,11 +42,24 @@ KC_API int ffkmp_subtitle_decoder_open(AVFormatContext *ctx, int stream_index, A
 KC_API int ffkmp_subtitle_decode(AVCodecContext *c, const AVPacket *p, AVSubtitle **out) {
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
-    if (!c || !p) return AVERROR(EINVAL);
+    if (!c) return AVERROR(EINVAL);
+    /* A NULL packet is the drain: an empty packet, which a decoder with AV_CODEC_CAP_DELAY, such
+     * as the CEA-608 caption decoder, answers with the subtitle it still holds, and which every
+     * other decoder is not even handed. */
+    AVPacket *empty = NULL;
+    if (!p) {
+        empty = av_packet_alloc();
+        if (!empty) return AVERROR(ENOMEM);
+        p = empty;
+    }
     AVSubtitle *sub = av_mallocz(sizeof(*sub));
-    if (!sub) return AVERROR(ENOMEM);
+    if (!sub) {
+        av_packet_free(&empty);
+        return AVERROR(ENOMEM);
+    }
     int got = 0;
     int rc = avcodec_decode_subtitle2(c, sub, &got, p);
+    av_packet_free(&empty);
     if (rc < 0 || !got) {
         avsubtitle_free(sub);
         av_free(sub);

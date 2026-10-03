@@ -476,8 +476,10 @@ KC_API int64_t ffkmp_ch_layout_default_mask(int channels);
 KC_API int ffkmp_subtitle_decoder_open(kc_fmt_ctx *ctx, int stream_index, kc_codec_ctx **out);
 
 /* Ownership. Decodes packet p into *out, a subtitle the caller frees with ffkmp_subtitle_free.
- * *out is NULL when the packet completed no subtitle, which is not an error. NULL arguments are
- * refused with AVERROR(EINVAL). */
+ * *out is NULL when the packet completed no subtitle, which is not an error. A NULL p is the drain,
+ * since 3.19: *out is then what the decoder still holds at the end of the stream, which only a
+ * decoder that delays its output, such as CEA-608 closed captions, can hold, and the decoder needs
+ * ffkmp_codecctx_flush before it decodes again. A NULL c or out is refused with AVERROR(EINVAL). */
 KC_API int ffkmp_subtitle_decode(kc_codec_ctx *c, const kc_packet *p, kc_subtitle **out);
 
 /* When the subtitle starts and ends, in microseconds on the stream's own timeline. Either is

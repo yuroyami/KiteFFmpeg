@@ -27,15 +27,26 @@ public actual class SubtitleDecoder internal constructor(
 
     public actual fun decode(packet: Packet): Subtitle? {
         alive()
-        val m = requireModule()
         check(packet.pointer != 0) { "Packet is closed" }
         requireOwnStream(packet, stream)
+        return decodePointer(packet.pointer)
+    }
+
+    // A NULL packet is the C layer's drain (#149).
+    public actual fun drain(): Subtitle? {
+        alive()
+        return decodePointer(0)
+    }
+
+    /** Decodes the packet at [packetPointer], or drains when it is 0, and assembles the result. */
+    private fun decodePointer(packetPointer: Int): Subtitle? {
+        val m = requireModule()
         // One scratch block: the subtitle slot, the two 64-bit times, then six rectangle fields.
         val scratch = wasmAlloc(m, 8 + 16 + 24)
         val times = scratch + 8
         val fields = scratch + 24
         try {
-            val rc = ffkmp_subtitle_decode(m, context, packet.pointer, scratch)
+            val rc = ffkmp_subtitle_decode(m, context, packetPointer, scratch)
             if (rc < 0) throw FFmpegException(FFmpegError.InvalidData(rc, "decoding a subtitle failed with $rc"))
             val subtitle = readInt32(m, scratch)
             if (subtitle == 0) return null
@@ -73,8 +84,6 @@ public actual class SubtitleDecoder internal constructor(
             wasmFree(m, scratch)
         }
     }
-
-    public actual fun drain(): Subtitle? = throw FFmpegException(FFmpegError.Unsupported(0, "SubtitleDecoder.drain is not wired yet (#149)"))
 
     public actual fun flush() {
         alive()

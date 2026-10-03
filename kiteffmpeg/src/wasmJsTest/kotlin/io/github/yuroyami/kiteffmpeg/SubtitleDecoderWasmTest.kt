@@ -46,6 +46,24 @@ class SubtitleDecoderWasmTest {
         }
     }
 
+    @Test
+    fun aDrainCrossesTheBoundaryAsANullPacket() {
+        val module = fakeSubtitleCodecModule()
+        useCodecModule(module)
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            val decoder = source.openSubtitleDecoder(source.streams[0])
+            try {
+                val drained = assertNotNull(decoder.drain(), "the drain gives what the decoder held")
+                assertEquals(0, fakeLastSubtitlePacket(module), "the drain is the C layer's NULL packet (#149)")
+                assertEquals(listOf("0,0,Default,,0,0,0,,Hi"), drained.texts)
+                assertEquals(1, fakeSubtitleFrees(module), "the drained subtitle is freed after it is read")
+            } finally {
+                decoder.close()
+            }
+            assertFailsWith<IllegalStateException> { decoder.drain() }
+        }
+    }
+
     private class OneByteSource : MediaByteSource {
         override val size: Long = 1L
         override val seekable: Boolean = true

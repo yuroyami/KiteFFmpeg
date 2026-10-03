@@ -40,9 +40,21 @@ public actual class SubtitleDecoder internal constructor(
     public actual fun decode(packet: Packet): Subtitle? = kotlinx.atomicfu.locks.synchronized(lock) {
         check(!closed) { "SubtitleDecoder is closed" }
         requireOwnStream(packet, stream)
-        memScoped {
+        decodeInto { slot -> packet.locked { live -> ffkmp_subtitle_decode(codecCtx, live, slot) } }
+    }
+
+    @Throws(FFmpegException::class)
+    public actual fun drain(): Subtitle? = kotlinx.atomicfu.locks.synchronized(lock) {
+        check(!closed) { "SubtitleDecoder is closed" }
+        // A NULL packet is the C layer's drain (#149).
+        decodeInto { slot -> ffkmp_subtitle_decode(codecCtx, null, slot) }
+    }
+
+    /** Runs [call], which decodes into the slot it is given, and assembles what it decoded. */
+    private inline fun decodeInto(call: (CPointer<CPointerVar<kc_subtitle>>) -> Int): Subtitle? {
+        return memScoped {
             val slot = alloc<CPointerVar<kc_subtitle>>()
-            val rc = packet.locked { live -> ffkmp_subtitle_decode(codecCtx, live, slot.ptr) }
+            val rc = call(slot.ptr)
             if (rc < 0) throw FFmpegException(avError(rc))
             val subtitle = slot.value ?: return null
             try {
@@ -84,9 +96,6 @@ public actual class SubtitleDecoder internal constructor(
             }
         }
     }
-
-    @Throws(FFmpegException::class)
-    public actual fun drain(): Subtitle? = throw FFmpegException(FFmpegError.Unsupported(0, "SubtitleDecoder.drain is not wired yet (#149)"))
 
     public actual fun flush(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
         check(!closed) { "SubtitleDecoder is closed" }

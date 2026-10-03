@@ -276,19 +276,21 @@ JNIEXPORT jlong JNICALL kj_subtitle_decoder_open(JNIEnv *env, jclass cls, jlong 
     return token;
 }
 
-/* Decodes the packet behind packet_token: 0 when it completed no subtitle, else a subtitle token
- * the caller frees with kj_subtitle_free. */
+/* Decodes the packet behind packet_token, or drains the decoder when packet_token is 0: 0 when
+ * nothing completed a subtitle, else a subtitle token the caller frees with kj_subtitle_free. */
 JNIEXPORT jlong JNICALL kj_subtitle_decode(JNIEnv *env, jclass cls, jlong ctx_token, jlong packet_token)
 {
     kc_codec_ctx *c = (kc_codec_ctx *)kj_handle_get(env, ctx_token, KJ_KIND_CODEC_CTX);
-    kc_packet *p;
+    kc_packet *p = NULL;
     kc_subtitle *s = NULL;
     jlong token;
     int rc;
     (void)cls;
     if (c == NULL) return 0;
-    p = (kc_packet *)kj_handle_get(env, packet_token, KJ_KIND_PACKET);
-    if (p == NULL) return 0;
+    if (packet_token != 0) {
+        p = (kc_packet *)kj_handle_get(env, packet_token, KJ_KIND_PACKET);
+        if (p == NULL) return 0;
+    }
     rc = ffkmp_subtitle_decode(c, p, &s);
     if (rc < 0) {
         kj_throw_ffmpeg(env, rc, "subtitle_decode");

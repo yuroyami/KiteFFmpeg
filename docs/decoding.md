@@ -372,6 +372,8 @@ fun showSubtitles(path: String) = MediaSource.open(path).use { source ->
                 val subtitle = packet.use { decoder.decode(it) } ?: continue
                 subtitle.images.forEach { draw(it.x, it.y, it.width, it.height, it.rgba) }
             }
+            // The packets have run out: take what the decoder still holds, such as a last caption.
+            decoder.drain()?.images?.forEach { draw(it.x, it.y, it.width, it.height, it.rgba) }
         }
     }
 }
@@ -392,6 +394,10 @@ Three rules to know:
 - `decode` returns null for a packet that completes no subtitle. A Blu-ray stream sends its palette and its image as separate packets before the one that shows them.
 - A subtitle with no images and no texts clears the screen. That is how a Blu-ray stream ends a line.
 - Scale the canvas onto your output to place the images, and call `flush()` after a seek.
+- Call `drain()` when the packets run out. A CEA-608 caption decoder gives a caption only when the
+  screen next changes, because only then is its end known, so the caption on screen at the end of
+  the stream comes out of the drain and nothing else; teletext holds its page the same way. Every
+  other decoder drains to null. Call `flush()` before decoding again.
 
 ### Closed captions
 

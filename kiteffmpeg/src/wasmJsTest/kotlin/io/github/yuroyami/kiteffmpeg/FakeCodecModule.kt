@@ -852,9 +852,12 @@ internal fun fakeSubtitleCodecModule(): JsAny = installFakeSubtitleSurface(fakeP
             m.HEAP32[out >> 2] = DECODER + index;
             return 0;
         };
+        let lastPacket = -1;
         m._ffkmp_subtitle_decode = (c, p, out) => {
             decodes++;
-            m.HEAP32[out >> 2] = decodes === 2 ? SUBTITLE : 0;
+            lastPacket = p;
+            // A NULL packet is the drain, which gives the subtitle the decoder held.
+            m.HEAP32[out >> 2] = p === 0 || decodes === 2 ? SUBTITLE : 0;
             return 0;
         };
         m._ffkmp_subtitle_times = (s, start, end) => {
@@ -883,6 +886,7 @@ internal fun fakeSubtitleCodecModule(): JsAny = installFakeSubtitleSurface(fakeP
         m._ffkmp_codecctx_flush = () => {};
         m._ffkmp_codecctx_free = (c) => { if (c >= DECODER) contextFrees++; };
         m.__subtitleFrees = () => subtitleFrees;
+        m.__lastSubtitlePacket = () => lastPacket;
         m.__subtitleContextFrees = () => contextFrees;
         return m;
     }""",
@@ -896,3 +900,7 @@ internal external fun fakeSubtitleFrees(module: JsAny): Int
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => m.__subtitleContextFrees()")
 internal external fun fakeSubtitleContextFrees(module: JsAny): Int
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__lastSubtitlePacket()")
+internal external fun fakeLastSubtitlePacket(module: JsAny): Int
