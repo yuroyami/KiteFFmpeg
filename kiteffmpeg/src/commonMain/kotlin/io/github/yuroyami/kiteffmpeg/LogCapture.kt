@@ -34,7 +34,7 @@ internal fun <T> withLoggedReason(block: () -> T): T {
     return result
 }
 
-/** The capture's lines, or none when ending it failed, which must not replace what [block] did. */
+/** The capture's lines, or none when ending it failed, which must not replace what the call did. */
 private fun endOrNothing(): List<FFmpegLogLine> = try {
     endLogCapture()
 } catch (lost: Throwable) {
