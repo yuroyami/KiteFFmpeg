@@ -75,6 +75,8 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketDuration",   "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketStreamIndex","(J)I",                   kj_packet_stream_index)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketSize",       "(J)I",                   kj_packet_size)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketIsKeyframe", "(J)Z",                   kj_packet_is_keyframe)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketIsDiscard",  "(J)Z",                   kj_packet_is_discard)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketSkipStart",  "(J)J",                   kj_packet_skip_start)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketPosition",   "(J)J",                   kj_packet_position)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketUnref",      "(J)V",                   kj_packet_unref)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketSetStreamIndex","(JI)V",              kj_packet_set_stream_index)

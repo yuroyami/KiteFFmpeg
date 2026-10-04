@@ -17,7 +17,13 @@ public expect object Remuxer {
      *
      * The cut is keyframe-snapped, which is the price of not re-encoding: it starts at the last
      * keyframe at or before [startMicros] and stops once the first selected stream passes
-     * [endMicros]. Output timestamps are rebased to start at zero.
+     * [endMicros]. The pictures that follow that keyframe in decode order but show before it lean
+     * on a picture the cut does not copy, so no decoder could show them, and they are left out.
+     *
+     * The output's timeline starts at zero where its media starts to show: the earliest picture,
+     * and the first sound after the samples a stream hides at its start, such as an AAC encoder's
+     * priming or what an MP4 edit list cuts, which is how FFmpeg reads where a stream starts. So a
+     * whole remux plays exactly as the input does.
      *
      * Each copied stream keeps its tags (language, title and the rest), its disposition flags and
      * its display matrix, and the output gets the input's chapters that overlap what it copies,

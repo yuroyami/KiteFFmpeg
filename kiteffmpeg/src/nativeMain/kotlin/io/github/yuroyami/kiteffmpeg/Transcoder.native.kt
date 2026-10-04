@@ -319,6 +319,7 @@ public actual object Transcoder {
                                 videoStream?.takeIf { vcopy != null },
                                 audioStream?.takeIf { acopy != null },
                             ) + subtitleStreams
+                            val leading = if (startMicros > 0L && vcopy != null) LeadingPictures() else null
 
                             source.demuxRouted(
                                 decode = decodeList,
@@ -374,7 +375,8 @@ public actual object Transcoder {
                                     when {
                                         pastEnd -> if (info.index == leadStream.index) throw StopDemux()
                                         beforeStart -> {}  // drop
-                                        isVideoCopy -> {
+                                        // At a cut, the pictures no decoder can show from the keyframe it starts on.
+                                        isVideoCopy -> if (leading?.isLeading(info, pktPts) != true) {
                                             vcopy!!.writeCopyPacket(packet)
                                             if (ptsMs != Long.MIN_VALUE) noteCopied(ptsMs)
                                         }
@@ -402,8 +404,8 @@ public actual object Transcoder {
                             videoRate?.finish(::encodeVideoTick)
                             venc?.core?.finish(videoPacket)
                             aenc?.core?.finish(audioPacket)
-                            // The first packet wrote the header, once it had claimed the output's
-                            // origin, which the chapters need. Without this a source that yields
+                            // Writes the header, and the copied packets a short source still
+                            // holds for the output's origin. Without this a source that yields
                             // no frames at all never reaches the drain loop that would trigger it,
                             // so avio_open never runs and the call returns "successfully" having
                             // created no file whatsoever. An empty but valid container is the

@@ -4,6 +4,7 @@
 
 #include <libavcodec/packet.h>
 #include <libavutil/avutil.h>
+#include <libavutil/intreadwrite.h>
 
 #include <string.h>
 
@@ -24,6 +25,12 @@ KC_API void ffkmp_copy_bytes(void *dst, const void *src, int n) { if (dst && src
 
 KC_API int64_t   ffkmp_packet_duration(AVPacket *p)      { return p ? p->duration : 0; }
 KC_API int       ffkmp_packet_is_keyframe(AVPacket *p)   { return (p && (p->flags & AV_PKT_FLAG_KEY)) ? 1 : 0; }
+KC_API int       ffkmp_packet_is_discard(const AVPacket *p) { return (p && (p->flags & AV_PKT_FLAG_DISCARD)) ? 1 : 0; }
+KC_API int64_t   ffkmp_packet_skip_start(const AVPacket *p) {
+    size_t size = 0;
+    const uint8_t *skip = p ? av_packet_get_side_data(p, AV_PKT_DATA_SKIP_SAMPLES, &size) : NULL;
+    return (skip && size >= 4) ? (int64_t)AV_RL32(skip) : 0;
+}
 KC_API void      ffkmp_packet_set_stream_index(AVPacket *p, int i) { if (p) p->stream_index = i; }
 KC_API void      ffkmp_packet_set_pts(AVPacket *p, int64_t v) { if (p) p->pts = v; }
 KC_API void      ffkmp_packet_set_dts(AVPacket *p, int64_t v) { if (p) p->dts = v; }

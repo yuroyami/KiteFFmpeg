@@ -17,7 +17,12 @@ public actual class MediaSink internal constructor(
     private val closeLock = Any()
     private val encoderCores = mutableListOf<EncoderCore>()
     private var headerState = HeaderState.NotWritten
-    private var sharedBaseMicros = Long.MIN_VALUE
+
+    /** Where the output's timeline starts, and the copied packets that wait for it (#153). */
+    private val origin = OutputOrigin<HeldCopy> { Internals.packetFree(it.packet) }
+
+    /** A copied packet waiting for the origin: a reference of its own, written by [stream]. */
+    private class HeldCopy(val stream: CopyStream, val packet: Long)
 
     /** A source's chapters, placed when the header is written: see [setSourceChapters]. */
     private var sourceChapters: SourceChapters? = null
@@ -73,9 +78,41 @@ public actual class MediaSink internal constructor(
         throw error
     }
 
+    /**
+     * The output's origin, for an encoder's first frame, which shows from [candidate]: the origin
+     * when it is decided, and otherwise decided now, as the earlier of [candidate] and what the
+     * copied streams have shown, because the encoder rebases its frames before it encodes them.
+     */
     internal fun claimBaseMicros(candidate: Long): Long = synchronized(muxLock) {
-        if (sharedBaseMicros == Long.MIN_VALUE) sharedBaseMicros = candidate
-        sharedBaseMicros
+        if (!origin.isSettled) settleOrigin(atMost = candidate)
+        origin.micros
+    }
+
+    /** True once the origin is decided and copied packets are written as they come. Under [muxLock]. */
+    internal val isOriginSettled: Boolean get() = origin.isSettled
+
+    /** The origin, in microseconds. Under [muxLock], once [isOriginSettled]. */
+    internal val originMicros: Long get() = origin.micros
+
+    /**
+     * Holds [packet], a reference of its own, for [stream] until the origin is decided, and decides
+     * it once every audio and video stream has shown its earliest time. Under [muxLock].
+     */
+    internal fun holdCopy(stream: CopyStream, lane: Int, packet: Long, shownMicros: Long, decodedMicros: Long) {
+        if (origin.hold(lane, HeldCopy(stream, packet), shownMicros, decodedMicros)) settleOrigin()
+    }
+
+    /**
+     * Decides the origin, at [atMost] when that is earlier than anything shown, writes the header
+     * when it is not written yet, and then the packets held for the origin. Under [muxLock].
+     */
+    private fun settleOrigin(atMost: Long = Long.MAX_VALUE) {
+        if (!origin.isSettled) origin.settle(atMost, fallback = sourceChapters?.requestedOriginMicros ?: 0L)
+        if (headerState == HeaderState.Written) releaseHeld() else ensureHeaderWritten()
+    }
+
+    private fun releaseHeld() {
+        if (origin.isHolding) origin.release { _, held -> held.stream.writeHeld(held.packet) }
     }
 
     /** Runs [block] under the mux lock so a concurrent [close] cannot free the format mid-call. */
@@ -125,6 +162,8 @@ public actual class MediaSink internal constructor(
         val stream = newStreamFor(context, spec.sampleAspectRatio, spec.frameRate)
         val core = EncoderCore(this, context, stream, Internals.codecCtxTimeBase(context), false)
         encoderCores += core
+        // Its first frame decides the origin with the copied streams, so they wait for it.
+        origin.addLane(awaited = true)
         VideoEncoder(core)
     }
 
@@ -163,6 +202,7 @@ public actual class MediaSink internal constructor(
         val stream = newStreamFor(context)
         val core = EncoderCore(this, context, stream, Internals.codecCtxTimeBase(context), true)
         encoderCores += core
+        origin.addLane(awaited = true)
         AudioEncoder(
             core,
             Internals.codecCtxFrameSize(context),
@@ -206,7 +246,15 @@ public actual class MediaSink internal constructor(
                 check0(Internals.streamCopyIdentity(outputStream, sourceStream), "stream identity copy")
                 Internals.streamSetTimeBase(outputStream, stream.timeBase)
                 declaredStreams += 1
-                CopyStream(this, outputStream, stream.timeBase, stream.index)
+                CopyStream(
+                    this,
+                    outputStream,
+                    stream.timeBase,
+                    stream.index,
+                    // Subtitle and data streams are sparse, so the origin does not wait for them.
+                    lane = origin.addLane(awaited = stream.type == MediaType.Audio || stream.type == MediaType.Video),
+                    sampleRate = stream.audio?.sampleRate ?: 0,
+                )
             } catch (error: Throwable) {
                 Internals.borrowedRelease(outputStream, Internals.KIND_STREAM)
                 // fmtNewStream above already put a stream into the format context, and FFmpeg offers
@@ -242,7 +290,10 @@ public actual class MediaSink internal constructor(
                     check0(Internals.streamCopyIdentity(outputStream, sourceStream), "stream identity copy")
                     Internals.streamSetTimeBase(outputStream, stream.timeBase)
                     declaredStreams += 1
-                    SubtitleConversion(CopyStream(this, outputStream, stream.timeBase, stream.index), converter)
+                    SubtitleConversion(
+                        CopyStream(this, outputStream, stream.timeBase, stream.index, origin.addLane(awaited = false), sampleRate = 0),
+                        converter,
+                    )
                 } catch (error: Throwable) {
                     if (converter != 0L) Internals.subtitleConverterFree(converter)
                     Internals.borrowedRelease(outputStream, Internals.KIND_STREAM)
@@ -368,20 +419,25 @@ public actual class MediaSink internal constructor(
             )
             HeaderState.NotWritten -> Unit
         }
+        // A source's chapters are placed against the origin, and held packets are written once
+        // the header is, so a header that carries either decides the origin now. With nothing
+        // shown yet that is the requested start, so whatever the output writes later shares the
+        // chapters' origin.
+        if (!origin.isSettled && (origin.isHolding || sourceChapters != null)) {
+            origin.settle(fallback = sourceChapters?.requestedOriginMicros ?: 0L)
+        }
         headerState = HeaderState.Failed
         val format = formatToken
-        // The output's origin is claimed by now when anything was written, because every write
-        // claims before it asks for the header. With nothing written the requested start is
-        // claimed, so whatever the output writes later shares the chapters' origin.
         sourceChapters?.let { pending ->
             sourceChapters = null
-            addChapters(format, pending.placedAt(claimBaseMicros(pending.requestedOriginMicros)))
+            addChapters(format, pending.placedAt(origin.micros))
         }
         // A byte sink's output is already open: its bytes go to the caller, not to a path.
         outputPath?.let { path -> check0(Internals.fmtIoOpen(format, path), "avio_open") }
         val rc = Internals.fmtWriteHeader(format)
         if (rc < 0) throw explained(headerFailure(rc, byteSink?.seekable, avError(rc)))
         headerState = HeaderState.Written
+        releaseHeld()
     }
 
     internal fun writePacket(packet: Long): Unit = synchronized(muxLock) {
@@ -455,15 +511,19 @@ public actual class MediaSink internal constructor(
             var result = 0
             try {
                 // Declared streams and no packet means the header never wrote itself on demand;
-                // the sink still owes a real container or an explicit failure.
-                if (headerState == HeaderState.NotWritten && declaredStreams > 0) {
-                    runCatching { ensureHeaderWritten() }.exceptionOrNull()?.let { failure ->
+                // the sink still owes a real container or an explicit failure. Copied packets
+                // still waiting for the origin go out before the trailer, deciding it if nothing
+                // has.
+                val owesHeader = headerState == HeaderState.NotWritten && declaredStreams > 0
+                if (headerState != HeaderState.Failed && (owesHeader || origin.isHolding)) {
+                    runCatching { settleOrigin() }.exceptionOrNull()?.let { failure ->
                         if (firstFailure == null) firstFailure = failure
                         else firstFailure?.addSuppressed(failure)
                     }
                 }
                 if (headerState == HeaderState.Written) result = Internals.fmtWriteTrailer(format)
             } finally {
+                origin.discard()
                 formatToken = 0L
                 // The output file's own close, which is the last thing that can fail and the place
                 // a full disk reports itself. Kept and raised below rather than discarded, so a
@@ -768,9 +828,16 @@ public actual class CopyStream internal constructor(
     private var streamToken: Long,
     private val sourceTimeBase: Rational,
     internal val sourceIndex: Int,
+    /** This stream's place in the sink's origin. */
+    private val lane: Int,
+    /** The source's sample rate for audio, which counts the samples a packet skips, else 0. */
+    private val sampleRate: Int,
 ) {
     private val streamIndex = Internals.streamIndex(streamToken)
     private var baseTimestamp = FrameInfo.NOPTS
+
+    /** True once an audio stream's first timed packet has said where it starts to show. */
+    private var audioStarted = false
 
     @KiteFFmpegLowLevelApi
     public actual fun write(packet: Packet) {
@@ -782,22 +849,63 @@ public actual class CopyStream internal constructor(
     internal fun writeCopyPacket(packet: Long): Unit = sink.withMuxLock {
         check(streamToken != 0L) { "CopyStream is closed with its MediaSink" }
         sink.checkNotClosing()
+        if (sink.isOriginSettled) {
+            writeRebased(packet)
+        } else {
+            // Until the origin is decided the packet waits, as a reference of its own, because
+            // the caller's packet is reused once this returns (#153).
+            val shown = shownMicros(packet)
+            val decoded = decodedMicros(packet)
+            // The sink owns the reference from here, written or freed, even when deciding the
+            // origin fails.
+            sink.holdCopy(this, lane, Internals.packetClone(packet), shown, decoded)
+        }
+    }
+
+    /**
+     * When [packet] starts to show, in microseconds, as FFmpeg reads a stream's start. Audio does
+     * not reorder, so it shows from its first packet plus the samples FFmpeg marks to be skipped
+     * there, which hide an encoder's priming and cover the packets a demuxer reads before an MP4
+     * edit list starts, so later packets add nothing. A picture shows from its presentation time,
+     * unless FFmpeg marks it as discarded.
+     */
+    private fun shownMicros(packet: Long): Long {
+        val pts = Internals.packetPts(packet)
+        val time = if (pts != FrameInfo.NOPTS) pts else Internals.packetDts(packet)
+        if (time == FrameInfo.NOPTS) return OutputOrigin.NOTHING
+        if (sampleRate > 0) {
+            if (audioStarted) return OutputOrigin.NOTHING
+            audioStarted = true
+            val skipped = Internals.packetSkipStart(packet)
+            val skippedMicros = if (skipped > 0L) Internals.rescaleQ(skipped, Rational(1, sampleRate), Rational.Tb_us) else 0L
+            return Internals.rescaleQ(time, sourceTimeBase, Rational.Tb_us) + skippedMicros
+        }
+        if (Internals.packetIsDiscard(packet)) return OutputOrigin.NOTHING
+        return Internals.rescaleQ(time, sourceTimeBase, Rational.Tb_us)
+    }
+
+    /** When [packet] decodes, in microseconds, or nothing when no time says. */
+    private fun decodedMicros(packet: Long): Long {
+        val dts = Internals.packetDts(packet)
+        val time = if (dts != FrameInfo.NOPTS) dts else Internals.packetPts(packet)
+        return if (time == FrameInfo.NOPTS) OutputOrigin.NOTHING else Internals.rescaleQ(time, sourceTimeBase, Rational.Tb_us)
+    }
+
+    /** Writes [packet], which was held for the origin, and frees it. Under the mux lock. */
+    internal fun writeHeld(packet: Long) {
+        try {
+            writeRebased(packet)
+        } finally {
+            Internals.packetFree(packet)
+        }
+    }
+
+    /** Writes [packet] on the output's timeline, once the origin is decided. Under the mux lock. */
+    private fun writeRebased(packet: Long) {
         val pts = Internals.packetPts(packet)
         val dts = Internals.packetDts(packet)
-        // The origin is claimed before the header is written, because a source's chapters are
-        // placed against it there.
         if (baseTimestamp == FrameInfo.NOPTS) {
-            val reference = when {
-                dts != FrameInfo.NOPTS -> dts
-                pts != FrameInfo.NOPTS -> pts
-                else -> 0L
-            }
-            val micros = Internals.rescaleQ(reference, sourceTimeBase, Rational.Tb_us)
-            baseTimestamp = Internals.rescaleQ(
-                sink.claimBaseMicros(micros),
-                Rational.Tb_us,
-                sourceTimeBase,
-            )
+            baseTimestamp = Internals.rescaleQ(sink.originMicros, Rational.Tb_us, sourceTimeBase)
         }
         // Before the stream time base is read below, because writing the header can change it.
         sink.ensureHeaderWritten()

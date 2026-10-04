@@ -27,6 +27,23 @@ internal object TranscodeFixtures {
         bitrateBps = 2_000_000L,
     )
 
+    /**
+     * Frame [index] at [ptsMicros]: a checkerboard around the brightness [lumaOf] gives it, so its
+     * mean still names it. A flat picture would not do for a test that cuts: the encoder makes
+     * every frame of a flat sequence a keyframe, and a cut then has nothing to reach back for.
+     */
+    fun texturedPicture(index: Int, ptsMicros: Long): Frame {
+        val luma = lumaOf(index)
+        val bytes = ByteArray(WIDTH * HEIGHT * 3 / 2) { 128.toByte() }
+        for (y in 0 until HEIGHT) {
+            for (x in 0 until WIDTH) {
+                val light = ((x / 8) + (y / 8)) % 2 == 0
+                bytes[y * WIDTH + x] = (luma + if (light) 8 else -8).toByte()
+            }
+        }
+        return Frame.ofVideo(bytes, WIDTH, HEIGHT, PixelFormat.Yuv420p, ptsMicros = ptsMicros)
+    }
+
     /** Writes one flat mpeg4 frame per entry of [timestampsMicros] into [path]. */
     fun writeVideo(path: String, encoderRate: Rational, timestampsMicros: List<Long>) {
         MediaSink.open(path).use { sink ->

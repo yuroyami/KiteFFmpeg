@@ -46,6 +46,8 @@ internal object Internals {
     private external fun nativePacketStreamIndex(token: Long): Int
     private external fun nativePacketSize(token: Long): Int
     private external fun nativePacketIsKeyframe(token: Long): Boolean
+    private external fun nativePacketIsDiscard(token: Long): Boolean
+    private external fun nativePacketSkipStart(token: Long): Long
     private external fun nativePacketPosition(token: Long): Long
     private external fun nativePacketUnref(token: Long)
     private external fun nativePacketSetStreamIndex(token: Long, value: Int)
@@ -391,6 +393,8 @@ internal object Internals {
     internal fun packetStreamIndex(token: Long) = checked { nativePacketStreamIndex(token) }
     internal fun packetSize(token: Long) = checked { nativePacketSize(token) }
     internal fun packetIsKeyframe(token: Long) = checked { nativePacketIsKeyframe(token) }
+    internal fun packetIsDiscard(token: Long) = checked { nativePacketIsDiscard(token) }
+    internal fun packetSkipStart(token: Long) = checked { nativePacketSkipStart(token) }
     internal fun packetPosition(token: Long) = checked { nativePacketPosition(token) }
     internal fun packetUnref(token: Long) = checked { nativePacketUnref(token) }
     internal fun packetSetStreamIndex(token: Long, value: Int) = checked { nativePacketSetStreamIndex(token, value) }

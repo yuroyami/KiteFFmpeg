@@ -51,11 +51,12 @@ public expect class MediaSink : AutoCloseable {
 
     /**
      * Chapters for the output, each with its title and its other tags. Call this before any frame
-     * or packet is written. The bounds are on the output's own timeline, where the first written
-     * timestamp is zero, so a caller copying chapters from a [MediaSource] subtracts the source
-     * time of the first packet or frame it will write. For a copy cut between keyframes that is
-     * the keyframe before the cut, not the cut itself. A chapter [Chapter.id] only has to be
-     * unique within the list.
+     * or packet is written. The bounds are on the output's own timeline, whose zero is the
+     * earliest source time the output shows: the earliest presentation time of the copied audio
+     * and video, counting the samples a stream skips at its start, or the first encoded frame when
+     * that is earlier. A caller copying chapters from a [MediaSource] subtracts that time. For a
+     * copy cut between keyframes it is the keyframe before the cut, not the cut itself. A chapter
+     * [Chapter.id] only has to be unique within the list.
      */
     @Throws(FFmpegException::class)
     public fun setChapters(chapters: List<Chapter>)
@@ -121,6 +122,14 @@ public expect class CopyStream {
      *
      * Ordering is the caller's to get right. Packets must arrive in the order the muxer expects
      * for the stream, which for a copy of a demuxed stream means the order they were read in.
+     *
+     * The output starts at zero where its media starts to show, which a stream's first packet
+     * does not always say: B-frames show before the keyframe they follow, and audio can skip its
+     * first samples. So the sink keeps a reference to each packet written until every copied
+     * audio and video stream has shown where it starts, or a second of decode time has gone by
+     * past the earliest start found, or an encoded frame, the header or the close needs the
+     * timeline, and then writes them in the order they came. Subtitle and data streams are not
+     * waited for.
      *
      * @throws IllegalStateException when [packet] is closed, or when this stream's sink is.
      */

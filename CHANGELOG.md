@@ -75,6 +75,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A whole remux plays as its input does (#153). A copy's output started at the decode time of the
+  first packet it wrote, which for video with B-frames comes before any picture shows and for AAC
+  is the encoder's priming, so the output played every frame late by the difference, a frame for
+  video with B-frames and 1024 samples for AAC, and the priming the input hid was heard.
+  The output now starts where its media starts to show, as FFmpeg reads a stream's start: the
+  earliest picture, and the first sound after the samples a stream skips. The sink holds the first
+  packets until every audio and video stream has shown that, at most a second of the input. A cut
+  that starts on a keyframe also leaves out the pictures that show before it, which lean on a
+  picture the cut does not copy and used to move the output's start before its first picture. The
+  C ABI is 3.23 and adds `ffkmp_packet_is_discard` and `ffkmp_packet_skip_start`.
 - A remux or a transcode that copies video and is cut between keyframes keeps each chapter on its
   own frame (#144). The copy starts at the keyframe before the cut and that keyframe becomes zero,
   but the chapters were moved by the requested start, so each came out early by the distance from

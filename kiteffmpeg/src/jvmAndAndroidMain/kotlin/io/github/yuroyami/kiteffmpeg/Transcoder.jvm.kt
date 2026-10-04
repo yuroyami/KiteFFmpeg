@@ -300,6 +300,8 @@ public actual object Transcoder {
                                 audioStream?.takeIf { audioCopyStream != null },
                             ) + subtitles
 
+                            val leading = if (startMicros > 0L && videoCopyStream != null) LeadingPictures() else null
+
                             source.demuxRouted(
                                 decode,
                                 copy,
@@ -343,7 +345,8 @@ public actual object Transcoder {
                                     when {
                                         pastEnd -> if (info.index == lead.index) throw StopDemux()
                                         beforeStart -> Unit
-                                        isVideoCopy -> {
+                                        // At a cut, the pictures no decoder can show from the keyframe it starts on.
+                                        isVideoCopy -> if (leading?.isLeading(info, pts) != true) {
                                             videoCopyStream.writeCopyPacket(packet)
                                             if (ptsMicros != Long.MIN_VALUE) noteCopied(ptsMicros)
                                         }
@@ -371,8 +374,9 @@ public actual object Transcoder {
                             videoRate?.finish(::encodeVideoTick)
                             videoEncoder?.core?.finish(videoPacket)
                             audioEncoder?.core?.finish(audioPacket)
-                            // The first packet wrote the header. A source that yields nothing
-                            // still gets a valid, empty container rather than no file at all.
+                            // Writes the header, and the copied packets a short source still
+                            // holds for the output's origin. A source that yields nothing still
+                            // gets a valid, empty container rather than no file at all.
                             sink.ensureHeaderWritten()
                             report(force = true)
                         }

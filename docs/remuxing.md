@@ -81,6 +81,8 @@ Remuxer.remux("input.mov", "output.mp4")
 
 The output is bit-exact for the media data: the H.264, HEVC, AAC, or Opus packets in `output.mkv` are byte-identical to those in `input.mp4`. Quality is unchanged because nothing was re-encoded.
 
+Every frame also plays when it played in the input. The output's timeline starts at zero where the input's media starts to show, the way FFmpeg reads where a stream starts: at the earliest picture, which for video with B-frames is not the first packet, and at the first sound after the samples a stream hides at its start, such as an AAC encoder's priming or what an MP4 edit list cuts. The priming stays hidden in the output. To find that start, the remux holds the first packets of each stream until every audio and video stream has shown where it starts, never more than a second of the input.
+
 What names the streams travels with them. Each stream keeps its tags (language, title and the rest), its disposition flags (default, forced, commentary and the others), its display matrix, its HDR metadata and the shape of its pixels, and the file keeps its chapters. A trimmed remux keeps the chapters that overlap what it copies, from the keyframe it starts on to the end of the window, clipped to that and moved by exactly as much as the media, so each chapter still starts on its own frame. The target container decides what it can store: MP4 has no stream titles, and Matroska has no display matrix.
 
 !!! note "Container compatibility"
@@ -136,7 +138,7 @@ Remuxer.remux(
 )
 ```
 
-The result keeps the start on a keyframe boundary, so the clip may begin slightly earlier than the exact `startMicros` you asked for. The output timeline is preserved relative to the copied packets. This is the copy-mode equivalent of `ffmpeg -ss ... -to ... -c copy`.
+The result keeps the start on a keyframe boundary, so the clip may begin slightly earlier than the exact `startMicros` you asked for, and that keyframe shows at zero. In video with B-frames, the pictures that follow the keyframe in decode order but show before it are predicted from a picture before the keyframe, which the clip does not have, so no decoder could show them; the remux leaves them out, as a player that starts on that keyframe would. This is the copy-mode equivalent of `ffmpeg -ss ... -to ... -c copy`, which copies those pictures and starts its output on them.
 
 !!! warning "Start lands on a keyframe, not your exact timestamp"
     With stream copy there is no way to begin in the middle of a GOP, so `startMicros` is snapped to the keyframe at or before it. The first frames of the clip are the frames between that keyframe and your requested start. If you need the clip to start on the exact frame, [transcode the range](transcoding.md) instead.

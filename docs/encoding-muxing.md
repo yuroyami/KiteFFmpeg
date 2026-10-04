@@ -235,7 +235,7 @@ fun copyAudio(input: String, output: String) {
 }
 ```
 
-`addCopyStream` returns a `CopyStream`, which only declares the output stream and where its packets come from. Nothing writes those packets until you do: read them with a `PacketReader` and write each one, as above. Driving an encoder on the same sink does not write them. [Transcoder](transcoding.md) with `audioCopy = true` and [Remuxer](remuxing.md) run this loop for you. To re-encode the video and copy the audio from one file, use `Transcoder`: it reads the file once and interleaves both.
+`addCopyStream` returns a `CopyStream`, which only declares the output stream and where its packets come from. Nothing writes those packets until you do: read them with a `PacketReader` and write each one, as above. Driving an encoder on the same sink does not write them. The output starts at zero where its media starts to show, so the sink keeps the first packets until every copied audio and video stream has shown where it starts, at most a second of the input, and then writes them in the order they came. [Transcoder](transcoding.md) with `audioCopy = true` and [Remuxer](remuxing.md) run this loop for you. To re-encode the video and copy the audio from one file, use `Transcoder`: it reads the file once and interleaves both.
 
 !!! note "Bitstream filters are automatic"
     A format pair that needs a bitstream filter, such as H.264 in MP4 going to MPEG-TS, needs nothing from you: libavformat inserts the filter when the copied packets are written.

@@ -179,6 +179,18 @@ KC_API void      ffkmp_copy_bytes(void *dst, const void *src, int n);
 
 KC_API int64_t   ffkmp_packet_duration(kc_packet *p);
 KC_API int       ffkmp_packet_is_keyframe(kc_packet *p);
+
+/* 1 when the packet carries AV_PKT_FLAG_DISCARD, 0 otherwise or for a NULL packet. A decoder needs
+ * such a packet, but nothing it decodes to is shown: a demuxer flags the samples it reads before an
+ * MP4 edit list starts this way, so that a cut made by an editor still decodes from its keyframe. */
+KC_API int       ffkmp_packet_is_discard(const kc_packet *p);
+
+/* The samples a decoder drops from the start of what this packet decodes to, read from its
+ * AV_PKT_DATA_SKIP_SAMPLES side data: an encoder's priming at the start of an AAC or Opus stream,
+ * which the container marks to be hidden. The count can reach past this packet into the next ones.
+ * 0 when the packet carries no such data, and for a NULL packet. */
+KC_API int64_t   ffkmp_packet_skip_start(const kc_packet *p);
+
 KC_API void      ffkmp_packet_set_stream_index(kc_packet *p, int i);
 KC_API void      ffkmp_packet_set_pts(kc_packet *p, int64_t v);
 KC_API void      ffkmp_packet_set_dts(kc_packet *p, int64_t v);

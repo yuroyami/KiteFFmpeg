@@ -441,6 +441,9 @@ internal external fun ffkmp_media_type_video(module: JsAny): Int
 @JsFun("(m, a0) => m._ffkmp_oformat_global_header(a0)")
 internal external fun ffkmp_oformat_global_header(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_packet_is_discard(a0)")
+internal external fun ffkmp_packet_is_discard(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_packet_is_keyframe(a0)")
 internal external fun ffkmp_packet_is_keyframe(module: JsAny, a0: Int): Int
 
@@ -560,6 +563,9 @@ internal external fun ffkmp_packet_pos(module: JsAny, a0: Int): Long
 
 @JsFun("(m, a0) => m._ffkmp_packet_pts(a0)")
 internal external fun ffkmp_packet_pts(module: JsAny, a0: Int): Long
+
+@JsFun("(m, a0) => m._ffkmp_packet_skip_start(a0)")
+internal external fun ffkmp_packet_skip_start(module: JsAny, a0: Int): Long
 
 @JsFun("(m, a0, a1, a2, a3, a4) => m._ffkmp_rescale_q(a0, a1, a2, a3, a4)")
 internal external fun ffkmp_rescale_q(module: JsAny, a0: Long, a1: Int, a2: Int, a3: Int, a4: Int): Long

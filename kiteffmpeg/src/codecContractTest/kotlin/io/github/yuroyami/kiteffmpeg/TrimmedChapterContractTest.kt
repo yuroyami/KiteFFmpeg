@@ -51,7 +51,7 @@ internal class TrimmedChapterContractTest {
                 val video = sink.addVideoEncoder(if (bFrames) spec.copy(options = mapOf("bf" to "2")) else spec)
                 val sound = if (audio) sink.addAudioEncoder(TranscodeFixtures.pcmSpec(SAMPLE_RATE, 1)) else null
                 runBlocking {
-                    video.drive((0 until 60).asFlow().map { i -> picture(i) })
+                    video.drive((0 until 60).asFlow().map { i -> TranscodeFixtures.texturedPicture(i, ptsMicros = i * 100_000L) })
                     sound?.drive(
                         (0 until 6 * SAMPLE_RATE step BLOCK).asFlow().map { first ->
                             Frame.ofAudio(
@@ -67,24 +67,6 @@ internal class TrimmedChapterContractTest {
                 }
             }
         }
-
-    /**
-     * Frame [index]: a checkerboard around the brightness [TranscodeFixtures.lumaOf] gives it, so
-     * its mean still names it. A flat picture would not do: the encoder makes every frame of a
-     * flat sequence a keyframe, and a cut then has nothing to reach back for.
-     */
-    private fun picture(index: Int): Frame {
-        val size = TranscodeFixtures.WIDTH * TranscodeFixtures.HEIGHT
-        val luma = TranscodeFixtures.lumaOf(index)
-        val bytes = ByteArray(size * 3 / 2) { 128.toByte() }
-        for (y in 0 until TranscodeFixtures.HEIGHT) {
-            for (x in 0 until TranscodeFixtures.WIDTH) {
-                val light = ((x / 8) + (y / 8)) % 2 == 0
-                bytes[y * TranscodeFixtures.WIDTH + x] = (luma + if (light) 8 else -8).toByte()
-            }
-        }
-        return Frame.ofVideo(bytes, TranscodeFixtures.WIDTH, TranscodeFixtures.HEIGHT, PixelFormat.Yuv420p, ptsMicros = index * 100_000L)
-    }
 
     /**
      * Asserts the marker chapter of [output] starts where frame 50 shows and runs for

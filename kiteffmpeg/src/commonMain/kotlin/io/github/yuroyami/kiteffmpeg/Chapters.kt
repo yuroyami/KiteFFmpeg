@@ -52,9 +52,9 @@ internal fun chaptersForOutput(chapters: List<Chapter>, originMicros: Long, leng
 /**
  * A source's chapters for an output cut from it, waiting for the origin the output's media takes.
  *
- * Copied media is rebased on the first timestamp the output writes, and a copy cut between
+ * Copied media is rebased on the earliest time the output shows (#153), and a copy cut between
  * keyframes writes from the keyframe before the cut, so that origin is known only once the first
- * packet or frame is written. The sink places these chapters against it when it writes its header
+ * packets or frame are seen. The sink places these chapters against it when it writes its header
  * (#144). They used to be placed against the requested start, and showed early by the distance
  * from that keyframe to the cut.
  */

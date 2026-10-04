@@ -114,6 +114,8 @@ public actual object Remuxer {
                 // Placed when the header is written, against the origin the copied media takes.
                 sink.setSourceChapters(SourceChapters.of(source, startMicros, endMicros))
                 val copies = selected.associate { it.index to sink.addCopyStream(source, it) }
+                // At a cut, the pictures no decoder can show from the keyframe it starts on.
+                val leading = if (startMicros > 0) LeadingPictures() else null
                 var written = 0L
                 source.demuxRouted(
                     decode = emptyList(),
@@ -133,16 +135,16 @@ public actual object Remuxer {
                         if (micros != Long.MIN_VALUE && micros > endMicros) {
                             if (info.index == leadIndex) throw StopDemux()
                             // other streams: drop and wait for the lead to finish the window
-                        } else {
+                        } else if (leading?.isLeading(info, ffkmp_packet_pts(packet)) != true) {
                             copies.getValue(info.index).writeCopyPacket(packet)
                             written += 1
                             if (publish != null && written % 100 == 0L) publish(written)
                         }
                     },
                 )
-                // The first packet wrote the header, once it had claimed the output's origin, which
-                // the chapters need. A source with none still gets a valid, empty container rather
-                // than no file at all.
+                // Writes the header, and the packets a short source still holds for the output's
+                // origin. A source with none still gets a valid, empty container rather than no
+                // file at all.
                 sink.ensureHeaderWritten()
                 publish?.invoke(written)
             }

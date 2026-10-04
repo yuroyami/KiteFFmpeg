@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 3.22
+# abi-version 3.23
 #
-# Exact scope: 250 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 252 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 273 records.
+# records are sorted without deduplication. There must be exactly 275 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -153,6 +153,7 @@ KC_API int ffkmp_media_type_data(void);
 KC_API int ffkmp_media_type_subtitle(void);
 KC_API int ffkmp_media_type_video(void);
 KC_API int ffkmp_oformat_global_header(kc_fmt_ctx *c);
+KC_API int ffkmp_packet_is_discard(const kc_packet *p);
 KC_API int ffkmp_packet_is_keyframe(kc_packet *p);
 KC_API int ffkmp_packet_size(kc_packet *p);
 KC_API int ffkmp_packet_stream_index(kc_packet *p);
@@ -194,6 +195,7 @@ KC_API int64_t ffkmp_packet_dts(kc_packet *p);
 KC_API int64_t ffkmp_packet_duration(kc_packet *p);
 KC_API int64_t ffkmp_packet_pos(kc_packet *p);
 KC_API int64_t ffkmp_packet_pts(kc_packet *p);
+KC_API int64_t ffkmp_packet_skip_start(const kc_packet *p);
 KC_API int64_t ffkmp_rescale_q(int64_t v, int sn, int sd, int dn, int dd);
 KC_API int64_t ffkmp_stream_duration_micros(kc_stream *s);
 KC_API int64_t ffkmp_stream_start_time(kc_stream *s);

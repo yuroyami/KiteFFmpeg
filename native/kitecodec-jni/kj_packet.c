@@ -76,6 +76,20 @@ JNIEXPORT jboolean JNICALL kj_packet_is_keyframe(JNIEnv *env, jclass cls, jlong 
     return (p && ffkmp_packet_is_keyframe(p)) ? JNI_TRUE : JNI_FALSE;
 }
 
+JNIEXPORT jboolean JNICALL kj_packet_is_discard(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_packet *p = (kc_packet *)kj_handle_get(env, token, KJ_KIND_PACKET);
+    (void)cls;
+    return (p && ffkmp_packet_is_discard(p)) ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jlong JNICALL kj_packet_skip_start(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_packet *p = (kc_packet *)kj_handle_get(env, token, KJ_KIND_PACKET);
+    (void)cls;
+    return p ? (jlong)ffkmp_packet_skip_start(p) : 0;
+}
+
 JNIEXPORT jlong JNICALL kj_packet_position(JNIEnv *env, jclass cls, jlong token)
 {
     kc_packet *p = (kc_packet *)kj_handle_get(env, token, KJ_KIND_PACKET);

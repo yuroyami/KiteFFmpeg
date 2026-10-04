@@ -83,8 +83,9 @@ public expect object Transcoder {
      *                    (see [MediaSource.startTimeMicros]). Re-encoded video keeps the frames
      *                    that start at or after it, and re-encoded audio keeps the samples from it
      *                    on. Copied streams keep whole packets: copied video from the keyframe at
-     *                    or before it, copied audio and subtitles from the first packet at or
-     *                    after it. Output timestamps are rebased to zero.
+     *                    or before it, without the pictures that show before that keyframe, and
+     *                    copied audio and subtitles from the first packet at or after it. The
+     *                    output starts at zero where its media starts to show.
      * @param endMicros trim end, a position in the input on the same scale. Re-encoded streams
      *                  exclude it: video keeps the frames that start before it, and audio is cut
      *                  to the sample, the way FFmpeg's `atrim` filter cuts it, so a window from
