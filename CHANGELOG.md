@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `VideoStreamInfo` gains `dolbyVision`, which changes its constructor and `copy`. Recompile a
   library built against 0.4.0.
+- `StreamInfo.language` of a Matroska track that carries `LanguageBCP47` is that tag now (#150).
+  MKVToolNix writes it on every track, so an English track from such a file reads `en` where it
+  read `eng`, and a Traditional Chinese one `zh-Hant` where it read `chi`. Code that compares a
+  language with a three-letter string has to accept the tag too; `TrackSelector` matches a tag
+  on its first subtag, so `zh` finds `zh-Hant`, but `eng` does not find `en`.
 
 ### Added
 
@@ -75,6 +80,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A Matroska track reports its `LanguageBCP47` as `StreamInfo.language` (#150). MKVToolNix writes
+  that element on every track, beside the old three-letter `Language`, and the Matroska
+  specification says a reader that knows it ignores `Language`. FFmpeg's reader skipped it, so a
+  Traditional and a Simplified Chinese track both read `chi`, both regions of Portuguese `por`,
+  and an English track, which MKVToolNix writes as `en` alone, the default `eng`. A track whose
+  tag says `und` has no language, and a track without the element reads `Language` as before.
+  Chapter languages are not read, because FFmpeg exposes none. The fix is the FFmpeg patch
+  `0006-matroska-read-the-bcp47-language.patch`, so it reaches a platform only with an FFmpeg tree
+  built from it, and the trees of 0.4.0 do not carry it.
 - A remux keeps a language that a BCP 47 tag names (#156). An HLS rendition, a DASH representation
   and a Matroska track written by MKVToolNix name a stream's language with a tag such as `pt-BR`,
   or `en` alone for English, and FFmpeg's MP4, MOV and MPEG-TS writers, whose field holds a

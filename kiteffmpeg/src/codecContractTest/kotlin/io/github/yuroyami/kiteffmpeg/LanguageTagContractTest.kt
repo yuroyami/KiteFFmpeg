@@ -7,14 +7,15 @@ import kotlin.test.assertEquals
 
 /**
  * A stream's BCP 47 language survives a remux into a container whose field holds a three-letter
- * ISO 639-2 code (#156).
+ * ISO 639-2 code (#156), and a Matroska track reports its `LanguageBCP47` (#150).
  *
  * An HLS rendition, a DASH representation and a Matroska track written by MKVToolNix name their
  * language with a BCP 47 tag such as `pt-BR`, or `en` for English. MP4 and MPEG-TS used to drop
  * such a tag and Matroska wrote it where a code belongs; they now write the code of the language
- * it names. `ffmpeg` writes the fixture, whose Matroska `Language` elements it fills with the tags
- * as they are, so the test is skipped where there is no command-line oracle, which is an Android
- * device.
+ * it names, and Matroska also writes the whole tag as `LanguageBCP47`, which its reader now
+ * prefers to the code. `ffmpeg` writes the fixture, whose Matroska `Language` elements it fills
+ * with the tags as they are, so the test is skipped where there is no command-line oracle, which
+ * is an Android device.
  */
 internal class LanguageTagContractTest {
     private val paths = mutableListOf<String>()
@@ -61,5 +62,5 @@ internal class LanguageTagContractTest {
     fun anMpegTsRemuxWritesTheCodeOfEachLanguage() = remuxed("ts", listOf("por", "eng"))
 
     @Test
-    fun aMatroskaRemuxWritesTheCodeOfEachLanguage() = remuxed("mkv", listOf("por", "eng"))
+    fun aMatroskaRemuxKeepsEachWholeTag() = remuxed("mkv", listOf("pt-BR", "en"))
 }

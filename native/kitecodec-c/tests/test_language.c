@@ -1,4 +1,5 @@
-/* A stream's language, through the writers whose field holds a three-letter ISO 639-2 code (#156).
+/* A stream's language, through the writers whose field holds a three-letter ISO 639-2 code (#156),
+ * and out of Matroska's LanguageBCP47 (#150).
  *
  * FFmpeg's "language" tag holds a BCP 47 tag whenever the source gave one: the HLS and DASH
  * demuxers copy a rendition's tag, and Matroska's LanguageBCP47 says "en" or "pt-BR". MP4, MOV,
@@ -6,12 +7,16 @@
  * dropped it and Matroska wrote it into an element that holds a code. The patch
  * 0005-write-a-bcp47-language-as-its-iso639-code makes each of them write the code of the language
  * the tag's first subtag names, and Matroska also write the whole tag as LanguageBCP47.
+ * FFmpeg's Matroska reader skipped LanguageBCP47, so zh-Hant and zh-Hans both read as chi; the
+ * patch 0006-matroska-read-the-bcp47-language makes it report that element, as the specification
+ * asks, and the old Language only when the track has none.
  *
  * Each case writes one stream of packets that are not real media, since a writer copies them:
  * audio, or for MPEG-TS's own subtitle and teletext descriptors a stream of either. It reads the
- * language back with FFmpeg, or for Matroska reads the elements themselves. A linked
- * FFmpeg whose tree does not list the patch in lib/kiteffmpeg/ffmpeg-patches.txt, such as a
- * distribution's, runs only the case that holds without it.
+ * language back with FFmpeg, or for Matroska reads the elements themselves. The Matroska reading
+ * cases rewrite the elements of a file the writer made, since it writes Language on every track. A
+ * linked FFmpeg whose tree does not list a patch in lib/kiteffmpeg/ffmpeg-patches.txt, such as a
+ * distribution's, runs only the cases that hold without it.
  */
 
 #include "harness.h"
@@ -33,6 +38,7 @@
 #endif
 
 #define WRITER_PATCH "0005-write-a-bcp47-language-as-its-iso639-code.patch"
+#define READER_PATCH "0006-matroska-read-the-bcp47-language.patch"
 
 #define MATROSKA_ID_LANGUAGE 0x22B59C
 #define MATROSKA_ID_LANGUAGE_BCP47 0x22B59D
@@ -247,6 +253,63 @@ static void check_elements(const char *format, const char *lang, const char *lan
     KC_EQ_STR(got_bcp47, bcp47);
 }
 
+/* Replaces the first element id in the file at path, whose size fits one byte, with the bytes of
+ * with, which must be exactly as long as the whole element. */
+static void rewrite_element(unsigned id, const uint8_t *with, size_t len)
+{
+    uint8_t buf[4096];
+    FILE *f = fopen(path, "r+b");
+    KC_NOT_NULL(f);
+    if (!f) return;
+    size_t n = fread(buf, 1, sizeof(buf), f);
+    for (size_t i = 0; i + 4 <= n; i++) {
+        if (buf[i] != (uint8_t)(id >> 16) || buf[i + 1] != (uint8_t)(id >> 8) || buf[i + 2] != (uint8_t)id)
+            continue;
+        KC_EQ_INT((int)(4 + (buf[i + 3] & 0x7f)), (int)len);
+        KC_EQ_INT(fseek(f, (long)i, SEEK_SET), 0);
+        KC_EQ_INT((int)fwrite(with, 1, len, f), (int)len);
+        fclose(f);
+        return;
+    }
+    fclose(f);
+    KC_FAIL("the file has no element %06X", id);
+}
+
+/* Writes lang into Matroska, lets edit rewrite the file, and reads the language back. */
+static void check_matroska_reading(const char *lang, void (*edit)(void), const char *expected)
+{
+    char read[64], language[64], bcp47[64];
+    KC_EQ_INT(write_tagged("matroska", lang), 0);
+    if (edit) edit();
+    matroska_element(MATROSKA_ID_LANGUAGE, language, sizeof(language));
+    matroska_element(MATROSKA_ID_LANGUAGE_BCP47, bcp47, sizeof(bcp47));
+    read_language(read, sizeof(read));
+    kc_detail("%s/%s->%s", language[0] ? language : "(none)", bcp47[0] ? bcp47 : "(none)",
+              read[0] ? read : "(none)");
+    KC_EQ_STR(read, expected);
+}
+
+/* Turns the Language element "eng" into a Void element of the same length. */
+static void drop_language(void)
+{
+    static const uint8_t void_of_five[7] = { 0xec, 0x85, 0, 0, 0, 0, 0 };
+    rewrite_element(MATROSKA_ID_LANGUAGE, void_of_five, sizeof(void_of_five));
+}
+
+/* Turns the LanguageBCP47 element "en-GB" into "und" and an empty Void element. */
+static void make_bcp47_und(void)
+{
+    static const uint8_t und[9] = { 0x22, 0xb5, 0x9d, 0x83, 'u', 'n', 'd', 0xec, 0x80 };
+    rewrite_element(MATROSKA_ID_LANGUAGE_BCP47, und, sizeof(und));
+}
+
+/* Turns the LanguageBCP47 element "en" into an empty one and an empty Void element. */
+static void empty_bcp47(void)
+{
+    static const uint8_t empty[6] = { 0x22, 0xb5, 0x9d, 0x80, 0xec, 0x80 };
+    rewrite_element(MATROSKA_ID_LANGUAGE_BCP47, empty, sizeof(empty));
+}
+
 static void case_a_three_letter_code_is_written_as_it_is(void)
 {
     kc_case("a three-letter code reaches every writer as it is");
@@ -315,6 +378,25 @@ static void case_matroska_writes_the_code_and_the_tag(void)
     check_elements("matroska", "eng,fre", "eng,fre", "");
 }
 
+static void case_matroska_reads_the_old_language_alone(void)
+{
+    kc_case("a Matroska track with only Language reads that code");
+    check_matroska_reading("chi", NULL, "chi");
+    check_matroska_reading("fre-ca", NULL, "fre-ca");
+    check_matroska_reading("und", NULL, "");
+}
+
+static void case_matroska_reads_the_bcp47_language(void)
+{
+    kc_case("a Matroska track with LanguageBCP47 reads that tag and ignores Language");
+    check_matroska_reading("zh-Hant", NULL, "zh-Hant");
+    check_matroska_reading("zh-Hans", NULL, "zh-Hans");
+    check_matroska_reading("pt-BR", NULL, "pt-BR");
+    check_matroska_reading("en", drop_language, "en");
+    check_matroska_reading("en-GB", make_bcp47_und, "");
+    check_matroska_reading("en", empty_bcp47, "eng");
+}
+
 static void case_webm_writes_only_the_code(void)
 {
     kc_case("WebM, which has no LanguageBCP47, writes only the code");
@@ -332,6 +414,7 @@ int main(void)
     atexit(remove_fixtures);
 
     case_a_three_letter_code_is_written_as_it_is();
+    case_matroska_reads_the_old_language_alone();
 
     if (!linked_tree_carries(WRITER_PATCH)) {
         kc_note("the linked FFmpeg's tree does not list %s, so the BCP 47 cases did not run", WRITER_PATCH);
@@ -344,6 +427,14 @@ int main(void)
     case_mpegts_subtitles_take_the_bibliographic_code();
     case_matroska_writes_the_code_and_the_tag();
     case_webm_writes_only_the_code();
+
+    /* The reading cases make their files with the writer patch, so they need both. */
+    if (!linked_tree_carries(READER_PATCH)) {
+        kc_note("the linked FFmpeg's tree does not list %s, so the LanguageBCP47 reading case did not run",
+                READER_PATCH);
+        return kc_suite_end();
+    }
+    case_matroska_reads_the_bcp47_language();
 
     return kc_suite_end();
 }

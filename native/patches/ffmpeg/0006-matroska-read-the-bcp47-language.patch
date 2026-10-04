@@ -1,0 +1,60 @@
+Let the Matroska demuxer report a track's LanguageBCP47.
+
+Matroska v4 added LanguageBCP47 to TrackEntry, a whole BCP 47 tag beside the old three-letter
+Language, and RFC 9559 says that when it is present a reader must ignore Language. MKVToolNix
+writes it on every track: a Traditional and a Simplified Chinese track say "zh-Hant" and "zh-Hans"
+there and "chi" in Language, and an English track says "en" with no Language at all. The demuxer
+had no entry for the element and skipped it, so both Chinese tracks read as "chi", both regions
+of Portuguese as "por", and the English one as the default "eng".
+
+The track syntax table now reads the element, and a track that carries a non-empty one reports it
+as its "language", or nothing when it says "und". A track without one reports Language as before.
+The chapter element ChapLanguageBCP47 is not read, because the demuxer exposes no chapter
+language at all.
+
+Applied by BuildFFmpegTask before configure, after 0005, whose writers turn a tag back into the
+code a three-letter field holds. Fixes yuroyami/KiteFFmpeg#150.
+
+diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
+index 7ce49b8..95f3510 100644
+--- a/libavformat/matroskadec.c
++++ b/libavformat/matroskadec.c
+@@ -270,6 +270,7 @@ typedef struct MatroskaTrack {
+     char    *codec_id;
+     EbmlBin  codec_priv;
+     char    *language;
++    char    *language_bcp47;
+     double time_scale;
+     uint64_t default_duration;
+     uint64_t flag_default;
+@@ -448,7 +449,7 @@ typedef struct MatroskaDemuxContext {
+ // incomplete type (6.7.2 in C90, 6.9.2 in C99).
+ // Removing the sizes breaks MSVC.
+ static EbmlSyntax ebml_syntax[3], matroska_segment[9], matroska_track_video_color[15], matroska_track_video[19],
+-                  matroska_track[33], matroska_track_encoding[6], matroska_track_encodings[2],
++                  matroska_track[34], matroska_track_encoding[6], matroska_track_encodings[2],
+                   matroska_track_combine_planes[2], matroska_track_operation[2], matroska_block_addition_mapping[5], matroska_tracks[2],
+                   matroska_attachments[2], matroska_chapter_entry[9], matroska_chapter[6], matroska_chapters[2],
+                   matroska_index_entry[3], matroska_index[2], matroska_tag[3], matroska_tags[2], matroska_seekhead[2],
+@@ -616,6 +617,7 @@ static EbmlSyntax matroska_track[] = {
+     { MATROSKA_ID_CODECPRIVATE,          EBML_BIN,   0, 0, offsetof(MatroskaTrack, codec_priv) },
+     { MATROSKA_ID_CODECDELAY,            EBML_UINT,  0, 0, offsetof(MatroskaTrack, codec_delay),  { .u = 0 } },
+     { MATROSKA_ID_TRACKLANGUAGE,         EBML_STR,   0, 0, offsetof(MatroskaTrack, language),     { .s = "eng" } },
++    { MATROSKA_ID_TRACKLANGUAGEBCP47,    EBML_STR,   0, 0, offsetof(MatroskaTrack, language_bcp47) },
+     { MATROSKA_ID_TRACKDEFAULTDURATION,  EBML_UINT,  0, 0, offsetof(MatroskaTrack, default_duration) },
+     { MATROSKA_ID_TRACKTIMECODESCALE,    EBML_FLOAT, 0, 0, offsetof(MatroskaTrack, time_scale),   { .f = 1.0 } },
+     { MATROSKA_ID_TRACKFLAGCOMMENTARY,   EBML_UINT,  0, 0, offsetof(MatroskaTrack, flag_comment), { .u = 0 } },
+@@ -3277,7 +3279,12 @@ static int matroska_parse_tracks(AVFormatContext *s)
+                         AV_DICT_DONT_STRDUP_VAL);
+         }
+ 
+-        if (strcmp(track->language, "und"))
++        /* A reader that understands LanguageBCP47 must ignore Language, even when the tag is
++         * "und", as RFC 9559 asks. */
++        if (track->language_bcp47 && track->language_bcp47[0]) {
++            if (av_strcasecmp(track->language_bcp47, "und"))
++                av_dict_set(&st->metadata, "language", track->language_bcp47, 0);
++        } else if (strcmp(track->language, "und"))
+             av_dict_set(&st->metadata, "language", track->language, 0);
+         av_dict_set(&st->metadata, "title", track->name, 0);
+ 
