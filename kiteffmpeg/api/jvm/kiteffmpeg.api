@@ -1147,7 +1147,8 @@ public final class io/github/yuroyami/kiteffmpeg/MediaInfo {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/MediaProbe {
-	public fun <init> (Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/Long;
 	public final fun component3 ()J
@@ -1156,8 +1157,9 @@ public final class io/github/yuroyami/kiteffmpeg/MediaProbe {
 	public final fun component6 ()Ljava/util/Map;
 	public final fun component7 ()Ljava/util/List;
 	public final fun component8 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
-	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/MediaProbe;Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/MediaProbe;Ljava/lang/String;Ljava/lang/Long;JZLjava/lang/Long;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/MediaProbe;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBitrateBps ()Ljava/lang/Long;
 	public final fun getChapters ()Ljava/util/List;
@@ -1166,6 +1168,7 @@ public final class io/github/yuroyami/kiteffmpeg/MediaProbe {
 	public final fun getMetadata ()Ljava/util/Map;
 	public final fun getPrimaryAudio ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
 	public final fun getPrimaryVideo ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getPrograms ()Ljava/util/List;
 	public final fun getStartTimeMicros ()J
 	public final fun getStreams ()Ljava/util/List;
 	public fun hashCode ()I
@@ -1214,6 +1217,7 @@ public final class io/github/yuroyami/kiteffmpeg/MediaSource : java/lang/AutoClo
 	public final fun getMetadata ()Ljava/util/Map;
 	public final fun getPrimaryAudio ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
 	public final fun getPrimaryVideo ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getPrograms ()Ljava/util/List;
 	public final fun getStartTimeMicros ()J
 	public final fun getStreamDivergences ()Ljava/util/List;
 	public final fun getStreams ()Ljava/util/List;
@@ -1312,6 +1316,26 @@ public final class io/github/yuroyami/kiteffmpeg/PixelFormat$Companion {
 	public final fun getYuv422p10le-OLR4av4 ()Ljava/lang/String;
 	public final fun getYuv444p-OLR4av4 ()Ljava/lang/String;
 	public final fun getYuv444p10le-OLR4av4 ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Program {
+	public fun <init> (ILjava/lang/Integer;Ljava/util/List;Ljava/util/Map;)V
+	public synthetic fun <init> (ILjava/lang/Integer;Ljava/util/List;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/lang/Integer;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun copy (ILjava/lang/Integer;Ljava/util/List;Ljava/util/Map;)Lio/github/yuroyami/kiteffmpeg/Program;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/Program;ILjava/lang/Integer;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Program;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()I
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getNumber ()Ljava/lang/Integer;
+	public final fun getServiceName ()Ljava/lang/String;
+	public final fun getServiceProvider ()Ljava/lang/String;
+	public final fun getStreamIndexes ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/Rational : java/lang/Comparable {

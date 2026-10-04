@@ -33,6 +33,13 @@ public expect class MediaSource : AutoCloseable {
     public val chapters: List<Chapter>
 
     /**
+     * The container's programmes, each a set of [streams] that play together, such as the channels
+     * of a transport stream multiplex. Empty when the container declares none, as MP4 and Matroska
+     * do not. Read when the source opens, like [streams]. See [Program].
+     */
+    public val programs: List<Program>
+
+    /**
      * The pre-open option keys FFmpeg did NOT consume on this open. Always empty for the plain
      * [open]; a non-empty list after an options open is a caller mistake worth reading back and
      * logging.

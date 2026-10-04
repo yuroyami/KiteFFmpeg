@@ -150,6 +150,8 @@ public actual class MediaSource internal constructor(
             }
         }
 
+    public actual val programs: List<Program> get() = emptyList()
+
     /**
      * The keys FFmpeg did not consume, which is a real answer now.
      *

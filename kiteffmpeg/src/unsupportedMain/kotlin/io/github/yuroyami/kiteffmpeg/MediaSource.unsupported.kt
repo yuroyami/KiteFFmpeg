@@ -16,6 +16,8 @@ public actual class MediaSource private constructor() : AutoCloseable {
         get() = placeholderBackendUnavailable("Reading media metadata")
     public actual val chapters: List<Chapter>
         get() = placeholderBackendUnavailable("Reading media chapters")
+    public actual val programs: List<Program>
+        get() = placeholderBackendUnavailable("Reading media programmes")
     public actual val unusedOpenOptions: List<String>
         get() = placeholderBackendUnavailable("Reading media open options")
     public actual val streamDivergences: List<StreamDivergence>

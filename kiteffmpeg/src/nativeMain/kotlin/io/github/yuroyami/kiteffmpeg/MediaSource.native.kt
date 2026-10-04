@@ -153,6 +153,7 @@ public actual class MediaSource internal constructor(
      */
     public actual val startTimeMicros: Long,
     public actual val chapters: List<Chapter> = emptyList(),
+    public actual val programs: List<Program> = emptyList(),
     public actual val unusedOpenOptions: List<String> = emptyList(),
     /**
      * Non-null exactly for custom-io opens: close then uses ffkmp_fmt_close_input_io,

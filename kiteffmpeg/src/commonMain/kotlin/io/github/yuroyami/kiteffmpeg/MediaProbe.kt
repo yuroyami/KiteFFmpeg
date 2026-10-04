@@ -31,6 +31,8 @@ public data class MediaProbe(
     val metadata: Map<String, String>,
     val chapters: List<Chapter>,
     val streams: List<StreamInfo>,
+    /** The programmes, each a set of [streams] that play together. Empty for most containers; see [Program]. */
+    val programs: List<Program> = emptyList(),
 ) {
     /**
      * The first video stream that is not cover art, which is what a thumbnail or a size wants. A file
@@ -83,4 +85,5 @@ private fun MediaSource.toProbe(): MediaProbe = MediaProbe(
     metadata = metadata,
     chapters = chapters,
     streams = streams,
+    programs = programs,
 )
