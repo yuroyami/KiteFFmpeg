@@ -16,9 +16,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to attach the chain zips to (chain-keyed, e.g. ass-chain-r2)."
+        description: "Release tag to attach the chain zips to (chain-keyed, e.g. ass-chain-r3)."
         required: true
-        default: "ass-chain-r2"
+        default: "ass-chain-r3"
 
 permissions:
   contents: read
@@ -103,6 +103,11 @@ jobs:
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           ./gradlew :kiteffmpeg:buildAssChainFor${{ matrix.task }} --stacktrace
+      # The one chain this runner can execute is tested before it is packaged; linux-x64 is tested
+      # from its zip in its own job below.
+      - name: Test the glyph fallback
+        if: matrix.target == 'macos-arm64'
+        run: bash scripts/test-ass-chain.sh macos-arm64
       - name: Package
         run: bash scripts/package-ass-chain.sh ${{ matrix.target }}
       - name: Upload build artifact
@@ -115,9 +120,27 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # The Linux chain is cross-built on macOS, so it is run here, from the very zip that is attached.
+  test-linux:
+    name: Test linux-x64
+    needs: chains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ass-chain-linux-x64
+          path: dist
+      - name: Test the glyph fallback
+        run: |
+          mkdir -p native-libs/deps/linux-x64/ass-chain
+          unzip -q dist/ass-chain-linux-x64.zip -d native-libs/deps/linux-x64/ass-chain
+          bash scripts/test-ass-chain.sh linux-x64
+
   release:
     name: Attach to ${{ github.event.inputs.release_tag }}
-    needs: chains
+    needs: [chains, test-linux]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

@@ -26,6 +26,12 @@ import java.nio.file.Files
  * [SOURCES] at `vendor/{fribidi,freetype,harfbuzz,libass}`, each holding exactly its pinned commit
  * with nothing changed, added or ignored in it (#145). Builds happen in a scratch directory because
  * this repo lives under `#Kite`, a path pkg-config and autotools cannot be trusted with.
+ *
+ * The patches under `native/patches/libass` ([sourcePatches]) are applied to the scratch copy of
+ * libass before configure, and listed with their digests in `lib/kiteffmpeg/libass-patches.txt`,
+ * which `scripts/package-ass-chain.sh` checks against the repository, so a chain built before a
+ * patch changed reads as stale rather than shipping. The first one gives a build with no system
+ * font provider a glyph fallback through the loaded fonts (#152).
  */
 abstract class BuildAssChainTask : DefaultTask() {
 
@@ -43,6 +49,14 @@ abstract class BuildAssChainTask : DefaultTask() {
     @get:Input
     val sourceState: String
         get() = sourcesState(vendorDir.get().asFile)
+
+    /**
+     * Committed patches from `native/patches/libass`, applied in name order to the scratch copy of
+     * libass, exactly as `BuildFFmpegTask` applies its own. Content-tracked, so editing one rebuilds.
+     */
+    @get:org.gradle.api.tasks.InputFiles
+    @get:org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+    abstract val sourcePatches: org.gradle.api.file.ConfigurableFileCollection
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -160,6 +174,8 @@ abstract class BuildAssChainTask : DefaultTask() {
     ) {
         val source = scratch.resolve("src-libass")
         copyTreeKeepingExecutableBits(vendor.resolve("libass"), source)
+        val patches = BuildFFmpegTask.orderedPatches(sourcePatches.files)
+        patches.forEach { patch -> runIn(source, BuildFFmpegTask.patchCommand(patch), env) }
         val fullEnv = env + toolchainEnv(target, scratch)
         runIn(source, listOf("autoreconf", "-ivf"), fullEnv)
         val configure = mutableListOf(
@@ -179,6 +195,7 @@ abstract class BuildAssChainTask : DefaultTask() {
         runIn(build, configure, fullEnv)
         runIn(build, listOf("make", "-j${Runtime.getRuntime().availableProcessors()}"), fullEnv)
         runIn(build, listOf("make", "install"), fullEnv)
+        BuildFFmpegTask.writePatchEvidence(patches, install.toPath(), LIBASS_PATCH_EVIDENCE, "libass")
     }
 
     /**
@@ -536,6 +553,9 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
             TargetTriple.LinuxX64, TargetTriple.LinuxArm64, TargetTriple.MingwX64,
         )
 
+        /** Where under the install's `lib/kiteffmpeg` the applied libass patches are listed. */
+        const val LIBASS_PATCH_EVIDENCE = "libass-patches.txt"
+
         /** The chain this repo builds by default; mpv-android ships the same series. */
         const val DEFAULT_SOURCE_REFS = "fribidi-1.0.17 freetype-2.14.3 harfbuzz-14.5.0 libass-0.17.5"
 
@@ -569,8 +589,9 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
                 VendoredCheckout.requirePristine(
                     vendor.resolve(source.name),
                     source,
-                    "This repository builds the libass chain exactly as released and carries no " +
-                        "patches for it, so each checkout has to be its pinned commit and nothing else.",
+                    "This repository builds the libass chain from its pinned releases and applies " +
+                        "its patches under native/patches/libass to a scratch copy, so each checkout " +
+                        "has to be its pinned commit and nothing else.",
                 )
             }
         }

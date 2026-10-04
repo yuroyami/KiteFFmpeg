@@ -1218,13 +1218,20 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             listOf("/usr/bin/patch", "-p1", "--forward", "--fuzz=0", "-i", patch.absolutePath)
 
         /**
-         * Writes `lib/kiteffmpeg/ffmpeg-patches.txt` under [install]: the patches applied, in order,
-         * each with its SHA-256, or `(none)`. The bill of materials checks it against the repository.
+         * Writes `lib/kiteffmpeg/<fileName>` under [install]: the patches applied to [library], in
+         * order, each with its SHA-256, or `(none)`. For FFmpeg that is `ffmpeg-patches.txt`, which
+         * the bill of materials checks against the repository; the libass chain writes
+         * `libass-patches.txt`, which `scripts/package-ass-chain.sh` checks the same way.
          */
-        internal fun writePatchEvidence(patches: List<File>, install: Path) {
+        internal fun writePatchEvidence(
+            patches: List<File>,
+            install: Path,
+            fileName: String = "ffmpeg-patches.txt",
+            library: String = "FFmpeg",
+        ) {
             val evidenceDir = install.resolve("lib/kiteffmpeg").also(Files::createDirectories)
             val lines = buildString {
-                appendLine("# Source patches applied to the scratch FFmpeg before configure, in order.")
+                appendLine("# Source patches applied to the scratch $library before configure, in order.")
                 if (patches.isEmpty()) appendLine("(none)")
                 patches.forEach { p ->
                     val digest = java.security.MessageDigest.getInstance("SHA-256")
@@ -1232,7 +1239,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
                     appendLine("${p.name}  sha256=$sha")
                 }
             }
-            Files.writeString(evidenceDir.resolve("ffmpeg-patches.txt"), lines, UTF_8)
+            Files.writeString(evidenceDir.resolve(fileName), lines, UTF_8)
         }
 
         internal fun writeConfigureEvidence(configLog: Path, install: Path) {

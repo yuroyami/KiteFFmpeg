@@ -63,7 +63,9 @@ A build checks each checkout before it compiles anything. It must hold the commi
 which the build task pins beside the tag, with nothing changed, added or ignored in it, and the
 build stops and names whatever differs. A change to FFmpeg belongs in a patch under
 `native/patches/ffmpeg`, which every build applies to its own copy of the source and records.
-dav1d and the libass chain carry no patches.
+A change to libass belongs under `native/patches/libass`, applied and recorded the same way, and
+`scripts/package-ass-chain.sh` refuses a chain whose record differs from that folder. dav1d,
+FreeType, HarfBuzz and FriBidi carry no patches.
 
 Every profile is portable as of 2026-08-22: no third-party media libraries are needed on any target,
 which is why that `brew install` line is three packages rather than eleven. **There is no

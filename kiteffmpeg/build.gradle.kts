@@ -878,6 +878,8 @@ fun registerBuildAssChain(triple: TargetTriple) =
         target = triple
         sourceRefs = io.github.yuroyami.kiteffmpeg.buildtools.BuildAssChainTask.DEFAULT_SOURCE_REFS
         vendorDir.set(rootDir.resolve("vendor"))
+        // Committed libass patches, applied to the scratch copy before configure (#152).
+        sourcePatches.from(fileTree(rootDir.resolve("native/patches/libass")) { include("*.patch") })
         outputDir.set(rootDir.resolve("native-libs/deps/${triple.dirName}/ass-chain"))
     }
 
@@ -888,6 +890,7 @@ io.github.yuroyami.kiteffmpeg.buildtools.BuildAssChainTask.SUPPORTED_TARGETS.for
 tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.BuildAssChainWasmTask>("buildAssChainForWasm32") {
     sourceRefs = io.github.yuroyami.kiteffmpeg.buildtools.BuildAssChainTask.DEFAULT_SOURCE_REFS
     vendorDir.set(rootDir.resolve("vendor"))
+    sourcePatches.from(fileTree(rootDir.resolve("native/patches/libass")) { include("*.patch") })
     outputDir.set(rootDir.resolve("native-libs/deps/wasm32/ass-chain"))
 }
 

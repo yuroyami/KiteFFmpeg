@@ -39,6 +39,11 @@ abstract class BuildAssChainWasmTask : DefaultTask() {
     val sourceState: String
         get() = BuildAssChainTask.sourcesState(vendorDir.get().asFile)
 
+    /** The patches from `native/patches/libass`, applied to libass as [BuildAssChainTask] applies them. */
+    @get:org.gradle.api.tasks.InputFiles
+    @get:org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+    abstract val sourcePatches: org.gradle.api.file.ConfigurableFileCollection
+
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
@@ -128,6 +133,8 @@ abstract class BuildAssChainWasmTask : DefaultTask() {
 
             val source = scratch.resolve("src-libass")
             copyTreeKeepingExecutableBits(vendor.resolve("libass"), source)
+            val patches = BuildFFmpegTask.orderedPatches(sourcePatches.files)
+            patches.forEach { patch -> runIn(source, BuildFFmpegTask.patchCommand(patch), env) }
             val toolchain = env + mapOf(
                 "CC" to emcc, "CXX" to emxx, "AR" to emar, "RANLIB" to emranlib,
                 // configure's link probes must not try to produce and run a native binary.
@@ -149,6 +156,9 @@ abstract class BuildAssChainWasmTask : DefaultTask() {
             )
             runIn(build, listOf("make", "-j${Runtime.getRuntime().availableProcessors()}"), toolchain)
             runIn(build, listOf("make", "install"), toolchain)
+            BuildFFmpegTask.writePatchEvidence(
+                patches, install.toPath(), BuildAssChainTask.LIBASS_PATCH_EVIDENCE, "libass",
+            )
 
             listOf("libfribidi.a", "libfreetype.a", "libharfbuzz.a", "libass.a").forEach { archive ->
                 check(install.resolve("lib/$archive").isFile) { "the wasm chain build produced no lib/$archive" }

@@ -1,0 +1,85 @@
+Fall back to a loaded font that has the character before the default font file.
+
+ass_font_select looks for a character in the style's family, then the default family, then asks the
+default provider for a fallback family, then hands back the default font file without checking it.
+Only a system provider can answer the fallback, and fonts added with ass_add_font or read from the
+fonts directory belong to no provider that has one, so they never take part in it. A build without
+a system provider, as on Android, Linux without fontconfig and the web, therefore draws a box for
+every character the style's font and the default family lack, even when another loaded font has
+it, and that is how Chinese, Japanese, Korean, Thai and Arabic lines in a script naming a font the
+device lacks turn into boxes. Where a provider exists, the same fonts are still never tried.
+
+After the provider's fallback fails, and before the default font file, ass_font_select now takes
+the first font in loading order whose provider has no fallback of its own and which has the
+character, and selects the best match for the style's weight and slant inside that font's family
+that also has it, the way a provider's fallback family is used. It runs only for a real character,
+never for the first face a style opens, so the font a style starts from does not change, and a
+provider's own fonts are not searched a second time.
+
+Applied by BuildAssChainTask and BuildAssChainWasmTask before configure.
+
+diff --git a/libass/ass_fontselect.c b/libass/ass_fontselect.c
+index 2303876..e2b0607 100644
+--- a/libass/ass_fontselect.c
++++ b/libass/ass_fontselect.c
+@@ -871,6 +871,43 @@ static char *select_font(ASS_FontSelector *priv,
+ }
+ 
+ 
++/**
++ * \brief Find a font for a character that the style's family, the default
++ * family and the default provider's own fallback all lack, among the fonts
++ * no fallback search covers: those of a provider without get_fallback, in
++ * practice the fonts added with ass_add_font or read from the fonts dir.
++ * The first such font in loading order that has the character names the
++ * family, and the best match for the style inside that family which also
++ * has it is selected, the way a provider's fallback family is used.
++ */
++static char *select_loaded_fallback(ASS_FontSelector *priv,
++                                    unsigned bold, unsigned italic,
++                                    int *index, char **postscript_name,
++                                    int *uid, ASS_FontStream *stream,
++                                    uint32_t code)
++{
++    for (int x = 0; x < priv->n_font; x++) {
++        ASS_FontInfo *font = &priv->font_infos[x];
++        if (font->provider->funcs.get_fallback || !font->n_family)
++            continue;
++        if (!check_glyph(font, code))
++            continue;
++
++        char *family = font->families[0];
++        ASS_FontProviderMetaData meta = {
++            .n_fullname = 1,
++            .fullnames  = &family,
++        };
++        bool name_match = false;
++        char *res = find_font(priv, meta, false, bold, italic, index,
++                              postscript_name, uid, stream, code, &name_match);
++        if (res)
++            return res;
++    }
++
++    return NULL;
++}
++
+ /**
+  * \brief Find a font. Use default family or path if necessary.
+  * \param family font family
+@@ -919,6 +956,16 @@ char *ass_font_select(ASS_FontSelector *priv,
+         }
+     }
+ 
++    if (!res && code) {
++        res = select_loaded_fallback(priv, bold, italic, index,
++                postscript_name, uid, data, code);
++        if (res)
++            ass_msg(priv->library, MSGL_WARN, "fontselect: Using a loaded "
++                    "font with glyph 0x%X: (%s, %d, %d) -> %s, %d, %s",
++                    code, family, bold, italic, res, *index,
++                    *postscript_name ? *postscript_name : "(none)");
++    }
++
+     if (!res && priv->path_default) {
+         res = priv->path_default;
+         *index = priv->index_default;

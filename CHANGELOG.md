@@ -216,6 +216,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- In the subtitle chain that KitePlayer links, the `ass-chain` release assets, a character that the
+  style's font and the default family both lack is drawn from a loaded font that has it (#152). A
+  chain with no system font provider, which is Android, Linux and the web, drew an empty box for
+  it even when another font added from memory had it, so Chinese, Japanese, Korean, Thai or Arabic
+  text in a script naming a font the device lacks came out as boxes. The fix is the libass patch
+  `0001-fontselect-fall-back-to-a-loaded-font-with-the-glyph.patch`: after the provider's own
+  fallback, libass takes the first loaded font with the character and the face of its family that
+  best fits the style. It reaches a platform only with a chain built from it, and the
+  `ass-chain-r2` assets do not carry it.
 - On the web, a failed open, stream discovery, decoder open or subtitle decoder open is typed by the
   code FFmpeg returned, as on the JVM and native (#171). The open was always `InvalidData`, so a
   source that threw read as invalid data rather than `Io`, the stream discovery and the decoder

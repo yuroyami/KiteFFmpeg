@@ -12,11 +12,27 @@
 # (LGPL-2.1-or-later). The archives are stripped of timestamps and ordered, so the same install
 # produces the same bytes and the pin in KitePlayer's kiteplayer-libass/ass-chain.sha256 holds.
 #
+# A chain is packaged only when the libass patches it lists in lib/kiteffmpeg/libass-patches.txt are
+# exactly those under native/patches/libass, byte for byte, so a chain built before a patch was
+# added or changed is refused rather than shipped (#152). CHAIN.txt in the zip names them too.
+#
 # Attach the zips to the release named by kiteplayer-libass/build.gradle.kts (assChainReleaseTag),
-# for example:  gh release create ass-chain-r2 dist/ass-chain-*.zip dist/ass-chain-*.sha256
+# for example:  gh release create ass-chain-r3 dist/ass-chain-*.zip dist/ass-chain-*.sha256
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+export LC_ALL=C
+
+# The patch list a chain built from this checkout carries, in the form BuildAssChainTask writes it.
+expected_patches="$(
+  found=0
+  for patch in native/patches/libass/*.patch; do
+    [ -f "${patch}" ] || continue
+    found=1
+    echo "$(basename "${patch}")  sha256=$(shasum -a 256 "${patch}" | cut -d' ' -f1)"
+  done
+  [ "${found}" = 1 ] || echo "(none)"
+)"
 
 if [ "${1:-}" = "" ]; then
   echo "usage: $0 <target> [<target> ...] | --all" >&2
@@ -41,6 +57,19 @@ for target in "${targets[@]}"; do
     fi
   done
   [ -f "${src}/include/ass/ass.h" ] || { echo "::error::${src}/include/ass/ass.h is missing" >&2; exit 1; }
+  evidence="${src}/lib/kiteffmpeg/libass-patches.txt"
+  if [ ! -f "${evidence}" ]; then
+    echo "::error::${evidence} is missing, so this chain was built before its libass patches were recorded; rebuild it with :kiteffmpeg:buildAssChainFor<Target>" >&2
+    exit 1
+  fi
+  if [ "$(grep -v '^#' "${evidence}")" != "${expected_patches}" ]; then
+    echo "::error::${src} was built with other libass patches than native/patches/libass holds; rebuild it" >&2
+    echo "built with:" >&2
+    grep -v '^#' "${evidence}" | sed 's/^/  /' >&2
+    echo "the repository has:" >&2
+    echo "${expected_patches}" | sed 's/^/  /' >&2
+    exit 1
+  fi
 
   stage="$(mktemp -d)"
   trap 'rm -rf "${stage}"' EXIT
@@ -59,6 +88,8 @@ for target in "${targets[@]}"; do
     for name in fribidi freetype harfbuzz libass; do
       echo "  ${name} $(git -C "vendor/${name}" describe --tags --always 2>/dev/null || echo unknown)"
     done
+    echo "with these patches to libass, from native/patches/libass:"
+    echo "${expected_patches}" | sed 's/^/  /'
   } > "${stage}/CHAIN.txt"
 
   out="dist/ass-chain-${target}.zip"
