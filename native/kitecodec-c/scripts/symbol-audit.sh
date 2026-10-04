@@ -207,10 +207,16 @@ abi_is_newer_than() {
 # _memmove joined 2026-09-29 with the AES-128 reader of the nested opener in src/helpers_format.c.
 # After each decrypt step the ciphertext not yet decrypted, at most 31 bytes, moves to the front of
 # its buffer, and the two ranges can overlap, so memcpy would be wrong there.
+# _pthread_mutex_lock and _pthread_mutex_unlock joined 2026-10-04 with the packets a keyframe seek
+# reads and hands back to the next reads of its input, in src/helpers_format.c (#155). They live in
+# one process-wide list keyed by input, because the seek and the read are separate calls that
+# carry nothing between them but the AVFormatContext, and two inputs may be read on two threads at
+# once. The lock is taken only while the list is not empty, which an atomic count answers first,
+# so an input that never seeks backward never touches it.
 ALLOWED_UNDEFINED="_memcpy _snprintf _strstr _bzero ___stack_chk_fail ___stack_chk_guard __tlv_bootstrap
 _pthread_once _getenv _fputs ___stderrp _strcmp _strlen ___memcpy_chk _kc_init
 _pthread_key_create _pthread_getspecific _pthread_setspecific _pow _exp _ffkmp_frame_convert_pixfmt
-_memmove"
+_memmove _pthread_mutex_lock _pthread_mutex_unlock"
 
 # Calls that must never appear. A library does not print, does not log through its host's logger,
 # and does not reach into an Apple runtime from portable C. The av_log patterns name the logging
@@ -329,7 +335,7 @@ echo "3. exported symbols are exactly the KC_API declarations of the two headers
 # Test-only seams. build-host.sh compiles them under KC_TESTING into the host test archive and into
 # nothing else, so a host audit sets them aside by name before checks 3 and 6. The same name in a
 # shipped archive is a failure: it would mean KC_TESTING reached a real build.
-TEST_SEAMS="_kc_test_force_gate_status"
+TEST_SEAMS="_kc_test_force_gate_status _kc_test_held_contexts"
 for seam in $TEST_SEAMS; do
     grep -qx "$seam" "$WORK/external.txt" || continue
     if [ "$HOST" = 1 ]; then

@@ -197,9 +197,15 @@ else
     || { echo "FAIL: mpegts trim output starts at $off_start, expected ~0"; exit 1; }
 
   echo "== kiteffmpeg remux trim on the same nonzero-start container"
+  # A copy starts at the last keyframe at or before --ss (#155), so it runs the window plus up to
+  # one GOP, which is 1 s here. This file needs that whole GOP: its audio starts 23 ms before its
+  # video, AAC priming as the MP4 carried it, so --ss 1 falls 23 ms short of the keyframe at 1 s
+  # of video and the copy starts at the one before, about 2.1 s in all. A window placed without the
+  # start_time conversion would lie wholly before or after the file's packets, and one that ignored
+  # --to would run about 3 s.
   "$KEXE" remux "$WORK/offset.ts" "$WORK/offset_remux.mp4" --ss 1 --to 2
   offr_dur=$("$FFPROBE" -v error -show_entries format=duration -of csv=p=0 "$WORK/offset_remux.mp4")
-  awk -v d="$offr_dur" 'BEGIN { exit !(d > 0.8 && d < 1.6) }' \
+  awk -v d="$offr_dur" 'BEGIN { exit !(d > 0.8 && d < 2.3) }' \
     || { echo "FAIL: mpegts remux-trim duration $offr_dur outside keyframe-snap range"; exit 1; }
 fi
 
