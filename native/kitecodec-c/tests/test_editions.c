@@ -3,11 +3,12 @@
  * A Matroska file can carry several editions, each with its own chapters, such as a theatrical and
  * an extended cut, and RFC 9559 makes one of them the default: the first flagged default, or the
  * first when none is. A hidden chapter is not shown, the content of a disabled chapter is skipped,
- * and a chapter with a ChapterSegmentUUID plays a range of another segment. FFmpeg's Matroska
- * reader put every edition's chapters into one list and kept each that started later than the last
- * it kept, hidden, disabled and linked ones included. The patch
- * 0013-matroska-take-the-chapters-of-the-default-edition makes the chapter list the default
- * edition's, without those three kinds.
+ * and in an ordered edition a chapter with a ChapterSegmentUUID plays a range of another segment;
+ * in any other edition that link is only information. FFmpeg's Matroska reader put every edition's
+ * chapters into one list and kept each that started later than the last it kept, hidden, disabled
+ * and linked ones included. The patch 0013-matroska-take-the-chapters-of-the-default-edition makes
+ * the chapter list the default edition's, without its hidden and disabled chapters and without an
+ * ordered edition's links.
  *
  * Each case writes its own file with the small EBML writer below: an EBML header, and a segment
  * with an Info, one subtitle track, the case's Chapters and Tags, and one cluster holding one block.
@@ -151,6 +152,7 @@ static void put_master(Ebml *b, uint32_t id, const Ebml *child)
 #define ID_EDITIONENTRY         0x45B9
 #define ID_EDITIONUID           0x45BC
 #define ID_EDITIONFLAGDEFAULT   0x45DB
+#define ID_EDITIONFLAGORDERED   0x45DD
 #define ID_CHAPTERATOM          0xB6
 #define ID_CHAPTERUID           0x73C4
 #define ID_CHAPTERTIMESTART     0x91
@@ -193,12 +195,13 @@ static const uint8_t other_uid[16] = {
 };
 
 /* Appends an EditionEntry to chapters. flag_default is 1 or 0 to write EditionFlagDefault, or -1 to
- * leave it to its default, which is 0. */
-static void put_edition(Ebml *chapters, uint64_t uid, int flag_default, const Atom *atoms, int n)
+ * leave it to its default, which is 0, and ordered writes EditionFlagOrdered 1 when it is set. */
+static void put_edition(Ebml *chapters, uint64_t uid, int flag_default, int ordered, const Atom *atoms, int n)
 {
     Ebml edition = { .size = 0 };
     put_uint(&edition, ID_EDITIONUID, uid);
     if (flag_default >= 0) put_uint(&edition, ID_EDITIONFLAGDEFAULT, (uint64_t)flag_default);
+    if (ordered) put_uint(&edition, ID_EDITIONFLAGORDERED, 1);
     for (int i = 0; i < n; i++) {
         Ebml atom = { .size = 0 }, display = { .size = 0 };
         put_uint(&atom, ID_CHAPTERUID, atoms[i].uid);
@@ -319,7 +322,7 @@ static void case_one_plain_edition_reads_as_it_always_did(void)
         { 2, 3000, 0, -1, NULL, "Second" },
     };
     Ebml chapters = { .size = 0 };
-    put_edition(&chapters, 100, -1, plain, 2);
+    put_edition(&chapters, 100, -1, 0, plain, 2);
     check_chapters(NULL, &chapters, "1@0 2@3000");
 }
 
@@ -327,8 +330,8 @@ static void case_the_edition_flagged_default_is_read_alone(void)
 {
     kc_case("the first edition flagged default is read without the other one or its hidden chapter");
     Ebml chapters = { .size = 0 };
-    put_edition(&chapters, 1001, 1, theatrical, 3);
-    put_edition(&chapters, 1002, -1, extended, 3);
+    put_edition(&chapters, 1001, 1, 0, theatrical, 3);
+    put_edition(&chapters, 1002, -1, 0, extended, 3);
     check_chapters(NULL, &chapters, "11@0 12@2000");
 }
 
@@ -336,8 +339,8 @@ static void case_a_later_edition_flagged_default_wins(void)
 {
     kc_case("the second edition flagged default is read even though it comes second");
     Ebml chapters = { .size = 0 };
-    put_edition(&chapters, 1001, 0, theatrical, 3);
-    put_edition(&chapters, 1002, 1, extended, 3);
+    put_edition(&chapters, 1001, 0, 0, theatrical, 3);
+    put_edition(&chapters, 1002, 1, 0, extended, 3);
     check_chapters(NULL, &chapters, "21@0 22@1000 23@5000");
 }
 
@@ -345,14 +348,14 @@ static void case_with_no_default_the_first_edition_is_read(void)
 {
     kc_case("with no edition flagged default the first one is read");
     Ebml chapters = { .size = 0 };
-    put_edition(&chapters, 1001, -1, theatrical, 3);
-    put_edition(&chapters, 1002, -1, extended, 3);
+    put_edition(&chapters, 1001, -1, 0, theatrical, 3);
+    put_edition(&chapters, 1002, -1, 0, extended, 3);
     check_chapters(NULL, &chapters, "11@0 12@2000");
 }
 
 static void case_disabled_and_linked_chapters_are_left_out(void)
 {
-    kc_case("a disabled chapter and one linked to another segment are left out");
+    kc_case("a disabled chapter and one an ordered edition links to another segment are left out");
     /* The chapter that names this segment's own UID breaks the specification, and names this one. */
     static const Atom flagged[] = {
         { 31, 0, 0, -1, NULL, "Own one" },
@@ -362,7 +365,7 @@ static void case_disabled_and_linked_chapters_are_left_out(void)
         { 35, 4500, 0, 1, NULL, "Own two" },
     };
     Ebml chapters = { .size = 0 };
-    put_edition(&chapters, 1003, -1, flagged, 5);
+    put_edition(&chapters, 1003, -1, 1, flagged, 5);
     check_chapters(own_uid, &chapters, "31@0 34@3500 35@4500");
 }
 
@@ -374,16 +377,29 @@ static void case_a_link_without_a_segment_uid_of_its_own_is_another_segment(void
         { 42, 1000, 0, -1, own_uid, "Linked" },
     };
     Ebml chapters = { .size = 0 };
-    put_edition(&chapters, 1004, -1, linked, 2);
+    put_edition(&chapters, 1004, -1, 1, linked, 2);
     check_chapters(NULL, &chapters, "41@0");
+}
+
+static void case_a_link_in_an_edition_that_is_not_ordered_marks_this_segment(void)
+{
+    kc_case("a chapter linked to another segment in an edition that is not ordered is listed");
+    /* RFC 9559 section 20.1.3: with simple chapters the link is only information. */
+    static const Atom linked[] = {
+        { 51, 0, 0, -1, NULL, "Own" },
+        { 52, 1000, 0, -1, other_uid, "Linked" },
+    };
+    Ebml chapters = { .size = 0 };
+    put_edition(&chapters, 1005, -1, 0, linked, 2);
+    check_chapters(own_uid, &chapters, "51@0 52@1000");
 }
 
 static void case_a_tag_finds_its_chapter_in_the_default_edition(void)
 {
     kc_case("a tag that targets a chapter of the default edition reaches it");
     Ebml chapters = { .size = 0 }, tags = { .size = 0 }, tag = { .size = 0 }, part = { .size = 0 };
-    put_edition(&chapters, 1001, -1, extended, 3);
-    put_edition(&chapters, 1002, 1, theatrical, 3);
+    put_edition(&chapters, 1001, -1, 0, extended, 3);
+    put_edition(&chapters, 1002, 1, 0, theatrical, 3);
     put_uint(&part, ID_TAGCHAPTERUID, 12);
     put_master(&tag, ID_TARGETS, &part);
     part.size = 0;
@@ -426,6 +442,7 @@ int main(void)
     case_with_no_default_the_first_edition_is_read();
     case_disabled_and_linked_chapters_are_left_out();
     case_a_link_without_a_segment_uid_of_its_own_is_another_segment();
+    case_a_link_in_an_edition_that_is_not_ordered_marks_this_segment();
     case_a_tag_finds_its_chapter_in_the_default_edition();
 
     return kc_suite_end();

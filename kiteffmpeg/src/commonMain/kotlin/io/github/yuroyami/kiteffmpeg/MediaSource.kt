@@ -67,8 +67,9 @@ public expect class MediaSource : AutoCloseable {
      * A Matroska file can hold several editions of its chapters, such as a theatrical and an
      * extended cut. This is the default edition's, as RFC 9559 defines it: the first one flagged
      * default, or the first one when none is. Of those it holds the top-level chapters a viewer is
-     * meant to see that play this file, leaving out a hidden or disabled chapter and one that
-     * plays another file.
+     * meant to see, leaving out a hidden or disabled chapter, and, when the edition is ordered, a
+     * chapter that plays another file. In an edition that is not ordered such a link is only
+     * information and the chapter marks this file.
      */
     public val chapters: List<Chapter>
 

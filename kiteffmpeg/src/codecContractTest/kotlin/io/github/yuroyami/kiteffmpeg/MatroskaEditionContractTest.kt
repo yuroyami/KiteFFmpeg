@@ -11,8 +11,9 @@ import kotlin.test.assertEquals
  * RFC 9559 makes the first one flagged default the one a player uses, or the first one when none is.
  * FFmpeg 9.0.2 read the chapters of every edition into one list and kept each that started later
  * than the one before it, so this file read as two chapters of its first edition and the last of its
- * second. It also listed a hidden chapter, a disabled one, and one that plays another file at that
- * file's times. The fix is the FFmpeg patch `0013`, so this test fails on a tree built before it.
+ * second. It also listed a hidden chapter, a disabled one, and one that an ordered edition plays from
+ * another file, at that file's times. The fix is the FFmpeg patch `0013`, so this test fails on a
+ * tree built before it.
  */
 class MatroskaEditionContractTest {
 
@@ -37,26 +38,27 @@ class MatroskaEditionContractTest {
 
 /**
  * One six second SRT cue in Matroska, written by `mkvmerge --deterministic 172` with the segment
- * UID a0 a1 ... af and two editions. The first, not flagged default, has chapters 11 at 0 s and 12 at
- * 3 s. The second is flagged default and has six: 21 "Opening" from 0 to 1 s; 22 hidden; 23
- * disabled; 24 linked to another segment's UID, from 0 to 5 s of that file; 25 "Story" from 2 to 4 s,
- * whose ChapterSegmentUUID names this segment, which the specification forbids and which therefore
- * reads as this file, and which a tag gives the ARTIST "Someone"; and 26 "Credits" from 4 s. FFmpeg
- * 9.0.2 lists 11, 12 and 26, and drops the tag with a warning that its chapter does not exist.
+ * UID a0 a1 ... af and two editions. The first, not flagged default, has chapters 11 at 0 s and 12
+ * at 3 s. The second is flagged default and ordered, and has six: 21 "Opening" from 0 to 1 s; 22
+ * hidden; 23 disabled; 24 linked to another segment's UID, from 0 to 5 s of that file; 25 "Story"
+ * from 2 to 4 s, whose ChapterSegmentUUID names this segment, which the specification forbids and
+ * which therefore reads as this file, and which a tag gives the ARTIST "Someone"; and 26 "Credits"
+ * from 4 to 6 s. FFmpeg 9.0.2 lists 11, 12 and 26, and drops the tag with a warning that its chapter
+ * does not exist.
  */
 private object EditionsMatroska {
-    const val sha256: String = "da7dcc77a11df4de8687e678b94c43157dc70b55aba6618810741fe28b249bdb"
+    const val sha256: String = "7573bda98eedbd24afac545ae3bb55a85ea692fded8f6045c543804071b8c659"
 
     val bytes: ByteArray by lazy {
         decodeBase64(DATA.filterNot { it.isWhitespace() }).also { decoded ->
-            check(decoded.size == 5986) { "EditionsMatroska fixture size changed: ${decoded.size}" }
+            check(decoded.size == 5997) { "EditionsMatroska fixture size changed: ${decoded.size}" }
             check(sha256Hex(decoded) == sha256) { "EditionsMatroska fixture digest changed" }
         }
     }
 
     private val DATA: String = """
-GkXfo6NChoEBQveBAULygQRC84EIQoKIbWF0cm9za2FCh4EEQoWBARhTgGcBAAAAAAAXLhFNm3TLTbuMU6uEFUmpZlOsghADTbuM
-U6uEFlSua1OsghCBTbuMU6uEHFO7a1OsghbpTbuMU6uEElTDZ1OsghcDTbuMU6uEEEOncFOsghTf7E+wAAAAAAAAAAAAAAAAAAAA
+GkXfo6NChoEBQveBAULygQRC84EIQoKIbWF0cm9za2FCh4EEQoWBARhTgGcBAAAAAAAXORFNm3TLTbuMU6uEFUmpZlOsghADTbuM
+U6uEFlSua1OsghCBTbuMU6uEHFO7a1Osghb0TbuMU6uEElTDZ1OsghcOTbuMU6uEEEOncFOsghTf7E+wAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -127,13 +129,13 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBDp3BB
-hEW51EW8ggPptqRzxIELkYEAgJuFjlRoZWF0cmljYWwgb25lQ3yDZW5nQ32CZW62p3PEgQyRhLLQXgCAm4WOVGhlYXRyaWNhbCB0
-d29DfINlbmdDfYJlbkW5QSlFvIID6kXbgQG2o3PEgRWRgQCShDuaygCAlIWHT3BlbmluZ0N8g2VuZ0N9gmVutqhzxIEWkYQ7msoA
-koRZaC8AmIEBgJOFhkhpZGRlbkN8g2VuZ0N9gmVutqtzxIEXkYRZaC8AkoR3NZQARZiBAICVhYhEaXNhYmxlZEN8g2VuZ0N9gmVu
-tsdzxIEYkYEAkoUBKgXyAG5nkAECAwQFBgcICQoLDA0ODxCApIWXUmVjYXAgZnJvbSBhbm90aGVyIGZpbGVDfINlbmdDfYJlbra3
-c8SBGZGEdzWUAJKE7msoAG5nkKChoqOkpaanqKmqq6ytrq+AkoWFU3RvcnlDfINlbmdDfYJlbragc8SBGpGE7msoAICUhYdDcmVk
-aXRzQ3yDZW5nQ32CZW7s5QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH0O2dZTngQCgj6GJgQAAAEhlbGxvm4IXcBxTu2uVu5Oz
-gQC3jveBAfGCFtDwgQOyghdwElTDZ6Zzc6NjwIRjxIEZZ8iZRaOGQVJUSVNURIeHU29tZW9uZUR7g3VuZA==
+j0W51EW8ggPptqRzxIELkYEAgJuFjlRoZWF0cmljYWwgb25lQ3yDZW5nQ32CZW62p3PEgQyRhLLQXgCAm4WOVGhlYXRyaWNhbCB0
+d29DfINlbmdDfYJlbkW5QTRFvIID6kXbgQFF3YEBtqNzxIEVkYEAkoQ7msoAgJSFh09wZW5pbmdDfINlbmdDfYJlbraoc8SBFpGE
+O5rKAJKEWWgvAJiBAYCThYZIaWRkZW5DfINlbmdDfYJlbrarc8SBF5GEWWgvAJKEdzWUAEWYgQCAlYWIRGlzYWJsZWRDfINlbmdD
+fYJlbrbHc8SBGJGBAJKFASoF8gBuZ5ABAgMEBQYHCAkKCwwNDg8QgKSFl1JlY2FwIGZyb20gYW5vdGhlciBmaWxlQ3yDZW5nQ32C
+ZW62t3PEgRmRhHc1lACShO5rKABuZ5CgoaKjpKWmp6ipqqusra6vgJKFhVN0b3J5Q3yDZW5nQ32CZW62p3PEgRqRhO5rKACShQFl
+oLwAgJSFh0NyZWRpdHNDfINlbmdDfYJlbuzlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfQ7Z1lOeBAKCPoYmBAAAASGVsbG+b
+ghdwHFO7a5W7k7OBALeO94EB8YIW2/CBA7KCF3ASVMNnpnNzo2PAhGPEgRlnyJlFo4ZBUlRJU1REh4dTb21lb25lRHuDdW5k
 """
 }

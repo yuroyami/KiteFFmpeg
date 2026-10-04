@@ -3,8 +3,10 @@ Let the Matroska demuxer take its chapters from the default edition alone.
 A Matroska file can carry several editions, each with its own chapters, such as a theatrical and an
 extended cut, and RFC 9559 says a player uses the default one: the first edition flagged
 EditionFlagDefault, or the first edition when none is (section 20.1.2). It also says a hidden
-chapter is not shown, that the content of a disabled chapter is skipped, and that a chapter with a
-ChapterSegmentUUID plays a range of another segment, so its times are that segment's.
+chapter is not shown, that the content of a disabled chapter is skipped, and that in an ordered
+edition a chapter with a ChapterSegmentUUID plays a range of another segment, so its times are that
+segment's. In an edition that is not ordered the link is only information (section 20.1.3), and the
+chapter marks this segment like any other.
 
 The demuxer parsed every edition's ChapterAtoms into one list and skipped all three flags and the
 link, then made a chapter of each entry that started later than the last one it kept. A file with
@@ -14,7 +16,8 @@ means nothing in this one; stream discovery then ended a chapter where the other
 started.
 
 The chapters are now kept per edition, and the chapter list comes from the default edition alone,
-without the chapters that are hidden, disabled, or linked to another segment. The segment's own
+without the chapters that are hidden or disabled, or that an ordered edition links to another
+segment. The segment's own
 SegmentUUID is read so that a link naming it, which the specification forbids, still counts as this
 segment. A file with one edition and none of those flags reads exactly as before, and tags that
 target a chapter still find it whichever edition it is in. Nested chapters are still not read.
@@ -35,10 +38,10 @@ index f5de386..f93aceb 100644
  typedef enum {
    MATROSKA_TRACK_TYPE_NONE     = 0x0,
 diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
-index 95f3510..6d48970 100644
+index 95f3510..1730ba7 100644
 --- a/libavformat/matroskadec.c
 +++ b/libavformat/matroskadec.c
-@@ -314,10 +314,18 @@ typedef struct MatroskaChapter {
+@@ -314,10 +314,19 @@ typedef struct MatroskaChapter {
      uint64_t end;
      uint64_t uid;
      char    *title;
@@ -51,13 +54,14 @@ index 95f3510..6d48970 100644
  
 +typedef struct MatroskaEdition {
 +    uint64_t flag_default;
++    uint64_t flag_ordered;
 +    EbmlList chapters;
 +} MatroskaEdition;
 +
  typedef struct MatroskaIndexPos {
      uint64_t track;
      uint64_t pos;
-@@ -403,7 +411,8 @@ typedef struct MatroskaDemuxContext {
+@@ -403,7 +412,8 @@ typedef struct MatroskaDemuxContext {
      EbmlBin  date_utc;
      EbmlList tracks;
      EbmlList attachments;
@@ -67,7 +71,7 @@ index 95f3510..6d48970 100644
      EbmlList index;
      EbmlList tags;
      EbmlList seekhead;
-@@ -451,7 +460,7 @@ typedef struct MatroskaDemuxContext {
+@@ -451,7 +461,7 @@ typedef struct MatroskaDemuxContext {
  static EbmlSyntax ebml_syntax[3], matroska_segment[9], matroska_track_video_color[15], matroska_track_video[19],
                    matroska_track[34], matroska_track_encoding[6], matroska_track_encodings[2],
                    matroska_track_combine_planes[2], matroska_track_operation[2], matroska_block_addition_mapping[5], matroska_tracks[2],
@@ -76,7 +80,7 @@ index 95f3510..6d48970 100644
                    matroska_index_entry[3], matroska_index[2], matroska_tag[3], matroska_tags[2], matroska_seekhead[2],
                    matroska_blockadditions[2], matroska_blockgroup[8], matroska_cluster_parsing[8];
  
-@@ -479,7 +488,7 @@ static EbmlSyntax matroska_info[] = {
+@@ -479,7 +489,7 @@ static EbmlSyntax matroska_info[] = {
      { MATROSKA_ID_WRITINGAPP,    EBML_NONE },
      { MATROSKA_ID_MUXINGAPP,     EBML_UTF8, 0, 0, offsetof(MatroskaDemuxContext, muxingapp) },
      { MATROSKA_ID_DATEUTC,       EBML_BIN,  0, 0, offsetof(MatroskaDemuxContext, date_utc) },
@@ -85,7 +89,7 @@ index 95f3510..6d48970 100644
      CHILD_OF(matroska_segment)
  };
  
-@@ -676,24 +685,25 @@ static EbmlSyntax matroska_chapter_entry[] = {
+@@ -676,24 +686,25 @@ static EbmlSyntax matroska_chapter_entry[] = {
      { MATROSKA_ID_CHAPTERTIMEEND,     EBML_UINT, 0, 0, offsetof(MatroskaChapter, end),   { .u = AV_NOPTS_VALUE } },
      { MATROSKA_ID_CHAPTERUID,         EBML_UINT, 0, 0, offsetof(MatroskaChapter, uid) },
      { MATROSKA_ID_CHAPTERDISPLAY,     EBML_NEST, 0, 0,                        0,         { .n = matroska_chapter_display } },
@@ -105,8 +109,9 @@ index 95f3510..6d48970 100644
      { MATROSKA_ID_EDITIONUID,         EBML_NONE },
      { MATROSKA_ID_EDITIONFLAGHIDDEN,  EBML_NONE },
 -    { MATROSKA_ID_EDITIONFLAGDEFAULT, EBML_NONE },
+-    { MATROSKA_ID_EDITIONFLAGORDERED, EBML_NONE },
 +    { MATROSKA_ID_EDITIONFLAGDEFAULT, EBML_UINT, 0, 0, offsetof(MatroskaEdition, flag_default), { .u = 0 } },
-     { MATROSKA_ID_EDITIONFLAGORDERED, EBML_NONE },
++    { MATROSKA_ID_EDITIONFLAGORDERED, EBML_UINT, 0, 0, offsetof(MatroskaEdition, flag_ordered), { .u = 0 } },
      CHILD_OF(matroska_chapters)
  };
  
@@ -116,7 +121,7 @@ index 95f3510..6d48970 100644
      CHILD_OF(matroska_segment)
  };
  
-@@ -1881,14 +1891,17 @@ static void matroska_convert_tags(AVFormatContext *s)
+@@ -1881,14 +1892,17 @@ static void matroska_convert_tags(AVFormatContext *s)
                         i, tags[i].target.attachuid);
              }
          } else if (tags[i].target.chapteruid) {
@@ -141,7 +146,7 @@ index 95f3510..6d48970 100644
                  }
              }
              if (!found) {
-@@ -3424,12 +3437,36 @@ static int matroska_parse_dovi_streams(AVFormatContext *s)
+@@ -3424,12 +3438,37 @@ static int matroska_parse_dovi_streams(AVFormatContext *s)
      return 0;
  }
  
@@ -156,9 +161,10 @@ index 95f3510..6d48970 100644
 +    return matroska->editions.nb_elem ? &editions[0] : NULL;
 +}
 +
-+/* Whether a chapter plays another segment, so that its times are that segment's and not this one's.
-+ * A ChapterSegmentUUID equal to this segment's own UID breaks the specification and names this
-+ * segment. */
++/* Whether a chapter names another segment. In an ordered edition such a chapter plays that segment,
++ * so its times are that segment's and not this one's; in any other edition the link is only
++ * information and the chapter marks this segment (RFC 9559, section 20.1.3). A ChapterSegmentUUID
++ * equal to this segment's own UID breaks the specification and names this segment. */
 +static int matroska_chapter_is_linked(const MatroskaDemuxContext *matroska,
 +                                      const MatroskaChapter *chapter)
 +{
@@ -179,20 +185,21 @@ index 95f3510..6d48970 100644
      MatroskaAttachment *attachments;
      MatroskaChapter *chapters;
      uint64_t max_start = 0;
-@@ -3557,9 +3594,14 @@ static int matroska_read_header(AVFormatContext *s)
+@@ -3557,9 +3596,15 @@ static int matroska_read_header(AVFormatContext *s)
          }
      }
  
 -    chapters = chapters_list->elem;
 -    for (i = 0; i < chapters_list->nb_elem; i++)
 +    /* Only the default edition's chapters are this file's chapter list, and of those only the ones
-+     * that play this segment and that a viewer is meant to see. */
++     * that a viewer is meant to see and that play this segment, which leaves out an ordered
++     * edition's links to other segments. */
 +    edition  = matroska_default_edition(matroska);
 +    chapters = edition ? edition->chapters.elem : NULL;
 +    for (i = 0; edition && i < edition->chapters.nb_elem; i++)
          if (chapters[i].start != AV_NOPTS_VALUE && chapters[i].uid &&
 +            chapters[i].enabled && !chapters[i].hidden &&
-+            !matroska_chapter_is_linked(matroska, &chapters[i]) &&
++            !(edition->flag_ordered && matroska_chapter_is_linked(matroska, &chapters[i])) &&
              (max_start == 0 || chapters[i].start > max_start)) {
              chapters[i].chapter =
                  avpriv_new_chapter(s, chapters[i].uid,

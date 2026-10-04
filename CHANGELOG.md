@@ -220,9 +220,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   hold several editions, such as a theatrical and an extended cut, and FFmpeg read the chapters of
   all of them into one list, keeping each that started later than the one before, so a second
   edition's chapters came out mixed into the first's. It also listed hidden and disabled chapters,
-  and a chapter that plays another file at that file's times. The list now follows RFC 9559: the
-  first edition flagged default, or the first when none is, without its hidden, disabled or linked
-  chapters, and a chapter's tags still reach it in any edition. The fix is the FFmpeg patch
+  and a chapter that an ordered edition plays from another file, at that file's times. The list now
+  follows RFC 9559: the first edition flagged default, or the first when none is, without its hidden
+  or disabled chapters and, when it is ordered, without its links to other files. In an edition that
+  is not ordered a link is only information and its chapter is listed. A chapter's tags still reach
+  it in any edition. The fix is the FFmpeg patch
   `0013-matroska-take-the-chapters-of-the-default-edition.patch`, with a C suite,
   `test_editions`, and a contract test on a file written by mkvmerge.
 - In the subtitle chain that KitePlayer links, the `ass-chain` release assets, a character that the
