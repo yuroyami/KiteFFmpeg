@@ -108,6 +108,11 @@ Each line is something that bit someone. Delete a line when it stops being true.
   `klib-metadata-diff.sh --check` notices: Kotlin 2.4.20 added a low-priority overload beside
   every C function that takes a string. Host tests and `apiCheck` stay green, and CI's ratchets
   job goes red. Run the check after every Kotlin bump and re-baseline with `--update`.
+- Never edit `klib-metadata-baseline.txt` by hand. Kotlin/Native cuts the dump into fragments of
+  128 declarations, so a declaration added by hand leaves a fragment too long and the ratchets
+  job fails on one moved fragment boundary with no declaration different. On a Linux machine the
+  dump of the linuxX64 klib matches the macOS one once each `CCall.Direct(name = "` gains the
+  leading underscore that macOS symbols carry; the script itself refuses the Linux spelling.
 - The generated wasm binding has two copies, the generator's output and the committed one, and
   `checkWasmBindingMirror` keeps them identical; if it fires, regenerate and commit both rather
   than hand-editing the committed copy.
