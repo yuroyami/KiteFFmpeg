@@ -142,10 +142,17 @@ public expect class MediaSource : AutoCloseable {
      * at or before that point, so the next decode flow resumes from there. Not allowed while a
      * decode flow is collecting, since the demuxer cursor is shared.
      *
-     * Precision is the container's, not this library's. Indexless formats such as MPEG-TS resolve
-     * a seek by searching byte positions and can land slightly off. Decode a little and check
-     * [FrameInfo.pts] if you need to know exactly where you ended up; [extractFrame] and
-     * [Transcoder.transcode]'s trim already do this for you.
+     * The keyframe is the last one that shows at or before [micros] in the first video stream that
+     * is not a cover picture, or the first keyframe when [micros] comes before it. FFmpeg finds a
+     * keyframe by when it decodes, which with B-frames is earlier than when it shows, and MPEG-TS
+     * finds one by searching byte positions, so the seek reads on to the keyframe it landed on and
+     * aims earlier when that one shows too late. What it read is handed to the reads after it, so a
+     * seek FFmpeg landed right costs no more than before. Keyframes more than 32 MB of input apart
+     * are not checked, and the seek then stays where FFmpeg put it. The other streams start where
+     * the container puts them beside that keyframe, which can be a little before it.
+     *
+     * A keyframe is as close as a seek gets. Decode forward and check [FrameInfo.pts] to reach an
+     * exact point; [extractFrame] and [Transcoder.transcode]'s trim already do this for you.
      *
      * @param micros where to seek to, relative to the start of the content (see [startTimeMicros])
      * @throws FFmpegException when the seek fails

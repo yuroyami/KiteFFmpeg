@@ -118,8 +118,18 @@ public expect class PacketReader : AutoCloseable {
      * caller must discard the old packet/frame generation and flush every decoder itself.
      *
      * A backward seek on an indexless container may otherwise land arbitrarily early, so
-     * [notEarlierThan] can bound that search. The caller still verifies the first decoded timestamp,
-     * because some containers may land after the target.
+     * [notEarlierThan] can bound that search.
+     *
+     * A backward seek lands on the last keyframe that shows at or before [micros], and no earlier
+     * than [notEarlierThan], in the source's first video stream that is not a cover picture, when
+     * this reader selects it; the first packet of that stream it reads is that keyframe. FFmpeg
+     * finds a keyframe by when it decodes, which with B-frames is earlier than when it shows, so the
+     * seek reads on to the keyframe it landed on and aims earlier when that one shows too late, and
+     * [read] then hands out what the seek read before it reads anything new. Keyframes more than
+     * 32 MB of input apart are not checked. The other selected streams start where the container
+     * puts them beside that keyframe. A [SeekDirection.Forward] or [SeekDirection.Any] seek is
+     * FFmpeg's own and is not checked. Check the first decoded timestamp when the exact landing
+     * matters.
      *
      * @param micros target on the content-relative timeline
      * @param notEarlierThan optional lower bound for a backward seek
@@ -143,6 +153,11 @@ public expect class PacketReader : AutoCloseable {
      * backwards to recover packets from a newly selected stream, clear caller-owned queues or flush
      * decoders. A player that has read ahead and needs the new stream at its presentation position
      * must perform its own seek/cache refresh.
+     *
+     * Between a [seek] and the first [read] after it, a newly selected stream starts where that
+     * seek would have landed it had the stream been selected for it. After a read, the cursor a
+     * newly selected stream joins at can be ahead of the last packet read by what the seek read to
+     * check its keyframe.
      *
      * Reading, seeking, reselecting and closing must be serialized by the caller. On JVM/Android
      * they are additionally mutually excluded inside the reader; callers must not rely on that

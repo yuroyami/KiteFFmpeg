@@ -270,6 +270,7 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
         let frameClones = 0;
         let frameFrees = 0;
         let seeks = 0;
+        let selectionAtSeek = -1;
 
         m._ffkmp_fmt_read_frame = (ctx, packet) => {
             if (cursor >= script.length) return EOF;
@@ -287,7 +288,12 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
         m._ffkmp_avseek_flag_backward = () => 1;
         m._ffkmp_avseek_flag_any = () => 4;
         // A seek rewinds the scripted run, which is what lets extractFrame walk from a landing point.
-        m._ffkmp_fmt_seek_file = () => { seeks++; cursor = 0; return 0; };
+        m._ffkmp_fmt_seek_file = () => {
+            seeks++;
+            selectionAtSeek = m.__packetReaderSelectionMask();
+            cursor = 0;
+            return 0;
+        };
 
         m._ffkmp_find_decoder_by_id = () => decoderOpenFails ? 0 : CODEC;
         m._ffkmp_find_decoder_by_name = () => decoderOpenFails ? 0 : CODEC;
@@ -340,6 +346,7 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
         m.__liveDecoders = () => live.size;
         m.__frameBalance = () => frameAllocs + frameClones - frameFrees;
         m.__seeks = () => seeks;
+        m.__selectionAtSeek = () => selectionAtSeek;
         return m;
     }""",
 )
@@ -399,6 +406,16 @@ internal external fun fakeTableEntryLive(module: JsAny, index: Int): Boolean
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => m.__lastOpenSize === undefined ? -1 : m.__lastOpenSize")
 internal external fun fakeLastOpenSize(module: JsAny): Double
+
+/** How many seeks the scripted demuxer has been asked for. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__seeks()")
+internal external fun fakeDecodeSeeks(module: JsAny): Int
+
+/** Which streams were selected at the last seek, as [fakePacketReaderSelectionMask] reads them, or -1. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__selectionAtSeek()")
+internal external fun fakeSelectionAtSeek(module: JsAny): Int
 
 /** How many codec contexts have been allocated. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

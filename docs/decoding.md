@@ -408,7 +408,7 @@ CEA-608 and CEA-708 captions reach you in one of two ways:
 
 ## Seeking
 
-`seekMicros(micros)` is a `suspend` function that repositions the demuxer to (approximately) the requested time, so call it from a coroutine. FFmpeg seeks to the nearest keyframe at or before the target, so the next frames you decode may start slightly earlier than the exact microsecond you asked for:
+`seekMicros(micros)` is a `suspend` function that repositions the demuxer to the keyframe at or before the requested time, so call it from a coroutine. The next frames you decode start on that keyframe, which may be slightly earlier than the exact microsecond you asked for:
 
 ```kotlin
 source.seekMicros(30_000_000)   // jump to ~30 seconds
@@ -418,6 +418,10 @@ source.decodedFrames(video).collect { frame ->
 ```
 
 Seeking affects the shared demuxer position, so it influences every flow you collect afterward. Seek before you start collecting, not in the middle of an active flow.
+
+The keyframe is the last one that shows at or before the target, in the first video stream that is not a cover picture. That takes a check, because FFmpeg finds a keyframe by when it decodes, and in video with B-frames a keyframe decodes before it shows, while in an open group of pictures the B-frames after it show before it. FFmpeg's MP4 reader therefore picked a keyframe that showed after the target in an open group of pictures, its FLV reader did so with any B-frames, and MPEG-TS, which has no index and seeks by searching byte positions, landed among pictures whose first keyframe showed late. The seek now reads on to the keyframe it landed on and aims earlier when that one shows too late. The packets it read on the way are handed to the reads after it, so a seek FFmpeg landed right costs no extra reading. Keyframes more than 32 MB of input apart are not checked, and the seek then stays where FFmpeg put it. The audio and the other streams start where the container puts them beside the keyframe, which can be a little before it.
+
+A `PacketReader` seeks the same way when it selects that video stream. A stream it selects after a seek and before its first read starts where the seek would have landed it; after a read, a newly selected stream joins where the demuxer has read to, as `reselect` describes.
 
 ## Thumbnails
 

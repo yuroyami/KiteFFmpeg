@@ -75,6 +75,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A backward keyframe seek lands on the last keyframe that shows at or before its target (#155).
+  FFmpeg finds a keyframe by when it decodes, and with B-frames a keyframe decodes before it shows.
+  MP4's reader, which turns the target into a decode time by one constant, took a keyframe that
+  showed after the target in an open group of pictures, FLV's, which seeks by decode time, did so
+  with any B-frames, and MPEG-TS, which seeks by byte position, landed among pictures whose first
+  keyframe showed late on nearly every seek. A cut then started late and lost the pictures between its target and that
+  keyframe. `MediaSource.seekMicros` and a backward `PacketReader.seek` now read on to the keyframe
+  they land on in the first video stream that is not a cover picture, and aim earlier when it shows
+  too late. The packets read on the way are handed to the reads after the seek, so a seek FFmpeg
+  landed right costs no second read and no second seek, and that stream's packets before the
+  keyframe, which a byte-position seek lands among, are left out. Keyframes more than 32 MB of
+  input apart are not checked. A stream a reader selects after a seek and before its first read
+  starts where the seek would have landed it. A read through the C layer no longer hands out a
+  packet of a stream turned off, which MPEG-TS did for one it had begun while the stream was on.
+  The web seeks a whole source with every stream selected, so the check runs there too; the `web`
+  zip of 0.4.0 does not carry the check. The C ABI does not change.
 - Copied audio from a container whose clock is coarser than its samples keeps every sample in its
   place (#154). Matroska and FLV stamp whole milliseconds, so the packets of AAC at 48 kHz, 21.333
   ms each, are stamped 21 or 22 ms apart, and a copy into MP4 rescaled each rounded time on its

@@ -2,11 +2,13 @@
 
 #include "kitecodec_helpers.h"
 
+#include <pthread.h>
 #include <stddef.h>
 #include <string.h>
 
 #include <libavformat/avformat.h>
 #include <libavutil/aes.h>
+#include <libavutil/common.h>
 #include <libavutil/avstring.h>
 #include <libavutil/error.h>
 #include <libavutil/mem.h>
@@ -106,6 +108,9 @@ KC_API int  ffkmp_fmt_open_input(AVFormatContext **out, const char *path) {
     if (rc < 0) { av_freep(&cell); return rc; }
     *out = c; return 0;
 }
+/* Frees the packets a checked seek of the context read and still holds (#155); defined with it. */
+static void kc_held_drop(const AVFormatContext *ctx);
+
 KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
     if (!ctx || !*ctx) return;
     AVFormatContext *p = *ctx;
@@ -116,6 +121,7 @@ KC_API void ffkmp_fmt_close_input(AVFormatContext **ctx) {
     void *cell = (p->interrupt_callback.callback == kc_interrupt_check &&
                   !(p->flags & AVFMT_FLAG_CUSTOM_IO))
         ? p->interrupt_callback.opaque : NULL;
+    kc_held_drop(p);
     avformat_close_input(&p);
     *ctx = NULL;
     av_free(cell);
@@ -213,6 +219,351 @@ KC_API AVDictionary *ffkmp_fmt_chapter_metadata(const AVFormatContext *ctx, int 
 KC_API int  ffkmp_fmt_find_stream_info(AVFormatContext *c) {
     return c ? avformat_find_stream_info(c, NULL) : AVERROR(EINVAL);
 }
+
+/* ════════════ Keyframe seeks that land where they promise (#155) ════════════
+
+   A backward seek promises the last keyframe that shows at or before its target, and FFmpeg finds
+   that keyframe by when it DECODES. Once B-frames reorder the pictures the two differ. MP4's reader
+   turns the target into a decode time by one constant and checks the result only for HEVC, so in an
+   open group of pictures it takes a keyframe that shows up to the reorder depth after the target.
+   FLV seeks by decode time outright. MPEG-TS searches byte positions and lands on whatever packet
+   sits there, so the first keyframe after it shows late on nearly every seek.
+
+   So a backward seek of a video stream reads on to that stream's first keyframe and looks at when
+   it shows. Shown in time, the packets read on the way are held, and ffkmp_fmt_read_frame hands
+   them out before it reads anything new, so a seek FFmpeg already got right costs no second read
+   and no second seek. Shown late, the seek aims before that keyframe, by its own reorder delay or
+   by how late it showed, whichever is more, and four times as far again on each later try; on an
+   indexed container the first try lands on the keyframe before. The stream's own packets before
+   its keyframe, which a byte-position seek lands among, are dropped: nothing can show them
+   without what came before.
+
+   The packets held are those of the streams that were on for the seek, and kc_held_take answers
+   a selection changed before they are all handed out. */
+
+/* How far a check reads before it gives up on finding the keyframe: ten seconds between keyframes
+   at 25 Mbit/s. The seek then stands as FFmpeg made it. */
+#define KC_SEEK_LOOK_BYTES ((int64_t)32 << 20)
+/* How many times a seek aims earlier before it settles for where it landed. */
+#define KC_SEEK_TRIES 12
+
+/* A checked seek as its caller asked for it: stream si, or the default stream in AV_TIME_BASE when
+   si is -1, back to target and no earlier than floor, through avformat_seek_file when windowed. */
+typedef struct kc_seek_args {
+    int si;
+    int windowed;
+    int flags;
+    int64_t floor;
+    int64_t target;
+} kc_seek_args;
+
+/* The packets a checked seek read and still owes the reader of one context. */
+typedef struct kc_held {
+    const AVFormatContext *ctx;
+    AVPacket **packets;
+    int count;
+    int next;
+    /* The seek that read them, and which of the context's streams were on for it, one byte for
+       each stream the context had. */
+    kc_seek_args seek;
+    uint8_t *on;
+    unsigned on_count;
+    /* Whether the reader has been handed one of them yet. */
+    int handed;
+    struct kc_held *link;
+} kc_held;
+
+static pthread_mutex_t kc_held_lock = PTHREAD_MUTEX_INITIALIZER;
+static kc_held *kc_held_list;
+/* How many contexts hold packets, read without the lock so that a read with nothing held, which is
+   nearly every read, never takes it. A context's packets are held by its own seek, which its caller
+   orders before its reads, so a count that includes them is always seen. */
+static int kc_held_contexts;
+
+static void kc_packets_free(AVPacket **packets, int from, int count) {
+    for (int i = from; i < count; i++) av_packet_free(&packets[i]);
+    av_free(packets);
+}
+
+static void kc_held_free(kc_held *h) {
+    kc_packets_free(h->packets, h->next, h->count);
+    av_free(h->on);
+    av_free(h);
+}
+
+/* Unlinks ctx's held packets, or returns NULL when it holds none. Called with the lock held. */
+static kc_held *kc_held_unlink(const AVFormatContext *ctx) {
+    for (kc_held **at = &kc_held_list; *at; at = &(*at)->link) {
+        kc_held *h = *at;
+        if (h->ctx != ctx) continue;
+        *at = h->link;
+        __atomic_sub_fetch(&kc_held_contexts, 1, __ATOMIC_RELEASE);
+        return h;
+    }
+    return NULL;
+}
+
+/* Frees what ctx still holds: a seek moves past it, and a close takes the context away. */
+static void kc_held_drop(const AVFormatContext *ctx) {
+    if (!ctx || !__atomic_load_n(&kc_held_contexts, __ATOMIC_ACQUIRE)) return;
+    pthread_mutex_lock(&kc_held_lock);
+    kc_held *h = kc_held_unlink(ctx);
+    pthread_mutex_unlock(&kc_held_lock);
+    if (h) kc_held_free(h);
+}
+
+static int kc_stream_on(const AVFormatContext *ctx, unsigned index) {
+    return index < ctx->nb_streams && ctx->streams[index]->discard < AVDISCARD_ALL;
+}
+
+/* Whether a stream that was off for h's seek is on now. */
+static int kc_held_widened(const AVFormatContext *ctx, const kc_held *h) {
+    unsigned known = FFMIN(h->on_count, ctx->nb_streams);
+    for (unsigned i = 0; i < known; i++)
+        if (!h->on[i] && kc_stream_on(ctx, i)) return 1;
+    return 0;
+}
+
+static int kc_seek_keyframe(AVFormatContext *ctx, int si, int windowed, int64_t floor, int64_t target, int flags);
+
+/* Moves the next packet ctx holds into p. Returns 1 when it did, 0 when ctx holds none, or a
+   negative AVERROR from a seek made again.
+
+   The held packets are of the streams that were on when the seek read them, while the demuxer
+   already stands after them, so a selection changed since then is answered here. A stream turned
+   off is passed over, as the demuxer would pass it over. A stream turned on before the reader took
+   anything makes the seek again, so that it lands as a seek with that stream on lands. A stream
+   turned on after that joins where the demuxer stands, after these packets, which is where a
+   stream turned on in the middle of reading joins. */
+static int kc_held_take(AVFormatContext *ctx, AVPacket *p) {
+    for (;;) {
+        if (!__atomic_load_n(&kc_held_contexts, __ATOMIC_ACQUIRE)) return 0;
+        kc_held *spent = NULL, *stale = NULL;
+        int took = 0;
+        pthread_mutex_lock(&kc_held_lock);
+        kc_held *h = kc_held_list;
+        while (h && h->ctx != ctx) h = h->link;
+        if (h && !h->handed && kc_held_widened(ctx, h)) {
+            stale = kc_held_unlink(ctx);
+        } else if (h) {
+            while (!took && h->next < h->count) {
+                AVPacket *q = h->packets[h->next];
+                h->packets[h->next++] = NULL;
+                if (kc_stream_on(ctx, (unsigned)q->stream_index)) {
+                    av_packet_unref(p);
+                    av_packet_move_ref(p, q);
+                    h->handed = took = 1;
+                }
+                av_packet_free(&q);
+            }
+            if (h->next == h->count) spent = kc_held_unlink(ctx);
+        }
+        pthread_mutex_unlock(&kc_held_lock);
+        if (spent) kc_held_free(spent);
+        if (!stale) return took;
+        kc_seek_args seek = stale->seek;
+        kc_held_free(stale);
+        int rc = kc_seek_keyframe(ctx, seek.si, seek.windowed, seek.floor, seek.target, seek.flags);
+        if (rc < 0) return rc;
+    }
+}
+
+#ifdef KC_TESTING
+/* How many contexts hold packets, for the host suites (tests/kc_test_seams.h). */
+int kc_test_held_contexts(void);
+int kc_test_held_contexts(void) {
+    return __atomic_load_n(&kc_held_contexts, __ATOMIC_ACQUIRE);
+}
+#endif
+
+/* The packets one check read, in the order it read them, owned. */
+typedef struct kc_run {
+    AVPacket **packets;
+    int count;
+    int capacity;
+    int64_t bytes;
+} kc_run;
+
+static void kc_run_free(kc_run *run) {
+    kc_packets_free(run->packets, 0, run->count);
+    memset(run, 0, sizeof(*run));
+}
+
+/* Hands run's packets, read by seek, to ctx's next reads, or frees an empty run. */
+static int kc_held_put(const AVFormatContext *ctx, kc_run *run, const kc_seek_args *seek) {
+    if (!run->count) { kc_run_free(run); return 0; }
+    kc_held *h = av_mallocz(sizeof(*h));
+    uint8_t *on = av_malloc(FFMAX(ctx->nb_streams, 1u));
+    if (!h || !on) {
+        av_free(h);
+        av_free(on);
+        kc_run_free(run);
+        return AVERROR(ENOMEM);
+    }
+    for (unsigned i = 0; i < ctx->nb_streams; i++) on[i] = (uint8_t)kc_stream_on(ctx, i);
+    h->ctx = ctx;
+    h->packets = run->packets;
+    h->count = run->count;
+    h->seek = *seek;
+    h->on = on;
+    h->on_count = ctx->nb_streams;
+    memset(run, 0, sizeof(*run));
+    pthread_mutex_lock(&kc_held_lock);
+    h->link = kc_held_list;
+    kc_held_list = h;
+    __atomic_add_fetch(&kc_held_contexts, 1, __ATOMIC_RELEASE);
+    pthread_mutex_unlock(&kc_held_lock);
+    return 0;
+}
+
+enum { KC_LOOK_LATE, KC_LOOK_GOOD, KC_LOOK_ENDED, KC_LOOK_TOO_FAR };
+
+/* Frees run's packets before place `from`, so that the packet there comes first. */
+static void kc_run_start_at(kc_run *run, int from) {
+    if (from <= 0) return;
+    for (int i = 0; i < from; i++) av_packet_free(&run->packets[i]);
+    memmove(run->packets, run->packets + from, (size_t)(run->count - from) * sizeof(*run->packets));
+    run->count -= from;
+    run->bytes = 0;
+    for (int i = 0; i < run->count; i++) run->bytes += run->packets[i]->size;
+}
+
+/* When packet p shows, or when it decodes if it states no showing. */
+static int64_t kc_shows(const AVPacket *p) {
+    return p->pts != AV_NOPTS_VALUE ? p->pts : p->dts;
+}
+
+/* Reads ctx on from where it stands into run, looking at stream st's keyframes against target, in
+   time base tb. A keyframe that shows at or before the target becomes *best, its place in run;
+   without onward the first one ends the look as KC_LOOK_GOOD, and with onward the look goes on for
+   a later one, dropping what came before each. The first keyframe that shows after the target ends
+   the look as KC_LOOK_LATE, kept in run after *best's pictures, with its place in *late. Otherwise
+   the look answers KC_LOOK_ENDED at the end of the input, KC_LOOK_TOO_FAR past KC_SEEK_LOOK_BYTES,
+   or a read's negative AVERROR. */
+static int kc_look(AVFormatContext *ctx, const AVStream *st, int64_t target, AVRational tb, int onward,
+                   kc_run *run, int *best, int *late) {
+    *best = -1;
+    *late = -1;
+    for (;;) {
+        if (run->bytes > KC_SEEK_LOOK_BYTES) return KC_LOOK_TOO_FAR;
+        AVPacket *p = av_packet_alloc();
+        if (!p) return AVERROR(ENOMEM);
+        int rc = av_read_frame(ctx, p);
+        if (rc < 0) {
+            av_packet_free(&p);
+            return rc == AVERROR_EOF ? KC_LOOK_ENDED : rc;
+        }
+        if (run->count == run->capacity) {
+            int capacity = run->capacity ? run->capacity * 2 : 16;
+            AVPacket **grown = av_realloc_array(run->packets, (size_t)capacity, sizeof(*grown));
+            if (!grown) { av_packet_free(&p); return AVERROR(ENOMEM); }
+            run->packets = grown;
+            run->capacity = capacity;
+        }
+        run->packets[run->count++] = p;
+        run->bytes += p->size;
+        if (p->stream_index != st->index || !(p->flags & AV_PKT_FLAG_KEY)) continue;
+        int64_t shows = kc_shows(p);
+        if (shows != AV_NOPTS_VALUE && av_compare_ts(shows, st->time_base, target, tb) > 0) {
+            *late = run->count - 1;
+            return KC_LOOK_LATE;
+        }
+        if (*best >= 0) kc_run_start_at(run, run->count - 1);
+        *best = run->count - 1;
+        if (!onward) return KC_LOOK_GOOD;
+    }
+}
+
+/* Drops stream ref's packets before run's keyframe at place key: nothing shows them without the
+   pictures before them, which a byte-position seek lands among. */
+static void kc_run_drop_before_key(kc_run *run, int ref, int key) {
+    int kept = 0;
+    for (int i = 0; i < run->count; i++) {
+        if (i < key && run->packets[i]->stream_index == ref) {
+            av_packet_free(&run->packets[i]);
+            continue;
+        }
+        run->packets[kept++] = run->packets[i];
+    }
+    run->count = kept;
+}
+
+/* One seek of stream si, or of the default stream in AV_TIME_BASE when si is -1, to aim: through
+   avformat_seek_file over the window from floor when windowed, else through av_seek_frame. */
+static int kc_seek_once(AVFormatContext *ctx, int si, int windowed, int64_t floor, int64_t aim, int flags) {
+    return windowed ? avformat_seek_file(ctx, si, floor, aim, aim, flags)
+                    : av_seek_frame(ctx, si, aim, AVSEEK_FLAG_BACKWARD);
+}
+
+/* The backward keyframe seek both entry points share. target and floor are in stream si's time
+   base, or AV_TIME_BASE when si is -1.
+
+   The first look takes the first keyframe it meets when that one shows in time: FFmpeg chose it as
+   the last one that decodes before the target, so no later keyframe shows in time either. A look
+   after the seek aimed earlier reads on to the first keyframe that shows late and keeps the last
+   one before it, so a byte-position seek, which cannot aim at a keyframe, still lands on the right
+   one. */
+static int kc_seek_keyframe(AVFormatContext *ctx, int si, int windowed, int64_t floor, int64_t target, int flags) {
+    kc_held_drop(ctx);
+    int rc = kc_seek_once(ctx, si, windowed, floor, target, flags);
+    if (rc < 0) return rc;
+    int ref = si >= 0 ? si : av_find_default_stream_index(ctx);
+    if (ref < 0 || (unsigned)ref >= ctx->nb_streams) return rc;
+    AVStream *st = ctx->streams[ref];
+    /* Only pictures reorder, a cover picture is not a stream of them, and a stream the reader has
+       turned off delivers nothing to look at. */
+    if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO || (st->disposition & AV_DISPOSITION_ATTACHED_PIC) ||
+        st->discard >= AVDISCARD_ALL) return rc;
+    AVRational tb = si >= 0 ? st->time_base : AV_TIME_BASE_Q;
+    const kc_seek_args seek = { si, windowed, flags, floor, target };
+    int64_t aim = target;
+    int64_t step = 0;
+    for (int tries = 1;; tries++) {
+        kc_run run = { 0 };
+        int best = -1, late = -1;
+        int looked = kc_look(ctx, st, target, tb, tries > 1, &run, &best, &late);
+        if (looked < 0) { kc_run_free(&run); return looked; }
+        if (best >= 0) {
+            kc_run_drop_before_key(&run, ref, best);
+            return kc_held_put(ctx, &run, &seek);
+        }
+        if (looked == KC_LOOK_TOO_FAR) {
+            /* Too far apart to look at: the seek stands where it last landed. */
+            kc_run_free(&run);
+            return kc_seek_once(ctx, si, windowed, floor, aim, flags);
+        }
+        if (tries == KC_SEEK_TRIES || aim <= floor) return kc_held_put(ctx, &run, &seek);
+        /* Nothing in time: aim before the keyframe that showed late, by its reorder delay or by how
+           late it showed, whichever is more, and four times as far as the last try after that. With
+           no keyframe before the end of the input, the first step is half a second. */
+        int64_t from = aim;
+        int64_t first_step = av_rescale_q(AV_TIME_BASE / 2, AV_TIME_BASE_Q, tb);
+        if (looked == KC_LOOK_LATE) {
+            const AVPacket *k = run.packets[late];
+            int64_t shows = kc_shows(k);
+            int64_t decodes = k->dts != AV_NOPTS_VALUE ? k->dts : shows;
+            int64_t decodes_at = av_rescale_q_rnd(decodes, st->time_base, tb, AV_ROUND_DOWN | AV_ROUND_PASS_MINMAX);
+            int64_t shows_at = av_rescale_q_rnd(shows, st->time_base, tb, AV_ROUND_UP | AV_ROUND_PASS_MINMAX);
+            first_step = FFMAX(shows_at - decodes_at, shows_at - target);
+            from = FFMIN(aim, decodes_at);
+        }
+        kc_run_free(&run);
+        step = step ? (step > INT64_MAX / 4 ? INT64_MAX : step * 4) : FFMAX(first_step, 1);
+        aim = from <= floor || (uint64_t)from - (uint64_t)floor <= (uint64_t)step ? floor : from - step;
+        rc = kc_seek_once(ctx, si, windowed, floor, aim, flags);
+        if (rc < 0 && st->start_time != AV_NOPTS_VALUE) {
+            /* This demuxer cannot go that early, and the stream's own start is as early as it gets. */
+            int64_t start = FFMAX(av_rescale_q(st->start_time, st->time_base, tb), floor);
+            if (start > aim) {
+                aim = start;
+                rc = kc_seek_once(ctx, si, windowed, floor, aim, flags);
+            }
+        }
+        if (rc < 0) return kc_seek_once(ctx, si, windowed, floor, target, flags);
+        if (kc_ctx_interrupted(ctx)) return AVERROR_EXIT;
+    }
+}
+
 KC_API int  ffkmp_fmt_seek_micros(AVFormatContext *ctx, int stream_index, int64_t micros) {
     if (kc_ctx_interrupted(ctx)) return AVERROR_EXIT;
     if (!ctx) return AVERROR(EINVAL);
@@ -221,11 +572,38 @@ KC_API int  ffkmp_fmt_seek_micros(AVFormatContext *ctx, int stream_index, int64_
      * documented meaning, any stream; every other out of range index is refused. */
     if (stream_index < -1 || (stream_index >= 0 && (unsigned)stream_index >= ctx->nb_streams)) return AVERROR(EINVAL);
     int64_t target = stream_index < 0 ? micros : av_rescale_q(micros, AV_TIME_BASE_Q, ctx->streams[stream_index]->time_base);
-    return av_seek_frame(ctx, stream_index, target, AVSEEK_FLAG_BACKWARD);
+    return kc_seek_keyframe(ctx, stream_index, 0, INT64_MIN, target, AVSEEK_FLAG_BACKWARD);
 }
+
+/* avformat_seek_file, which av_seek_frame cannot express: a bounded window rather than a single
+   target. A player uses it to say "land at or before here, but no earlier than there", which is
+   what makes a retry ladder cheap instead of a fixed pessimistic backoff. A window that ends at its
+   target asks for a keyframe at or before it, and gets one as kc_seek_keyframe makes sure of. */
+KC_API int ffkmp_fmt_seek_file(AVFormatContext *ctx, int stream_index,
+                                     int64_t min_ts, int64_t ts, int64_t max_ts, int flags) {
+    if (!ctx) return AVERROR(EINVAL);
+    if (kc_ctx_interrupted(ctx)) return AVERROR_EXIT;
+    if (stream_index < -1 || (stream_index >= 0 && (unsigned)stream_index >= ctx->nb_streams)) return AVERROR(EINVAL);
+    if (max_ts == ts && min_ts <= ts && !(flags & (AVSEEK_FLAG_BYTE | AVSEEK_FLAG_ANY | AVSEEK_FLAG_FRAME)))
+        return kc_seek_keyframe(ctx, stream_index, 1, min_ts, ts, flags);
+    kc_held_drop(ctx);
+    return avformat_seek_file(ctx, stream_index, min_ts, ts, max_ts, flags);
+}
+
+/* Hands out what a checked seek read first, then reads on, passing over the packets of streams
+   turned off. Some demuxers still hand those out, MPEG-TS among them for a packet it began while
+   the stream was on, which a seek's look can make it do. */
 KC_API int  ffkmp_fmt_read_frame(AVFormatContext *c, AVPacket *p) {
     if (kc_ctx_interrupted(c)) return AVERROR_EXIT;
-    return (c && p) ? av_read_frame(c, p) : AVERROR(EINVAL);
+    if (!c || !p) return AVERROR(EINVAL);
+    int rc = kc_held_take(c, p);
+    if (rc) return rc < 0 ? rc : 0;
+    for (;;) {
+        rc = av_read_frame(c, p);
+        if (rc < 0 || kc_stream_on(c, (unsigned)p->stream_index)) return rc;
+        av_packet_unref(p);
+        if (kc_ctx_interrupted(c)) return AVERROR_EXIT;
+    }
 }
 
 KC_API int64_t       ffkmp_fmt_duration(AVFormatContext *c)   { return c ? c->duration : 0; }
@@ -788,6 +1166,7 @@ KC_API void ffkmp_fmt_close_input_io(AVFormatContext **ctx) {
     if (!ctx || !*ctx) return;
     AVFormatContext *c = *ctx;
     AVIOContext *pb = (c->flags & AVFMT_FLAG_CUSTOM_IO) ? c->pb : NULL;
+    kc_held_drop(c);
     avformat_close_input(&c);
     *ctx = NULL;
     if (pb) kc_io_input_free(pb);

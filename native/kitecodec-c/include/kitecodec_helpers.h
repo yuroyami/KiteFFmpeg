@@ -752,6 +752,11 @@ KC_API int  ffkmp_fmt_find_stream_info(kc_fmt_ctx *c);
 /* Arguments. A NULL context is refused with AVERROR(EINVAL). stream_index -1 means any
  * stream; 0 to nb_streams-1 seeks in that stream's time base; every other value is refused
  * with AVERROR(EINVAL) instead of indexing streams[] out of range.
+ *
+ * Landing. A backward seek to the last keyframe that shows at or before micros, in
+ * stream_index or, for -1, FFmpeg's default stream, when that is a video stream that is on.
+ * FFmpeg finds the keyframe by when it decodes, so the seek reads on to it and aims earlier
+ * when it shows too late; ffkmp_fmt_read_frame hands out what it read first (#155).
  */
 KC_API int  ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t micros);
 
@@ -759,6 +764,11 @@ KC_API int  ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t mic
  * blank on entry, and must be unreferenced before it is filled again, or the reference
  * leaks. On failure the packet is left blank. A NULL context or packet is refused with
  * AVERROR(EINVAL).
+ *
+ * Order. Hands out the packets a keyframe seek read before it reads anything new, and never a
+ * packet of a stream turned off with ffkmp_stream_discard_all, which some demuxers would still
+ * hand out. A stream turned on after a seek and before the first read after it makes that seek
+ * again, so it starts where the seek lands it.
  */
 KC_API int  ffkmp_fmt_read_frame(kc_fmt_ctx *c, kc_packet *p);
 KC_API int64_t       ffkmp_fmt_duration(kc_fmt_ctx *c);
@@ -969,6 +979,10 @@ KC_API void ffkmp_codecctx_set_threads(kc_codec_ctx *c, int count, int frame_lev
 KC_API void ffkmp_codecctx_set_low_delay(kc_codec_ctx *c, int on);
 KC_API int ffkmp_avseek_flag_backward(void);
 KC_API int ffkmp_avseek_flag_any(void);
+/* avformat_seek_file. A window that ends at its target, without AVSEEK_FLAG_BYTE, ANY or FRAME,
+ * lands as ffkmp_fmt_seek_micros does, no earlier than min_ts. A stream_index outside -1 to
+ * nb_streams-1 is refused with AVERROR(EINVAL).
+ */
 KC_API int ffkmp_fmt_seek_file(kc_fmt_ctx *ctx, int stream_index,
                                      int64_t min_ts, int64_t ts, int64_t max_ts, int flags);
 KC_API int ffkmp_fmt_is_seekable(kc_fmt_ctx *c);

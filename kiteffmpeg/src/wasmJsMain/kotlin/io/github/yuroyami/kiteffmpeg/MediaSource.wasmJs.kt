@@ -331,9 +331,11 @@ public actual class MediaSource internal constructor(
     }
 
     public actual suspend fun seekMicros(micros: Long) {
-        val anchor = streams.firstOrNull()
-            ?: throw FFmpegException(FFmpegError.InvalidArgument(0, "cannot seek media with no streams"))
-        openPacketReader(listOf(anchor)).use { it.seek(micros, SeekDirection.Backward, null) }
+        if (streams.isEmpty()) throw FFmpegException(FFmpegError.InvalidArgument(0, "cannot seek media with no streams"))
+        // Every stream selected, as the other platforms seek the source: the seek checks that it
+        // landed on a video keyframe in time, which it cannot with the video turned off, and the
+        // packets it reads for that check are handed to the reads after it (#155).
+        openPacketReader(streams).use { it.seek(micros, SeekDirection.Backward, null) }
     }
 
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
