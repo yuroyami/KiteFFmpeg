@@ -2,10 +2,14 @@ package io.github.yuroyami.kiteffmpeg.buildtools
 
 import org.gradle.testfixtures.ProjectBuilder
 import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
 import kotlin.io.path.isExecutable
+import kotlin.io.path.readText
 import kotlin.io.path.setPosixFilePermissions
+import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -568,6 +572,63 @@ class BuildFFmpegTaskTest {
             assertFalse(Files.exists(scratch.resolve("source/.git")))
         } finally {
             root.toFile().deleteRecursively()
+        }
+    }
+
+    /**
+     * A `vendor/ffmpeg` that is a link to a clone kept elsewhere once came through as the link
+     * itself, so the patches went into the clone and the scratch cleanup emptied it, `.git` and
+     * all (#162). The copy is a real tree now, so a write through it cannot reach the clone.
+     */
+    @Test
+    fun aLinkedSourceIsCopiedAsARealTreeThatAPatchCannotReach() {
+        val root = Files.createTempDirectory("kiteffmpeg-linked-source-test")
+        try {
+            val clone = root.resolve("clone").createDirectories()
+            clone.resolve("configure").writeText("#!/bin/sh\n")
+            clone.resolve("libavformat").createDirectories().resolve("mov.c").writeText("original\n")
+            clone.resolve(".git").createDirectories().resolve("HEAD").writeText("ref: refs/heads/master\n")
+            Files.createSymbolicLink(clone.resolve("libavformat/alias.c"), Path.of("mov.c"))
+            val link = root.resolve("vendor").createDirectories().resolve("ffmpeg")
+            Files.createSymbolicLink(link, clone)
+
+            val scratch = BuildFFmpegTask.createScratchWorkspace(root.resolve("tmp").createDirectories())
+            val copied = scratch.resolve("source")
+            BuildFFmpegTask.copySourceTree(link, copied)
+
+            assertFalse(Files.isSymbolicLink(copied), "the copy is the link itself")
+            assertTrue(Files.isRegularFile(copied.resolve("libavformat/mov.c"), LinkOption.NOFOLLOW_LINKS))
+            assertTrue(Files.isSymbolicLink(copied.resolve("libavformat/alias.c")), "a link inside the tree stays a link")
+            assertFalse(Files.exists(copied.resolve(".git")))
+            copied.resolve("libavformat/mov.c").writeText("patched\n")
+            assertEquals("original\n", clone.resolve("libavformat/mov.c").readText())
+        } finally {
+            BuildFFmpegTask.deleteScratch(root)
+        }
+    }
+
+    /**
+     * `File.deleteRecursively` follows a link to a directory and deletes what it points at, so a
+     * scratch holding such a link took the target's contents with it (#162). The cleanup deletes
+     * the link alone, and a scratch that is already gone is no failure.
+     */
+    @Test
+    fun aScratchCleanupLeavesWhatALinkInsideItPointsAt() {
+        val root = Files.createTempDirectory("kiteffmpeg-scratch-cleanup-test")
+        try {
+            val outside = root.resolve("outside").createDirectories()
+            outside.resolve("keep.c").writeText("keep\n")
+            val scratch = root.resolve("scratch").createDirectories()
+            scratch.resolve("build").createDirectories().resolve("stale.o").writeText("o\n")
+            Files.createSymbolicLink(scratch.resolve("source"), outside)
+
+            BuildFFmpegTask.deleteScratch(scratch)
+
+            assertFalse(Files.exists(scratch, LinkOption.NOFOLLOW_LINKS))
+            assertEquals("keep\n", outside.resolve("keep.c").readText())
+            BuildFFmpegTask.deleteScratch(scratch)
+        } finally {
+            BuildFFmpegTask.deleteScratch(root)
         }
     }
 

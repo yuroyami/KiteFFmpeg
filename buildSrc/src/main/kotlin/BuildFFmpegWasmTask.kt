@@ -105,7 +105,7 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
             install.parentFile.mkdirs()
             BuildFFmpegTask.copySourceTree(prefix, install.toPath())
         } finally {
-            workspace.toFile().deleteRecursively()
+            BuildFFmpegTask.deleteScratch(workspace)
         }
         logger.lifecycle("[KiteFFmpeg wasm] installed to $install")
     }

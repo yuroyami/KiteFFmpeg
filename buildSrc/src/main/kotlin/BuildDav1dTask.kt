@@ -106,7 +106,7 @@ abstract class BuildDav1dTask : DefaultTask() {
             )
             logger.lifecycle("[KiteFFmpeg] dav1d ${sourceRef.get()} (${target.dirName}) installed into $output")
         } finally {
-            scratch.deleteRecursively()
+            BuildFFmpegTask.deleteScratch(scratch.toPath())
         }
     }
 

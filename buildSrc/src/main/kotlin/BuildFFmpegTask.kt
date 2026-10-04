@@ -20,6 +20,8 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.deleteRecursively
 
 private val TargetTriple.isIos: Boolean
     get() = this == TargetTriple.IosArm64 ||
@@ -180,7 +182,7 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             logger.error("[KiteFFmpeg] FFmpeg scratch retained after failure: $scratch")
             throw failure
         } finally {
-            if (succeeded) scratch.toFile().deleteRecursively()
+            if (succeeded) deleteScratch(scratch)
         }
     }
 
@@ -1120,24 +1122,42 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
             copyTree(source, destination, excludeBuildState = true)
         }
 
+        /**
+         * Deletes a scratch tree without following a symbolic link anywhere in it, so a link inside
+         * takes only itself with it. `File.deleteRecursively` follows a link to a directory and
+         * deletes what it points at, which once emptied a linked FFmpeg clone (#162). A cleanup
+         * that fails leaves the rest behind and throws nothing, as `File.deleteRecursively` did, so
+         * it never hides the failure of the build it follows.
+         */
+        @OptIn(ExperimentalPathApi::class)
+        internal fun deleteScratch(scratch: Path) {
+            runCatching { scratch.deleteRecursively() }
+        }
+
+        /**
+         * Copies the tree at [source], whose root is followed if it is a link, so a linked checkout
+         * is copied like any other rather than as the link (#162). Links inside the tree are copied
+         * as links.
+         */
         private fun copyTree(source: Path, destination: Path, excludeBuildState: Boolean) {
+            val root = source.toRealPath()
             Files.walkFileTree(
-                source,
+                root,
                 object : SimpleFileVisitor<Path>() {
                     override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
                         if (
-                            dir != source &&
+                            dir != root &&
                             excludeBuildState &&
                             (dir.fileName.toString() == ".git" || dir.fileName.toString() == "build")
                         ) {
                             return FileVisitResult.SKIP_SUBTREE
                         }
-                        Files.createDirectories(destination.resolve(source.relativize(dir)))
+                        Files.createDirectories(destination.resolve(root.relativize(dir)))
                         return FileVisitResult.CONTINUE
                     }
 
                     override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-                        val target = destination.resolve(source.relativize(file))
+                        val target = destination.resolve(root.relativize(file))
                         Files.createDirectories(target.parent)
                         Files.copy(
                             file,
@@ -1257,9 +1277,9 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
                     if (movedOldOutput) moveDirectory(backup, absoluteOutput)
                     throw failure
                 }
-                if (movedOldOutput) backup.toFile().deleteRecursively()
+                if (movedOldOutput) deleteScratch(backup)
             } finally {
-                staging.toFile().deleteRecursively()
+                deleteScratch(staging)
                 if (!Files.exists(absoluteOutput) && movedOldOutput && Files.exists(backup)) {
                     moveDirectory(backup, absoluteOutput)
                 }

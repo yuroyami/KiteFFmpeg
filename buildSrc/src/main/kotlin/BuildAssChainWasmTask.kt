@@ -163,7 +163,7 @@ abstract class BuildAssChainWasmTask : DefaultTask() {
             }
             logger.lifecycle("[KiteFFmpeg] ass chain (${sourceRefs.get()}) for wasm32 installed into $output")
         } finally {
-            scratch.deleteRecursively()
+            BuildFFmpegTask.deleteScratch(scratch.toPath())
         }
     }
 

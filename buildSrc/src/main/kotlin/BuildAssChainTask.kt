@@ -145,7 +145,7 @@ abstract class BuildAssChainTask : DefaultTask() {
             }
             logger.lifecycle("[KiteFFmpeg] ass chain (${sourceRefs.get()}) for ${target.dirName} installed into $output")
         } finally {
-            scratch.deleteRecursively()
+            BuildFFmpegTask.deleteScratch(scratch.toPath())
         }
     }
 
