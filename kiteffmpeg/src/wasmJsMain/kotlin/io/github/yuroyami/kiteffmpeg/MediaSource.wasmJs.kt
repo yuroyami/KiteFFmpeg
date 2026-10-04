@@ -76,6 +76,10 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_dict_entry_value
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_count
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_get
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_metadata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_count
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_get
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_metadata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_stream
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_attachment
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_data
@@ -150,7 +154,36 @@ public actual class MediaSource internal constructor(
             }
         }
 
-    public actual val programs: List<Program> get() = emptyList()
+    public actual val programs: List<Program> by lazy {
+        val m = requireModule()
+        val context = alive()
+        val count = ffkmp_fmt_program_count(m, context)
+        if (count <= 0) return@lazy emptyList()
+        val known = streams.mapTo(HashSet()) { it.index }
+        // The id, the number and the stream count in one allocation, as the chapter table reads.
+        val slots = wasmAlloc(m, 12)
+        try {
+            buildList {
+                for (index in 0 until count) {
+                    if (ffkmp_fmt_program_get(m, context, index, slots, slots + 4, slots + 8) < 0) continue
+                    val indexes = (0 until readInt32(m, slots + 8))
+                        .map { ffkmp_fmt_program_stream(m, context, index, it) }
+                        .filter { it >= 0 }
+                    add(
+                        programOf(
+                            id = readInt32(m, slots),
+                            number = readInt32(m, slots + 4),
+                            streamIndexes = indexes,
+                            metadata = readMetadata(m, ffkmp_fmt_program_metadata(m, context, index)),
+                            known = known,
+                        ),
+                    )
+                }
+            }
+        } finally {
+            wasmFree(m, slots)
+        }
+    }
 
     /**
      * The keys FFmpeg did not consume, which is a real answer now.

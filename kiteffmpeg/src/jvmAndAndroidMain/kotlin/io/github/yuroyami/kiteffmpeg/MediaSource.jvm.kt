@@ -568,14 +568,16 @@ private fun openMediaSource(
     }
     try {
         check0(Internals.fmtFindStreamInfo(context), "avformat_find_stream_info")
+        val streams = buildStreams(context)
         return MediaSource(
             formatToken = context,
-            streams = buildStreams(context),
+            streams = streams,
             durationMicros = Internals.fmtDuration(context).takeIf { it > 0L },
             formatName = Internals.fmtInputName(context).ifEmpty { "unknown" },
             metadata = readMetadata(Internals.fmtMetadata(context)),
             startTimeMicros = Internals.fmtStartTime(context),
             chapters = readChapters(context),
+            programs = readPrograms(context, streams),
             unusedOpenOptions = unusedKeys,
             inputPath = path,
         )
@@ -624,14 +626,16 @@ private fun openMediaSourceIo(
     unusedKeys = unusedSlot[0]?.takeIf { it.isNotEmpty() }?.split('\u001f') ?: emptyList()
     try {
         check0(Internals.fmtFindStreamInfo(context), "avformat_find_stream_info")
+        val streams = buildStreams(context)
         return MediaSource(
             formatToken = context,
-            streams = buildStreams(context),
+            streams = streams,
             durationMicros = Internals.fmtDuration(context).takeIf { it > 0L },
             formatName = Internals.fmtInputName(context).ifEmpty { "unknown" },
             metadata = readMetadata(Internals.fmtMetadata(context)),
             startTimeMicros = Internals.fmtStartTime(context),
             chapters = readChapters(context),
+            programs = readPrograms(context, streams),
             unusedOpenOptions = unusedKeys,
             jniIo = adapter,
         )
@@ -653,6 +657,21 @@ private fun readChapters(format: Long): List<Chapter> {
             if (Internals.fmtChapterGet(format, index, fields) < 0) continue
             val dict = Internals.fmtChapterMetadata(format, index)
             add(Chapter(fields[0], fields[1], fields[2], readMetadata(dict)))
+        }
+    }
+}
+
+/** The programme table (#148), against the [streams] this source lists. */
+private fun readPrograms(format: Long, streams: List<StreamInfo>): List<Program> {
+    val count = Internals.fmtProgramCount(format)
+    if (count <= 0) return emptyList()
+    val known = streams.mapTo(HashSet()) { it.index }
+    val fields = IntArray(3)
+    return buildList {
+        for (index in 0 until count) {
+            if (Internals.fmtProgramGet(format, index, fields) < 0) continue
+            val indexes = (0 until fields[2]).map { Internals.fmtProgramStream(format, index, it) }.filter { it >= 0 }
+            add(programOf(fields[0], fields[1], indexes, readMetadata(Internals.fmtProgramMetadata(format, index)), known))
         }
     }
 }

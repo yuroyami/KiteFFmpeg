@@ -212,6 +212,19 @@ val title = source.metadata["title"]
 val artist = source.metadata["artist"]
 ```
 
+### Programmes
+
+A transport stream from a DVB tuner or an IPTV multiplex can carry several channels at once, each with its own picture, sound and subtitles, and the flat stream list cannot say which sound belongs to which picture. `source.programs` says it, as the container's programme tables state it:
+
+```kotlin
+for (program in source.programs) {
+    val streams = source.streams.filter { it.index in program.streamIndexes }
+    println("${program.serviceName ?: "programme ${program.number}"}: ${streams.map { it.type }}")
+}
+```
+
+A `Program` holds FFmpeg's id for it, the programme number the container states, which in a transport stream is the service id a channel guide names the channel by, the indexes of its streams, and its own tags, where a transport stream keeps the channel's name and provider under `service_name` and `service_provider`. FFmpeg also makes one programme for each variant of an HLS master playlist, with the variant's bit rate under `variant_bitrate`, and one holding every stream of a DASH presentation, and neither states a number. MP4, Matroska and the other containers without such tables have none, so the list is empty. A stream can sit in two programmes, as a sound that two channels share does, or in none, as a transport stream's stream does when FFmpeg found it by its packets rather than in a programme table. A channel that only the service description table names has a name but no number and no streams. `MediaSource.probe(path).programs` reads the same list without keeping the source open.
+
 ## Decoding one stream
 
 `decodedFrames(stream)` returns a cold `Flow<Frame>`. Collecting it runs an EAGAIN-correct decode loop: it demuxes packets, feeds them to the right decoder, and emits one `Frame` per decoded picture or audio buffer.

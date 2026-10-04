@@ -749,6 +749,18 @@ KC_API int      ffkmp_fmt_chapter_get(const kc_fmt_ctx *ctx, int index,
                                       int64_t *out_id, int64_t *out_start_us, int64_t *out_end_us);
 KC_API kc_dict* ffkmp_fmt_chapter_metadata(const kc_fmt_ctx *ctx, int index);
 
+/* The programme table (#148), read the same way. get writes FFmpeg's id for the programme, the
+ * programme number the container states, 0 when it states none, and how many streams the
+ * programme holds; stream answers the stream index at one position of it. Both refuse a NULL
+ * context, NULL outputs and out-of-range indices or positions with AVERROR(EINVAL). The metadata
+ * accessor returns a borrowed dictionary owned by the context, NULL on any bad argument.
+ */
+KC_API int      ffkmp_fmt_program_count(const kc_fmt_ctx *ctx);
+KC_API int      ffkmp_fmt_program_get(const kc_fmt_ctx *ctx, int index,
+                                      int *out_id, int *out_number, int *out_stream_count);
+KC_API int      ffkmp_fmt_program_stream(const kc_fmt_ctx *ctx, int index, int position);
+KC_API kc_dict* ffkmp_fmt_program_metadata(const kc_fmt_ctx *ctx, int index);
+
 /* Ownership. Allocates per stream parsing state, and may probe and buffer packets. All of
  * it belongs to the context and is released when the context is closed. Nothing becomes
  * the caller's. A NULL context is refused with AVERROR(EINVAL).

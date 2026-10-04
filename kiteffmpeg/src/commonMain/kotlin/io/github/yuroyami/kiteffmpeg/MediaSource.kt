@@ -35,7 +35,8 @@ public expect class MediaSource : AutoCloseable {
     /**
      * The container's programmes, each a set of [streams] that play together, such as the channels
      * of a transport stream multiplex. Empty when the container declares none, as MP4 and Matroska
-     * do not. Read when the source opens, like [streams]. See [Program].
+     * do not. Read once, like [streams], and every stream index in it names one of [streams]. See
+     * [Program].
      */
     public val programs: List<Program>
 

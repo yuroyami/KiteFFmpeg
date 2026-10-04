@@ -59,6 +59,23 @@ class WebContainerModelTest {
     }
 
     @Test
+    fun programmesAreReadWithTheirNumbersStreamsAndNames() {
+        open().use { source ->
+            assertEquals(
+                listOf(
+                    Program(10, 3, listOf(0, 1), mapOf("service_name" to "Fake One", "service_provider" to "Kite")),
+                    // No number, and the stream the source does not have is left out (#148).
+                    Program(11, null, listOf(1), mapOf("service_name" to "Fake Two")),
+                ),
+                source.programs,
+            )
+            assertEquals("Fake One", source.programs[0].serviceName)
+            assertEquals("Kite", source.programs[0].serviceProvider)
+            assertNull(source.programs[1].serviceProvider)
+        }
+    }
+
+    @Test
     fun perStreamMetadataIsRead() {
         open().use { source ->
             assertEquals("eng", source.streams[0].metadata["language"])

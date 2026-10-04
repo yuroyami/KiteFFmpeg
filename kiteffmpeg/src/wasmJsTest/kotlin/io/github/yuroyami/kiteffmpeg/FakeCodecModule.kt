@@ -188,6 +188,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         m._ffkmp_fmt_metadata = () => 0;
         m._ffkmp_stream_metadata = () => 0;
         m._ffkmp_fmt_chapter_count = () => 0;
+        m._ffkmp_fmt_program_count = () => 0;
         m._ffkmp_stream_start_time = () => -9223372036854775808n;
         m._ffkmp_codecpar_extradata = () => 0;
         m._ffkmp_media_type_data = () => 2;
@@ -684,6 +685,8 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
             3: [["language", "ger"]],
             4: [["title", "Opening"]],
             5: [["title", "Ending"]],
+            6: [["service_name", "Fake One"], ["service_provider", "Kite"]],
+            7: [["service_name", "Fake Two"]],
         };
         const built = {};
         for (const id of Object.keys(dicts)) {
@@ -715,6 +718,25 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
             return 0;
         };
         m._ffkmp_fmt_chapter_metadata = (ctx, index) => chapters[index][3];
+
+        // Programmes: id, number and stream count are int OUT slots the caller allocates. The
+        // second has no number, as FFmpeg holds a channel only a service table names, and names a
+        // stream 5 the source does not have.
+        const programs = [[10, 3, [0, 1], 6], [11, 0, [1, 5], 7]];
+        m._ffkmp_fmt_program_count = () => programs.length;
+        m._ffkmp_fmt_program_get = (ctx, index, idOut, numberOut, countOut) => {
+            if (index < 0 || index >= programs.length) return -22;
+            const p = programs[index];
+            m.HEAP32[idOut >> 2] = p[0];
+            m.HEAP32[numberOut >> 2] = p[1];
+            m.HEAP32[countOut >> 2] = p[2].length;
+            return 0;
+        };
+        m._ffkmp_fmt_program_stream = (ctx, index, position) => {
+            const p = programs[index];
+            return p && position >= 0 && position < p[2].length ? p[2][position] : -22;
+        };
+        m._ffkmp_fmt_program_metadata = (ctx, index) => programs[index] ? programs[index][3] : 0;
 
         // Stream 0 is video, stream 1 an attachment: the two answers that used to collapse.
         m._ffkmp_media_type_data = () => 2;

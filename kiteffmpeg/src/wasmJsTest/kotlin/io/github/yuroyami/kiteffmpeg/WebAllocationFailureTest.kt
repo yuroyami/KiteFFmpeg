@@ -114,6 +114,7 @@ class WebAllocationFailureTest {
             try {
                 media.streams.forEach { it.toString() }
                 media.chapters.forEach { it.toString() }
+                media.programs.forEach { it.toString() }
                 media.metadata.size
             } catch (thrown: FFmpegException) {
                 assertIs<FFmpegError.OutOfMemory>(thrown.error, "$at: ${thrown.message}")

@@ -62,6 +62,10 @@ import ffmpeg.ffkmp_dict_entry_key
 import ffmpeg.ffkmp_fmt_chapter_count
 import ffmpeg.ffkmp_fmt_chapter_get
 import ffmpeg.ffkmp_fmt_chapter_metadata
+import ffmpeg.ffkmp_fmt_program_count
+import ffmpeg.ffkmp_fmt_program_get
+import ffmpeg.ffkmp_fmt_program_metadata
+import ffmpeg.ffkmp_fmt_program_stream
 import ffmpeg.ffkmp_fmt_open_input2
 import ffmpeg.ffkmp_interrupt_free
 import ffmpeg.ffkmp_interrupt_new
@@ -882,6 +886,7 @@ private fun assembleMediaSource(
     val metadata: Map<String, String>
     val startTime: Long
     val chapters: List<Chapter>
+    val programs: List<Program>
     try {
         streams = buildStreams(ctx)
         durationFromHeader = ffkmp_fmt_duration(ctx).takeIf { it > 0L }
@@ -889,6 +894,7 @@ private fun assembleMediaSource(
         metadata = readMetadata(ffkmp_fmt_metadata(ctx))
         startTime = ffkmp_fmt_start_time(ctx)
         chapters = readChapters(ctx)
+        programs = readPrograms(ctx, streams)
     } catch (failure: Throwable) {
         unwind()
         throw failure
@@ -897,6 +903,7 @@ private fun assembleMediaSource(
     return MediaSource(
         ctx, streams, durationFromHeader, formatName, metadata, startTime,
         chapters = chapters,
+        programs = programs,
         unusedOpenOptions = unusedKeys,
         ioCleanup = ioCleanup,
         ioState = ioState,
@@ -1137,6 +1144,25 @@ private fun readChapters(ctx: CPointer<kc_fmt_ctx>): List<Chapter> {
                 if (ffkmp_fmt_chapter_get(ctx, index, id.ptr, start.ptr, end.ptr) < 0) continue
                 val metadata = readMetadata(ffkmp_fmt_chapter_metadata(ctx, index))
                 add(Chapter(id.value, start.value, end.value, metadata))
+            }
+        }
+    }
+}
+
+/** The programme table (#148), against the [streams] this source lists. */
+private fun readPrograms(ctx: CPointer<kc_fmt_ctx>, streams: List<StreamInfo>): List<Program> {
+    val count = ffkmp_fmt_program_count(ctx)
+    if (count <= 0) return emptyList()
+    val known = streams.mapTo(HashSet()) { it.index }
+    return memScoped {
+        val id = alloc<IntVar>()
+        val number = alloc<IntVar>()
+        val streamCount = alloc<IntVar>()
+        buildList {
+            for (index in 0 until count) {
+                if (ffkmp_fmt_program_get(ctx, index, id.ptr, number.ptr, streamCount.ptr) < 0) continue
+                val indexes = (0 until streamCount.value).map { ffkmp_fmt_program_stream(ctx, index, it) }.filter { it >= 0 }
+                add(programOf(id.value, number.value, indexes, readMetadata(ffkmp_fmt_program_metadata(ctx, index)), known))
             }
         }
     }

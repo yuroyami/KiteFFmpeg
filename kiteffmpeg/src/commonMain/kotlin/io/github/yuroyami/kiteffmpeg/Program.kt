@@ -22,7 +22,8 @@ public data class Program(
     /**
      * The programme number the container states, which in a transport stream is the service id
      * that the DVB and ATSC guide tables name a channel by. Null when the container states none,
-     * as HLS and DASH do not.
+     * as HLS and DASH do not. A transport stream states it in its programme association table, so
+     * a channel that only its service description table names has none, and no streams either.
      */
     val number: Int?,
     /**
@@ -42,3 +43,21 @@ public data class Program(
     /** Who provides the channel, from the same table, or null when there is none. */
     public val serviceProvider: String? get() = metadata["service_provider"]
 }
+
+/**
+ * A programme from what the C layer reads (#148): the number FFmpeg holds is 0 when the container
+ * states none, and a stream index is kept only when it names one of [known], the indexes of the
+ * source's streams, so a programme never names a stream its source does not list.
+ */
+internal fun programOf(
+    id: Int,
+    number: Int,
+    streamIndexes: List<Int>,
+    metadata: Map<String, String>,
+    known: Set<Int>,
+): Program = Program(
+    id = id,
+    number = number.takeIf { it > 0 },
+    streamIndexes = streamIndexes.filter { it in known },
+    metadata = metadata,
+)

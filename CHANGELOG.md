@@ -20,8 +20,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `StreamInfo.language` of an MP4 or MOV track that carries an `elng` box is that tag now (#157),
   so a track that read `zho` can read `zh-Hant`. A remux into MP4 or MOV of a stream whose tag says
   more than its code, such as `pt-BR`, now reads back as that tag rather than as `por`.
+- `MediaProbe` gains `programs`, which changes its constructor and `copy`. Recompile a library
+  built against 0.4.0.
 
 ### Added
+
+- `MediaSource.programs` and `MediaProbe.programs` list a source's programmes (#148), the sets of
+  streams that play together, such as the channels of a DVB or IPTV transport stream. Each
+  `Program` carries FFmpeg's id, the programme number the container states, which in a transport
+  stream is the service id, the indexes of its streams, and its tags, with the channel's name and
+  provider as `serviceName` and `serviceProvider`. An HLS master playlist reads one programme per
+  variant and a DASH presentation one holding every stream, both with no number, and a container
+  with no programme tables reads none. The C ABI is 3.27 and adds `ffkmp_fmt_program_count`,
+  `ffkmp_fmt_program_get`, `ffkmp_fmt_program_stream` and `ffkmp_fmt_program_metadata`.
 
 - `VideoStreamInfo.spherical` and `VideoStreamInfo.stereo3d` say how a stream's pictures wrap
   around the viewer and how they hold the views of two eyes (#139), as Google's spherical video and

@@ -303,6 +303,15 @@ internal external fun ffkmp_fmt_open_input2(module: JsAny, a0: Int, a1: Int, a2:
 @JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => m._ffkmp_fmt_open_input_io2(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)")
 internal external fun ffkmp_fmt_open_input_io2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Long, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_fmt_program_count(a0)")
+internal external fun ffkmp_fmt_program_count(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0, a1, a2, a3, a4) => m._ffkmp_fmt_program_get(a0, a1, a2, a3, a4)")
+internal external fun ffkmp_fmt_program_get(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int): Int
+
+@JsFun("(m, a0, a1, a2) => m._ffkmp_fmt_program_stream(a0, a1, a2)")
+internal external fun ffkmp_fmt_program_stream(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_read_frame(a0, a1)")
 internal external fun ffkmp_fmt_read_frame(module: JsAny, a0: Int, a1: Int): Int
 
@@ -599,6 +608,9 @@ internal external fun ffkmp_fmt_chapter_metadata(module: JsAny, a0: Int, a1: Int
 
 @JsFun("(m, a0) => m._ffkmp_fmt_metadata(a0)")
 internal external fun ffkmp_fmt_metadata(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0, a1) => m._ffkmp_fmt_program_metadata(a0, a1)")
+internal external fun ffkmp_fmt_program_metadata(module: JsAny, a0: Int, a1: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_stream_metadata(a0)")
 internal external fun ffkmp_stream_metadata(module: JsAny, a0: Int): Int

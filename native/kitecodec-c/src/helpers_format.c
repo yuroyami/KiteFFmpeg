@@ -216,6 +216,34 @@ KC_API AVDictionary *ffkmp_fmt_chapter_metadata(const AVFormatContext *ctx, int 
     if (!ctx || index < 0 || (unsigned)index >= ctx->nb_chapters) return NULL;
     return ctx->chapters[index]->metadata;
 }
+/* The programme table (#148): the channels of a transport stream multiplex, the variants of an HLS
+ * master playlist, or the one programme of a DASH presentation. program_num is 0 where the
+ * container states no number. In a transport stream the programme association table states it,
+ * so a channel that only the service description table names has 0 there, and no streams. */
+KC_API int ffkmp_fmt_program_count(const AVFormatContext *ctx) {
+    return ctx ? (int)ctx->nb_programs : AVERROR(EINVAL);
+}
+KC_API int ffkmp_fmt_program_get(const AVFormatContext *ctx, int index,
+                                 int *out_id, int *out_number, int *out_stream_count) {
+    if (!ctx || index < 0 || (unsigned)index >= ctx->nb_programs) return AVERROR(EINVAL);
+    if (!out_id || !out_number || !out_stream_count) return AVERROR(EINVAL);
+    const AVProgram *program = ctx->programs[index];
+    *out_id = program->id;
+    *out_number = program->program_num;
+    *out_stream_count = (int)program->nb_stream_indexes;
+    return 0;
+}
+KC_API int ffkmp_fmt_program_stream(const AVFormatContext *ctx, int index, int position) {
+    if (!ctx || index < 0 || (unsigned)index >= ctx->nb_programs) return AVERROR(EINVAL);
+    const AVProgram *program = ctx->programs[index];
+    if (position < 0 || (unsigned)position >= program->nb_stream_indexes) return AVERROR(EINVAL);
+    return (int)program->stream_index[position];
+}
+/* The programme's own tags, where a transport stream's service_name and service_provider live. */
+KC_API AVDictionary *ffkmp_fmt_program_metadata(const AVFormatContext *ctx, int index) {
+    if (!ctx || index < 0 || (unsigned)index >= ctx->nb_programs) return NULL;
+    return ctx->programs[index]->metadata;
+}
 KC_API int  ffkmp_fmt_find_stream_info(AVFormatContext *c) {
     return c ? avformat_find_stream_info(c, NULL) : AVERROR(EINVAL);
 }

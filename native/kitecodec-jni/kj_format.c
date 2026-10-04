@@ -193,6 +193,52 @@ JNIEXPORT jlong JNICALL kj_fmt_chapter_metadata(JNIEnv *env, jclass cls, jlong t
     return dict ? kj_handle_put_borrowed(env, KJ_KIND_DICT, dict, token) : 0;
 }
 
+/* The programme table (#148). get writes the programme's id, its number and its stream count. */
+JNIEXPORT jint JNICALL kj_fmt_program_count(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    return ctx ? (jint)ffkmp_fmt_program_count(ctx) : -1;
+}
+
+JNIEXPORT jint JNICALL kj_fmt_program_get(JNIEnv *env, jclass cls, jlong token, jint index,
+                                          jintArray out_fields)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    int id = 0, number = 0, stream_count = 0;
+    jint fields[3];
+    int rc;
+    (void)cls;
+    if (ctx == NULL) return -1;
+    if (out_fields == NULL || (*env)->GetArrayLength(env, out_fields) < 3) {
+        kj_throw_handle(env, "program_get needs a three-slot output array");
+        return -1;
+    }
+    rc = ffkmp_fmt_program_get(ctx, (int)index, &id, &number, &stream_count);
+    if (rc < 0) return (jint)rc;
+    fields[0] = (jint)id; fields[1] = (jint)number; fields[2] = (jint)stream_count;
+    (*env)->SetIntArrayRegion(env, out_fields, 0, 3, fields);
+    return 0;
+}
+
+JNIEXPORT jint JNICALL kj_fmt_program_stream(JNIEnv *env, jclass cls, jlong token, jint index,
+                                             jint position)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    return ctx ? (jint)ffkmp_fmt_program_stream(ctx, (int)index, (int)position) : -1;
+}
+
+JNIEXPORT jlong JNICALL kj_fmt_program_metadata(JNIEnv *env, jclass cls, jlong token, jint index)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    kc_dict *dict;
+    (void)cls;
+    if (ctx == NULL) return 0;
+    dict = ffkmp_fmt_program_metadata(ctx, (int)index);
+    return dict ? kj_handle_put_borrowed(env, KJ_KIND_DICT, dict, token) : 0;
+}
+
 JNIEXPORT void JNICALL kj_fmt_close_input(JNIEnv *env, jclass cls, jlong token)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_close(token, KJ_KIND_FMT_CTX);

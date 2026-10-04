@@ -113,6 +113,10 @@ internal object Internals {
     private external fun nativeFmtChapterCount(token: Long): Int
     private external fun nativeFmtChapterGet(token: Long, index: Int, outFields: LongArray): Int
     private external fun nativeFmtChapterMetadata(token: Long, index: Int): Long
+    private external fun nativeFmtProgramCount(token: Long): Int
+    private external fun nativeFmtProgramGet(token: Long, index: Int, outFields: IntArray): Int
+    private external fun nativeFmtProgramStream(token: Long, index: Int, position: Int): Int
+    private external fun nativeFmtProgramMetadata(token: Long, index: Int): Long
     private external fun nativeFmtCloseInput(token: Long)
     private external fun nativeFmtInterrupt(token: Long)
     private external fun nativeFmtFindStreamInfo(token: Long): Int
@@ -462,6 +466,10 @@ internal object Internals {
     internal fun fmtChapterCount(token: Long) = checked { nativeFmtChapterCount(token) }
     internal fun fmtChapterGet(token: Long, index: Int, outFields: LongArray) = checked { nativeFmtChapterGet(token, index, outFields) }
     internal fun fmtChapterMetadata(token: Long, index: Int) = nativeFmtChapterMetadata(token, index)
+    internal fun fmtProgramCount(token: Long) = checked { nativeFmtProgramCount(token) }
+    internal fun fmtProgramGet(token: Long, index: Int, outFields: IntArray) = checked { nativeFmtProgramGet(token, index, outFields) }
+    internal fun fmtProgramStream(token: Long, index: Int, position: Int) = checked { nativeFmtProgramStream(token, index, position) }
+    internal fun fmtProgramMetadata(token: Long, index: Int) = nativeFmtProgramMetadata(token, index)
     internal fun fmtCloseInput(token: Long) = checked { nativeFmtCloseInput(token) }
     internal fun fmtFindStreamInfo(token: Long) = checked { nativeFmtFindStreamInfo(token) }
     internal fun fmtNbStreams(token: Long) = checked { nativeFmtNbStreams(token) }
