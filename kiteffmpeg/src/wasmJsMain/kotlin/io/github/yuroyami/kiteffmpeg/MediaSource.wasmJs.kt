@@ -624,14 +624,24 @@ public actual class MediaSource internal constructor(
                 runCatching { bridge.release() }
                 nested?.let { runCatching { it.release() } }
             }
-            val slot = wasmAlloc(m, 4)
+            var slot = 0
             // The unused-option dictionary FFmpeg hands back, as its own out-slot. The binding
             // used to pass a null pointer here and then guess the answer from the key array, which
             // the C side never writes to, so every option was reported unused on every open
             // Ask for the dictionary and read it instead.
-            val unusedSlot = wasmAlloc(m, 4)
-            writeInt32(m, unusedSlot, 0)
-            val opts = CStringArrays.of(m, options)
+            var unusedSlot = 0
+            // An allocation that fails here gives back the ones before it and the bridge (#142).
+            val opts = try {
+                slot = wasmAlloc(m, 4)
+                unusedSlot = wasmAlloc(m, 4)
+                writeInt32(m, unusedSlot, 0)
+                CStringArrays.of(m, options)
+            } catch (failure: Throwable) {
+                if (unusedSlot != 0) wasmFree(m, unusedSlot)
+                if (slot != 0) wasmFree(m, slot)
+                releaseIo()
+                throw failure
+            }
             val rc = try {
                 if (url == null && mimeType == null && nested == null) {
                     openInputIo(
@@ -640,11 +650,14 @@ public actual class MediaSource internal constructor(
                     )
                 } else {
                     // Input only, copied by the C side, so both go back right after the call.
-                    val urlPointer = url?.let { allocCString(m, it) } ?: 0
-                    val mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
+                    var urlPointer = 0
+                    var mimePointer = 0
                     // Copied by the C side as well; the callbacks it names live until the close.
-                    val openerPointer = nested?.writeStruct() ?: 0
+                    var openerPointer = 0
                     try {
+                        urlPointer = url?.let { allocCString(m, it) } ?: 0
+                        mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
+                        openerPointer = nested?.writeStruct() ?: 0
                         openInputIo2(
                             m, slot, bridge.readPointer, bridge.seekPointer, bridge.size, urlPointer,
                             mimePointer, openerPointer, opts.keys, opts.values, options.size, unusedSlot,
@@ -871,21 +884,6 @@ private external fun openInputIo2(
 ): Int
 
 /**
- * Runs [block] with [text] staged as a NUL-terminated C string, and frees it afterwards.
- *
- * Every string crossing into the module needs codec memory of its own, and every one of them has
- * to come back whether the call succeeded or not.
- */
-private inline fun <T> withCString(m: kotlin.js.JsAny, text: String, block: (Int) -> T): T {
-    val pointer = allocCString(m, text)
-    try {
-        return block(pointer)
-    } finally {
-        wasmFree(m, pointer)
-    }
-}
-
-/**
  * Walks the unused-option dictionary at [slot] into its key names, then frees it.
  *
  * The dictionary is FFmpeg's own answer about which options it did not consume, and this is the
@@ -996,15 +994,21 @@ private class CStringArrays(val keys: Int, val values: Int, private val strings:
         fun of(m: kotlin.js.JsAny, options: Map<String, String>): CStringArrays {
             if (options.isEmpty()) return CStringArrays(0, 0, emptyList())
             val strings = mutableListOf<Int>()
-            val keys = wasmAlloc(m, options.size * 4)
-            val values = wasmAlloc(m, options.size * 4)
-            options.entries.forEachIndexed { index, (key, value) ->
-                val keyPtr = allocCString(m, key)
-                val valuePtr = allocCString(m, value)
-                strings += keyPtr
-                strings += valuePtr
-                writeInt32(m, keys + index * 4, keyPtr)
-                writeInt32(m, values + index * 4, valuePtr)
+            var keys = 0
+            var values = 0
+            try {
+                keys = wasmAlloc(m, options.size * 4)
+                values = wasmAlloc(m, options.size * 4)
+                options.entries.forEachIndexed { index, (key, value) ->
+                    val keyPtr = allocCString(m, key).also { strings += it }
+                    val valuePtr = allocCString(m, value).also { strings += it }
+                    writeInt32(m, keys + index * 4, keyPtr)
+                    writeInt32(m, values + index * 4, valuePtr)
+                }
+            } catch (failure: Throwable) {
+                // A failed allocation part way gives back every one before it (#142).
+                CStringArrays(keys, values, strings).free(m)
+                throw failure
             }
             return CStringArrays(keys, values, strings)
         }

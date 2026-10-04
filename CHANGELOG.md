@@ -75,6 +75,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- On the web, a codec module out of memory no longer has strings and out-slots written at address
+  zero, or captions, extradata and metadata read from there as if they were the answer (#142). The
+  module grows its memory, so a failed allocation returns zero instead of aborting; every
+  allocation the backend makes now refuses that with `FFmpegError.OutOfMemory`, and an open that
+  fails part way gives back what it took before the failure, the byte source included.
 - `SubtitleDecoder.drain()` gives what a subtitle decoder still holds once the packets of its
   stream have run out (#149). FFmpeg's CEA-608 caption decoder gives a caption only when the screen
   next changes, and teletext holds its page the same way, so the caption on screen at the end of a

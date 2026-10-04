@@ -92,11 +92,14 @@ public class WebRgbaConverter : AutoCloseable {
         }
     }
 
-    /** Grows the scratch buffer when a bigger frame arrives, and never shrinks it back. */
+    /**
+     * Grows the scratch buffer when a bigger frame arrives, and never shrinks it back. A module out of
+     * memory drops this frame like any other that cannot be drawn, and the next frame asks again.
+     */
     private fun reserve(module: JsAny, size: Int): Boolean {
         if (capacity >= size) return true
         if (buffer != 0) wasmFree(module, buffer)
-        buffer = wasmAlloc(module, size)
+        buffer = wasmAllocOrZero(module, size)
         capacity = if (buffer == 0) 0 else size
         return buffer != 0
     }

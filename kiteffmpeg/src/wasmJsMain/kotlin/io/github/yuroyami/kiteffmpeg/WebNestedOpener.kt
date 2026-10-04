@@ -35,7 +35,6 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
      */
     fun writeStruct(): Int {
         val struct = wasmAlloc(module, OpenerLayout.SIZE_OF)
-        if (struct == 0) throw FFmpegException(FFmpegError.Internal("could not allocate the nested opener"))
         writeInt32(module, struct + OpenerLayout.opaque, 0)
         writeInt32(module, struct + OpenerLayout.openFn, callbackOf(callbacks, "open"))
         writeInt32(module, struct + OpenerLayout.readFn, callbackOf(callbacks, "read"))
@@ -101,7 +100,6 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
         }
         // A zero-byte source still needs an address of its own, because the address is its name.
         val buffer = wasmAlloc(module, maxOf(total.toInt(), 1))
-        if (buffer == 0) throw FFmpegException(FFmpegError.Internal("could not stage $total bytes"))
         try {
             var written = 0
             for (bytes in chunks) {

@@ -148,7 +148,6 @@ internal class WebIoBridge private constructor(
             }
             val total = size.toInt()
             val buffer = wasmAlloc(module, total)
-            if (buffer == 0) throw FFmpegException(FFmpegError.Internal("could not stage $total bytes"))
             val callbacks = try {
                 drain(io, module, buffer, total)
                 installCallbacks(module, buffer, total)

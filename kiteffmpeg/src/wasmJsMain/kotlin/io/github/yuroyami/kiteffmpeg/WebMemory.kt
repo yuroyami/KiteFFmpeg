@@ -14,7 +14,30 @@ import kotlin.js.JsAny
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, n) => m._malloc(n)")
-internal external fun wasmAlloc(module: JsAny, bytes: Int): Int
+private external fun malloc(module: JsAny, bytes: Int): Int
+
+/**
+ * [bytes] of codec memory, at an address that is never zero (#142).
+ *
+ * The module is linked to grow its memory, and a module built that way answers an allocation it
+ * cannot satisfy with zero instead of aborting. Zero is a real address in wasm memory, so writing a
+ * string or an out-slot there corrupts the module's low memory without a fault, and reading there
+ * returns unrelated bytes as if they were the answer. Every allocation therefore comes through here
+ * and a zero becomes [FFmpegError.OutOfMemory] before anything touches it. A request for nothing asks
+ * for one byte, so that zero always means failure; a negative request is a size that overflowed.
+ */
+internal fun wasmAlloc(module: JsAny, bytes: Int): Int {
+    val pointer = wasmAllocOrZero(module, bytes)
+    if (pointer == 0) throw outOfCodecMemory("$bytes bytes")
+    return pointer
+}
+
+/** [wasmAlloc] for the one caller that answers a failure without throwing: zero when it failed. */
+internal fun wasmAllocOrZero(module: JsAny, bytes: Int): Int = if (bytes < 0) 0 else malloc(module, maxOf(bytes, 1))
+
+/** The failure of an allocation in the codec module, naming what it was for. */
+internal fun outOfCodecMemory(what: String): FFmpegException =
+    FFmpegException(FFmpegError.OutOfMemory(0, "the codec module could not allocate $what"))
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, p) => m._free(p)")
@@ -36,8 +59,10 @@ internal external fun readInt32(module: JsAny, pointer: Int): Int
 internal external fun readFixedString(module: JsAny, pointer: Int, limit: Int): String
 
 /** Copies [text] into codec memory as a NUL-terminated C string, runs [body], then frees it. */
-internal fun <R> withCString(text: String, body: (Int) -> R): R {
-    val module = requireModule()
+internal fun <R> withCString(text: String, body: (Int) -> R): R = withCString(requireModule(), text, body)
+
+/** [withCString] on a module the caller already holds. */
+internal inline fun <R> withCString(module: JsAny, text: String, body: (Int) -> R): R {
     val pointer = allocCString(module, text)
     try {
         return body(pointer)
@@ -46,9 +71,17 @@ internal fun <R> withCString(text: String, body: (Int) -> R): R {
     }
 }
 
+/** [text] as a NUL-terminated C string in codec memory, which the caller frees. */
+internal fun allocCString(module: JsAny, text: String): Int {
+    val pointer = stageCString(module, text)
+    if (pointer == 0) throw outOfCodecMemory("a string of ${text.length} characters")
+    return pointer
+}
+
+/** Writes nothing when the allocation fails, because zero is an address the string would land on. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-@JsFun("(m, s) => { const n = m.lengthBytesUTF8(s) + 1; const p = m._malloc(n); m.stringToUTF8(s, p, n); return p; }")
-internal external fun allocCString(module: JsAny, text: String): Int
+@JsFun("(m, s) => { const n = m.lengthBytesUTF8(s) + 1; const p = m._malloc(n); if (p !== 0) m.stringToUTF8(s, p, n); return p; }")
+private external fun stageCString(module: JsAny, text: String): Int
 
 /** Copies [length] bytes out of codec memory into a Kotlin array. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
