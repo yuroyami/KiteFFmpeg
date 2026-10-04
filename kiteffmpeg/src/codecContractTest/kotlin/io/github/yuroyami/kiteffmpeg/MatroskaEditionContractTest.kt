@@ -46,7 +46,7 @@ class MatroskaEditionContractTest {
  * from 4 to 6 s. FFmpeg 9.0.2 lists 11, 12 and 26, and drops the tag with a warning that its chapter
  * does not exist.
  */
-private object EditionsMatroska {
+internal object EditionsMatroska {
     const val sha256: String = "7573bda98eedbd24afac545ae3bb55a85ea692fded8f6045c543804071b8c659"
 
     val bytes: ByteArray by lazy {

@@ -846,6 +846,18 @@ KC_API int      ffkmp_fmt_program_get(const kc_fmt_ctx *ctx, int index,
 KC_API int      ffkmp_fmt_program_stream(const kc_fmt_ctx *ctx, int index, int position);
 KC_API kc_dict* ffkmp_fmt_program_metadata(const kc_fmt_ctx *ctx, int index);
 
+/* Copies the bytes of a binary option the demuxer exports, such as the Matroska demuxer's
+ * info_payload and chapters_payload (#173), with the extradata copy's contract: a NULL destination
+ * queries the byte count, and a non-NULL one receives at most dst_size bytes and the copied count is
+ * returned. A demuxer without such an option, an option that is not an exported binary one, and one
+ * the demuxer left unset all answer KC_OPTION_NOT_FOUND, which is FFmpeg's AVERROR_OPTION_NOT_FOUND
+ * spelled for callers that see no libav header, so an FFmpeg without
+ * 0014-matroska-export-the-info-and-chapters-payloads.patch reads as not knowing, never as empty. A
+ * NULL context or name, or a negative size, is refused with AVERROR(EINVAL).
+ */
+#define KC_OPTION_NOT_FOUND (-0x54504FF8)
+KC_API int      ffkmp_fmt_exported_bytes(const kc_fmt_ctx *ctx, const char *name, uint8_t *dst, int dst_size);
+
 /* A number that changes when the stream count or the programme table changes (#151): each
  * programme's id, number, stream indexes or tags. A live transport stream changes them while it
  * reads, and FFmpeg raises no flag for it, so a reader compares this after every read and reads the

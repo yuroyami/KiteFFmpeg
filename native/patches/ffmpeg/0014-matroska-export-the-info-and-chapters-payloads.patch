@@ -1,0 +1,196 @@
+Export the payloads of a Matroska segment's Info and Chapters elements.
+
+A Matroska file can describe a timeline rather than a plain run of media: an ordered edition plays
+its chapters in their own order, a chapter can play a range or a whole edition of another file named
+by its SegmentUUID, and segments chain through PrevUUID and NextUUID (RFC 9559, sections 20.2 to
+20.4). The demuxer reads one edition as plain chapters and none of the rest, and an AVChapter has no
+place for nested chapters, edition flags, skip types or links, so a caller that plays such a file
+the way mpv and VLC do has to read those elements itself.
+
+The demuxer now keeps the payload of the segment's first Info element and of its first Chapters
+element, the bytes between the element's size and its end exactly as the file holds them, and
+exports them as two read-only binary options, "info_payload" and "chapters_payload", on a new
+AVClass of the Matroska demuxer. An option is unset when the file has no such element, when its
+length is unknown, or when it is larger than 16 MiB, and the element is then parsed as before.
+
+The payload is read back from the IO buffer after the element is parsed, so the parse is untouched.
+ffio_ensure_seekback() keeps such a span only for an input that cannot seek, on the reasoning that
+one that can seek will serve the bytes again, which over a network is a second request that can
+fail an open that worked. The new ffio_ensure_buffered() keeps it on every input, so the export
+never asks the input for a byte twice. A Chapters element after the clusters, which only the
+SeekHead reaches, is exported the same way.
+
+Applied by BuildFFmpegTask before configure, after 0013, whose context fields it sits beside.
+Part of yuroyami/KiteFFmpeg#173.
+
+diff --git a/libavformat/avio_internal.h b/libavformat/avio_internal.h
+index fadf19d..d053d5c 100644
+--- a/libavformat/avio_internal.h
++++ b/libavformat/avio_internal.h
+@@ -190,6 +190,14 @@ int ffio_realloc_buf(AVIOContext *s, int buf_size);
+  */
+ int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size);
+ 
++/**
++ * Like ffio_ensure_seekback(), but keeps the window in the buffer even when
++ * the context can seek, so that seeking back within it never reaches the
++ * underlying protocol: for a caller that reads the same bytes twice and must
++ * not cost a second request, or fail on one.
++ */
++int ffio_ensure_buffered(AVIOContext *s, int64_t buf_size);
++
+ int ffio_limit(AVIOContext *s, int size);
+ 
+ void ffio_init_checksum(AVIOContext *s,
+diff --git a/libavformat/aviobuf.c b/libavformat/aviobuf.c
+index cc71638..8f5f801 100644
+--- a/libavformat/aviobuf.c
++++ b/libavformat/aviobuf.c
+@@ -1023,7 +1023,7 @@ static void update_checksum(AVIOContext *s)
+     }
+ }
+ 
+-int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
++static int ensure_seekback(AVIOContext *s, int64_t buf_size, int even_if_seekable)
+ {
+     uint8_t *buffer;
+     int max_buffer_size = s->max_packet_size ?
+@@ -1038,7 +1038,8 @@ int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
+ 
+     buf_size += max_buffer_size - 1;
+ 
+-    if (buf_size + s->buf_ptr - s->buffer <= s->buffer_size || s->seekable || !s->read_packet)
++    if (buf_size + s->buf_ptr - s->buffer <= s->buffer_size || (s->seekable && !even_if_seekable) ||
++        !s->read_packet)
+         return 0;
+     av_assert0(!s->write_flag);
+ 
+@@ -1061,6 +1062,16 @@ int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
+     return 0;
+ }
+ 
++int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
++{
++    return ensure_seekback(s, buf_size, 0);
++}
++
++int ffio_ensure_buffered(AVIOContext *s, int64_t buf_size)
++{
++    return ensure_seekback(s, buf_size, 1);
++}
++
+ int ffio_limit(AVIOContext *s, int size)
+ {
+     FFIOContext *const ctx = ffiocontext(s);
+diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
+index 1730ba7..0f876b8 100644
+--- a/libavformat/matroskadec.c
++++ b/libavformat/matroskadec.c
+@@ -414,6 +414,14 @@ typedef struct MatroskaDemuxContext {
+     EbmlList attachments;
+     EbmlList editions;
+     EbmlBin  segment_uid;
++
++    /* The payloads of the segment's Info and Chapters elements as the file holds them, exported
++     * through the read-only options "info_payload" and "chapters_payload" for a caller that reads
++     * what this demuxer does not: editions, ordered and linked chapters, and the segment's links. */
++    uint8_t *info_payload;
++    int      info_payload_size;
++    uint8_t *chapters_payload;
++    int      chapters_payload_size;
+     EbmlList index;
+     EbmlList tags;
+     EbmlList seekhead;
+@@ -1235,6 +1243,43 @@ static int is_ebml_id_valid(uint32_t id)
+  * Allocate and return the entry for the level1 element with the given ID. If
+  * an entry already exists, return the existing entry.
+  */
++/* The largest Info or Chapters payload exported; a larger one is parsed as before and not exported. */
++#define MATROSKA_EXPORT_MAX (16 << 20)
++
++static int matroska_exports_payload(uint32_t id)
++{
++    return id == MATROSKA_ID_INFO || id == MATROSKA_ID_CHAPTERS;
++}
++
++/* Reads back the payload of the Info or Chapters element just parsed, from start to the current
++ * position, and keeps the first one of each. The caller kept the span in the buffer, so the read
++ * reaches no protocol. A payload that cannot be read back is not exported, and the reader goes on
++ * from where it was. */
++static int matroska_export_payload(MatroskaDemuxContext *matroska, uint32_t id,
++                                   int64_t start, uint64_t length)
++{
++    AVIOContext *pb = matroska->ctx->pb;
++    int64_t end = avio_tell(pb);
++    uint8_t **dst = id == MATROSKA_ID_INFO ? &matroska->info_payload : &matroska->chapters_payload;
++    int *dst_size = id == MATROSKA_ID_INFO ? &matroska->info_payload_size : &matroska->chapters_payload_size;
++    uint8_t *buf;
++
++    if (*dst || length == EBML_UNKNOWN_LENGTH || length > MATROSKA_EXPORT_MAX ||
++        end != start + (int64_t)length)
++        return 0;
++    /* One byte more, so that an empty payload still reads as exported. */
++    buf = av_malloc(length + 1);
++    if (!buf)
++        return 0;
++    if (avio_seek(pb, start, SEEK_SET) == start && avio_read(pb, buf, length) == length) {
++        *dst      = buf;
++        *dst_size = length;
++        return 0;
++    }
++    av_free(buf);
++    return avio_seek(pb, end, SEEK_SET) == end ? 0 : AVERROR(EIO);
++}
++
+ static MatroskaLevel1Element *matroska_find_level1_elem(MatroskaDemuxContext *matroska,
+                                                         uint32_t id, int64_t pos)
+ {
+@@ -1525,8 +1570,14 @@ static int ebml_parse(MatroskaDemuxContext *matroska,
+                 av_log(matroska->ctx, AV_LOG_ERROR, "Duplicate element\n");
+             level1_elem->parsed = 1;
+         }
++        if (syntax->type == EBML_LEVEL1 && matroska_exports_payload(id) &&
++            length <= MATROSKA_EXPORT_MAX)
++            ffio_ensure_buffered(pb, length);
+         if (res = ebml_parse_nest(matroska, syntax->def.n, data))
+             return res;
++        if (syntax->type == EBML_LEVEL1 && matroska_exports_payload(id) &&
++            (res = matroska_export_payload(matroska, id, pos_alt, length)) < 0)
++            return res;
+         break;
+     case EBML_STOP:
+         return 1;
+@@ -4638,6 +4689,10 @@ static int matroska_read_close(AVFormatContext *s)
+         if (tracks[n].type == MATROSKA_TRACK_TYPE_AUDIO)
+             av_freep(&tracks[n].audio.buf);
+     ebml_free(matroska_segment, matroska);
++    /* Freed here too, because the WebM DASH manifest demuxer shares this context without the
++     * options that would free them. */
++    av_freep(&matroska->info_payload);
++    av_freep(&matroska->chapters_payload);
+ 
+     return 0;
+ }
+@@ -5095,8 +5150,22 @@ const FFInputFormat ff_webm_dash_manifest_demuxer = {
+ };
+ #endif
+ 
++static const AVOption matroska_options[] = {
++    { "info_payload", "the payload of the segment's Info element", offsetof(MatroskaDemuxContext, info_payload), AV_OPT_TYPE_BINARY, { .str = NULL }, 0, 0, AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
++    { "chapters_payload", "the payload of the segment's Chapters element", offsetof(MatroskaDemuxContext, chapters_payload), AV_OPT_TYPE_BINARY, { .str = NULL }, 0, 0, AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
++    { NULL },
++};
++
++static const AVClass matroska_class = {
++    .class_name = "matroska,webm demuxer",
++    .item_name  = av_default_item_name,
++    .option     = matroska_options,
++    .version    = LIBAVUTIL_VERSION_INT,
++};
++
+ const FFInputFormat ff_matroska_demuxer = {
+     .p.name         = "matroska,webm",
++    .p.priv_class   = &matroska_class,
+     .p.long_name    = NULL_IF_CONFIG_SMALL("Matroska / WebM"),
+     .p.extensions   = "mkv,mk3d,mka,mks,webm",
+     .p.mime_type    = "audio/webm,audio/x-matroska,video/webm,video/x-matroska",

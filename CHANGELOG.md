@@ -34,12 +34,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   by writing the header or by building a filter graph ends with the lines FFmpeg logged for it now
   (#170), and so does its `error`'s message. Code that compares a whole message with a fixed string
   should compare `error`'s type and `code` instead, or look for the words it wants inside it.
+- `MediaProbe` gains `matroska`, which changes its constructor and `copy`. Recompile a library
+  built against 0.4.0.
 - The C ABI is 5.0 (#167, #168). `ffkmp_fmt_open_input_io2` takes a `tags_fn` after its `seek_fn`
   and the input's `location` after its `url`, and `kc_io_opener` gains `location_fn` after
   `close_fn`, so C code that calls the helper layer itself, or fills a `kc_io_opener`, has to be
   built again against the new header. The Kotlin API changes only by what the entries below add.
 
 ### Added
+
+- A Matroska file's editions, ordered chapters and segment links reach a caller (#173). A Matroska
+  file can describe its own timeline: an ordered edition plays its chapters in the order it lists
+  them and skips the rest of the file, a chapter can play part of another file named by that
+  file's segment UID, and segments can be chained before and after one another. FFmpeg reads none
+  of it and plays such a file plainly, so `MediaSource.matroska` and `MediaProbe.matroska` now hold
+  a `MatroskaSegment` with the segment's UID, filename, neighbours and families, and every edition
+  with its flags, names and nested chapters, each chapter with its times as the file states them,
+  its flags, its link to another segment and edition, and its skip type. `MatroskaEdition` answers
+  which edition plays by default and which chapters an ordered edition plays, the two questions
+  RFC 9559 settles from one file; joining linked files is the caller's, as it is in mpv and VLC.
+  Every other format reads null. The elements are read from FFmpeg's own pass over the file by
+  `0014-matroska-export-the-info-and-chapters-payloads.patch`, which keeps the bytes of the
+  segment's `Info` and of its first `Chapters` element, up to 16 MiB, while the demuxer parses
+  them, so a source that cannot seek reads the same segment as a file and no input is asked for a
+  byte twice. A tree built without the patch reads null. The C ABI is 5.3 and adds
+  `ffkmp_fmt_exported_bytes`, which copies a binary option a demuxer exports, and
+  `KC_OPTION_NOT_FOUND`, the answer for an option it does not export.
 
 - A failed open carries what FFmpeg logged for it (#170). FFmpeg says why it refused a file only in
   its log, so an exception used to say "Invalid data found when processing input" where FFmpeg had

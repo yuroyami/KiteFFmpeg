@@ -239,6 +239,49 @@ JNIEXPORT jlong JNICALL kj_fmt_program_metadata(JNIEnv *env, jclass cls, jlong t
     return dict ? kj_handle_put_borrowed(env, KJ_KIND_DICT, dict, token) : 0;
 }
 
+/* The bytes of the demuxer's exported binary option name, or null when the demuxer does not export
+ * it or left it unset. */
+JNIEXPORT jbyteArray JNICALL kj_fmt_exported_bytes(JNIEnv *env, jclass cls, jlong token, jstring name)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    char *c;
+    uint8_t *bytes;
+    jbyteArray result;
+    int size, copied;
+    (void)cls;
+    if (ctx == NULL) return NULL;
+    c = kj_string_dup(env, name);
+    if (c == NULL) return NULL;
+    size = ffkmp_fmt_exported_bytes(ctx, c, NULL, 0);
+    if (size == KC_OPTION_NOT_FOUND) {
+        free(c);
+        return NULL;
+    }
+    if (size < 0) {
+        free(c);
+        kj_throw_ffmpeg(env, size, "fmt_exported_bytes size");
+        return NULL;
+    }
+    /* One byte more than the payload, so that an empty one still has a buffer to copy into. */
+    bytes = (uint8_t *)malloc((size_t)size + 1);
+    if (bytes == NULL) {
+        free(c);
+        kj_throw_handle(env, "out of memory copying an exported demuxer option");
+        return NULL;
+    }
+    copied = ffkmp_fmt_exported_bytes(ctx, c, bytes, size);
+    free(c);
+    if (copied != size) {
+        free(bytes);
+        if (copied < 0) kj_throw_ffmpeg(env, copied, "fmt_exported_bytes copy");
+        else kj_throw_handle(env, "an exported demuxer option changed while copying");
+        return NULL;
+    }
+    result = kj_bytes_new(env, bytes, size);
+    free(bytes);
+    return result;
+}
+
 JNIEXPORT void JNICALL kj_fmt_close_input(JNIEnv *env, jclass cls, jlong token)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_close(token, KJ_KIND_FMT_CTX);

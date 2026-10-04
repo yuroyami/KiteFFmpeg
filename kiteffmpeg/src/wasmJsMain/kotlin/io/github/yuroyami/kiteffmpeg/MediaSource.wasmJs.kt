@@ -81,6 +81,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_count
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_read_pause
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_read_play
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_get
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_exported_bytes
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_stream
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_metadata
@@ -209,7 +210,12 @@ public actual class MediaSource internal constructor(
             }
         }
 
-    public actual val matroska: MatroskaSegment? get() = null
+    /** Read once, at the first ask, because the payloads it comes from never change after the open. */
+    public actual val matroska: MatroskaSegment? by lazy {
+        val m = requireModule()
+        val context = alive()
+        MatroskaReader.read(formatName) { name -> readExportedBytes(m, context, name) }
+    }
 
     public actual val programs: List<Program> get() = table.programs
 
@@ -1090,6 +1096,34 @@ private fun readCodecExtradata(m: kotlin.js.JsAny, par: Int): ByteArray? {
         wasmFree(m, buffer)
     }
 }
+
+/**
+ * The bytes of the demuxer's exported binary option [name], or null when it exports no such option,
+ * or when the module was linked before the C layer could copy one out.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+private fun readExportedBytes(m: kotlin.js.JsAny, context: Int, name: String): ByteArray? {
+    if (!hasExportedBytes(m)) return null
+    return withCString(m, name) { cName ->
+        val size = ffkmp_fmt_exported_bytes(m, context, cName, 0, 0)
+        if (size < 0) {
+            null
+        } else {
+            // One byte more than the payload, so that an empty one still has a buffer to copy into.
+            val buffer = wasmAlloc(m, size + 1)
+            try {
+                val copied = ffkmp_fmt_exported_bytes(m, context, cName, buffer, size)
+                if (copied == size) readBytes(m, buffer, size) else null
+            } finally {
+                wasmFree(m, buffer)
+            }
+        }
+    }
+}
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => typeof m._ffkmp_fmt_exported_bytes === 'function'")
+private external fun hasExportedBytes(module: kotlin.js.JsAny): Boolean
 
 /** The tag sets one read changed, either of them null when it did not change (#135). */
 internal class TagChanges(val container: Map<String, String>?, val stream: Map<String, String>?)

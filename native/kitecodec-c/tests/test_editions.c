@@ -14,12 +14,23 @@
  * with an Info, one subtitle track, the case's Chapters and Tags, and one cluster holding one block.
  * A linked FFmpeg whose tree does not list the patch in lib/kiteffmpeg/ffmpeg-patches.txt, such as
  * a distribution's, runs only the case that holds without it.
+ *
+ * FFmpeg reads one edition and none of the links between segments, so a caller that plays an ordered
+ * edition reads the rest itself (#173). The patch 0014-matroska-export-the-info-and-chapters-payloads
+ * keeps the payloads of the segment's Info and Chapters elements as the reader parses them, and
+ * exports them as the demuxer's read-only binary options "info_payload" and "chapters_payload",
+ * which ffkmp_fmt_exported_bytes copies out. The export cases compare those bytes with the ones the
+ * writer below wrote, through a file, through an input that cannot seek back, and with the Chapters
+ * element after the clusters, where only the SeekHead reaches it.
  */
 
 #include "harness.h"
+#include "kitecodec_helpers.h"
 
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
+#include <libavutil/error.h>
+#include <libavutil/mem.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +42,7 @@
 #endif
 
 #define EDITIONS_PATCH "0013-matroska-take-the-chapters-of-the-default-edition.patch"
+#define EXPORT_PATCH "0014-matroska-export-the-info-and-chapters-payloads.patch"
 
 static char path[512];
 
@@ -98,6 +110,18 @@ static void put_uint(Ebml *b, uint32_t id, uint64_t value)
     put_bytes(b, out, (size_t)n);
 }
 
+/* A uint in eight bytes whatever its value, so that an element holding it keeps its size when the
+ * value changes. EBML allows the leading zeros. */
+static void put_uint8(Ebml *b, uint32_t id, uint64_t value)
+{
+    uint8_t out[8];
+    for (int i = 0; i < 8; i++)
+        out[i] = (uint8_t)(value >> (8 * (7 - i)));
+    put_id(b, id);
+    put_size(b, sizeof(out));
+    put_bytes(b, out, sizeof(out));
+}
+
 static void put_binary(Ebml *b, uint32_t id, const void *p, size_t n)
 {
     put_id(b, id);
@@ -136,6 +160,10 @@ static void put_master(Ebml *b, uint32_t id, const Ebml *child)
 #define ID_DOCTYPEVERSION       0x4287
 #define ID_DOCTYPEREADVERSION   0x4285
 #define ID_SEGMENT              0x18538067
+#define ID_SEEKHEAD             0x114D9B74
+#define ID_SEEK                 0x4DBB
+#define ID_SEEKID               0x53AB
+#define ID_SEEKPOSITION         0x53AC
 #define ID_INFO                 0x1549A966
 #define ID_TIMESTAMPSCALE       0x2AD7B1
 #define ID_DURATION             0x4489
@@ -220,12 +248,21 @@ static void put_edition(Ebml *chapters, uint64_t uid, int flag_default, int orde
     put_master(chapters, ID_EDITIONENTRY, &edition);
 }
 
+/* Where write_matroska puts the Chapters element: before the clusters, after them with a SeekHead
+ * at the start of the segment pointing at it, or twice before the clusters, the second time with
+ * the payload in second_chapters. */
+enum { CHAPTERS_FIRST, CHAPTERS_LAST, CHAPTERS_TWICE };
+
+/* The fixture's bytes, and the Info payload it wrote, for the export cases to compare with. */
+static Ebml file, written_info;
+
 /* Writes the fixture: a six second segment whose Info carries segment_uid unless it is NULL, one
  * subtitle track with one block, and chapters and tags as the payloads of a Chapters and a Tags
- * element, each left out when empty. */
-static void write_matroska(const uint8_t *segment_uid, const Ebml *chapters, const Ebml *tags)
+ * element, each left out when empty, with the Chapters placed as layout says. */
+static void write_matroska_as(const uint8_t *segment_uid, const Ebml *chapters, const Ebml *tags, int layout,
+                              const Ebml *second_chapters)
 {
-    static Ebml file, segment, part, child;
+    static Ebml segment, part, child, seekhead;
 
     file.size = 0;
     part.size = 0;
@@ -239,13 +276,13 @@ static void write_matroska(const uint8_t *segment_uid, const Ebml *chapters, con
     put_master(&file, ID_EBML, &part);
 
     segment.size = 0;
-    part.size = 0;
-    put_uint(&part, ID_TIMESTAMPSCALE, 1000000);
-    put_float(&part, ID_DURATION, 6000.0);
-    put_string(&part, ID_MUXINGAPP, "test_editions");
-    put_string(&part, ID_WRITINGAPP, "test_editions");
-    if (segment_uid) put_binary(&part, ID_SEGMENTUUID, segment_uid, 16);
-    put_master(&segment, ID_INFO, &part);
+    written_info.size = 0;
+    put_uint(&written_info, ID_TIMESTAMPSCALE, 1000000);
+    put_float(&written_info, ID_DURATION, 6000.0);
+    put_string(&written_info, ID_MUXINGAPP, "test_editions");
+    put_string(&written_info, ID_WRITINGAPP, "test_editions");
+    if (segment_uid) put_binary(&written_info, ID_SEGMENTUUID, segment_uid, 16);
+    put_master(&segment, ID_INFO, &written_info);
 
     part.size = 0;
     child.size = 0;
@@ -256,7 +293,8 @@ static void write_matroska(const uint8_t *segment_uid, const Ebml *chapters, con
     put_master(&part, ID_TRACKENTRY, &child);
     put_master(&segment, ID_TRACKS, &part);
 
-    if (chapters->size) put_master(&segment, ID_CHAPTERS, chapters);
+    if (chapters->size && layout != CHAPTERS_LAST) put_master(&segment, ID_CHAPTERS, chapters);
+    if (layout == CHAPTERS_TWICE) put_master(&segment, ID_CHAPTERS, second_chapters);
     if (tags->size) put_master(&segment, ID_TAGS, tags);
 
     /* One block on track 1 at 0 ms, lasting a second. */
@@ -269,12 +307,42 @@ static void write_matroska(const uint8_t *segment_uid, const Ebml *chapters, con
     put_master(&part, ID_BLOCKGROUP, &child);
     put_master(&segment, ID_CLUSTER, &part);
 
+    if (layout == CHAPTERS_LAST) {
+        /* A SeekHead first in the segment, pointing at the Chapters after the cluster. Its position
+         * is written in eight bytes, so the SeekHead is as long as it will be before the position
+         * that depends on its length is known. */
+        static const uint8_t chapters_id[4] = { 0x10, 0x43, 0xA7, 0x70 };
+        Ebml seek = { .size = 0 }, ahead = { .size = 0 };
+        put_binary(&seek, ID_SEEKID, chapters_id, sizeof(chapters_id));
+        put_uint8(&seek, ID_SEEKPOSITION, 0);
+        seekhead.size = 0;
+        put_master(&seekhead, ID_SEEK, &seek);
+        put_master(&ahead, ID_SEEKHEAD, &seekhead);
+        uint64_t position = ahead.size + segment.size;
+        seek.size = 0;
+        put_binary(&seek, ID_SEEKID, chapters_id, sizeof(chapters_id));
+        put_uint8(&seek, ID_SEEKPOSITION, position);
+        seekhead.size = 0;
+        put_master(&seekhead, ID_SEEK, &seek);
+        ahead.size = 0;
+        put_master(&ahead, ID_SEEKHEAD, &seekhead);
+        put_bytes(&ahead, segment.data, segment.size);
+        KC_EQ_SIZE(ahead.size, (size_t)position);
+        put_master(&ahead, ID_CHAPTERS, chapters);
+        segment = ahead;
+    }
+
     put_master(&file, ID_SEGMENT, &segment);
 
     FILE *f = fopen(path, "wb");
     KC_NOT_NULL(f);
     KC_EQ_SIZE(fwrite(file.data, 1, file.size, f), file.size);
     fclose(f);
+}
+
+static void write_matroska(const uint8_t *segment_uid, const Ebml *chapters, const Ebml *tags)
+{
+    write_matroska_as(segment_uid, chapters, tags, CHAPTERS_FIRST, NULL);
 }
 
 /* The chapters FFmpeg lists for the fixture, as "uid@ms" joined by spaces. */
@@ -422,6 +490,185 @@ static void case_a_tag_finds_its_chapter_in_the_default_edition(void)
     avformat_close_input(&fmt);
 }
 
+/* ---- The exported payloads (#173) ---- */
+
+/* How a case reads the fixture: from the file, from memory through an input that cannot seek, or
+ * from memory through one that can seek but fails to read again what it handed out more than a
+ * buffer ago, as a network input would answer a second request it cannot serve. The memory inputs
+ * have a buffer far smaller than the Info and Chapters payloads, so the export holds only if the
+ * reader kept the payload's bytes rather than asking the input for them again. */
+enum { FROM_FILE, UNSEEKABLE, FAILS_REREADS };
+enum { SMALL = 64 };
+
+typedef struct {
+    size_t at;
+    size_t furthest;
+    int mode;
+} Cursor;
+
+static int read_fixture(void *opaque, uint8_t *buf, int size)
+{
+    Cursor *c = opaque;
+    size_t left = file.size - c->at;
+    size_t n = (size_t)size < left ? (size_t)size : left;
+    /* The probe rewinds to the start once, and that read is allowed. */
+    if (c->mode == FAILS_REREADS && c->at > 0 && c->at + SMALL < c->furthest) return AVERROR(EIO);
+    if (n == 0) return AVERROR_EOF;
+    memcpy(buf, file.data + c->at, n);
+    c->at += n;
+    if (c->at > c->furthest) c->furthest = c->at;
+    return (int)n;
+}
+
+static int64_t seek_fixture(void *opaque, int64_t offset, int whence)
+{
+    Cursor *c = opaque;
+    if (whence == AVSEEK_SIZE) return (int64_t)file.size;
+    if (whence != SEEK_SET || offset < 0 || (size_t)offset > file.size) return AVERROR(EINVAL);
+    c->at = (size_t)offset;
+    return offset;
+}
+
+static AVFormatContext *open_fixture(int mode, Cursor *cursor)
+{
+    AVFormatContext *fmt = NULL;
+    if (mode == FROM_FILE) {
+        KC_EQ_INT(avformat_open_input(&fmt, path, NULL, NULL), 0);
+        return fmt;
+    }
+    uint8_t *buffer = av_malloc(SMALL);
+    KC_NOT_NULL(buffer);
+    cursor->at = 0;
+    cursor->furthest = 0;
+    cursor->mode = mode;
+    AVIOContext *io = avio_alloc_context(buffer, SMALL, 0, cursor, read_fixture,
+                                         NULL, mode == FAILS_REREADS ? seek_fixture : NULL);
+    KC_NOT_NULL(io);
+    fmt = avformat_alloc_context();
+    KC_NOT_NULL(fmt);
+    fmt->pb = io;
+    fmt->flags |= AVFMT_FLAG_CUSTOM_IO;
+    KC_EQ_INT(avformat_open_input(&fmt, NULL, av_find_input_format("matroska"), NULL), 0);
+    return fmt;
+}
+
+static void close_fixture(AVFormatContext *fmt, int mode)
+{
+    AVIOContext *io = mode == FROM_FILE ? NULL : fmt->pb;
+    avformat_close_input(&fmt);
+    if (io) {
+        av_freep(&io->buffer);
+        avio_context_free(&io);
+    }
+}
+
+/* Checks that the export called name holds exactly the bytes in want: its size asked with no
+ * buffer, the whole copy, and a copy cut short by a smaller buffer. */
+static void check_export(AVFormatContext *fmt, const char *name, const Ebml *want)
+{
+    static uint8_t got[sizeof(want->data)];
+    int size = ffkmp_fmt_exported_bytes(fmt, name, NULL, 0);
+    kc_detail("%s: %d bytes, %zu written", name, size, want->size);
+    KC_EQ_INT(size, (int)want->size);
+    memset(got, 0, sizeof(got));
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(fmt, name, got, (int)sizeof(got)), (int)want->size);
+    KC_CHECKF(memcmp(got, want->data, want->size) == 0, "%s differs from the bytes written", name);
+    memset(got, 0, sizeof(got));
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(fmt, name, got, 5), 5);
+    KC_CHECKF(memcmp(got, want->data, 5) == 0 && got[5] == 0, "a short copy of %s is not its first 5 bytes", name);
+}
+
+/* Writes a file with two editions, its Chapters placed as layout says, reads it as mode says, and
+ * checks the exports, and that the reader went on to read the chapters and the block after them. */
+static void check_exports(int mode, int layout)
+{
+    Ebml chapters = { .size = 0 }, no_tags = { .size = 0 };
+    put_edition(&chapters, 1001, -1, 1, theatrical, 3);
+    put_edition(&chapters, 1002, 1, 0, extended, 3);
+    write_matroska_as(own_uid, &chapters, &no_tags, layout, NULL);
+    KC_CHECKF(written_info.size > 64 && chapters.size > 64, "the payloads must outgrow the 64 byte buffer");
+
+    Cursor cursor;
+    AVFormatContext *fmt = open_fixture(mode, &cursor);
+    check_export(fmt, "info_payload", &written_info);
+    check_export(fmt, "chapters_payload", &chapters);
+    KC_EQ_INT((int)fmt->nb_chapters, 3);
+    AVPacket *pkt = av_packet_alloc();
+    KC_NOT_NULL(pkt);
+    KC_EQ_INT(av_read_frame(fmt, pkt), 0);
+    KC_EQ_INT(pkt->size, 2);
+    KC_CHECKF(memcmp(pkt->data, "hi", 2) == 0, "the block after the payloads did not read");
+    av_packet_free(&pkt);
+    close_fixture(fmt, mode);
+}
+
+static void case_an_option_the_demuxer_does_not_export_reads_as_not_found(void)
+{
+    kc_case("the export helper answers not found for a name the demuxer does not export");
+    Ebml chapters = { .size = 0 }, no_tags = { .size = 0 };
+    put_edition(&chapters, 100, -1, 0, theatrical, 2);
+    write_matroska(NULL, &chapters, &no_tags);
+    AVFormatContext *fmt = NULL;
+    uint8_t byte;
+    KC_EQ_INT(avformat_open_input(&fmt, path, NULL, NULL), 0);
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(fmt, "no_such_payload", NULL, 0), AVERROR_OPTION_NOT_FOUND);
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(fmt, "no_such_payload", &byte, 1), AVERROR_OPTION_NOT_FOUND);
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(NULL, "info_payload", NULL, 0), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(fmt, NULL, NULL, 0), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(fmt, "info_payload", &byte, -1), AVERROR(EINVAL));
+    avformat_close_input(&fmt);
+}
+
+static void case_the_info_and_chapters_payloads_are_exported_as_written(void)
+{
+    kc_case("a file's Info and Chapters payloads are exported byte for byte");
+    check_exports(FROM_FILE, CHAPTERS_FIRST);
+}
+
+static void case_an_input_that_cannot_seek_exports_the_same_bytes(void)
+{
+    kc_case("an input that cannot seek, read through a 64 byte buffer, exports the same bytes");
+    check_exports(UNSEEKABLE, CHAPTERS_FIRST);
+}
+
+static void case_chapters_after_the_clusters_are_exported_through_the_seekhead(void)
+{
+    kc_case("a Chapters element after the clusters, reached through the SeekHead, is exported");
+    check_exports(FROM_FILE, CHAPTERS_LAST);
+}
+
+static void case_an_input_that_can_seek_is_not_asked_for_a_payload_twice(void)
+{
+    kc_case("an input that can seek but fails to serve a byte twice exports the same bytes");
+    check_exports(FAILS_REREADS, CHAPTERS_FIRST);
+}
+
+static void case_a_file_without_chapters_exports_only_its_info(void)
+{
+    kc_case("a file with no Chapters element exports its Info and no chapters");
+    Ebml no_chapters = { .size = 0 }, no_tags = { .size = 0 };
+    write_matroska(NULL, &no_chapters, &no_tags);
+    AVFormatContext *fmt = NULL;
+    KC_EQ_INT(avformat_open_input(&fmt, path, NULL, NULL), 0);
+    check_export(fmt, "info_payload", &written_info);
+    KC_EQ_INT(ffkmp_fmt_exported_bytes(fmt, "chapters_payload", NULL, 0), AVERROR_OPTION_NOT_FOUND);
+    avformat_close_input(&fmt);
+}
+
+static void case_a_second_chapters_element_does_not_replace_the_first(void)
+{
+    kc_case("of two Chapters elements the first is exported");
+    /* RFC 9559 allows one; FFmpeg reads the second into the same list, and the export keeps the first. */
+    Ebml first = { .size = 0 }, second = { .size = 0 }, no_tags = { .size = 0 };
+    put_edition(&first, 1001, -1, 0, theatrical, 3);
+    put_edition(&second, 1002, -1, 0, extended, 3);
+    write_matroska_as(NULL, &first, &no_tags, CHAPTERS_TWICE, &second);
+    AVFormatContext *fmt = NULL;
+    KC_EQ_INT(avformat_open_input(&fmt, path, NULL, NULL), 0);
+    check_export(fmt, "chapters_payload", &first);
+    avformat_close_input(&fmt);
+}
+
 int main(void)
 {
     const char *tmp = getenv("TMPDIR");
@@ -432,6 +679,18 @@ int main(void)
     atexit(remove_fixture);
 
     case_one_plain_edition_reads_as_it_always_did();
+    case_an_option_the_demuxer_does_not_export_reads_as_not_found();
+
+    if (linked_tree_carries(EXPORT_PATCH)) {
+        case_the_info_and_chapters_payloads_are_exported_as_written();
+        case_an_input_that_cannot_seek_exports_the_same_bytes();
+        case_chapters_after_the_clusters_are_exported_through_the_seekhead();
+        case_an_input_that_can_seek_is_not_asked_for_a_payload_twice();
+        case_a_file_without_chapters_exports_only_its_info();
+        case_a_second_chapters_element_does_not_replace_the_first();
+    } else {
+        kc_note("the linked FFmpeg's tree does not list %s, so the export cases did not run", EXPORT_PATCH);
+    }
 
     if (!linked_tree_carries(EDITIONS_PATCH)) {
         kc_note("the linked FFmpeg's tree does not list %s, so the edition cases did not run", EDITIONS_PATCH);

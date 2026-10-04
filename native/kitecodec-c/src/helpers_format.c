@@ -244,6 +244,31 @@ KC_API AVDictionary *ffkmp_fmt_program_metadata(const AVFormatContext *ctx, int 
     if (!ctx || index < 0 || (unsigned)index >= ctx->nb_programs) return NULL;
     return ctx->programs[index]->metadata;
 }
+_Static_assert(KC_OPTION_NOT_FOUND == AVERROR_OPTION_NOT_FOUND, "KC_OPTION_NOT_FOUND is AVERROR_OPTION_NOT_FOUND");
+
+/* A binary option keeps its bytes behind a pointer immediately followed by an int length, as opt.h
+ * lays out AV_OPT_TYPE_BINARY, at the option's offset in the demuxer's private context, so the field
+ * is read in place rather than through av_opt_get, which would hand it out as hex. */
+KC_API int ffkmp_fmt_exported_bytes(const AVFormatContext *ctx, const char *name, uint8_t *dst, int dst_size) {
+    const AVOption *option;
+    uint8_t *const *field;
+    const uint8_t *bytes;
+    int size, copied;
+    if (!ctx || !name || dst_size < 0) return AVERROR(EINVAL);
+    if (!ctx->iformat || !ctx->iformat->priv_class || !ctx->priv_data) return AVERROR_OPTION_NOT_FOUND;
+    option = av_opt_find(ctx->priv_data, name, NULL, 0, 0);
+    if (!option || option->type != AV_OPT_TYPE_BINARY || !(option->flags & AV_OPT_FLAG_EXPORT))
+        return AVERROR_OPTION_NOT_FOUND;
+    field = (uint8_t *const *)(const void *)((const uint8_t *)ctx->priv_data + option->offset);
+    if (!*field) return AVERROR_OPTION_NOT_FOUND;
+    bytes = *field;
+    size = *(const int *)(const void *)(field + 1);
+    if (size < 0) return AVERROR_OPTION_NOT_FOUND;
+    if (!dst) return size;
+    copied = size < dst_size ? size : dst_size;
+    if (copied > 0) memcpy(dst, bytes, (size_t)copied);
+    return copied;
+}
 /* What MediaSource.streams and MediaSource.programs list, as one number (#151). A live transport
  * stream adds a stream, or moves one into or out of a programme, while it reads, and FFmpeg raises no
  * flag for either, so a reader asks this after every read and reads the tables again only when it

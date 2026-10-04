@@ -55,6 +55,7 @@ import ffmpeg.ffkmp_fmt_open_input_io2
 import ffmpeg.ffkmp_io_tag
 import ffmpeg.ffkmp_fmt_duration
 import ffmpeg.ffkmp_fmt_duration_origin
+import ffmpeg.ffkmp_fmt_exported_bytes
 import ffmpeg.ffkmp_fmt_find_stream_info
 import ffmpeg.ffkmp_fmt_iformat_name
 import ffmpeg.ffkmp_fmt_is_seekable
@@ -79,6 +80,7 @@ import ffmpeg.ffkmp_fmt_interrupt
 import ffmpeg.ffkmp_fmt_read_frame
 import ffmpeg.ffkmp_fmt_take_tag_changes
 import ffmpeg.ffkmp_fmt_layout_stamp
+import ffmpeg.KC_OPTION_NOT_FOUND
 import ffmpeg.KC_TAGS_CONTAINER
 import ffmpeg.KC_TAGS_STREAM
 import ffmpeg.ffkmp_fmt_read_pause
@@ -966,6 +968,7 @@ private fun assembleMediaSource(
     val metadata: Map<String, String>
     val startTime: Long
     val chapters: List<Chapter>
+    val matroska: MatroskaSegment?
     val programs: List<Program>
     try {
         // The streams' and the source's metadata below already hold what the probe's reads applied,
@@ -977,6 +980,7 @@ private fun assembleMediaSource(
         metadata = readMetadata(ffkmp_fmt_metadata(ctx))
         startTime = ffkmp_fmt_start_time(ctx)
         chapters = readChapters(ctx)
+        matroska = MatroskaReader.read(formatName) { readExportedBytes(ctx, it) }
         programs = readPrograms(ctx, streams)
     } catch (failure: Throwable) {
         unwind()
@@ -986,6 +990,7 @@ private fun assembleMediaSource(
     return MediaSource(
         ctx, streams, durationFromHeader, formatName, metadata, startTime,
         chapters = chapters,
+        matroska = matroska,
         openPrograms = programs,
         unusedOpenOptions = unusedKeys,
         ioCleanup = ioCleanup,
@@ -1401,6 +1406,22 @@ private fun readCodecExtradata(parameters: CPointer<kc_codec_par>): ByteArray? {
     }
     check0(copied, "codec parameter extradata copy")
     check(copied == size) { "Codec extradata changed while stream metadata was being copied" }
+    return bytes
+}
+
+/** The bytes of the demuxer's exported binary option [name], or null when it exports no such option. */
+private fun readExportedBytes(ctx: CPointer<kc_fmt_ctx>, name: String): ByteArray? {
+    val size = ffkmp_fmt_exported_bytes(ctx, name, null, 0)
+    if (size == KC_OPTION_NOT_FOUND) return null
+    check0(size, "exported demuxer option size")
+    if (size == 0) return ByteArray(0)
+
+    val bytes = ByteArray(size)
+    val copied = bytes.usePinned { pinned ->
+        ffkmp_fmt_exported_bytes(ctx, name, pinned.addressOf(0).reinterpret(), size)
+    }
+    check0(copied, "exported demuxer option copy")
+    check(copied == size) { "An exported demuxer option changed while it was being copied" }
     return bytes
 }
 
