@@ -556,23 +556,26 @@ public actual class MediaSource internal constructor(
         val ctx = ffkmp_codecctx_alloc(m, codec)
         if (ctx == 0) throw FFmpegException(FFmpegError.Internal("allocating a decoder failed"))
         try {
-            if (ffkmp_codecctx_from_par(m, ctx, par) < 0) {
-                throw FFmpegException(FFmpegError.Internal("copying codec parameters failed"))
-            }
-            if (lowDelay) ffkmp_codecctx_set_low_delay(m, ctx, 1)
-            if (threadCount == 1) ffkmp_codecctx_set_threads(m, ctx, 1, 0)
-            // Typed options through the same av_opt_set funnel the other backends use, between
-            // context creation and open, which is where FFmpeg wants them.
-            options?.compile()?.forEach { (key, value) ->
-                val rc = withCString(m, key) { k -> withCString(m, value) { v -> ffkmp_codecctx_set_opt(m, ctx, k, v) } }
-                if (rc < 0) {
-                    throw FFmpegException(
-                        FFmpegError.InvalidArgument(rc, "av_opt_set ('$key') was refused with $rc"),
-                    )
+            // What FFmpeg logged while it refused rides on the exception (#170).
+            withLoggedReason {
+                if (ffkmp_codecctx_from_par(m, ctx, par) < 0) {
+                    throw FFmpegException(FFmpegError.Internal("copying codec parameters failed"))
                 }
-            }
-            if (ffkmp_codecctx_open(m, ctx, codec) < 0) {
-                throw FFmpegException(FFmpegError.Internal("opening the decoder failed"))
+                if (lowDelay) ffkmp_codecctx_set_low_delay(m, ctx, 1)
+                if (threadCount == 1) ffkmp_codecctx_set_threads(m, ctx, 1, 0)
+                // Typed options through the same av_opt_set funnel the other backends use, between
+                // context creation and open, which is where FFmpeg wants them.
+                options?.compile()?.forEach { (key, value) ->
+                    val rc = withCString(m, key) { k -> withCString(m, value) { v -> ffkmp_codecctx_set_opt(m, ctx, k, v) } }
+                    if (rc < 0) {
+                        throw FFmpegException(
+                            FFmpegError.InvalidArgument(rc, "av_opt_set ('$key') was refused with $rc"),
+                        )
+                    }
+                }
+                if (ffkmp_codecctx_open(m, ctx, codec) < 0) {
+                    throw FFmpegException(FFmpegError.Internal("opening the decoder failed"))
+                }
             }
         } catch (failure: Throwable) {
             ffkmp_codecctx_free(m, ctx)
@@ -589,12 +592,15 @@ public actual class MediaSource internal constructor(
         table.requireOwn(stream)
         val slot = wasmAlloc(m, 4)
         try {
-            val rc = ffkmp_subtitle_decoder_open(m, alive(), stream.index, slot)
-            if (rc == FFmpegError.AVERROR_DECODER_NOT_FOUND) {
-                throw FFmpegException(FFmpegError.DecoderNotFound(rc, decoderNotFoundMessage(stream.codec, requested = null)))
+            // What FFmpeg logged while it refused rides on the exception (#170).
+            return withLoggedReason {
+                val rc = ffkmp_subtitle_decoder_open(m, alive(), stream.index, slot)
+                if (rc == FFmpegError.AVERROR_DECODER_NOT_FOUND) {
+                    throw FFmpegException(FFmpegError.DecoderNotFound(rc, decoderNotFoundMessage(stream.codec, requested = null)))
+                }
+                if (rc < 0) throw FFmpegException(FFmpegError.Internal("opening the subtitle decoder failed with $rc"))
+                SubtitleDecoder(readInt32(m, slot), stream, lifetime)
             }
-            if (rc < 0) throw FFmpegException(FFmpegError.Internal("opening the subtitle decoder failed with $rc"))
-            return SubtitleDecoder(readInt32(m, slot), stream, lifetime)
         } finally {
             wasmFree(m, slot)
         }
@@ -668,7 +674,8 @@ public actual class MediaSource internal constructor(
             nestedOpener: MediaByteOpener?,
         ): MediaSource {
             refuseSeekBreakingOptions(options)
-            return openUnderSingleThreaded(interrupt) { openIo(io, options, url, mimeType, nestedOpener) }
+            // What FFmpeg logged while it refused rides on the exception (#170).
+            return openUnderSingleThreaded(interrupt) { withLoggedReason { openIo(io, options, url, mimeType, nestedOpener) } }
         }
 
         @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)

@@ -128,7 +128,9 @@ public actual class MediaSink internal constructor(
         get() = synchronized(muxLock) { headerState == HeaderState.Written }
 
     @Throws(FFmpegException::class)
-    public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
+    public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = withLoggedReason { addVideoEncoderLogged(spec) }
+
+    private fun addVideoEncoderLogged(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
         requireNoTypedVideoOptionCollision(spec)
         val context = newEncoderContext(codecLookups.encoderFor(spec.codec, spec.encoder)) { _, codecContext ->
             Internals.codecCtxSetVideo(
@@ -168,7 +170,9 @@ public actual class MediaSink internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
+    public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = withLoggedReason { addAudioEncoderLogged(spec) }
+
+    private fun addAudioEncoderLogged(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
         requireNoTypedAudioOptionCollision(spec)
         requireLayoutMatchesChannels(spec)
         var negotiated = spec.sampleFormat
@@ -225,7 +229,10 @@ public actual class MediaSink internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun addCopyStream(source: MediaSource, stream: StreamInfo): CopyStream = synchronized(muxLock) {
+    public actual fun addCopyStream(source: MediaSource, stream: StreamInfo): CopyStream =
+        withLoggedReason { addCopyStreamLogged(source, stream) }
+
+    private fun addCopyStreamLogged(source: MediaSource, stream: StreamInfo): CopyStream = synchronized(muxLock) {
         check(!headerWritten) { "Cannot add streams after the muxer has started writing." }
         // Before the stream goes in, so a refusal leaves the sink usable and the file untouched (#146).
         refuseCopyFromOwnFile(source)
@@ -433,10 +440,12 @@ public actual class MediaSink internal constructor(
             sourceChapters = null
             addChapters(format, pending.placedAt(origin.micros))
         }
-        // A byte sink's output is already open: its bytes go to the caller, not to a path.
-        outputPath?.let { path -> check0(Internals.fmtIoOpen(format, path), "avio_open") }
-        val rc = Internals.fmtWriteHeader(format)
-        if (rc < 0) throw explained(headerFailure(rc, byteSink?.seekable, avError(rc)))
+        withLoggedReason {
+            // A byte sink's output is already open: its bytes go to the caller, not to a path.
+            outputPath?.let { path -> check0(Internals.fmtIoOpen(format, path), "avio_open") }
+            val rc = Internals.fmtWriteHeader(format)
+            if (rc < 0) throw explained(headerFailure(rc, byteSink?.seekable, avError(rc)))
+        }
         headerState = HeaderState.Written
         releaseHeld()
     }
@@ -547,7 +556,10 @@ public actual class MediaSink internal constructor(
 
     public actual companion object {
         @Throws(FFmpegException::class)
-        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink {
+        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink =
+            withLoggedReason { openByteSink(sink, format, options) }
+
+        private fun openByteSink(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink {
             Internals.requireCompatible()
             val bridge = JniByteSink(sink)
             val token = Internals.fmtAllocOutputIo(bridge, format)
@@ -564,7 +576,10 @@ public actual class MediaSink internal constructor(
         }
 
         @Throws(FFmpegException::class)
-        public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink {
+        public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink =
+            withLoggedReason { openPath(path, format, options) }
+
+        private fun openPath(path: String, format: String?, options: Map<String, String>): MediaSink {
             Internals.requireCompatible()
             val token = Internals.fmtAllocOutput(path, format)
             try {

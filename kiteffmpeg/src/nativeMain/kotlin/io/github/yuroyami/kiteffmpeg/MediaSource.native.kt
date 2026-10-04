@@ -566,11 +566,13 @@ public actual class MediaSource internal constructor(
     ): CPointer<kc_subtitle_converter> {
         check(!isClosed) { "MediaSource is closed" }
         requireOwnStream(stream)
-        return memScoped {
-            val slot = alloc<CPointerVar<kc_subtitle_converter>>()
-            val rc = ffkmp_subtitle_converter_open(ctx, stream.index, codec.name, outPar, slot.ptr)
-            if (rc < 0) throw subtitleConversionFailure(rc, stream, codec, ::avError)
-            slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle converter open returned no converter"))
+        return withLoggedReason {
+            memScoped {
+                val slot = alloc<CPointerVar<kc_subtitle_converter>>()
+                val rc = ffkmp_subtitle_converter_open(ctx, stream.index, codec.name, outPar, slot.ptr)
+                if (rc < 0) throw subtitleConversionFailure(rc, stream, codec, ::avError)
+                slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle converter open returned no converter"))
+            }
         }
     }
 
@@ -685,7 +687,9 @@ public actual class MediaSource internal constructor(
         check(!isClosed) { "MediaSource is closed" }
         require(stream.type.isAv) { "Only video and audio streams can be decoded, got ${stream.type}" }
         requireOwnStream(stream)
-        return StreamDecoder.open(ctx, stream, threadCount, lowDelay, decoder, options, hardware, corruptData)
+        return withLoggedReason {
+            StreamDecoder.open(ctx, stream, threadCount, lowDelay, decoder, options, hardware, corruptData)
+        }
     }
 
     /**
@@ -703,11 +707,13 @@ public actual class MediaSource internal constructor(
         check(!isClosed) { "MediaSource is closed" }
         require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
         requireOwnStream(stream)
-        val codecCtx = memScoped {
-            val slot = alloc<CPointerVar<kc_codec_ctx>>()
-            val rc = ffkmp_subtitle_decoder_open(ctx, stream.index, slot.ptr)
-            if (rc < 0) throw FFmpegException(avError(rc))
-            slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle decoder open returned no context"))
+        val codecCtx = withLoggedReason {
+            memScoped {
+                val slot = alloc<CPointerVar<kc_codec_ctx>>()
+                val rc = ffkmp_subtitle_decoder_open(ctx, stream.index, slot.ptr)
+                if (rc < 0) throw FFmpegException(avError(rc))
+                slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle decoder open returned no context"))
+            }
         }
         return SubtitleDecoder(stream, codecCtx)
     }
@@ -780,7 +786,7 @@ public actual class MediaSource internal constructor(
             // allocates: an incompatible runtime is rejected here rather than corrupting memory
             // through a struct field offset that moved.
             requireCompatibleFFmpeg()
-            return openMediaSource(path)
+            return withLoggedReason { openMediaSource(path) }
         }
 
         @Throws(FFmpegException::class)
@@ -792,7 +798,7 @@ public actual class MediaSource internal constructor(
             requireCompatibleFFmpeg()
             refuseSeekBreakingOptions(options)
             return openUnder(interrupt, ::newInterruptCell, { ffkmp_interrupt_raise(it) }, ::freeInterruptCell) { cell ->
-                openMediaSource(path, options, cell)
+                withLoggedReason { openMediaSource(path, options, cell) }
             }
         }
 
@@ -808,7 +814,7 @@ public actual class MediaSource internal constructor(
             requireCompatibleFFmpeg()
             refuseSeekBreakingOptions(options)
             return openUnder(interrupt, ::newInterruptCell, { ffkmp_interrupt_raise(it) }, ::freeInterruptCell) { cell ->
-                openMediaSourceIo(io, options, cell, url, mimeType, nestedOpener)
+                withLoggedReason { openMediaSourceIo(io, options, cell, url, mimeType, nestedOpener) }
             }
         }
 
@@ -843,7 +849,9 @@ private class DecoderState(
     fun free() = ffkmp_codecctx_free(codecCtx)
 
     companion object {
-        fun open(ctx: CPointer<kc_fmt_ctx>, stream: StreamInfo): DecoderState {
+        fun open(ctx: CPointer<kc_fmt_ctx>, stream: StreamInfo): DecoderState = withLoggedReason { openLogged(ctx, stream) }
+
+        private fun openLogged(ctx: CPointer<kc_fmt_ctx>, stream: StreamInfo): DecoderState {
             val streamPtr = ffkmp_fmt_stream(ctx, stream.index.toUInt())
                 ?: throw FFmpegException(FFmpegError.Internal("Stream ${stream.index} disappeared"))
             val codecpar = ffkmp_stream_codecpar(streamPtr)

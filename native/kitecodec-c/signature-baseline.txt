@@ -1,16 +1,18 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 5.1
+# abi-version 5.2
 #
-# Exact scope: 265 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 273 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 288 records.
+# records are sorted without deduplication. There must be exactly 296 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
 # --write-signature-baseline in the same commit, and name every changed record in
 # that commit message. --write-baseline is separate and changes export names.
+KC_API const char *ffkmp_log_capture_component(const kc_log_capture *c, int i);
+KC_API const char *ffkmp_log_capture_message(const kc_log_capture *c, int i);
 KC_API const char *ffkmp_subtitle_rect_text(const kc_subtitle *s, int i);
 KC_API const char *kc_ffmpeg_configuration(void);
 KC_API const char *kc_ffmpeg_library_name(int index);
@@ -158,6 +160,9 @@ KC_API int ffkmp_graph_receive(kc_filter_ctx *sink, kc_frame *frame);
 KC_API int ffkmp_graph_send(kc_filter_ctx *src, kc_frame *frame);
 KC_API int ffkmp_image_get_buffer_size(int fmt, int w, int h, int align);
 KC_API int ffkmp_io_tag(kc_io_tags *tags, const char *key, const char *value);
+KC_API int ffkmp_log_capture_begin(void);
+KC_API int ffkmp_log_capture_count(const kc_log_capture *c);
+KC_API int ffkmp_log_capture_level(const kc_log_capture *c, int i);
 KC_API int ffkmp_media_type_attachment(void);
 KC_API int ffkmp_media_type_audio(void);
 KC_API int ffkmp_media_type_data(void);
@@ -223,6 +228,7 @@ KC_API kc_frame* ffkmp_frame_clone(const kc_frame *f);
 KC_API kc_frame* ffkmp_frame_convert_display(const kc_frame *src, int dst_fmt);
 KC_API kc_frame* ffkmp_frame_convert_pixfmt(const kc_frame *src, int dst_fmt);
 KC_API kc_interrupt *ffkmp_interrupt_new(void);
+KC_API kc_log_capture *ffkmp_log_capture_end(void);
 KC_API kc_packet* ffkmp_packet_alloc(void);
 KC_API kc_packet* ffkmp_packet_clone(const kc_packet *packet);
 KC_API kc_stream* ffkmp_fmt_new_stream(kc_fmt_ctx *ctx, const kc_codec *codec);
@@ -265,6 +271,7 @@ KC_API void ffkmp_frame_use_best_effort_ts(kc_frame *f);
 KC_API void ffkmp_graph_free(kc_filter_graph **g);
 KC_API void ffkmp_interrupt_free(kc_interrupt **cell);
 KC_API void ffkmp_interrupt_raise(kc_interrupt *cell);
+KC_API void ffkmp_log_capture_free(kc_log_capture **c);
 KC_API void ffkmp_log_set_sink(ffkmp_log_sink sink, int level);
 KC_API void ffkmp_packet_free(kc_packet *p);
 KC_API void ffkmp_packet_move_ref(kc_packet *dst, kc_packet *src);

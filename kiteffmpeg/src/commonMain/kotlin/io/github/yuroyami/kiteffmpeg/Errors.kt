@@ -104,6 +104,33 @@ public sealed class FFmpegError(public val code: Int, public val message: String
 
     override fun toString(): String = "${this::class.simpleName}(code=$code, message=$message)"
 
+    /**
+     * The same failure with [message] in place of this one's, of the same class and code. The
+     * runtime refusal keeps its own message, which is its identity report.
+     */
+    internal fun withMessage(message: String): FFmpegError = when (this) {
+        is FileNotFound -> FileNotFound(code, message)
+        is PermissionDenied -> PermissionDenied(code, message)
+        is InvalidData -> InvalidData(code, message)
+        is InvalidArgument -> InvalidArgument(code, message)
+        is EncoderNotFound -> EncoderNotFound(code, message)
+        is DecoderNotFound -> DecoderNotFound(code, message)
+        is DemuxerNotFound -> DemuxerNotFound(code, message)
+        is MuxerNotFound -> MuxerNotFound(code, message)
+        is FilterNotFound -> FilterNotFound(code, message)
+        is ProtocolNotFound -> ProtocolNotFound(code, message)
+        is StreamNotFound -> StreamNotFound(code, message)
+        is OptionNotFound -> OptionNotFound(code, message)
+        is Unsupported -> Unsupported(code, message)
+        is OutOfMemory -> OutOfMemory(code, message)
+        is EndOfFile -> EndOfFile(code, message)
+        is Io -> Io(code, message)
+        is Interrupted -> Interrupted(code, message)
+        is AvError -> AvError(code, message)
+        is Internal -> Internal(message)
+        is IncompatibleFFmpegRuntime -> this
+    }
+
     public companion object {
         // AVERROR_* tags are FFERRTAG('a','b','c','d') = -MKTAG(a,b,c,d); errno-style codes
         // are -errno. All values below are identical across the supported platforms except
@@ -161,17 +188,23 @@ public sealed class FFmpegError(public val code: Int, public val message: String
  * for the semantic category and [code] for the raw `AVERROR_*` value.
  */
 public class FFmpegException : RuntimeException {
+    private var current: FFmpegError
+    private var loggedLines: List<FFmpegLogLine> = emptyList()
+
     /** The semantic category of the failure. */
-    public val error: FFmpegError
+    public val error: FFmpegError get() = current
 
     public constructor(error: FFmpegError) : super(error.message) {
-        this.error = error
+        this.current = error
     }
 
     /** With [cause], for example the exception a caller's [MediaByteSource] threw. */
     internal constructor(error: FFmpegError, cause: Throwable?) : super(error.message, cause) {
-        this.error = error
+        this.current = error
     }
+
+    /** The error's message, which ends with the lines in [logged] once they are attached. */
+    override val message: String get() = current.message
 
     /** The raw `AVERROR_*` code, or 0 for internal errors. */
     public val code: Int get() = error.code
@@ -194,7 +227,18 @@ public class FFmpegException : RuntimeException {
      * reader recognises fails with [FFmpegError.InvalidData] and no line at all, and empty for every
      * failure of a call that does not collect lines, such as a packet read.
      */
-    public val logged: List<FFmpegLogLine> = emptyList()
+    public val logged: List<FFmpegLogLine> get() = loggedLines
+
+    /**
+     * Attaches the lines FFmpeg logged while the failing call ran, in place, so the stack trace and
+     * the cause stay those of the failure. The first attachment wins: a call nested in another
+     * attached the lines nearest the failure, and the outer call's are the same lines or more.
+     */
+    internal fun attachLogged(lines: List<FFmpegLogLine>) {
+        if (lines.isEmpty() || loggedLines.isNotEmpty()) return
+        loggedLines = lines
+        current = current.withMessage("${current.message}. FFmpeg logged: ${lines.joinToString("; ")}")
+    }
 }
 
 /**

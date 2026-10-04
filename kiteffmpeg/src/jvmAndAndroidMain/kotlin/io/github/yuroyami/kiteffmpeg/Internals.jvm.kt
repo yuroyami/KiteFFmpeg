@@ -22,6 +22,8 @@ internal object Internals {
     private external fun nativeMediaTypeAttachment(): Int
     private external fun nativeLiveHandles(): Long
     private external fun nativeSetLogLevel(level: Int)
+    private external fun nativeLogCaptureBegin(): Int
+    private external fun nativeLogCaptureEnd(): Array<String?>?
     private external fun nativeRescaleQ(value: Long, sn: Int, sd: Int, dn: Int, dd: Int): Long
     private external fun nativePixelFormatName(value: Int): String?
     private external fun nativePixelFormatValue(name: String): Int
@@ -375,6 +377,21 @@ internal object Internals {
     internal fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
         FFmpegLog.sink = sink
         checked { nativeSetLogLevel(FFmpegLog.code(level, sink)) }
+    }
+
+    /** Begins a capture of this thread's FFmpeg error lines (#170); false when none began. */
+    internal fun logCaptureBegin(): Boolean = checked { nativeLogCaptureBegin() } == 0
+
+    /** Ends this thread's innermost capture; the bridge hands three entries a line and frees it. */
+    internal fun logCaptureEnd(): List<FFmpegLogLine> {
+        val flat = checked { nativeLogCaptureEnd() } ?: return emptyList()
+        return (0 until flat.size / 3).map { line ->
+            FFmpegLogLine(
+                level = FFmpegLogLevel.of(flat[line * 3]?.toIntOrNull() ?: FFmpegLogLevel.Error.code),
+                component = flat[line * 3 + 1].orEmpty(),
+                message = flat[line * 3 + 2].orEmpty(),
+            )
+        }
     }
 
     /** Called by kj_abi.c for every FFmpeg log line at the installed level, on the thread that logged. */

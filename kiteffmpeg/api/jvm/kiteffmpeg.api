@@ -840,6 +840,7 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpegException : java/lang/Run
 	public final fun getCode ()I
 	public final fun getError ()Lio/github/yuroyami/kiteffmpeg/FFmpegError;
 	public final fun getLogged ()Ljava/util/List;
+	public fun getMessage ()Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/FFmpegIdentity {

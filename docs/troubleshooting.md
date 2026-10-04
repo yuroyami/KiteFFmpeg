@@ -135,6 +135,27 @@ Two ways forward:
 
 Either way, probe at runtime with `FFmpeg.hasEncoder("libx264")` before committing to a codec.
 
+## Why FFmpeg refused a file
+
+FFmpeg returns a number when it refuses something and says why only in its log, so the code alone
+reads "Invalid data found when processing input" for a cut MP4, a broken playlist and a file that
+is not media at all. A failed open keeps what FFmpeg logged for it, with no log sink needed:
+
+```kotlin
+try {
+    MediaSource.open(path)
+} catch (failure: FFmpegException) {
+    failure.error          // the type, from FFmpeg's code, as always
+    failure.logged         // [mov,mp4,m4a,3gp,3g2,mj2] moov atom not found
+}
+```
+
+`logged` holds the lines FFmpeg logged at error level or worse, on the calling thread, while the
+call ran, at most eight, and the exception's message ends with them too. Opening a source, a
+decoder, a subtitle decoder or converter, a sink, an encoder or a copied stream, writing the header
+and building a filter graph keep them. Reads, decodes and writes do not; install a sink with
+`FFmpeg.setLogSink` to hear those.
+
 ## Still stuck?
 
 Check the capability probe first. It tells you which FFmpeg you actually linked:

@@ -50,6 +50,8 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeMediaTypeData",    "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeMediaTypeAttachment","()I",                  kj_abi_media_type_attachment)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeLiveHandles",      "()J",                    kj_abi_live_handles)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSetLogLevel",      "(I)V",                   kj_abi_set_log_level)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeLogCaptureBegin",  "()I",                    kj_abi_log_capture_begin)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeLogCaptureEnd",    "()[Ljava/lang/String;",  kj_abi_log_capture_end)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeRescaleQ",        "(JIIII)J",               kj_abi_rescale)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePixelFormatName", "(I)Ljava/lang/String;",   kj_abi_pixel_format_name)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePixelFormatValue","(Ljava/lang/String;)I",  kj_abi_pixel_format_value)

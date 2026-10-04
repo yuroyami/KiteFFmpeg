@@ -102,6 +102,54 @@ JNIEXPORT void JNICALL kj_abi_set_log_level(JNIEnv *env, jclass cls, jint level)
     ffkmp_log_set_sink(level >= 0 ? kj_log_forward : NULL, (int)level);
 }
 
+/* Begins a capture of the error lines FFmpeg logs on this thread (#170). 0, or a negative AVERROR when
+ * none could begin, in which case nativeLogCaptureEnd must not be called for it. */
+JNIEXPORT jint JNICALL kj_abi_log_capture_begin(JNIEnv *env, jclass cls)
+{
+    (void)env; (void)cls;
+    return (jint)ffkmp_log_capture_begin();
+}
+
+/* Ends this thread's innermost capture and hands its lines over as one flat array, three entries a
+ * line: the level in decimal, the component and the message. The capture is freed here whatever
+ * happens, so a failed conversion loses the lines and never the memory. NULL with an exception
+ * pending when the array or a string cannot be made, and NULL with none when no capture was open. */
+JNIEXPORT jobjectArray JNICALL kj_abi_log_capture_end(JNIEnv *env, jclass cls)
+{
+    kc_log_capture *lines = ffkmp_log_capture_end();
+    jobjectArray out = NULL;
+    jclass string_class;
+    int count;
+    int i;
+    (void)cls;
+    if (lines == NULL) return NULL;
+    count = ffkmp_log_capture_count(lines);
+    string_class = (*env)->FindClass(env, "java/lang/String");
+    if (string_class != NULL) out = (*env)->NewObjectArray(env, (jsize)count * 3, string_class, NULL);
+    for (i = 0; out != NULL && i < count; i++) {
+        char level[16];
+        const char *fields[3];
+        int f;
+        snprintf(level, sizeof level, "%d", ffkmp_log_capture_level(lines, i));
+        fields[0] = level;
+        fields[1] = ffkmp_log_capture_component(lines, i);
+        fields[2] = ffkmp_log_capture_message(lines, i);
+        for (f = 0; f < 3; f++) {
+            jstring field = kj_string_new(env, fields[f]);
+            if (field == NULL) {
+                (*env)->DeleteLocalRef(env, out);
+                out = NULL;
+                break;
+            }
+            (*env)->SetObjectArrayElement(env, out, (jsize)(i * 3 + f), field);
+            (*env)->DeleteLocalRef(env, field);
+        }
+    }
+    if (string_class != NULL) (*env)->DeleteLocalRef(env, string_class);
+    ffkmp_log_capture_free(&lines);
+    return out;
+}
+
 JNIEXPORT jint JNICALL kj_abi_attach_current_vm(JNIEnv *env, jclass cls)
 {
     JavaVM *vm = NULL;

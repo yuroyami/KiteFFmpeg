@@ -446,7 +446,9 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
             frameRate: Rational,
             sampleAspectRatio: Rational = Rational(1, 1),
         ): FilterGraph = FilterGraph(
-            buildVideoBackend(description, width, height, pixelFormat, timeBase, frameRate, sampleAspectRatio),
+            withLoggedReason {
+                buildVideoBackend(description, width, height, pixelFormat, timeBase, frameRate, sampleAspectRatio)
+            },
         )
 
         /**
@@ -486,10 +488,12 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
             channelLayoutMask: Long? = null,
             outputChannelLayoutMask: Long? = null,
         ): FilterGraph = FilterGraph(
-            buildAudioBackend(
-                description, sampleRate, sampleFormat, channels, timeBase,
-                outputSampleRate, outputSampleFormat, outputChannels, channelLayoutMask, outputChannelLayoutMask,
-            ),
+            withLoggedReason {
+                buildAudioBackend(
+                    description, sampleRate, sampleFormat, channels, timeBase,
+                    outputSampleRate, outputSampleFormat, outputChannels, channelLayoutMask, outputChannelLayoutMask,
+                )
+            },
         )
 
         /**
@@ -499,7 +503,7 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
         @Throws(FFmpegException::class)
         public fun buildVideoMulti(description: String, inputs: List<VideoInput>): FilterGraph {
             require(inputs.isNotEmpty()) { "Need at least one input" }
-            return FilterGraph(buildVideoMultiBackend(description, inputs))
+            return FilterGraph(withLoggedReason { buildVideoMultiBackend(description, inputs) })
         }
 
         /**
@@ -524,7 +528,9 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
         ): FilterGraph {
             require(inputs.isNotEmpty()) { "Need at least one input" }
             return FilterGraph(
-                buildAudioMultiBackend(description, inputs, outputSampleRate, outputSampleFormat, outputChannels, outputChannelLayoutMask),
+                withLoggedReason {
+                    buildAudioMultiBackend(description, inputs, outputSampleRate, outputSampleFormat, outputChannels, outputChannelLayoutMask)
+                },
             )
         }
     }

@@ -18,6 +18,12 @@ import kotlin.js.JsAny
  * to a surface that exists only because the codec lives in another wasm module.
  */
 
+@JsFun("(m, a0, a1) => m._ffkmp_log_capture_component(a0, a1)")
+internal external fun ffkmp_log_capture_component(module: JsAny, a0: Int, a1: Int): Int
+
+@JsFun("(m, a0, a1) => m._ffkmp_log_capture_message(a0, a1)")
+internal external fun ffkmp_log_capture_message(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_subtitle_rect_text(a0, a1)")
 internal external fun ffkmp_subtitle_rect_text(module: JsAny, a0: Int, a1: Int): Int
 
@@ -456,6 +462,15 @@ internal external fun ffkmp_image_get_buffer_size(module: JsAny, a0: Int, a1: In
 @JsFun("(m, a0, a1, a2) => m._ffkmp_io_tag(a0, a1, a2)")
 internal external fun ffkmp_io_tag(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m) => m._ffkmp_log_capture_begin()")
+internal external fun ffkmp_log_capture_begin(module: JsAny): Int
+
+@JsFun("(m, a0) => m._ffkmp_log_capture_count(a0)")
+internal external fun ffkmp_log_capture_count(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0, a1) => m._ffkmp_log_capture_level(a0, a1)")
+internal external fun ffkmp_log_capture_level(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m) => m._ffkmp_media_type_attachment()")
 internal external fun ffkmp_media_type_attachment(module: JsAny): Int
 
@@ -648,6 +663,9 @@ internal external fun ffkmp_frame_convert_pixfmt(module: JsAny, a0: Int, a1: Int
 @JsFun("(m) => m._ffkmp_interrupt_new()")
 internal external fun ffkmp_interrupt_new(module: JsAny): Int
 
+@JsFun("(m) => m._ffkmp_log_capture_end()")
+internal external fun ffkmp_log_capture_end(module: JsAny): Int
+
 @JsFun("(m) => m._ffkmp_packet_alloc()")
 internal external fun ffkmp_packet_alloc(module: JsAny): Int
 
@@ -773,6 +791,9 @@ internal external fun ffkmp_interrupt_free(module: JsAny, a0: Int): Unit
 
 @JsFun("(m, a0) => m._ffkmp_interrupt_raise(a0)")
 internal external fun ffkmp_interrupt_raise(module: JsAny, a0: Int): Unit
+
+@JsFun("(m, a0) => m._ffkmp_log_capture_free(a0)")
+internal external fun ffkmp_log_capture_free(module: JsAny, a0: Int): Unit
 
 @JsFun("(m, a0) => m._ffkmp_packet_free(a0)")
 internal external fun ffkmp_packet_free(module: JsAny, a0: Int): Unit

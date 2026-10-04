@@ -30,12 +30,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   before its stream had a packet is replaced once it has one. Code that kept the list from the open
   and finds a stream by comparing whole entries should find it by index, and read the lists again,
   or follow `Packet.newStreams` and `Packet.newPrograms`, to see what was added.
+- The message of an `FFmpegException` thrown by an open, by adding an encoder or a copied stream,
+  by writing the header or by building a filter graph ends with the lines FFmpeg logged for it now
+  (#170), and so does its `error`'s message. Code that compares a whole message with a fixed string
+  should compare `error`'s type and `code` instead, or look for the words it wants inside it.
 - The C ABI is 5.0 (#167, #168). `ffkmp_fmt_open_input_io2` takes a `tags_fn` after its `seek_fn`
   and the input's `location` after its `url`, and `kc_io_opener` gains `location_fn` after
   `close_fn`, so C code that calls the helper layer itself, or fills a `kc_io_opener`, has to be
   built again against the new header. The Kotlin API changes only by what the entries below add.
 
 ### Added
+
+- A failed open carries what FFmpeg logged for it (#170). FFmpeg says why it refused a file only in
+  its log, so an exception used to say "Invalid data found when processing input" where FFmpeg had
+  logged "moov atom not found", and a caller with no log sink had no way to learn more.
+  `FFmpegException.logged` now holds the lines FFmpeg logged at error level or worse, on the
+  calling thread, while the call that failed ran: opening a `MediaSource` with its stream
+  discovery, opening a decoder, a subtitle decoder or a subtitle converter, opening a `MediaSink`,
+  adding an encoder or a copied stream, writing the header, and building a `FilterGraph`. The first
+  eight are kept, and the exception's message and its `error`'s message end with them, as
+  `FFmpeg logged: [mov,mp4,m4a,3gp,3g2,mj2] moov atom not found`. The lines are kept whether or not
+  a log sink is installed and at whatever level it listens, and a sink still hears each one. Reads,
+  decodes and writes are not covered, because a long run logs unrelated warnings that would only
+  mislead. The C ABI is 5.2 and adds `ffkmp_log_capture_begin` and `ffkmp_log_capture_end` with
+  their accessors and `ffkmp_log_capture_free`, a capture of the calling thread's error lines that
+  needs no sink and nests.
 
 - A stream FFmpeg adds after the open reaches a caller (#151). A live transport stream can start its
   sound after its picture, add subtitles at a programme boundary or move a channel's sound to a new

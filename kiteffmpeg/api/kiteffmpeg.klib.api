@@ -1633,6 +1633,8 @@ final class io.github.yuroyami.kiteffmpeg/FFmpegException : kotlin/RuntimeExcept
         final fun <get-error>(): io.github.yuroyami.kiteffmpeg/FFmpegError // io.github.yuroyami.kiteffmpeg/FFmpegException.error.<get-error>|<get-error>(){}[0]
     final val logged // io.github.yuroyami.kiteffmpeg/FFmpegException.logged|{}logged[0]
         final fun <get-logged>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/FFmpegLogLine> // io.github.yuroyami.kiteffmpeg/FFmpegException.logged.<get-logged>|<get-logged>(){}[0]
+    final val message // io.github.yuroyami.kiteffmpeg/FFmpegException.message|{}message[0]
+        final fun <get-message>(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegException.message.<get-message>|<get-message>(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/FFmpegIdentity { // io.github.yuroyami.kiteffmpeg/FFmpegIdentity|null[0]

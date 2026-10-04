@@ -60,6 +60,55 @@ typedef void (*ffkmp_log_sink)(int level, const char *component, const char *mes
  */
 KC_API void ffkmp_log_set_sink(ffkmp_log_sink sink, int level);
 
+/* The error lines FFmpeg logged on one thread while one call ran, which the call's failure carries
+ * to its caller, because FFmpeg's return code says what kind of failure it was and only its log says
+ * why: "moov atom not found" is AVERROR_INVALIDDATA and nothing more. A caller opens a capture before
+ * the call and ends it after:
+ *
+ *     if (ffkmp_log_capture_begin() == 0) {
+ *         rc = ffkmp_fmt_open_input(&ctx, path);
+ *         kc_log_capture *lines = ffkmp_log_capture_end();
+ *         ... read the lines when rc < 0 ...
+ *         ffkmp_log_capture_free(&lines);
+ *     }
+ *
+ * A capture keeps every line at AV_LOG_ERROR or more severe that FFmpeg logs on the thread that
+ * began it, whether or not a sink is installed, and the sink still receives each line as usual. A
+ * line logged on another thread, such as one of a decoder's frame threads, is not kept. At most
+ * KC_LOG_CAPTURE_LINES lines are kept, the oldest, because the first error is the cause and the
+ * later ones its consequences. Captures nest: a capture begun inside another keeps its own lines,
+ * and the outer one keeps them too. Each call of this group touches only the calling thread's
+ * captures, so it is safe on any thread, and ffkmp_log_capture_end must be called on the thread
+ * that called ffkmp_log_capture_begin. The forwarder that fills a capture is installed by the first
+ * ffkmp_log_set_sink call, which the Kotlin library makes when it first accepts the FFmpeg runtime.
+ */
+#define KC_LOG_CAPTURE_LINES 8
+typedef struct kc_log_capture kc_log_capture;
+
+/* Begins a capture on this thread, nested inside any capture already open there. Returns 0, or
+ * AVERROR(ENOMEM) when it could not be allocated, in which case nothing was begun and
+ * ffkmp_log_capture_end must not be called for it. */
+KC_API int ffkmp_log_capture_begin(void);
+
+/* Ownership. Ends this thread's innermost open capture and returns it, which the caller owns and
+ * releases with ffkmp_log_capture_free; NULL when no capture is open on this thread. */
+KC_API kc_log_capture *ffkmp_log_capture_end(void);
+
+/* The number of lines c kept, from 0 to KC_LOG_CAPTURE_LINES; 0 for NULL. */
+KC_API int ffkmp_log_capture_count(const kc_log_capture *c);
+
+/* Line i of c, oldest first: its FFmpeg level, the name of the component that logged it, which is ""
+ * when FFmpeg names none, and the message without its trailing newline. Both strings are the bytes
+ * FFmpeg wrote and are BORROWED from c until it is freed. An index outside 0 to count - 1, or a NULL
+ * c, answers -1 for the level and NULL for the strings. */
+KC_API int ffkmp_log_capture_level(const kc_log_capture *c, int i);
+KC_API const char *ffkmp_log_capture_component(const kc_log_capture *c, int i);
+KC_API const char *ffkmp_log_capture_message(const kc_log_capture *c, int i);
+
+/* Ownership. Frees *c, which must already have ended, and writes NULL through the pointer; safe on
+ * NULL either way. */
+KC_API void ffkmp_log_capture_free(kc_log_capture **c);
+
 /* kc_frame */
 
 /* Ownership. Returns a new kc_frame the caller owns, or NULL when allocation fails.

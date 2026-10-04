@@ -4,6 +4,8 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -49,6 +51,25 @@ class WebLogSinkTest {
         FFmpeg.setLogSink(FFmpegLogLevel.Warning) { level, component, message -> lines += "$level $component: $message" }
         assertFailsWith<FFmpegException> { MediaSource.open(BytesSource(truncatedMp4)).close() }
         assertTrue(lines.any { it.startsWith("Error mov") && "moov atom not found" in it }, "heard: $lines")
+    }
+
+    @Test
+    fun aFailedOpenCarriesTheLineWithNoSinkInstalled() = runTest {
+        if (!useLinkedCodecModule()) return@runTest
+        val failure = assertFailsWith<FFmpegException> { MediaSource.open(BytesSource(truncatedMp4)).close() }
+        assertTrue(
+            failure.logged.any { it.level == FFmpegLogLevel.Error && it.component.startsWith("mov") && "moov atom not found" in it.message },
+            "the exception carried ${failure.logged}",
+        )
+        assertTrue("moov atom not found" in failure.message, failure.message)
+    }
+
+    @Test
+    fun aModuleWithoutTheCaptureKeepsItsPlainFailure() = runTest {
+        // The fake module predates the capture, as a module linked before #170 does.
+        useCodecModule(fakeCodecModule())
+        assertFalse(beginLogCapture(), "a capture opened on a module that has none")
+        assertEquals(emptyList(), endLogCapture())
     }
 
     @Test

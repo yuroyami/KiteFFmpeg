@@ -314,6 +314,34 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_log_set_sink(sink: kotlinx/cinterop/CPointer<kotlinx/cinterop/CFunction<kotlin/Function3<kotlin/Int, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?, kotlin/Unit>>>? /* = ffmpeg/ffkmp_log_sink^? */, level: kotlin/Int): kotlin/Unit
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_capture_begin")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_capture_begin(): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_capture_end")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_capture_end(): kotlinx/cinterop/CPointer<cnames/structs/kc_log_capture>?
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_capture_count")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_capture_count(c: kotlinx/cinterop/CValuesRef<cnames/structs/kc_log_capture>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_capture_level")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_capture_level(c: kotlinx/cinterop/CValuesRef<cnames/structs/kc_log_capture>?, i: kotlin/Int): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_capture_component")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_capture_component(c: kotlinx/cinterop/CValuesRef<cnames/structs/kc_log_capture>?, i: kotlin/Int): kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_capture_message")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_capture_message(c: kotlinx/cinterop/CValuesRef<cnames/structs/kc_log_capture>?, i: kotlin/Int): kotlinx/cinterop/CPointer<kotlinx/cinterop/ByteVarOf<kotlin/Byte> /* = kotlinx/cinterop/ByteVar^ */>?
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_log_capture_free")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_log_capture_free(c: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/kc_log_capture>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/kc_log_capture> */>?): kotlin/Unit
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_alloc")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_alloc(): kotlinx/cinterop/CPointer<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?
@@ -752,6 +780,13 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_ch_layout_mask")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecctx_set_ch_layout_mask(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, mask: kotlin/Long /* = platform/posix/int64_t^ */): kotlin/Int
+    }
+  }
+
+  library fragment {
+    // package name: ffmpeg
+
+    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_ch_layout_mask")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -781,13 +816,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_find_decoder_by_name")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_find_decoder_by_name(@kotlinx/cinterop/internal/CCall.CString name: kotlin/String?): kotlinx/cinterop/CPointer<cnames/structs/AVCodec /* = ffmpeg/kc_codec^ */>?
-    }
-  }
-
-  library fragment {
-    // package name: ffmpeg
-
-    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_find_decoder_by_name")
       @kotlin/internal/LowPriorityInOverloadResolution
@@ -1289,6 +1317,13 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_is_seekable")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_is_seekable(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Int
+    }
+  }
+
+  library fragment {
+    // package name: ffmpeg
+
+    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_stream_discard_all")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1317,13 +1352,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_visual_impaired")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_disposition_visual_impaired(): kotlin/Int
-    }
-  }
-
-  library fragment {
-    // package name: ffmpeg
-
-    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_attached_pic")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1482,7 +1510,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 1 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 2 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1531,6 +1559,10 @@ library {
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_TEXT_SENTENCE: kotlin/Int /* = 1152 */
+        public final get
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_LOG_CAPTURE_LINES: kotlin/Int /* = 8 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

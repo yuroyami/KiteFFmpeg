@@ -227,7 +227,9 @@ public actual class MediaSink internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
+    public actual fun addVideoEncoder(spec: VideoEncoderSpec): VideoEncoder = withLoggedReason { addVideoEncoderLogged(spec) }
+
+    private fun addVideoEncoderLogged(spec: VideoEncoderSpec): VideoEncoder = synchronized(muxLock) {
         requireNoTypedVideoOptionCollision(spec)
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
@@ -280,7 +282,10 @@ public actual class MediaSink internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun addCopyStream(source: MediaSource, stream: StreamInfo): CopyStream = synchronized(muxLock) {
+    public actual fun addCopyStream(source: MediaSource, stream: StreamInfo): CopyStream =
+        withLoggedReason { addCopyStreamLogged(source, stream) }
+
+    private fun addCopyStreamLogged(source: MediaSource, stream: StreamInfo): CopyStream = synchronized(muxLock) {
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
         check(!headerWritten) { "Cannot add streams after the muxer has started writing." }
@@ -365,7 +370,9 @@ public actual class MediaSink internal constructor(
         }
 
     @Throws(FFmpegException::class)
-    public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
+    public actual fun addAudioEncoder(spec: AudioEncoderSpec): AudioEncoder = withLoggedReason { addAudioEncoderLogged(spec) }
+
+    private fun addAudioEncoderLogged(spec: AudioEncoderSpec): AudioEncoder = synchronized(muxLock) {
         requireNoTypedAudioOptionCollision(spec)
         requireLayoutMatchesChannels(spec)
         check(!closeBegun) { "MediaSink is closed" }
@@ -567,10 +574,12 @@ public actual class MediaSink internal constructor(
             sourceChapters = null
             addChapters(pending.placedAt(origin.micros))
         }
-        // A byte sink's output is already open: its bytes go to the caller, not to a path.
-        outputPath?.let { path -> check0(ffkmp_fmt_io_open(ctx, path), "avio_open") }
-        val rc = ffkmp_fmt_write_header(ctx)
-        if (rc < 0) throw explained(headerFailure(rc, byteSink?.sink?.seekable, avError(rc)).error)
+        withLoggedReason {
+            // A byte sink's output is already open: its bytes go to the caller, not to a path.
+            outputPath?.let { path -> check0(ffkmp_fmt_io_open(ctx, path), "avio_open") }
+            val rc = ffkmp_fmt_write_header(ctx)
+            if (rc < 0) throw explained(headerFailure(rc, byteSink?.sink?.seekable, avError(rc)).error)
+        }
         headerState = HeaderState.Written
         releaseHeld()
     }
@@ -676,7 +685,10 @@ public actual class MediaSink internal constructor(
 
     public actual companion object {
         @Throws(FFmpegException::class)
-        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink {
+        public actual fun open(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink =
+            withLoggedReason { openByteSink(sink, format, options) }
+
+        private fun openByteSink(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink {
             // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
             val state = ByteSinkState(sink)
@@ -703,7 +715,10 @@ public actual class MediaSink internal constructor(
         }
 
         @Throws(FFmpegException::class)
-        public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink {
+        public actual fun open(path: String, format: String?, options: Map<String, String>): MediaSink =
+            withLoggedReason { openPath(path, format, options) }
+
+        private fun openPath(path: String, format: String?, options: Map<String, String>): MediaSink {
             // The FFmpeg identity gate. Before the first allocation.
             requireCompatibleFFmpeg()
             val arena = kotlinx.cinterop.Arena()

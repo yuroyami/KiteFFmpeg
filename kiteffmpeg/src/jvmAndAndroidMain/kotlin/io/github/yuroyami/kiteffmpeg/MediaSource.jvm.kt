@@ -426,9 +426,11 @@ public actual class MediaSource internal constructor(
         require(stream.type.isAv) { "Only video and audio streams can be decoded, got ${stream.type}" }
         requireOwnStream(stream)
         return synchronized(stateLock) {
-            StreamDecoder.open(
-                checkOpen(), stream, threadCount, lowDelay, decoder, options, hardware, corruptData,
-            )
+            withLoggedReason {
+                StreamDecoder.open(
+                    checkOpen(), stream, threadCount, lowDelay, decoder, options, hardware, corruptData,
+                )
+            }
         }
     }
 
@@ -446,10 +448,12 @@ public actual class MediaSource internal constructor(
     internal fun openSubtitleConverter(stream: StreamInfo, codec: CodecId, outParameters: Long): Long {
         requireOwnStream(stream)
         return synchronized(stateLock) {
-            try {
-                Internals.subtitleConverterOpen(checkOpen(), stream.index, codec.name, outParameters)
-            } catch (failure: FFmpegException) {
-                throw subtitleConversionFailure(failure.error.code, stream, codec) { failure.error }
+            withLoggedReason {
+                try {
+                    Internals.subtitleConverterOpen(checkOpen(), stream.index, codec.name, outParameters)
+                } catch (failure: FFmpegException) {
+                    throw subtitleConversionFailure(failure.error.code, stream, codec) { failure.error }
+                }
             }
         }
     }
@@ -460,7 +464,7 @@ public actual class MediaSource internal constructor(
         require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
         requireOwnStream(stream)
         return synchronized(stateLock) {
-            SubtitleDecoder(stream, Internals.subtitleDecoderOpen(checkOpen(), stream.index))
+            SubtitleDecoder(stream, withLoggedReason { Internals.subtitleDecoderOpen(checkOpen(), stream.index) })
         }
     }
 
@@ -526,7 +530,7 @@ public actual class MediaSource internal constructor(
         @Throws(FFmpegException::class)
         public actual fun open(path: String): MediaSource {
             Internals.requireCompatible()
-            return openMediaSource(path)
+            return withLoggedReason { openMediaSource(path) }
         }
 
         @Throws(FFmpegException::class)
@@ -538,7 +542,7 @@ public actual class MediaSource internal constructor(
             Internals.requireCompatible()
             refuseSeekBreakingOptions(options)
             return openUnder(interrupt, Internals::interruptNew, { Internals.interruptRaise(it) }, { Internals.interruptFree(it) }) { cell ->
-                openMediaSource(path, options, cell ?: 0L)
+                withLoggedReason { openMediaSource(path, options, cell ?: 0L) }
             }
         }
 
@@ -554,7 +558,7 @@ public actual class MediaSource internal constructor(
             Internals.requireCompatible()
             refuseSeekBreakingOptions(options)
             return openUnder(interrupt, Internals::interruptNew, { Internals.interruptRaise(it) }, { Internals.interruptFree(it) }) { cell ->
-                openMediaSourceIo(io, options, cell ?: 0L, url, mimeType, nestedOpener)
+                withLoggedReason { openMediaSourceIo(io, options, cell ?: 0L, url, mimeType, nestedOpener) }
             }
         }
 
@@ -581,7 +585,9 @@ private class DecoderState(val stream: StreamInfo, var context: Long) {
     }
 
     companion object {
-        fun open(format: Long, stream: StreamInfo): DecoderState {
+        fun open(format: Long, stream: StreamInfo): DecoderState = withLoggedReason { openLogged(format, stream) }
+
+        private fun openLogged(format: Long, stream: StreamInfo): DecoderState {
             val streamToken = Internals.fmtStream(format, stream.index)
             var parameters = 0L
             var codec = 0L
