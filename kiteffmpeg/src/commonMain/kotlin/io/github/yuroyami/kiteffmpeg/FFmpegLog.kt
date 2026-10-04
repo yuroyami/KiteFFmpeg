@@ -30,6 +30,22 @@ public fun interface FFmpegLogSink {
     public fun log(level: FFmpegLogLevel, component: String, message: String)
 }
 
+/**
+ * One line FFmpeg logged, as [FFmpegException.logged] keeps it (#170).
+ *
+ * [component] names what logged, such as `mov,mp4,m4a,3gp,3g2,mj2` for the MP4 reader or `hls`, and
+ * is empty when FFmpeg names nothing. [message] is one call of FFmpeg's logger without its trailing
+ * newline, as an [FFmpegLogSink] receives it.
+ */
+public data class FFmpegLogLine(
+    val level: FFmpegLogLevel,
+    val component: String,
+    val message: String,
+) {
+    /** `[component] message`, or the message alone when no component is named. */
+    override fun toString(): String = if (component.isEmpty()) message else "[$component] $message"
+}
+
 /** The installed sink, shared by every backend's forwarder. */
 internal object FFmpegLog {
     /** FFmpeg's AV_LOG_QUIET: no line at all. */

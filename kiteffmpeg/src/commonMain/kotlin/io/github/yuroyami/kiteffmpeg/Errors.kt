@@ -175,6 +175,26 @@ public class FFmpegException : RuntimeException {
 
     /** The raw `AVERROR_*` code, or 0 for internal errors. */
     public val code: Int get() = error.code
+
+    /**
+     * The error lines FFmpeg logged on the failing call's thread while it ran, oldest first (#170).
+     *
+     * FFmpeg's return code says what kind of failure it was, and its log says why: a cut-off MP4
+     * fails with [FFmpegError.InvalidData] while the MP4 reader logs `moov atom not found`, and an
+     * encoder refuses a sample rate with [FFmpegError.InvalidArgument] while it logs the rates it
+     * takes. The calls that open or set something up collect these lines whether or not a log sink
+     * is installed, and a sink still receives each of them as usual: opening a [MediaSource] and
+     * reading its stream info, opening a decoder, a subtitle decoder or an encoder, writing a
+     * [MediaSink]'s header, and building a [FilterGraph]. When one of them fails, its exception
+     * carries the lines here and its [message] ends with them.
+     *
+     * Only lines at [FFmpegLogLevel.Error] or more severe are kept, at most 8 of them, and only those
+     * logged on the thread that made the call, so a line another call logs at the same moment on
+     * another thread never lands here. Empty when FFmpeg logged nothing, which is common: a file no
+     * reader recognises fails with [FFmpegError.InvalidData] and no line at all, and empty for every
+     * failure of a call that does not collect lines, such as a packet read.
+     */
+    public val logged: List<FFmpegLogLine> = emptyList()
 }
 
 /**

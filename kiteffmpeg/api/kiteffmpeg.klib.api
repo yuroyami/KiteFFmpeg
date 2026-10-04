@@ -1631,6 +1631,8 @@ final class io.github.yuroyami.kiteffmpeg/FFmpegException : kotlin/RuntimeExcept
         final fun <get-code>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FFmpegException.code.<get-code>|<get-code>(){}[0]
     final val error // io.github.yuroyami.kiteffmpeg/FFmpegException.error|{}error[0]
         final fun <get-error>(): io.github.yuroyami.kiteffmpeg/FFmpegError // io.github.yuroyami.kiteffmpeg/FFmpegException.error.<get-error>|<get-error>(){}[0]
+    final val logged // io.github.yuroyami.kiteffmpeg/FFmpegException.logged|{}logged[0]
+        final fun <get-logged>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/FFmpegLogLine> // io.github.yuroyami.kiteffmpeg/FFmpegException.logged.<get-logged>|<get-logged>(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/FFmpegIdentity { // io.github.yuroyami.kiteffmpeg/FFmpegIdentity|null[0]
@@ -1698,6 +1700,25 @@ final class io.github.yuroyami.kiteffmpeg/FFmpegLibraryIdentity { // io.github.y
         final fun <get-verdict>(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegLibraryIdentity.verdict.<get-verdict>|<get-verdict>(){}[0]
 
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegLibraryIdentity.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/FFmpegLogLine { // io.github.yuroyami.kiteffmpeg/FFmpegLogLine|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/FFmpegLogLevel, kotlin/String, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.<init>|<init>(io.github.yuroyami.kiteffmpeg.FFmpegLogLevel;kotlin.String;kotlin.String){}[0]
+
+    final val component // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.component|{}component[0]
+        final fun <get-component>(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.component.<get-component>|<get-component>(){}[0]
+    final val level // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.level|{}level[0]
+        final fun <get-level>(): io.github.yuroyami.kiteffmpeg/FFmpegLogLevel // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.level.<get-level>|<get-level>(){}[0]
+    final val message // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.message|{}message[0]
+        final fun <get-message>(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.message.<get-message>|<get-message>(){}[0]
+
+    final fun component1(): io.github.yuroyami.kiteffmpeg/FFmpegLogLevel // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.component1|component1(){}[0]
+    final fun component2(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.component2|component2(){}[0]
+    final fun component3(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.component3|component3(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/FFmpegLogLevel = ..., kotlin/String = ..., kotlin/String = ...): io.github.yuroyami.kiteffmpeg/FFmpegLogLine // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.copy|copy(io.github.yuroyami.kiteffmpeg.FFmpegLogLevel;kotlin.String;kotlin.String){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/FFmpegLogLine.toString|toString(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/FilterGraph : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/FilterGraph|null[0]
