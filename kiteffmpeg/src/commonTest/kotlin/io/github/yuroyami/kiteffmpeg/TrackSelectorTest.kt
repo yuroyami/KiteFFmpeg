@@ -89,10 +89,76 @@ class TrackSelectorTest {
     }
 
     @Test
-    fun twoLetterAndThreeLetterCodesAreDifferentStrings() {
+    fun aTwoLetterAndAThreeLetterCodeNameOneLanguage() {
         val english = stream(1, MediaType.Audio, language = "eng")
         val japanese = stream(2, MediaType.Audio, language = "jpn")
-        assertEquals(english, TrackSelector(listOf("ja")).selectAudio(listOf(english, japanese)))
+        assertEquals(japanese, TrackSelector(listOf("ja")).selectAudio(listOf(english, japanese)))
+        val tagged = stream(3, MediaType.Audio, language = "en")
+        assertEquals(tagged, TrackSelector(listOf("eng")).selectAudio(listOf(japanese, tagged)))
+    }
+
+    @Test
+    fun bothThreeLetterCodesOfALanguageNameIt() {
+        val french = stream(1, MediaType.Audio, language = "fra")
+        val german = stream(2, MediaType.Audio, language = "deu")
+        assertEquals(german, TrackSelector(listOf("ger")).selectAudio(listOf(french, german)))
+        val chinese = stream(3, MediaType.Audio, language = "chi")
+        assertEquals(chinese, TrackSelector(listOf("zh")).selectAudio(listOf(french, chinese)))
+        assertEquals(chinese, TrackSelector(listOf("zho")).selectAudio(listOf(french, chinese)))
+    }
+
+    @Test
+    fun theRegionAPreferenceNamesWinsAmongStreamsOfItsLanguage() {
+        val european = stream(1, MediaType.Audio, language = "pt-PT", disposition = Disposition(default = true))
+        val brazilian = stream(2, MediaType.Audio, language = "pt-BR")
+        assertEquals(brazilian, TrackSelector(listOf("pt-BR")).selectAudio(listOf(european, brazilian)))
+        assertEquals(european, TrackSelector(listOf("pt-BR")).selectAudio(listOf(european)))
+    }
+
+    @Test
+    fun aStreamThatSaysNoRegionBeatsOneThatNamesAnother() {
+        val european = stream(1, MediaType.Audio, language = "pt-PT", disposition = Disposition(default = true))
+        val portuguese = stream(2, MediaType.Audio, language = "por")
+        assertEquals(portuguese, TrackSelector(listOf("pt-BR")).selectAudio(listOf(european, portuguese)))
+    }
+
+    @Test
+    fun aScriptBeatsARegionAndARegionCanImplyAScript() {
+        val simplified = stream(1, MediaType.Audio, language = "zh-Hans-TW")
+        val traditional = stream(2, MediaType.Audio, language = "zh-HK")
+        assertEquals(traditional, TrackSelector(listOf("zh-Hant-TW")).selectAudio(listOf(simplified, traditional)))
+        val mainland = stream(3, MediaType.Audio, language = "zh-CN")
+        val taiwanese = stream(4, MediaType.Audio, language = "zh-TW")
+        assertEquals(taiwanese, TrackSelector(listOf("zh-Hant")).selectAudio(listOf(mainland, taiwanese)))
+    }
+
+    @Test
+    fun theOrderOfThePreferencesComesBeforeHowCloseAStreamIs() {
+        val european = stream(1, MediaType.Audio, language = "pt-PT")
+        val english = stream(2, MediaType.Audio, language = "en")
+        assertEquals(european, TrackSelector(listOf("pt-BR", "en")).selectAudio(listOf(english, european)))
+    }
+
+    @Test
+    fun aRelatedLanguageIsNotTheLanguage() {
+        val middleEnglish = stream(1, MediaType.Audio, language = "enm")
+        val japanese = stream(2, MediaType.Audio, language = "jpn", disposition = Disposition(default = true))
+        assertEquals(japanese, TrackSelector(listOf("en")).selectAudio(listOf(middleEnglish, japanese)))
+    }
+
+    @Test
+    fun aCodeThatNamesNoLanguageMatchesNothing() {
+        val undetermined = stream(1, MediaType.Audio, language = "und")
+        val japanese = stream(2, MediaType.Audio, language = "jpn", disposition = Disposition(default = true))
+        assertEquals(japanese, TrackSelector(listOf("und")).selectAudio(listOf(undetermined, japanese)))
+        assertEquals(japanese, TrackSelector(listOf("qaa")).selectAudio(listOf(stream(3, MediaType.Audio, language = "qaa"), japanese)))
+    }
+
+    @Test
+    fun aTagThatIsNoCodeMatchesItsOwnSpelling() {
+        val klingon = stream(1, MediaType.Audio, language = "x-klingon")
+        val japanese = stream(2, MediaType.Audio, language = "jpn", disposition = Disposition(default = true))
+        assertEquals(klingon, TrackSelector(listOf("X-Klingon")).selectAudio(listOf(japanese, klingon)))
     }
 
     @Test

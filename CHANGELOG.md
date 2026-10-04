@@ -15,8 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `StreamInfo.language` of a Matroska track that carries `LanguageBCP47` is that tag now (#150).
   MKVToolNix writes it on every track, so an English track from such a file reads `en` where it
   read `eng`, and a Traditional Chinese one `zh-Hant` where it read `chi`. Code that compares a
-  language with a three-letter string has to accept the tag too; `TrackSelector` matches a tag
-  on its first subtag, so `zh` finds `zh-Hant`, but `eng` does not find `en`.
+  language with a three-letter string has to accept the tag too. `TrackSelector` compares
+  languages rather than strings now (#158), so a preference for `eng` still finds such a track.
 
 ### Added
 
@@ -80,6 +80,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `TrackSelector` compares languages, not strings (#158). A stream's language arrives as a
+  two-letter code or tag from HLS, DASH and Matroska, as the terminology code from MP4 and as the
+  bibliographic one from MPEG-TS and older Matroska files, and a preference for `eng` missed an
+  `en` stream, `ger` missed `deu` and `zh` missed `chi`. A preference now matches every spelling
+  of its language. Among the streams of that language, the one whose script and then region agree
+  comes first, then one that names neither, then one that names another, so `pt-BR` takes a
+  `pt-BR` stream over a default `pt-PT` one, and a region implies the script of Chinese, so
+  `zh-TW` agrees with `zh-Hant`. Preference order still comes before closeness, a related language
+  such as Middle English `enm` is not English, and `und`, `mul`, `mis`, `zxx` and `qaa` to `qtz`
+  match nothing. The rules follow mpv's, which also folds every spelling of a language into one.
 - A Matroska track reports its `LanguageBCP47` as `StreamInfo.language` (#150). MKVToolNix writes
   that element on every track, beside the old three-letter `Language`, and the Matroska
   specification says a reader that knows it ignores `Language`. FFmpeg's reader skipped it, so a
