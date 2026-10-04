@@ -282,6 +282,24 @@ public expect class StreamDecoder : AutoCloseable {
 }
 
 /**
+ * Refuses [StreamDecoder.setSkipFrame] on a stream that is not video, for every backend.
+ *
+ * Only video decoders read FFmpeg's `skip_frame`, so on any other stream the call would set a field
+ * nothing reads and the caller would never learn that nothing was skipped.
+ */
+internal fun requireSkippableStream(stream: StreamInfo) {
+    if (stream.type != MediaType.Video) {
+        throw FFmpegException(
+            FFmpegError.InvalidArgument(
+                0,
+                "stream ${stream.index} is ${stream.type.name.lowercase()}, and only a video decoder " +
+                    "reads frame skipping.",
+            ),
+        )
+    }
+}
+
+/**
  * Refuses a packet that does not belong to [stream], for every backend's [StreamDecoder.send].
  *
  * Null is the drain signal and always belongs. Everything else is checked by stream index: a packet

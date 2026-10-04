@@ -23,6 +23,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `StreamDecoder.setSkipFrame` changes which frames an open video decoder skips, from the next
+  packet sent (#140). It is FFmpeg's `skip_frame`, which `DecoderOptions.skipFrame` could set only
+  when the decoder opened, so a caller can skip the frames nothing predicts from on the way to a
+  precise seek target and go back to `DecoderSkip.None` with no flush. An H.264 decode lowered from
+  `NonReference` goes on exactly as one that never skipped. A stream that is not video is refused,
+  because only video decoders read the setting.
 - `VideoStreamInfo.crop` holds the crop a container states for a stream's pictures (#147): a
   Matroska track's `PixelCrop` elements or an MP4 track's clean aperture, as the rows and columns
   to leave out at each edge, which FFmpeg reads from 7.1 on and does not apply. A renderer leaves

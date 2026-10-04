@@ -467,7 +467,12 @@ public actual class StreamDecoder internal constructor(
 
     @Throws(FFmpegException::class)
     public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip): Unit =
-        throw FFmpegException(FFmpegError.Unsupported(0, "setting a running decoder's frame skipping is not wired yet"))
+        kotlinx.atomicfu.locks.synchronized(lock) {
+            check(!closed) { "StreamDecoder is closed" }
+            requireSkippableStream(stream)
+            // Under the operation lock, so it lands between two sends and applies from the next.
+            check0(ffkmp_codecctx_set_opt(codecCtx, "skip_frame", skip.ff), "av_opt_set ('skip_frame')")
+        }
 
     actual override fun close(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
         // Under the operation lock, so a close arriving during a send or receive waits for the

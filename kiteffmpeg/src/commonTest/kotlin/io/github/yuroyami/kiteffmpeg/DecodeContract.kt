@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.TestResult
@@ -172,6 +173,45 @@ abstract class DecodeContract {
             val decoder = source.openDecoder(video)
             decoder.close()
             assertFailsWith<IllegalStateException> { decoder.send(null) }
+            assertFailsWith<IllegalStateException> { decoder.setSkipFrame(DecoderSkip.None) }
+        }
+    }
+
+    @Test
+    fun frameSkippingChangesFromTheNextPacketWithNoFlush() = contract {
+        open().use { source ->
+            val video = assertNotNull(source.primaryVideo)
+            source.openPacketReader(listOf(video)).use { reader ->
+                val whole = source.openDecoder(video).use { it.decodePictures(reader) }
+                reader.seek(0)
+                val skipping = source.openDecoder(video).use { decoder ->
+                    decoder.decodePictures(reader) { index ->
+                        if (index == 0) decoder.setSkipFrame(DecoderSkip.NonReference)
+                        if (index == SKIPPING_PACKETS) decoder.setSkipFrame(DecoderSkip.None)
+                    }
+                }
+                // Four of the fixture's B-frames are frames nothing predicts from. Three come in the
+                // packets sent while skipping and go; the fourth comes after and decodes.
+                assertEquals(
+                    VIDEO_PTS_MICROS.filterIndexed { index, _ -> index !in NON_REFERENCE_WHILE_SKIPPING },
+                    skipping.map { it.first },
+                    "the pictures decoded",
+                )
+                val wholeByTime = whole.toMap()
+                for ((time, planes) in skipping) {
+                    assertContentEquals(wholeByTime.getValue(time), planes, "the picture at $time us against a decode that skipped nothing")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun frameSkippingIsRefusedForAStreamThatIsNotVideo() = contract {
+        open().use { source ->
+            source.openDecoder(assertNotNull(source.primaryAudio)).use { decoder ->
+                val error = assertFailsWith<FFmpegException> { decoder.setSkipFrame(DecoderSkip.NonReference) }
+                assertIs<FFmpegError.InvalidArgument>(error.error, error.message)
+            }
         }
     }
 
@@ -224,6 +264,29 @@ abstract class DecodeContract {
         } finally {
             frames.forEach(Frame::close)
         }
+    }
+
+    /**
+     * Decodes every packet [reader] still has, calling [beforeSend] with each packet's place in
+     * decode order before it is sent, then drains; returns each picture's time and pixels.
+     */
+    private fun StreamDecoder.decodePictures(reader: PacketReader, beforeSend: (Int) -> Unit = {}): List<Pair<Long?, ByteArray>> {
+        val pictures = mutableListOf<Pair<Long?, ByteArray>>()
+        fun collect() {
+            while (true) (receive() ?: return).use { pictures += it.ptsMicros to it.copyPlanesToByteArray() }
+        }
+        var index = 0
+        while (true) {
+            val packet = reader.read() ?: break
+            packet.use {
+                beforeSend(index++)
+                while (!send(it)) collect()
+            }
+            collect()
+        }
+        send(null)
+        collect()
+        return pictures
     }
 
     private fun List<Frame>.planesSha256(): String {
@@ -281,6 +344,12 @@ abstract class DecodeContract {
 
     private companion object {
         const val STEREO_MASK = 3L
+
+        /** How many video packets [frameSkippingChangesFromTheNextPacketWithNoFlush] sends while skipping. */
+        const val SKIPPING_PACKETS = 13
+
+        /** The places in [VIDEO_PTS_MICROS] of the frames nothing predicts from among those packets. */
+        val NON_REFERENCE_WHILE_SKIPPING = setOf(2, 8, 11)
         const val AUDIO_PACKETS = 25
         const val AUDIO_SAMPLES = 24_000L
         const val VIDEO_EXTRADATA_SHA256 = "009ef696ded42ddfe7b0dc636488108e009e06fc10376c9b335321064988c54d"

@@ -7,6 +7,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_avseek_flag_backward
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_flush
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_free
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_receive_frame
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_set_opt
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_send_packet
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_read_frame
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_seek_file
@@ -264,8 +265,13 @@ public actual class StreamDecoder internal constructor(
         isDrained = false
     }
 
-    public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip): Unit =
-        throw FFmpegException(FFmpegError.Unsupported(0, "setting a running decoder's frame skipping is not wired yet"))
+    public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip) {
+        alive()
+        requireSkippableStream(stream)
+        val m = requireModule()
+        val rc = withCString(m, "skip_frame") { k -> withCString(m, skip.ff) { v -> ffkmp_codecctx_set_opt(m, context, k, v) } }
+        if (rc < 0) throw FFmpegException(FFmpegError.InvalidArgument(rc, "av_opt_set ('skip_frame') was refused with $rc"))
+    }
 
     actual override fun close() {
         if (closed) return

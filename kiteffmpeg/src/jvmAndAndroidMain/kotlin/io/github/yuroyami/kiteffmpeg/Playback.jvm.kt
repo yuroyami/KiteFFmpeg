@@ -213,8 +213,14 @@ public actual class StreamDecoder internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip): Unit =
-        throw FFmpegException(FFmpegError.Unsupported(0, "setting a running decoder's frame skipping is not wired yet"))
+    public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip): Unit = synchronized(lock) {
+        check(codecContext != 0L) { "StreamDecoder is closed" }
+        requireSkippableStream(stream)
+        // The funnel the open uses. FFmpeg reads skip_frame as it decodes each packet, and frame
+        // threading copies it into a worker as the packet is submitted, so the lock that keeps this
+        // out of a running send is all it takes to make it apply from the next one.
+        check0(Internals.codecCtxSetOpt(codecContext, "skip_frame", skip.ff), "av_opt_set ('skip_frame')")
+    }
 
     actual override fun close() {
         synchronized(lock) {
