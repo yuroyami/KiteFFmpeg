@@ -38,13 +38,15 @@ class WebOnDemandReadTest {
         private val content: ByteArray,
         private val declaredSize: Long? = content.size.toLong(),
         override val seekable: Boolean = true,
-        private val failReads: Boolean = false,
+        var failReads: Boolean = false,
         private val overCount: Boolean = false,
         private val failSize: Boolean = false,
         private val onClose: () -> Unit = {},
     ) : MediaByteSource {
         val readFailure = IllegalStateException("the range request failed")
+        val seekFailure = IllegalStateException("the range request for the new position failed")
         val sizeFailure = IllegalStateException("cannot ask the length")
+        var failSeeks = false
         var bytesServed = 0L
         var closeCount = 0
         val seekCalls = mutableListOf<Long>()
@@ -67,6 +69,7 @@ class WebOnDemandReadTest {
         }
 
         override fun seek(position: Long) {
+            if (failSeeks) throw seekFailure
             seekCalls += position
             this.position = position
         }
@@ -178,6 +181,44 @@ class WebOnDemandReadTest {
         val failure = assertFailsWith<FFmpegException> { MediaSource.open(source, emptyMap()) }
         assertSame(source.readFailure, failure.cause)
         assertEquals(1, source.closeCount, "a failed open still closes the source it took, once")
+    }
+
+    /**
+     * After the open as during it: FFmpeg only sees an error code, so a packet read or a seek that
+     * failed because the source threw carries that exception as its cause, typed by the code
+     * FFmpeg's input bridge answered, as on the JVM and native (#169).
+     */
+    @Test
+    fun aReadThatThrowsAfterTheOpenFailsThePacketReadWithTheSourcesExceptionAsItsCause() {
+        val source = RangeSource(ByteArray(1000))
+        val (module, media) = openThroughFake(source)
+        fakeDemuxThroughSource(module)
+        media.use {
+            media.openPacketReader(media.streams).use { reader ->
+                reader.read()!!.close()
+                source.failReads = true
+                val failure = assertFailsWith<FFmpegException> { reader.read() }
+                assertIs<FFmpegError.Io>(failure.error)
+                assertSame(source.readFailure, failure.cause)
+                source.failReads = false
+                reader.read()!!.close()
+            }
+        }
+    }
+
+    @Test
+    fun aSeekThatThrowsFailsThePacketSeekWithTheSourcesExceptionAsItsCause() {
+        val source = RangeSource(ByteArray(1000))
+        val (module, media) = openThroughFake(source)
+        fakeDemuxThroughSource(module)
+        media.use {
+            media.openPacketReader(media.streams).use { reader ->
+                source.failSeeks = true
+                val failure = assertFailsWith<FFmpegException> { reader.seek(0, SeekDirection.Backward, null) }
+                assertIs<FFmpegError.Io>(failure.error)
+                assertSame(source.seekFailure, failure.cause)
+            }
+        }
     }
 
     @Test

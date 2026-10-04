@@ -119,7 +119,7 @@ public actual class PacketReader internal constructor(
             if (rc < 0) {
                 ffkmp_packet_free(m, packet)
                 if (rc == eof) return null
-                throw FFmpegException(FFmpegError.Internal("reading a packet failed with $rc"))
+                throw source.demuxFailure(rc, "reading a packet")
             }
             val index = ffkmp_packet_stream_index(m, packet)
             if (index in wanted) {
@@ -155,7 +155,7 @@ public actual class PacketReader internal constructor(
         val target = micros + startTimeMicros
         val (min, max) = seekWindow(target, direction, notEarlierThan?.let { it + startTimeMicros })
         val rc = ffkmp_fmt_seek_file(m, context, -1, min, target, max, flags)
-        if (rc < 0) throw FFmpegException(FFmpegError.Internal("seek to ${micros}us failed with $rc"))
+        if (rc < 0) throw source.demuxFailure(rc, "seeking to ${micros}us")
     }
 
     public actual fun reselect(streams: List<StreamInfo>) {

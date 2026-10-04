@@ -449,6 +449,31 @@ internal external fun withoutNestedIo(module: JsAny)
 @JsFun("(m) => { m.__openReads = true; }")
 internal external fun fakeOpenReads(module: JsAny)
 
+/**
+ * Makes the packet reader fake's demuxer read 16 bytes through the last open's read callback before
+ * each packet, and seek through its seek callback, failing either with AVERROR(EIO) when the
+ * callback fails, as FFmpeg's input bridge does.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        const EIO = -5;
+        const read = m._ffkmp_fmt_read_frame;
+        m._ffkmp_fmt_read_frame = (ctx, packet) => {
+            const scratch = m._malloc(16);
+            if (m.__table[m.__lastOpenRead](0, scratch, 16) < -1) return EIO;
+            return read(ctx, packet);
+        };
+        m._ffkmp_avseek_flag_backward = () => 1;
+        m._ffkmp_avseek_flag_any = () => 4;
+        m._ffkmp_fmt_seek_file = () => {
+            const seek = m.__lastOpenSeek;
+            return seek !== 0 && Number(m.__table[seek](0, 0n, 0)) < 0 ? EIO : 0;
+        };
+    }""",
+)
+internal external fun fakeDemuxThroughSource(module: JsAny)
+
 /** The read callback the last open was handed, as a table index. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => m.__lastOpenRead")

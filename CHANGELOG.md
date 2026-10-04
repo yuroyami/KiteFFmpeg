@@ -162,6 +162,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- On the web, a packet read or a seek that fails because the `MediaByteSource` threw carries that
+  exception as its cause, and its error is typed from FFmpeg's code, so a range request that fails
+  in the middle of a song reads as an I/O error with the request's own failure behind it (#169). It
+  read as an internal error with no cause, while the JVM and native explained it and the web
+  explained only a failed open. `MediaSource.pause` and `resume` carry the cause too.
 - An HLS playlist that defines variables with `EXT-X-DEFINE` plays (#166). FFmpeg's HLS reader knew
   no variables, so a stream that hands a token from its master playlist down to every media playlist
   and segment asked for addresses that still held `{$token}`, and every one failed. The reader now

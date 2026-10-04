@@ -105,12 +105,23 @@ public actual class MediaSource internal constructor(
     private val bridge: WebIoBridge,
     private val unused: List<String>,
     metadata: Map<String, String>,
+    /** The nested opener of the open, whose sources' failures explain an error too, or null. */
+    private val nested: WebNestedOpener? = null,
 ) : AutoCloseable {
 
     private var closed = false
 
     /** Cleared on close, checked by every reader and decoder that borrows this container. */
     private val lifetime = SourceLifetime()
+
+    /**
+     * The exception for a read, seek, pause or resume of this source that FFmpeg failed with [code],
+     * typed by that code as on the JVM and native. When the source reads a [MediaByteSource], the
+     * exception that source threw becomes the cause, because FFmpeg itself only received an error
+     * code (#169).
+     */
+    internal fun demuxFailure(code: Int, what: String): FFmpegException =
+        FFmpegException(FFmpegError.fromCode(code, "$what failed with $code"), bridge.takeFailure() ?: nested?.takeFailure())
 
     /** A closed source throws IllegalStateException, with the message the other backends use. */
     private fun alive(): Int {
@@ -603,7 +614,7 @@ public actual class MediaSource internal constructor(
 
     public actual fun pause(): Boolean {
         val rc = ffkmp_fmt_read_pause(requireModule(), alive())
-        if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "pausing the source failed with $rc"))
+        if (rc < 0) throw demuxFailure(rc, "pausing the source")
         if (rc == 1) paused = true
         return rc == 1
     }
@@ -612,7 +623,7 @@ public actual class MediaSource internal constructor(
         val context = alive()
         if (!paused) return false
         val rc = ffkmp_fmt_read_play(requireModule(), context)
-        if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "resuming the source failed with $rc"))
+        if (rc < 0) throw demuxFailure(rc, "resuming the source")
         paused = false
         return true
     }
@@ -803,7 +814,7 @@ public actual class MediaSource internal constructor(
                 releaseIo()
                 throw failure
             }
-            return MediaSource(slot, ctx, bridge, leftover, tags).also { media -> nested?.let { media.releaseAtClose(it::release) } }
+            return MediaSource(slot, ctx, bridge, leftover, tags, nested).also { media -> nested?.let { media.releaseAtClose(it::release) } }
         }
 
         /**
