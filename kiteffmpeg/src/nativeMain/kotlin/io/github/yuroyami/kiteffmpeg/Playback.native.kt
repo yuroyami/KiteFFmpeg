@@ -159,6 +159,10 @@ public actual class Packet internal constructor(
             ffmpeg.ffkmp_rescale_q(duration, timeBase.num, timeBase.den, 1, 1_000_000)
         } else null
 
+    // The reads that fill these land with the next commit (#135).
+    public actual val newContainerTags: Map<String, String>? = null
+    public actual val newStreamTags: Map<String, String>? = null
+
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
     public actual fun copy(): Packet = locked { live ->

@@ -1278,6 +1278,8 @@ public final class io/github/yuroyami/kiteffmpeg/Packet : java/lang/AutoCloseabl
 	public final fun getDuration ()J
 	public final fun getDurationMicros ()Ljava/lang/Long;
 	public final fun getHasPts ()Z
+	public final fun getNewContainerTags ()Ljava/util/Map;
+	public final fun getNewStreamTags ()Ljava/util/Map;
 	public final fun getPts ()J
 	public final fun getPtsMicros ()Ljava/lang/Long;
 	public final fun getSizeBytes ()I

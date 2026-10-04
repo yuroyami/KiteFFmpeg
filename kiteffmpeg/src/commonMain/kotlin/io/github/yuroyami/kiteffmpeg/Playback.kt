@@ -46,6 +46,25 @@ public expect class Packet : AutoCloseable {
     public val durationMicros: Long?
 
     /**
+     * The container's tags as they stand from this packet on, present only on the first packet a
+     * read hands out after FFmpeg applied new container tags during playback, and null on every
+     * other packet. A station's ICY title through FFmpeg's own `http`, an ID3 tag between ADTS
+     * frames and an FLV `onMetaData` arrive this way. It is the whole new set, which
+     * [MediaSource.metadata] holds from the same read on. A [copy] carries it too.
+     */
+    public val newContainerTags: Map<String, String>?
+
+    /**
+     * This packet's stream's tags as they stand from this packet on, present only on the first
+     * packet of that stream a read hands out after FFmpeg applied new tags to it during playback,
+     * and null on every other packet. The next song of a chained Ogg brings its comments this way,
+     * as the whole set, without the keys of the song before it, and a timed ID3 packet of an
+     * MPEG-TS or HLS data stream carries what it states on itself, so read that data stream to
+     * receive them. [StreamInfo.metadata] keeps what the stream said at open. A [copy] carries it too.
+     */
+    public val newStreamTags: Map<String, String>?
+
+    /**
      * Returns a separately owned O(1) reference to this packet's compressed payload and metadata.
      * The two packets may be closed independently, in either order.
      */

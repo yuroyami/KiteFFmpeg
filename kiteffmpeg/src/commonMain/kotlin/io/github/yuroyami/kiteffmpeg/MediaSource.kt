@@ -26,7 +26,15 @@ public expect class MediaSource : AutoCloseable {
     public val durationOrigin: DurationOrigin?
     /** FFmpeg's name for the container format, such as `mov,mp4,m4a,3gp,3g2,mj2` or `matroska,webm`. */
     public val formatName: String
-    /** The container-level tags, such as `title` and `artist`, as the file wrote them. */
+    /**
+     * The container-level tags, such as `title` and `artist`: what the open read, and from then on
+     * the tags as of the last packet read. A live stream or a radio station can change them during
+     * playback, as a station's ICY title through FFmpeg's own `http`, an ID3 tag between ADTS
+     * frames or an FLV `onMetaData` does, and the read that brings such a change updates this,
+     * whether it ran in [PacketReader.read] or in a batch decode flow. The first packet a reader
+     * hands out after the change also carries it, as [Packet.newContainerTags], so a player can
+     * show it when that packet plays rather than when it was read.
+     */
     public val metadata: Map<String, String>
 
     /** The container's chapter table. Empty when the container declares none. */

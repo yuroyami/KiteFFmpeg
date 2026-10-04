@@ -31,6 +31,10 @@ public actual class Packet internal constructor(
     public actual val durationMicros: Long?
         get() = duration.takeIf { it > 0L }?.let { Internals.rescaleQ(it, timeBase, Rational.Tb_us) }
 
+    // The reads that fill these land with the next commit (#135).
+    public actual val newContainerTags: Map<String, String>? = null
+    public actual val newStreamTags: Map<String, String>? = null
+
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
     public actual fun copy(): Packet = locked { Packet(Internals.packetClone(it), timeBase) }

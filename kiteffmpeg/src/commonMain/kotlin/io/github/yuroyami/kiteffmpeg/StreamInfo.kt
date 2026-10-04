@@ -10,7 +10,11 @@ public data class StreamInfo(
     val bitrateBps: Long?,
     val video: VideoStreamInfo? = null,
     val audio: AudioStreamInfo? = null,
-    /** Per-stream tags: `language` (`eng`, `jpn`, …), `title`, `handler_name`, … */
+    /**
+     * Per-stream tags: `language` (`eng`, `jpn`, …), `title`, `handler_name`, … as the stream stated
+     * them at open. Tags the stream brings later, such as the comments of a chained Ogg's next
+     * song, arrive on its packets as [Packet.newStreamTags].
+     */
     val metadata: Map<String, String> = emptyMap(),
     /** What the container says this stream is for. Needed to mark or auto-select forced subtitles. */
     val disposition: Disposition = Disposition.None,

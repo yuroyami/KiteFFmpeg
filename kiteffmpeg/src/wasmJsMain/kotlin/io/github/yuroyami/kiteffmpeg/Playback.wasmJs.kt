@@ -60,6 +60,10 @@ public actual class Packet internal constructor(
     // negative duration from a broken container is no duration either.
     public actual val durationMicros: Long? get() = if (duration <= 0L) null else rescaleQ(duration, base, MICRO)
 
+    // The reads that fill these land with the next commit (#135).
+    public actual val newContainerTags: Map<String, String>? = null
+    public actual val newStreamTags: Map<String, String>? = null
+
     public actual fun copy(): Packet {
         val cloned = ffkmp_packet_clone(requireModule(), alive())
         if (cloned == 0) throw FFmpegException(FFmpegError.Internal("packet clone failed"))
