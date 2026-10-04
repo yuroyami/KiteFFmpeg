@@ -70,6 +70,12 @@ public actual class MediaSource private constructor() : AutoCloseable {
     public actual var corruptDataSkipped: Long = 0L
         private set
 
+    @Throws(FFmpegException::class)
+    public actual fun pause(): Boolean = placeholderBackendUnavailable("Pausing a source")
+
+    @Throws(FFmpegException::class)
+    public actual fun resume(): Boolean = placeholderBackendUnavailable("Resuming a source")
+
     public actual fun interrupt(): Unit = Unit
 
     internal actual fun releaseAtClose(release: () -> Unit): Unit = Unit

@@ -660,6 +660,14 @@ public actual class MediaSource internal constructor(
         return SubtitleDecoder(stream, codecCtx)
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun pause(): Boolean =
+        throw FFmpegException(FFmpegError.Unsupported(0, "pausing a source is not wired yet"))
+
+    @Throws(FFmpegException::class)
+    public actual fun resume(): Boolean =
+        throw FFmpegException(FFmpegError.Unsupported(0, "resuming a source is not wired yet"))
+
     public actual fun interrupt() {
         /* Deliberately NOT under stateLock: the whole point is reaching a context another thread
            is blocked on. The contract forbids calling this concurrently with or after close, so

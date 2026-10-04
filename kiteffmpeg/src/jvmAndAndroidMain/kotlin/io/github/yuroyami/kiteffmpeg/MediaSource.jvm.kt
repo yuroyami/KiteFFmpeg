@@ -415,6 +415,14 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun pause(): Boolean =
+        throw FFmpegException(FFmpegError.Unsupported(0, "pausing a source is not wired yet"))
+
+    @Throws(FFmpegException::class)
+    public actual fun resume(): Boolean =
+        throw FFmpegException(FFmpegError.Unsupported(0, "resuming a source is not wired yet"))
+
     public actual fun interrupt() {
         /* Deliberately NOT under the demux lock: the whole point is reaching a context another
            thread is blocked on. The handle table refuses a token that a finished close

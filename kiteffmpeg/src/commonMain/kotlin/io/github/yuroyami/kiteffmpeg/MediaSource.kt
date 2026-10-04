@@ -226,6 +226,51 @@ public expect class MediaSource : AutoCloseable {
     public fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder
 
     /**
+     * Tells the server of a live source that the caller has stopped reading, and says whether the
+     * source has any notion of that: true when it has and is now paused, false when it has none,
+     * in which case nothing was sent and the source reads on as before.
+     *
+     * FFmpeg's `av_read_pause` does the work on every backend. An RTSP stream sends its server
+     * PAUSE, which stops the packets, and an rtmp:// input sends RTMP's pause command. Every other
+     * input has no such notion and answers false, a file and a [MediaByteSource] included.
+     *
+     * A server ends a session it has not heard from within its timeout, usually 60 seconds, and a
+     * paused session is no exception, while FFmpeg tells an RTSP server the session is still
+     * wanted only from inside a read. So while paused, call this again every second or so: on a
+     * paused RTSP stream each call sends the server FFmpeg's keepalive, GET_PARAMETER or OPTIONS,
+     * once half the session timeout has passed since the last request, and sends nothing before
+     * then. An rtmp:// input sends its pause command again on each call. [resume] lifts the pause.
+     *
+     * A read while paused waits for packets the server is no longer sending, so stop reading
+     * first. Like a read or a seek, this must not run concurrently with another call on the
+     * source or on its [PacketReader].
+     *
+     * @return true when the source is paused, false when it has no notion of pausing
+     * @throws FFmpegException when the server or the connection refuses, for example after the
+     *   server has ended the session
+     */
+    @Throws(FFmpegException::class)
+    public fun pause(): Boolean
+
+    /**
+     * Lifts a [pause]: an RTSP stream asks its server to play on, which for a live stream is the
+     * live edge, and an rtmp:// input sends RTMP's unpause. FFmpeg's `av_read_play` does the work
+     * on every backend.
+     *
+     * It reaches FFmpeg only while a pause is in effect, because `av_read_play` on an RTSP stream
+     * that is playing asks the server to play again from the last seek target, which for an
+     * on-demand stream that was never sought is its beginning. So it answers false, and sends
+     * nothing, when there is no pause to lift, which includes every source whose [pause] answered
+     * false. The same concurrency rule as [pause] applies.
+     *
+     * @return true when a pause was in effect and is now lifted, false when there was none
+     * @throws FFmpegException when the server or the connection refuses, for example after the
+     *   server has ended the session; the source then stays paused
+     */
+    @Throws(FFmpegException::class)
+    public fun resume(): Boolean
+
+    /**
      * Requests that every current and future blocking call on this source return with a typed
      * [FFmpegError.Interrupted] failure.
      *

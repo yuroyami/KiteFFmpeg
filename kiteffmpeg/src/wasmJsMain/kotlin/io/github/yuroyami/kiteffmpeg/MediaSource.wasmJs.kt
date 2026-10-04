@@ -573,6 +573,12 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    public actual fun pause(): Boolean =
+        throw FFmpegException(FFmpegError.Unsupported(0, "pausing a source is not wired yet"))
+
+    public actual fun resume(): Boolean =
+        throw FFmpegException(FFmpegError.Unsupported(0, "resuming a source is not wired yet"))
+
     public actual fun interrupt() {
         /* Single-threaded runtime: nothing can be blocked while this runs, so the flag only
            makes later calls fail fast, which is still the honest half of the contract. */
