@@ -15,6 +15,8 @@ package io.github.yuroyami.kiteffmpeg
  * - A `data:` address never arrives. FFmpeg reads the bytes inside it itself.
  * - A byte source that came through a redirect says where it came from in
  *   [MediaByteSource.location], and the addresses inside it resolve against that.
+ * - A byte source it returns is never asked for [MediaByteSource.takeTags], because FFmpeg reads
+ *   no tags from one.
  *
  * The addresses come from the media, and the media is untrusted input. FFmpeg does not check the
  * scheme of an address when a source has an opener, so the opener decides which addresses open.

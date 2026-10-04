@@ -45,6 +45,35 @@ public interface MediaByteSource : AutoCloseable {
      * it reads must have followed them by then. An empty address is the same as null.
      */
     public val location: String? get() = null
+
+    /**
+     * The tags that the bytes of the last [read] brought, such as the song an internet radio
+     * station names in a title block between its audio bytes, or null, the default, when that read
+     * brought none (#168).
+     *
+     * It is asked after every read that returned bytes, on the same thread, and only of the source
+     * given to [MediaSource.open]. A source a [MediaByteOpener] returns is never asked, because
+     * FFmpeg reads no tags from one: the HLS reader reads each segment through an input of its own.
+     *
+     * The tags belong at the first byte of the read that reported them, and FFmpeg merges them into
+     * the container's tags, exactly as it does with the titles its own `http` reads from a station.
+     * They reach a caller as [Packet.newContainerTags] on the first packet a reader hands out after
+     * FFmpeg read past that byte, and in [MediaSource.metadata] from then on. Tags reported during
+     * the open's own reads are in [MediaSource.metadata] when the open returns. A source that stops
+     * each read at the byte where its next tags belong, as FFmpeg's `http` stops at every title
+     * block, places them on the packet that holds the bytes after them, and one that reads past
+     * that byte places them early by what it read past.
+     *
+     * Report each change once. Keys go through as given: FFmpeg's `http` names a station's fields
+     * `StreamTitle` and `StreamUrl`, and a source that wants a song to read as the title reports
+     * `title`. A key or a value ends at its first NUL character, as the C string it crosses as does,
+     * and a pair whose key is then empty is ignored. Finding the titles is the source's work, since
+     * asking a station for them and finding its blocks needs the HTTP headers: send
+     * `Icy-MetaData: 1`, read the block interval from `icy-metaint`, and take every block out of the
+     * bytes before [read] hands them over. An exception thrown here fails the read that came before
+     * it, as one thrown by [read] does.
+     */
+    public fun takeTags(): Map<String, String>? = null
 }
 
 /**

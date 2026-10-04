@@ -498,6 +498,7 @@ abstract interface io.github.yuroyami.kiteffmpeg/MediaByteSource : kotlin/AutoCl
 
     abstract fun read(kotlin/ByteArray, kotlin/Int, kotlin/Int): kotlin/Int // io.github.yuroyami.kiteffmpeg/MediaByteSource.read|read(kotlin.ByteArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun seek(kotlin/Long) // io.github.yuroyami.kiteffmpeg/MediaByteSource.seek|seek(kotlin.Long){}[0]
+    open fun takeTags(): kotlin.collections/Map<kotlin/String, kotlin/String>? // io.github.yuroyami.kiteffmpeg/MediaByteSource.takeTags|takeTags(){}[0]
 }
 
 sealed interface io.github.yuroyami.kiteffmpeg.dsl/FilterStep { // io.github.yuroyami.kiteffmpeg.dsl/FilterStep|null[0]
