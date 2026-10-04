@@ -75,6 +75,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Copied audio from a container whose clock is coarser than its samples keeps every sample in its
+  place (#154). Matroska and FLV stamp whole milliseconds, so the packets of AAC at 48 kHz, 21.333
+  ms each, are stamped 21 or 22 ms apart, and a copy into MP4 rescaled each rounded time on its
+  own: the packets sat 1008 or 1056 samples apart, the last lasted 1008, and the sound ended 16
+  samples short. The copy also asked the muxer for the source's millisecond clock, so an MP4's
+  movie clock, and with it the length its edit list states, counted milliseconds too. A remux or a
+  transcode copying such a stream now counts samples. Each packet starts where the one before it
+  ended and lasts as many samples as FFmpeg reads from its codec. A packet whose own time disagrees
+  with the count by more than one and a half ticks of the source's clock is a real gap and keeps
+  that time. The copy asks the muxer for the sample rate as its clock. A source that states every
+  sample exactly, as MP4 does, keeps its own times. The C ABI is 3.24 and adds
+  `ffkmp_codecpar_audio_frame_samples` and `ffkmp_packet_set_duration`.
 - A whole remux plays as its input does (#153). A copy's output started at the decode time of the
   first packet it wrote, which for video with B-frames comes before any picture shows and for AAC
   is the encoder's priming, so the output played every frame late by the difference, a frame for

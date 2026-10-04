@@ -160,6 +160,11 @@ KC_API int ffkmp_codecpar_frame_cropping(AVCodecParameters *p, int *out) {
 #endif
 }
 
+KC_API int ffkmp_codecpar_audio_frame_samples(AVCodecParameters *p, int frame_bytes) {
+    if (!p || p->codec_type != AVMEDIA_TYPE_AUDIO) return 0;
+    return av_get_audio_frame_duration2(p, frame_bytes);
+}
+
 /* --- Packet ownership --- */
 
 /* Moves the reference rather than copying the payload, so a player can queue a packet without a

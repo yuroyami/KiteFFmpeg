@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 3.23
+# abi-version 3.24
 #
-# Exact scope: 252 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 254 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 275 records.
+# records are sorted without deduplication. There must be exactly 277 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -56,6 +56,7 @@ KC_API int ffkmp_codecctx_set_sample_aspect_ratio(kc_codec_ctx *c, int num, int 
 KC_API int ffkmp_codecctx_use_d3d11va(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_use_videotoolbox(kc_codec_ctx *c);
 KC_API int ffkmp_codecctx_width(kc_codec_ctx *c);
+KC_API int ffkmp_codecpar_audio_frame_samples(kc_codec_par *p, int frame_bytes);
 KC_API int ffkmp_codecpar_bit_depth(kc_codec_par *p);
 KC_API int ffkmp_codecpar_channels(kc_codec_par *p);
 KC_API int ffkmp_codecpar_chroma_location(kc_codec_par *p);
@@ -257,6 +258,7 @@ KC_API void ffkmp_packet_free(kc_packet *p);
 KC_API void ffkmp_packet_move_ref(kc_packet *dst, kc_packet *src);
 KC_API void ffkmp_packet_rescale_ts(kc_packet *p, int sn, int sd, int dn, int dd);
 KC_API void ffkmp_packet_set_dts(kc_packet *p, int64_t v);
+KC_API void ffkmp_packet_set_duration(kc_packet *p, int64_t v);
 KC_API void ffkmp_packet_set_pts(kc_packet *p, int64_t v);
 KC_API void ffkmp_packet_set_stream_index(kc_packet *p, int i);
 KC_API void ffkmp_packet_unref(kc_packet *p);

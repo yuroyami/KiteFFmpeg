@@ -116,11 +116,7 @@ internal class CopyOriginContractTest {
         if (audio) {
             val written = TranscodeFixtures.decodedSampleCount(input)
             val heard = TranscodeFixtures.decodedSampleCount(output)
-            assertTrue(heard <= written, "$input to $extension: $heard samples heard of $written, so the priming the source hides is played")
-            // Matroska keeps whole milliseconds, which a copy into MP4 does not yet turn back into
-            // samples, so that copy can end short by up to a millisecond (#154).
-            val slack = if (input.endsWith(".mkv") && extension == "mp4") RATE / 1000 else 0
-            assertTrue(written - heard <= slack, "$input to $extension: $heard samples heard of $written")
+            assertEquals(written, heard, "$input to $extension: $heard samples heard of $written, so the priming the source hides is played or the end is cut")
             // To the millisecond, which is all Matroska keeps.
             val started = decodedTimes(input, MediaType.Audio).first()
             val starts = decodedTimes(output, MediaType.Audio).first()

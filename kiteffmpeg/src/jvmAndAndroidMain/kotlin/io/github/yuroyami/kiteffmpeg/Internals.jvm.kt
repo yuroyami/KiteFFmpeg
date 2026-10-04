@@ -53,6 +53,7 @@ internal object Internals {
     private external fun nativePacketSetStreamIndex(token: Long, value: Int)
     private external fun nativePacketSetPts(token: Long, value: Long)
     private external fun nativePacketSetDts(token: Long, value: Long)
+    private external fun nativePacketSetDuration(token: Long, value: Long)
     private external fun nativePacketRescale(token: Long, sn: Int, sd: Int, dn: Int, dd: Int)
     private external fun nativePacketMoveRef(destination: Long, source: Long)
     private external fun nativePacketBytes(token: Long): ByteArray
@@ -178,6 +179,7 @@ internal object Internals {
     private external fun nativeCodecParHdr(token: Long): IntArray?
     private external fun nativeCodecParDoviConfig(token: Long): IntArray?
     private external fun nativeCodecParCropping(token: Long): IntArray?
+    private external fun nativeCodecParAudioFrameSamples(token: Long, frameBytes: Int): Int
     private external fun nativeCodecParFromContext(parameters: Long, context: Long): Int
     private external fun nativeCodecParCopy(destination: Long, source: Long): Int
 
@@ -400,6 +402,7 @@ internal object Internals {
     internal fun packetSetStreamIndex(token: Long, value: Int) = checked { nativePacketSetStreamIndex(token, value) }
     internal fun packetSetPts(token: Long, value: Long) = checked { nativePacketSetPts(token, value) }
     internal fun packetSetDts(token: Long, value: Long) = checked { nativePacketSetDts(token, value) }
+    internal fun packetSetDuration(token: Long, value: Long) = checked { nativePacketSetDuration(token, value) }
     internal fun packetRescale(token: Long, source: Rational, destination: Rational) = checked { nativePacketRescale(token, source.num, source.den, destination.num, destination.den) }
     internal fun packetMoveRef(destination: Long, source: Long) = checked { nativePacketMoveRef(destination, source) }
     internal fun packetBytes(token: Long) = checked { nativePacketBytes(token) }
@@ -541,6 +544,7 @@ internal object Internals {
     internal fun codecParDolbyVision(token: Long): DolbyVisionConfig? =
         checked { nativeCodecParDoviConfig(token) }?.let(::dolbyVisionConfigOf)
     internal fun codecParCrop(token: Long): VideoCrop? = checked { nativeCodecParCropping(token) }?.let(::videoCropOf)
+    internal fun codecParAudioFrameSamples(token: Long, frameBytes: Int) = checked { nativeCodecParAudioFrameSamples(token, frameBytes) }
     internal fun codecParFromContext(parameters: Long, context: Long) = checked { nativeCodecParFromContext(parameters, context) }
     internal fun codecParCopy(destination: Long, source: Long) = checked { nativeCodecParCopy(destination, source) }
 

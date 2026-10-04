@@ -38,6 +38,10 @@ import ffmpeg.ffkmp_frame_width
 import ffmpeg.ffkmp_packet_alloc
 import ffmpeg.ffkmp_packet_clone
 import ffmpeg.ffkmp_packet_dts
+import ffmpeg.ffkmp_packet_duration
+import ffmpeg.ffkmp_packet_size
+import ffmpeg.ffkmp_packet_set_duration
+import ffmpeg.ffkmp_codecpar_audio_frame_samples
 import ffmpeg.ffkmp_packet_free
 import ffmpeg.ffkmp_packet_is_discard
 import ffmpeg.ffkmp_packet_skip_start
@@ -301,9 +305,11 @@ public actual class MediaSink internal constructor(
             // The packets keep their bytes; this keeps what names them: language, title and every
             // other tag, and the disposition flags.
             check0(ffkmp_stream_copy_identity(outStream, source.streamOf(stream)), "stream identity copy")
-            // Seed the output time-base with the input's; the muxer may still rewrite it in
-            // avformat_write_header, which is why writeCopyPacket re-reads it per packet.
-            ffkmp_stream_set_time_base(outStream, stream.timeBase.num, stream.timeBase.den)
+            // Seed the output time-base with the input's, or with the samples for audio that is
+            // counted (#154); the muxer may still rewrite it in avformat_write_header, which is
+            // why writeRebased re-reads it per packet.
+            val requested = AudioCopyTimeline.timeBaseFor(stream.timeBase, stream.audio?.sampleRate ?: 0)
+            ffkmp_stream_set_time_base(outStream, requested.num, requested.den)
         } catch (error: Throwable) {
             poison(error)
         }
@@ -1049,6 +1055,13 @@ public actual class CopyStream internal constructor(
     /** True once an audio stream's first timed packet has said where it starts to show. */
     private var audioStarted = false
 
+    /** Copied audio from a clock that cannot state every sample is placed by counting them (#154). */
+    private val timeline = if (AudioCopyTimeline.counts(sourceTimeBase, sampleRate)) {
+        AudioCopyTimeline(sourceTimeBase, sampleRate)
+    } else {
+        null
+    }
+
     /**
      * Write one demuxed packet through to the muxer: rebase timestamps so the output starts
      * at ~0 (matters for trimmed copies, since players choke on a stream starting at 95s), then
@@ -1092,9 +1105,7 @@ public actual class CopyStream internal constructor(
         if (sampleRate > 0) {
             if (audioStarted) return OutputOrigin.NOTHING
             audioStarted = true
-            val skipped = ffkmp_packet_skip_start(packet)
-            val skippedMicros = if (skipped > 0L) ffkmp_rescale_q(skipped, 1, sampleRate, 1, 1_000_000) else 0L
-            return ffkmp_rescale_q(time, sourceTimeBase.num, sourceTimeBase.den, 1, 1_000_000) + skippedMicros
+            return audioShownMicros(time, sourceTimeBase, ffkmp_packet_skip_start(packet), sampleRate)
         }
         if (ffkmp_packet_is_discard(packet) != 0) return OutputOrigin.NOTHING
         return ffkmp_rescale_q(time, sourceTimeBase.num, sourceTimeBase.den, 1, 1_000_000)
@@ -1129,16 +1140,34 @@ public actual class CopyStream internal constructor(
         // Before the stream time base is read below, because avformat_write_header may rewrite it.
         sink.ensureHeaderWritten()
         ffkmp_packet_set_stream_index(packet, streamIndex)
-        if (pts != FrameInfo.NOPTS) ffkmp_packet_set_pts(packet, pts - baseTs)
-        if (dts != FrameInfo.NOPTS) ffkmp_packet_set_dts(packet, dts - baseTs)
-
-        memScoped {
+        val (outNum, outDen) = memScoped {
             val n = alloc<IntVar>(); val d = alloc<IntVar>()
             ffkmp_stream_time_base(stream, n.ptr, d.ptr)
-            ffkmp_packet_rescale_ts(
+            n.value to d.value
+        }
+        val timeline = timeline
+        val position = timeline?.place(
+            time = if (pts != FrameInfo.NOPTS) pts else dts,
+            skipSamples = ffkmp_packet_skip_start(packet),
+            frameSamples = ffkmp_codecpar_audio_frame_samples(ffkmp_stream_codecpar(stream), ffkmp_packet_size(packet)),
+            duration = ffkmp_packet_duration(packet),
+            originMicros = sink.originMicros,
+        ) ?: AudioCopyTimeline.NOTHING
+        if (position == AudioCopyTimeline.NOTHING) {
+            if (pts != FrameInfo.NOPTS) ffkmp_packet_set_pts(packet, pts - baseTs)
+            if (dts != FrameInfo.NOPTS) ffkmp_packet_set_dts(packet, dts - baseTs)
+            ffkmp_packet_rescale_ts(packet, sourceTimeBase.num, sourceTimeBase.den, outNum, outDen)
+        } else {
+            // Audio shows as it decodes, so both times are the counted one, as FFmpeg's command
+            // line writes copied audio.
+            val at = ffkmp_rescale_q(position, 1, sampleRate, outNum, outDen)
+            ffkmp_packet_set_pts(packet, at)
+            ffkmp_packet_set_dts(packet, at)
+            val length = checkNotNull(timeline).lastSamples
+            ffkmp_packet_set_duration(
                 packet,
-                sourceTimeBase.num, sourceTimeBase.den,
-                n.value, d.value,
+                if (length > 0L) ffkmp_rescale_q(length, 1, sampleRate, outNum, outDen)
+                else ffkmp_rescale_q(ffkmp_packet_duration(packet), sourceTimeBase.num, sourceTimeBase.den, outNum, outDen),
             )
         }
         sink.writePacket(packet)

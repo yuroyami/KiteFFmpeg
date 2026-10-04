@@ -540,6 +540,12 @@ JNIEXPORT jintArray JNICALL kj_codecpar_frame_cropping(JNIEnv *env, jclass cls, 
     for (int i = 0; i < 4; i++) packed[i] = out[i];
     return kj_ints_new(env, packed, 4);
 }
+JNIEXPORT jint JNICALL kj_codecpar_audio_frame_samples(JNIEnv *env, jclass cls, jlong token, jint frame_bytes)
+{
+    kc_codec_par *p = (kc_codec_par *)kj_handle_get(env, token, KJ_KIND_CODEC_PAR);
+    (void)cls;
+    return p ? (jint)ffkmp_codecpar_audio_frame_samples(p, (int)frame_bytes) : 0;
+}
 JNIEXPORT jint JNICALL kj_codecpar_from_context(JNIEnv *env,jclass cls,jlong par_token,jlong ctx_token)
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,par_token,KJ_KIND_CODEC_PAR);kc_codec_ctx*c;(void)cls;if(!p)return-1;c=(kc_codec_ctx*)kj_handle_get(env,ctx_token,KJ_KIND_CODEC_CTX);return c?ffkmp_codecpar_from_context(p,c):-1;}
 JNIEXPORT jint JNICALL kj_codecpar_copy(JNIEnv *env,jclass cls,jlong dst_token,jlong src_token)

@@ -153,6 +153,9 @@ internal external fun ffkmp_codecctx_use_videotoolbox(module: JsAny, a0: Int): I
 @JsFun("(m, a0) => m._ffkmp_codecctx_width(a0)")
 internal external fun ffkmp_codecctx_width(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_codecpar_audio_frame_samples(a0, a1)")
+internal external fun ffkmp_codecpar_audio_frame_samples(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_codecpar_bit_depth(a0)")
 internal external fun ffkmp_codecpar_bit_depth(module: JsAny, a0: Int): Int
 
@@ -746,6 +749,9 @@ internal external fun ffkmp_packet_rescale_ts(module: JsAny, a0: Int, a1: Int, a
 
 @JsFun("(m, a0, a1) => m._ffkmp_packet_set_dts(a0, a1)")
 internal external fun ffkmp_packet_set_dts(module: JsAny, a0: Int, a1: Long): Unit
+
+@JsFun("(m, a0, a1) => m._ffkmp_packet_set_duration(a0, a1)")
+internal external fun ffkmp_packet_set_duration(module: JsAny, a0: Int, a1: Long): Unit
 
 @JsFun("(m, a0, a1) => m._ffkmp_packet_set_pts(a0, a1)")
 internal external fun ffkmp_packet_set_pts(module: JsAny, a0: Int, a1: Long): Unit

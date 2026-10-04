@@ -82,6 +82,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketUnref",      "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketSetStreamIndex","(JI)V",              kj_packet_set_stream_index)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketSetPts",     "(JJ)V",                  kj_packet_set_pts)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketSetDts",     "(JJ)V",                  kj_packet_set_dts)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketSetDuration", "(JJ)V",                  kj_packet_set_duration)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketRescale",    "(JIIII)V",               kj_packet_rescale)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketMoveRef",    "(JJ)V",                  kj_packet_move_ref)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativePacketBytes",      "(J)[B",                  kj_packet_bytes)
@@ -175,6 +176,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecParChannelLayou
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecParHdr",        "(J)[I",                        kj_codecpar_hdr)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecParDoviConfig", "(J)[I",                        kj_codecpar_dovi_config)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecParCropping",   "(J)[I",                        kj_codecpar_frame_cropping)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecParAudioFrameSamples", "(JI)I",                   kj_codecpar_audio_frame_samples)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecParFromContext","(JJ)I",                kj_codecpar_from_context)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecParCopy",      "(JJ)I",                  kj_codecpar_copy)
 

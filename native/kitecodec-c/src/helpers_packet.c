@@ -34,6 +34,7 @@ KC_API int64_t   ffkmp_packet_skip_start(const AVPacket *p) {
 KC_API void      ffkmp_packet_set_stream_index(AVPacket *p, int i) { if (p) p->stream_index = i; }
 KC_API void      ffkmp_packet_set_pts(AVPacket *p, int64_t v) { if (p) p->pts = v; }
 KC_API void      ffkmp_packet_set_dts(AVPacket *p, int64_t v) { if (p) p->dts = v; }
+KC_API void      ffkmp_packet_set_duration(AVPacket *p, int64_t v) { if (p) p->duration = v; }
 KC_API void      ffkmp_packet_rescale_ts(AVPacket *p, int sn, int sd, int dn, int dd) {
     if (!p) return;
     AVRational s = { sn, sd ? sd : 1 };

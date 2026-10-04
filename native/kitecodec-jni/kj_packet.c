@@ -120,6 +120,12 @@ JNIEXPORT void JNICALL kj_packet_set_dts(JNIEnv *env, jclass cls, jlong token, j
     (void)cls; if (p != NULL) ffkmp_packet_set_dts(p, (int64_t)value);
 }
 
+JNIEXPORT void JNICALL kj_packet_set_duration(JNIEnv *env, jclass cls, jlong token, jlong value)
+{
+    kc_packet *p = (kc_packet *)kj_handle_get(env, token, KJ_KIND_PACKET);
+    (void)cls; if (p != NULL) ffkmp_packet_set_duration(p, (int64_t)value);
+}
+
 JNIEXPORT void JNICALL kj_packet_rescale(JNIEnv *env, jclass cls, jlong token,
                                          jint sn, jint sd, jint dn, jint dd)
 {

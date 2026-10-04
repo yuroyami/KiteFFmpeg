@@ -194,6 +194,8 @@ KC_API int64_t   ffkmp_packet_skip_start(const kc_packet *p);
 KC_API void      ffkmp_packet_set_stream_index(kc_packet *p, int i);
 KC_API void      ffkmp_packet_set_pts(kc_packet *p, int64_t v);
 KC_API void      ffkmp_packet_set_dts(kc_packet *p, int64_t v);
+/* Sets how long the packet lasts, in its stream's time base. Nothing happens for a NULL packet. */
+KC_API void      ffkmp_packet_set_duration(kc_packet *p, int64_t v);
 KC_API void      ffkmp_packet_rescale_ts(kc_packet *p, int sn, int sd, int dn, int dd);
 
 /* Ownership. Returns a new kc_packet the caller owns, carrying one more reference to the same
@@ -991,6 +993,12 @@ KC_API int ffkmp_stream_mirrored(kc_stream *s);
  * of the image. Returns 1 when the stream has one, 0 when it has none or FFmpeg is older than 7.1,
  * which does not read it, and AVERROR(EINVAL) for a NULL argument. */
 KC_API int ffkmp_codecpar_frame_cropping(kc_codec_par *p, int *out);
+/* The samples per channel an audio packet of frame_bytes bytes holds, as FFmpeg reads it from the
+ * codec (av_get_audio_frame_duration2): from the bytes for PCM and the codecs that code each sample
+ * in a fixed number of bits, and from the codec's fixed frame size for the rest, 1024 for AAC and
+ * 1152 for MP2 and MP3. 0 when FFmpeg cannot tell, as for Vorbis, whose packets vary, and for a
+ * NULL argument. */
+KC_API int ffkmp_codecpar_audio_frame_samples(kc_codec_par *p, int frame_bytes);
 
 /* Ownership. Moves every reference from src to dst and leaves src blank, so exactly one of
  * the two owns the data afterwards. dst must be blank on entry. Neither packet is freed,

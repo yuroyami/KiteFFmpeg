@@ -244,7 +244,8 @@ public actual class MediaSink internal constructor(
                 // The packets keep their bytes; this keeps what names them: language, title and
                 // every other tag, and the disposition flags.
                 check0(Internals.streamCopyIdentity(outputStream, sourceStream), "stream identity copy")
-                Internals.streamSetTimeBase(outputStream, stream.timeBase)
+                // Counted audio asks for its samples (#154); the muxer may still choose another.
+                Internals.streamSetTimeBase(outputStream, AudioCopyTimeline.timeBaseFor(stream.timeBase, stream.audio?.sampleRate ?: 0))
                 declaredStreams += 1
                 CopyStream(
                     this,
@@ -839,6 +840,16 @@ public actual class CopyStream internal constructor(
     /** True once an audio stream's first timed packet has said where it starts to show. */
     private var audioStarted = false
 
+    /** Copied audio from a clock that cannot state every sample is placed by counting them (#154). */
+    private val timeline = if (AudioCopyTimeline.counts(sourceTimeBase, sampleRate)) {
+        AudioCopyTimeline(sourceTimeBase, sampleRate)
+    } else {
+        null
+    }
+
+    /** The output stream's codec parameters, which count a packet's samples, taken once because each take holds a handle. */
+    private var parameters = 0L
+
     @KiteFFmpegLowLevelApi
     public actual fun write(packet: Packet) {
         // A copy, for the reason the expect declaration gives: the write consumes what it is
@@ -876,9 +887,7 @@ public actual class CopyStream internal constructor(
         if (sampleRate > 0) {
             if (audioStarted) return OutputOrigin.NOTHING
             audioStarted = true
-            val skipped = Internals.packetSkipStart(packet)
-            val skippedMicros = if (skipped > 0L) Internals.rescaleQ(skipped, Rational(1, sampleRate), Rational.Tb_us) else 0L
-            return Internals.rescaleQ(time, sourceTimeBase, Rational.Tb_us) + skippedMicros
+            return audioShownMicros(time, sourceTimeBase, Internals.packetSkipStart(packet), sampleRate)
         }
         if (Internals.packetIsDiscard(packet)) return OutputOrigin.NOTHING
         return Internals.rescaleQ(time, sourceTimeBase, Rational.Tb_us)
@@ -910,9 +919,38 @@ public actual class CopyStream internal constructor(
         // Before the stream time base is read below, because writing the header can change it.
         sink.ensureHeaderWritten()
         Internals.packetSetStreamIndex(packet, streamIndex)
-        if (pts != FrameInfo.NOPTS) Internals.packetSetPts(packet, pts - baseTimestamp)
-        if (dts != FrameInfo.NOPTS) Internals.packetSetDts(packet, dts - baseTimestamp)
-        Internals.packetRescale(packet, sourceTimeBase, Internals.streamTimeBase(streamToken))
+        val output = Internals.streamTimeBase(streamToken)
+        val timeline = timeline
+        val position = if (timeline == null) {
+            AudioCopyTimeline.NOTHING
+        } else {
+            if (parameters == 0L) parameters = Internals.streamCodecPar(streamToken)
+            timeline.place(
+                time = if (pts != FrameInfo.NOPTS) pts else dts,
+                skipSamples = Internals.packetSkipStart(packet),
+                frameSamples = Internals.codecParAudioFrameSamples(parameters, Internals.packetSize(packet)),
+                duration = Internals.packetDuration(packet),
+                originMicros = sink.originMicros,
+            )
+        }
+        if (position == AudioCopyTimeline.NOTHING) {
+            if (pts != FrameInfo.NOPTS) Internals.packetSetPts(packet, pts - baseTimestamp)
+            if (dts != FrameInfo.NOPTS) Internals.packetSetDts(packet, dts - baseTimestamp)
+            Internals.packetRescale(packet, sourceTimeBase, output)
+        } else {
+            // Audio shows as it decodes, so both times are the counted one, as FFmpeg's command
+            // line writes copied audio.
+            val samples = Rational(1, sampleRate)
+            val at = Internals.rescaleQ(position, samples, output)
+            Internals.packetSetPts(packet, at)
+            Internals.packetSetDts(packet, at)
+            val length = checkNotNull(timeline).lastSamples
+            Internals.packetSetDuration(
+                packet,
+                if (length > 0L) Internals.rescaleQ(length, samples, output)
+                else Internals.rescaleQ(Internals.packetDuration(packet), sourceTimeBase, output),
+            )
+        }
         sink.writePacket(packet)
     }
 }
