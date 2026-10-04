@@ -9,12 +9,15 @@
  * the tag's first subtag names, and Matroska also write the whole tag as LanguageBCP47.
  * FFmpeg's Matroska reader skipped LanguageBCP47, so zh-Hant and zh-Hans both read as chi; the
  * patch 0006-matroska-read-the-bcp47-language makes it report that element, as the specification
- * asks, and the old Language only when the track has none.
+ * asks, and the old Language only when the track has none. MP4 and MOV have the same pair (#157):
+ * the elng box holds a whole tag beside the code in mdhd, and FFmpeg neither read nor wrote it. The
+ * patch 0008-mov-read-and-write-the-extended-language makes the reader report a non-empty elng,
+ * and the writer add one to a track whose tag says more than its code.
  *
  * Each case writes one stream of packets that are not real media, since a writer copies them:
  * audio, or for MPEG-TS's own subtitle and teletext descriptors a stream of either. It reads the
- * language back with FFmpeg, or for Matroska reads the elements themselves. The Matroska reading
- * cases rewrite the elements of a file the writer made, since it writes Language on every track. A
+ * language back with FFmpeg, or for Matroska and for the mdhd and elng boxes reads the file itself.
+ * The Matroska and elng reading cases rewrite the elements and boxes of a file the writer made. A
  * linked FFmpeg whose tree does not list a patch in lib/kiteffmpeg/ffmpeg-patches.txt, such as a
  * distribution's, runs only the cases that hold without it.
  */
@@ -39,6 +42,11 @@
 
 #define WRITER_PATCH "0005-write-a-bcp47-language-as-its-iso639-code.patch"
 #define READER_PATCH "0006-matroska-read-the-bcp47-language.patch"
+#define ELNG_PATCH "0008-mov-read-and-write-the-extended-language.patch"
+
+/* The language field of mdhd that means no language, the unspecified Macintosh code, which the
+ * writer puts in MP4 as well as MOV. */
+#define MDHD_UNSPECIFIED 0x7fff
 
 #define MATROSKA_ID_LANGUAGE 0x22B59C
 #define MATROSKA_ID_LANGUAGE_BCP47 0x22B59D
@@ -310,6 +318,136 @@ static void empty_bcp47(void)
     rewrite_element(MATROSKA_ID_LANGUAGE_BCP47, empty, sizeof(empty));
 }
 
+/* The file at path, whole, in buf. Returns its size. */
+static size_t read_file(uint8_t *buf, size_t size)
+{
+    FILE *f = fopen(path, "rb");
+    KC_NOT_NULL(f);
+    size_t n = fread(buf, 1, size, f);
+    fclose(f);
+    KC_CHECKF(n < size, "%s is larger than the %zu bytes a case reads", path, size);
+    return n;
+}
+
+static void write_file(const uint8_t *buf, size_t size)
+{
+    FILE *f = fopen(path, "wb");
+    KC_NOT_NULL(f);
+    KC_EQ_INT((int)fwrite(buf, 1, size, f), (int)size);
+    fclose(f);
+}
+
+static uint32_t rb32(const uint8_t *p)
+{
+    return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3];
+}
+
+/* Where the first box of type in buf[0, n) starts, with its size in *size, or -1 when there is
+ * none. The fixtures carry no media that could spell a box type by chance. */
+static long find_box(const uint8_t *buf, size_t n, const char *type, size_t *size)
+{
+    for (size_t i = 4; i + 4 <= n; i++) {
+        if (memcmp(buf + i, type, 4) != 0) continue;
+        *size = rb32(buf + i - 4);
+        KC_CHECKF(*size >= 8 && i - 4 + *size <= n, "the %s box has a size of %zu", type, *size);
+        return (long)(i - 4);
+    }
+    return -1;
+}
+
+/* The language field of the mdhd box in the file at path. */
+static unsigned mdhd_language(void)
+{
+    static uint8_t buf[65536];
+    size_t n = read_file(buf, sizeof(buf)), size;
+    long at = find_box(buf, n, "mdhd", &size);
+    KC_CHECKF(at >= 0, "the file has no mdhd box");
+    /* Version and flags, then two times, the time scale and the duration, each 64 bits wide in
+     * version 1. */
+    size_t field = (size_t)at + 12 + (buf[at + 8] == 1 ? 28 : 16);
+    KC_CHECK(field + 2 <= (size_t)at + size);
+    return (unsigned)buf[field] << 8 | buf[field + 1];
+}
+
+/* Writes lang into format and checks that mdhd holds what a stream tagged code gets, or for code
+ * "" the field that means no language. */
+static void check_mdhd(const char *format, const char *lang, const char *code)
+{
+    unsigned expected = MDHD_UNSPECIFIED;
+    if (code[0]) {
+        KC_EQ_INT(write_tagged(format, code), 0);
+        expected = mdhd_language();
+        KC_CHECKF(expected != MDHD_UNSPECIFIED, "%s has no %s code of its own, so the case proves nothing", code,
+                  format);
+    }
+    KC_EQ_INT(write_tagged(format, lang), 0);
+    unsigned field = mdhd_language();
+    kc_detail("%s %s->%s", format, lang, code[0] ? code : "(none)");
+    KC_CHECKF(field == expected, "%s %s wrote mdhd language %#x, %#x expected", format, lang, field, expected);
+}
+
+/* The tag of the elng box in the file at path, copied into out, or "" when the file has none. */
+static void elng_tag(char *out, size_t size)
+{
+    static uint8_t buf[65536];
+    size_t n = read_file(buf, sizeof(buf)), box;
+    long at = find_box(buf, n, "elng", &box);
+    out[0] = '\0';
+    if (at < 0) return;
+    KC_CHECKF(box > 12 && buf[at + box - 1] == 0, "the elng box holds no terminated tag");
+    KC_EQ_INT((int)rb32(buf + at + 8), 0); /* version and flags */
+    KC_CHECK(box - 12 < size);
+    memcpy(out, buf + at + 12, box - 12);
+}
+
+/* Writes lang into format and checks the elng box it wrote, "" for none, and the language FFmpeg
+ * reads back. */
+static void check_elng(const char *format, const char *lang, const char *elng, const char *expected)
+{
+    char got[64], read[64];
+    KC_EQ_INT(write_tagged(format, lang), 0);
+    elng_tag(got, sizeof(got));
+    read_language(read, sizeof(read));
+    kc_detail("%s %s->%s/%s", format, lang, got[0] ? got : "(no elng)", read[0] ? read : "(none)");
+    KC_EQ_STR(got, elng);
+    KC_EQ_STR(read, expected);
+}
+
+/* Overwrites the tag in the elng box of the file at path with tag, which must be exactly as long,
+ * or with zeros when tag is NULL. */
+static void rewrite_elng(const char *tag)
+{
+    static uint8_t buf[65536];
+    size_t n = read_file(buf, sizeof(buf)), box;
+    long at = find_box(buf, n, "elng", &box);
+    KC_CHECKF(at >= 0, "the file has no elng box");
+    if (tag) {
+        KC_EQ_INT((int)strlen(tag), (int)(box - 13));
+        memcpy(buf + at + 12, tag, box - 13);
+    } else {
+        memset(buf + at + 12, 0, box - 12);
+    }
+    write_file(buf, n);
+}
+
+/* Moves the elng box of the file at path in front of mdhd. The writer puts it after hdlr, where
+ * ISO/IEC 14496-12 lists it, but neither standard fixes the order, and mdia keeps its size. */
+static void move_elng_first(void)
+{
+    static uint8_t buf[65536], moved[1024];
+    size_t n = read_file(buf, sizeof(buf)), mdhd, hdlr, elng;
+    long at_mdhd = find_box(buf, n, "mdhd", &mdhd);
+    long at_hdlr = find_box(buf, n, "hdlr", &hdlr);
+    long at_elng = find_box(buf, n, "elng", &elng);
+    KC_CHECKF(at_mdhd >= 0 && at_hdlr == at_mdhd + (long)mdhd && at_elng == at_hdlr + (long)hdlr,
+              "mdia does not hold mdhd, hdlr and elng in that order");
+    KC_CHECK(mdhd + hdlr + elng <= sizeof(moved));
+    memcpy(moved, buf + at_elng, elng);
+    memcpy(moved + elng, buf + at_mdhd, mdhd + hdlr);
+    memcpy(buf + at_mdhd, moved, mdhd + hdlr + elng);
+    write_file(buf, n);
+}
+
 static void case_a_three_letter_code_is_written_as_it_is(void)
 {
     kc_case("a three-letter code reaches every writer as it is");
@@ -326,22 +464,22 @@ static void case_a_three_letter_code_is_written_as_it_is(void)
 static void case_mp4_takes_the_terminological_code(void)
 {
     kc_case("MP4 writes the terminological code of a BCP 47 tag's language");
-    check_round_trip("mp4", "en", "eng");
-    check_round_trip("mp4", "EN-gb", "eng");
-    check_round_trip("mp4", "pt-BR", "por");
-    check_round_trip("mp4", "zh-Hant", "zho");
-    check_round_trip("mp4", "de-CH", "deu");
-    check_round_trip("mp4", "yue-HK", "yue");
-    check_round_trip("mp4", "x-klingon", "");
+    check_mdhd("mp4", "en", "eng");
+    check_mdhd("mp4", "EN-gb", "eng");
+    check_mdhd("mp4", "pt-BR", "por");
+    check_mdhd("mp4", "zh-Hant", "zho");
+    check_mdhd("mp4", "de-CH", "deu");
+    check_mdhd("mp4", "yue-HK", "yue");
+    check_mdhd("mp4", "x-klingon", "");
 }
 
 static void case_mov_finds_the_language_in_its_table(void)
 {
     kc_case("MOV finds a BCP 47 tag's language in its Macintosh table under either code");
-    check_round_trip("mov", "en", "eng");
-    check_round_trip("mov", "fr-CA", "fra");
-    check_round_trip("mov", "de", "ger");
-    check_round_trip("mov", "pt-BR", "por");
+    check_mdhd("mov", "en", "eng");
+    check_mdhd("mov", "fr-CA", "fra");
+    check_mdhd("mov", "de", "ger");
+    check_mdhd("mov", "pt-BR", "por");
 }
 
 static void case_mpegts_takes_the_bibliographic_code(void)
@@ -397,6 +535,52 @@ static void case_matroska_reads_the_bcp47_language(void)
     check_matroska_reading("en", empty_bcp47, "eng");
 }
 
+static void case_mp4_writes_the_whole_tag_as_elng(void)
+{
+    kc_case("MP4 and MOV write a tag that says more than its code as elng and read it back");
+    check_elng("mp4", "zh-Hant", "zh-Hant", "zh-Hant");
+    check_elng("mp4", "zh-Hans", "zh-Hans", "zh-Hans");
+    check_elng("mp4", "pt-BR", "pt-BR", "pt-BR");
+    check_elng("mp4", "EN-gb", "EN-gb", "EN-gb");
+    check_elng("mp4", "x-klingon", "x-klingon", "x-klingon");
+    check_elng("mov", "fr-CA", "fr-CA", "fr-CA");
+    /* The Macintosh table has no code for Cantonese, so MOV's mdhd says nothing. */
+    check_elng("mov", "yue", "yue", "yue");
+}
+
+static void case_a_code_alone_writes_no_elng(void)
+{
+    kc_case("a code alone, or a string that is not a tag, writes no elng");
+    check_elng("mp4", "eng", "", "eng");
+    check_elng("mp4", "ger", "", "ger");
+    check_elng("mp4", "en", "", "eng");
+    check_elng("mp4", "und", "", "und");
+    check_elng("mov", "de", "", "ger");
+    check_elng("mp4", "English", "", "");
+    check_elng("mp4", "pt_BR", "", "");
+}
+
+static void case_elng_is_read_over_mdhd(void)
+{
+    char read[64];
+    kc_case("a track's non-empty elng is its language, before or after mdhd");
+    KC_EQ_INT(write_tagged("mp4", "zh-Hant"), 0);
+    rewrite_elng("sr-Latn");
+    read_language(read, sizeof(read));
+    kc_detail("zho/sr-Latn->%s", read);
+    KC_EQ_STR(read, "sr-Latn");
+    KC_EQ_INT(write_tagged("mp4", "zh-Hant"), 0);
+    move_elng_first();
+    read_language(read, sizeof(read));
+    kc_detail("elng first->%s", read);
+    KC_EQ_STR(read, "zh-Hant");
+    KC_EQ_INT(write_tagged("mp4", "zh-Hant"), 0);
+    rewrite_elng(NULL);
+    read_language(read, sizeof(read));
+    kc_detail("empty elng->%s", read);
+    KC_EQ_STR(read, "zho");
+}
+
 static void case_webm_writes_only_the_code(void)
 {
     kc_case("WebM, which has no LanguageBCP47, writes only the code");
@@ -435,6 +619,14 @@ int main(void)
         return kc_suite_end();
     }
     case_matroska_reads_the_bcp47_language();
+
+    if (!linked_tree_carries(ELNG_PATCH)) {
+        kc_note("the linked FFmpeg's tree does not list %s, so the elng cases did not run", ELNG_PATCH);
+        return kc_suite_end();
+    }
+    case_mp4_writes_the_whole_tag_as_elng();
+    case_a_code_alone_writes_no_elng();
+    case_elng_is_read_over_mdhd();
 
     return kc_suite_end();
 }

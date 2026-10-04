@@ -1,0 +1,189 @@
+Let the MOV demuxer and muxer read and write a track's extended language tag.
+
+ISO/IEC 14496-12 and the QuickTime file format give a track two languages: the three-letter code
+in mdhd and the extended language tag box elng beside it in mdia, which holds a whole BCP 47 tag
+such as "zh-Hant", "zh-Hans" or "pt-BR". Apple's frameworks expose it as a track's extended
+language tag, and it is how an MP4 tells Traditional Chinese subtitles from Simplified ones.
+FFmpeg had no entry for the box on either side, so both Chinese scripts read "zho" and a stream
+tagged "zh-Hant" went into an MP4 as "zho" alone.
+
+The demuxer now reads elng, and a track that carries a non-empty one reports it as its
+"language", whether it comes before or after mdhd. A track without one reports mdhd as before.
+
+The muxer writes elng after hdlr, where the standard lists it, for an MP4, MOV or iPod track whose
+language is a well-formed BCP 47 tag that says more than mdhd can hold: a script, a region or any
+other subtag after the language, or a language that mdhd has no code for, such as Cantonese in
+MOV's Macintosh table. A track tagged with a code alone, or with a two-letter code that has a
+three-letter one, writes no box, so its output stays byte for byte the same, and so does one
+tagged with a string that is not a tag.
+
+Applied by BuildFFmpegTask before configure, after 0005, which gives mdhd the code of a tag's
+language, and after 0007. Fixes yuroyami/KiteFFmpeg#157.
+
+diff --git a/libavformat/isom.h b/libavformat/isom.h
+index e02af09..aa7db56 100644
+--- a/libavformat/isom.h
++++ b/libavformat/isom.h
+@@ -278,6 +278,7 @@ typedef struct MOVStreamContext {
+     uint32_t format;
+ 
+     int has_sidx;  // If there is an sidx entry for this stream.
++    int has_elng;  // If an elng box gave this stream its language.
+     struct {
+         struct AVAESCTR* aes_ctr;
+         struct AVAES *aes_ctx;
+diff --git a/libavformat/mov.c b/libavformat/mov.c
+index e7e29d7..867882f 100644
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -1961,13 +1961,44 @@ static int mov_read_mdhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+     }
+ 
+     lang = avio_rb16(pb); /* language */
+-    if (ff_mov_lang_to_iso639(lang, language))
++    if (!sc->has_elng && ff_mov_lang_to_iso639(lang, language))
+         av_dict_set(&st->metadata, "language", language, 0);
+     avio_rb16(pb); /* quality */
+ 
+     return 0;
+ }
+ 
++/**
++ * The extended language tag box of ISO/IEC 14496-12 and QuickTime holds a whole BCP 47 tag, such
++ * as "zh-Hant" or "pt-BR", where mdhd holds only a three-letter code. A non-empty one is the
++ * stream's language, whichever of the two boxes comes first.
++ */
++static int mov_read_elng(MOVContext *c, AVIOContext *pb, MOVAtom atom)
++{
++    AVStream *st;
++    MOVStreamContext *sc;
++    char tag[256];
++    int ret;
++
++    if (c->fc->nb_streams < 1 || atom.size < 5 || atom.size - 4 >= (int64_t)sizeof(tag))
++        return 0;
++    st = c->fc->streams[c->fc->nb_streams-1];
++    sc = st->priv_data;
++
++    if (avio_r8(pb) != 0) /* version */
++        return 0;
++    avio_rb24(pb); /* flags */
++    ret = ffio_read_size(pb, tag, atom.size - 4);
++    if (ret < 0)
++        return ret;
++    tag[atom.size - 4] = '\0';
++    if (!tag[0])
++        return 0;
++
++    sc->has_elng = 1;
++    return av_dict_set(&st->metadata, "language", tag, 0);
++}
++
+ static int mov_read_mvhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+ {
+     int i;
+@@ -9760,6 +9791,7 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
+ { MKTAG('D','p','x','E'), mov_read_dpxe },
+ { MKTAG('d','r','e','f'), mov_read_dref },
+ { MKTAG('e','d','t','s'), mov_read_default },
++{ MKTAG('e','l','n','g'), mov_read_elng },
+ { MKTAG('e','l','s','t'), mov_read_elst },
+ { MKTAG('e','n','d','a'), mov_read_enda },
+ { MKTAG('f','i','e','l'), mov_read_fiel },
+diff --git a/libavformat/movenc.c b/libavformat/movenc.c
+index 847f395..c780b11 100644
+--- a/libavformat/movenc.c
++++ b/libavformat/movenc.c
+@@ -3955,6 +3955,28 @@ static int mov_write_mdhd_tag(AVIOContext *pb, MOVMuxContext *mov,
+     return 32;
+ }
+ 
++/**
++ * The extended language tag box of ISO/IEC 14496-12 and QuickTime: the stream's whole BCP 47 tag,
++ * for a track whose tag says more than the code mdhd holds, so that a reader can tell "zh-Hant"
++ * from "zh-Hans" or "pt-BR" from "pt-PT". A track whose tag is a code writes none.
++ */
++static int mov_write_elng_tag(AVIOContext *pb, MOVTrack *track)
++{
++    const AVDictionaryEntry *lang;
++    int64_t pos = avio_tell(pb);
++
++    if (!track->extended_language || !track->st)
++        return 0;
++    lang = av_dict_get(track->st->metadata, "language", NULL, 0);
++    if (!lang)
++        return 0;
++    avio_wb32(pb, 0); /* size */
++    ffio_wfourcc(pb, "elng");
++    avio_wb32(pb, 0); /* version and flags */
++    avio_put_str(pb, lang->value);
++    return update_size(pb, pos);
++}
++
+ static int mov_write_mdia_tag(AVFormatContext *s, AVIOContext *pb,
+                               MOVMuxContext *mov, MOVTrack *track)
+ {
+@@ -3965,6 +3987,7 @@ static int mov_write_mdia_tag(AVFormatContext *s, AVIOContext *pb,
+     ffio_wfourcc(pb, "mdia");
+     mov_write_mdhd_tag(pb, mov, track);
+     mov_write_hdlr_tag(s, pb, track);
++    mov_write_elng_tag(pb, track);
+     if ((ret = mov_write_minf_tag(s, pb, mov, track)) < 0)
+         return ret;
+     return update_size(pb, pos);
+@@ -8147,6 +8170,34 @@ static int mov_language_code(const char *lang, int mp4)
+     return ret < 0 ? 32767 : ret; // Unspecified Macintosh language code
+ }
+ 
++/**
++ * 1 when lang is a well-formed BCP 47 tag that says more than code, the language field of the
++ * media header, can hold: a script, a region or another subtag after the language, as in
++ * "zh-Hant" or "pt-BR", or a language that field has no code for. A code alone, or a two-letter
++ * code that has a three-letter one, says nothing more, and neither does a string that is not a
++ * tag, such as "English" or a list of codes.
++ */
++static int mov_language_needs_elng(const char *lang, int code)
++{
++    static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
++    static const char alnum[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
++    size_t first = strspn(lang, letters);
++    const char *p = lang + first;
++
++    /* A language of two or three letters, or x or i, which lead a private or grandfathered tag. */
++    if (first < 1 || first > 3 || (first == 1 && !strchr("xXiI", lang[0])) || (*p && *p != '-'))
++        return 0;
++    while (*p) {
++        size_t len = strspn(++p, alnum);
++        if (len < 1 || len > 8 || (p[len] && p[len] != '-'))
++            return 0;
++        p += len;
++    }
++    if (lang[first])
++        return 1;
++    return first > 1 && code == 32767 && av_strcasecmp(lang, "und");
++}
++
+ static int mov_init(AVFormatContext *s)
+ {
+     MOVMuxContext *mov = s->priv_data;
+@@ -8475,6 +8526,8 @@ static int mov_init(AVFormatContext *s)
+             continue;
+ 
+         track->language = mov_language_code(lang ? lang->value : "und", mov->mode != MODE_MOV);
++        track->extended_language = lang && (mov->mode & (MODE_MP4 | MODE_MOV | MODE_IPOD)) &&
++                                   mov_language_needs_elng(lang->value, track->language);
+         track->mode = mov->mode;
+         if (!track->tag)
+             track->tag  = mov_find_codec_tag(s, track);
+diff --git a/libavformat/movenc.h b/libavformat/movenc.h
+index 5d1e709..dd68fad 100644
+--- a/libavformat/movenc.h
++++ b/libavformat/movenc.h
+@@ -120,6 +120,7 @@ typedef struct MOVTrack {
+ #define MOV_TIMECODE_FLAG_ALLOWNEGATIVE 0x0004
+     uint32_t    timecode_flags;
+     int         language;
++    int         extended_language; ///< 1 when the stream's language tag also goes in an elng box
+     int         track_id;
+     int         tag; ///< stsd fourcc
+     AVStream        *st;

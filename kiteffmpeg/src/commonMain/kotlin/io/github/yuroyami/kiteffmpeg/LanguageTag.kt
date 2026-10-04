@@ -4,8 +4,9 @@ package io.github.yuroyami.kiteffmpeg
  * A language tag reduced to what [TrackSelector] compares (#158).
  *
  * One language reaches [StreamInfo.language] under several spellings: a BCP 47 tag such as `en`,
- * `pt-BR` or `zh-Hant` from HLS, DASH and Matroska's `LanguageBCP47`, the ISO 639-2 terminology
- * code (`deu`) from MP4, and the bibliographic one (`ger`) from older Matroska files and MPEG-TS.
+ * `pt-BR` or `zh-Hant` from HLS, DASH, Matroska's `LanguageBCP47` and MP4's `elng`, the ISO 639-2
+ * terminology code (`deu`) from MP4's `mdhd`, and the bibliographic one (`ger`) from older
+ * Matroska files and MPEG-TS.
  * [language] folds them to one spelling, the two-letter code where ISO 639-1 has one and the
  * three-letter code otherwise, so `de`, `deu`, `ger` and `de-CH` all read `de`, while `enm`,
  * Middle English, stays `enm` and never meets `en`.

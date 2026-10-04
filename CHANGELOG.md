@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   read `eng`, and a Traditional Chinese one `zh-Hant` where it read `chi`. Code that compares a
   language with a three-letter string has to accept the tag too. `TrackSelector` compares
   languages rather than strings now (#158), so a preference for `eng` still finds such a track.
+- `StreamInfo.language` of an MP4 or MOV track that carries an `elng` box is that tag now (#157),
+  so a track that read `zho` can read `zh-Hant`. A remux into MP4 or MOV of a stream whose tag says
+  more than its code, such as `pt-BR`, now reads back as that tag rather than as `por`.
 
 ### Added
 
@@ -99,6 +102,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `zh-TW` agrees with `zh-Hant`. Preference order still comes before closeness, a related language
   such as Middle English `enm` is not English, and `und`, `mul`, `mis`, `zxx` and `qaa` to `qtz`
   match nothing. The rules follow mpv's, which also folds every spelling of a language into one.
+- An MP4 or MOV track reports its extended language tag, the `elng` box, as
+  `StreamInfo.language`, and a remux writes one (#157). ISO/IEC 14496-12 and QuickTime keep a whole
+  BCP 47 tag such as `zh-Hant` in that box beside the three-letter code in `mdhd`, and Apple's
+  frameworks read it as a track's extended language tag, but FFmpeg neither read nor wrote it, so a
+  Traditional and a Simplified Chinese track both read `zho`. A track with a non-empty `elng` now
+  reads that tag, and a track without one reads `mdhd` as before. A stream whose tag says more than
+  a code can, with a script, a region or another subtag, or a language `mdhd` has no code for, also
+  gets an `elng` box, which GPAC's MP4Box reads back; a stream tagged with a code alone, or with a
+  two-letter code that has a three-letter one, writes none, so its output is unchanged. The fix is
+  the FFmpeg patch `0008-mov-read-and-write-the-extended-language.patch`, so it reaches a platform
+  only with an FFmpeg tree built from it, and the trees of 0.4.0 do not carry it.
 - A Matroska track reports its `LanguageBCP47` as `StreamInfo.language` (#150). MKVToolNix writes
   that element on every track, beside the old three-letter `Language`, and the Matroska
   specification says a reader that knows it ignores `Language`. FFmpeg's reader skipped it, so a
