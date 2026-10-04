@@ -16,6 +16,7 @@
 
 #include <math.h>
 #include <pthread.h>
+#include <string.h>
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/dovi_meta.h>
@@ -25,7 +26,7 @@
 #include <libavutil/mem.h>
 #include <libavutil/pixdesc.h>
 
-/* FFmpeg exports the RPU's extension blocks, level 1 among them, from 7.0 (lavu 59.12.100). */
+/* FFmpeg exports the RPU's extension blocks, level 1 among them, from 7.1 (lavu 59.12.100). */
 #define KC_DOVI_EXT_BLOCKS (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 12, 100))
 
 KC_API int ffkmp_codecpar_dovi_config(AVCodecParameters *p, int *out) {
@@ -83,6 +84,155 @@ KC_API int ffkmp_frame_dovi_metadata(AVFrame *f, int *out) {
         out[7] = l1->l1.max_pq;
     }
 #endif
+    return 1;
+}
+
+/* FFmpeg exports the pivots of the inverse quantization from 7.1 (lavu 59.11.100). */
+#define KC_DOVI_NLQ_PIVOTS (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 11, 100))
+
+/* The ints of one piece in ffkmp_frame_dovi_rpu's layout: mapping_idc, poly_order, three poly_coef,
+ * mmr_order, mmr_constant and three rows of seven mmr_coef, a 64-bit number taking two. A curve is
+ * num_pivots, nine pivots and eight pieces. */
+#define KC_DOVI_RPU_PIECE_INTS (1 + 1 + 3 * 2 + 1 + 2 + 3 * 7 * 2)
+#define KC_DOVI_RPU_CURVE_INTS (1 + AV_DOVI_MAX_PIECES + 1 + AV_DOVI_MAX_PIECES * KC_DOVI_RPU_PIECE_INTS)
+
+/* The header's 15 ints; the mapping's six, its three curves, its three inverse quantizations and
+ * its pivots; the colour's two flags, its three matrices and offsets as rationals, and its eleven
+ * signal ints. */
+_Static_assert(KC_DOVI_RPU_INTS == 15 + 6 + 3 * KC_DOVI_RPU_CURVE_INTS + 3 * (1 + 3 * 2) + 1 + 2
+                                       + 2 + (9 + 3 + 9) * 2 + 11,
+               "KC_DOVI_RPU_INTS is the length of ffkmp_frame_dovi_rpu's layout");
+
+static int *kc_dovi_put_i64_(int *o, int64_t v) {
+    uint64_t u = (uint64_t)v;
+    *o++ = (int)(int32_t)(uint32_t)(u >> 32);
+    *o++ = (int)(int32_t)(uint32_t)u;
+    return o;
+}
+
+static int *kc_dovi_put_q_(int *o, AVRational q) {
+    *o++ = q.num;
+    *o++ = q.den;
+    return o;
+}
+
+/* Whether every count and kind the layout is read by lies inside the bounds FFmpeg's parser
+ * enforces, and every rational can be read as a number. */
+static int kc_dovi_rpu_valid_(const AVDOVIDataMapping *m, const AVDOVIColorMetadata *c) {
+    if (m->nlq_method_idc != AV_DOVI_NLQ_NONE && m->nlq_method_idc != AV_DOVI_NLQ_LINEAR_DZ) return 0;
+    for (int k = 0; k < 3; k++) {
+        const AVDOVIReshapingCurve *curve = &m->curves[k];
+        if (curve->num_pivots < 2 || curve->num_pivots > AV_DOVI_MAX_PIECES + 1) return 0;
+        for (int i = 0; i < curve->num_pivots - 1; i++) {
+            switch (curve->mapping_idc[i]) {
+            case AV_DOVI_MAPPING_POLYNOMIAL:
+                if (curve->poly_order[i] < 1 || curve->poly_order[i] > 2) return 0;
+                break;
+            case AV_DOVI_MAPPING_MMR:
+                if (curve->mmr_order[i] < 1 || curve->mmr_order[i] > 3) return 0;
+                break;
+            default:
+                return 0;
+            }
+        }
+    }
+    for (int i = 0; i < 9; i++)
+        if (c->ycc_to_rgb_matrix[i].den == 0 || c->rgb_to_lms_matrix[i].den == 0) return 0;
+    for (int i = 0; i < 3; i++)
+        if (c->ycc_to_rgb_offset[i].den == 0) return 0;
+    return 1;
+}
+
+KC_API int ffkmp_frame_dovi_rpu(AVFrame *f, int *out, int capacity) {
+    if (!f || !out || capacity != KC_DOVI_RPU_INTS) return AVERROR(EINVAL);
+    const AVDOVIMetadata *dovi = kc_dovi_of_(f);
+    if (!dovi) return 0;
+    const AVDOVIRpuDataHeader *h = av_dovi_get_header(dovi);
+    const AVDOVIDataMapping *m = av_dovi_get_mapping(dovi);
+    const AVDOVIColorMetadata *c = av_dovi_get_color(dovi);
+    if (!kc_dovi_rpu_valid_(m, c)) return AVERROR_INVALIDDATA;
+    memset(out, 0, sizeof(int) * KC_DOVI_RPU_INTS);
+    int *o = out;
+
+    *o++ = h->rpu_type;
+    *o++ = h->rpu_format;
+    *o++ = h->vdr_rpu_profile;
+    *o++ = h->vdr_rpu_level;
+    *o++ = h->chroma_resampling_explicit_filter_flag;
+    *o++ = h->coef_data_type;
+    *o++ = h->coef_log2_denom;
+    *o++ = h->vdr_rpu_normalized_idc;
+    *o++ = h->bl_video_full_range_flag;
+    *o++ = h->bl_bit_depth;
+    *o++ = h->el_bit_depth;
+    *o++ = h->vdr_bit_depth;
+    *o++ = h->spatial_resampling_filter_flag;
+    *o++ = h->el_spatial_resampling_filter_flag;
+    *o++ = h->disable_residual_flag;
+
+    *o++ = m->vdr_rpu_id;
+    *o++ = m->mapping_color_space;
+    *o++ = m->mapping_chroma_format_idc;
+    *o++ = m->nlq_method_idc;
+    *o++ = (int)m->num_x_partitions;
+    *o++ = (int)m->num_y_partitions;
+    for (int k = 0; k < 3; k++) {
+        const AVDOVIReshapingCurve *curve = &m->curves[k];
+        o[0] = curve->num_pivots;
+        for (int i = 0; i < curve->num_pivots; i++) o[1 + i] = curve->pivots[i];
+        for (int i = 0; i < curve->num_pivots - 1; i++) {
+            int *piece = o + 1 + AV_DOVI_MAX_PIECES + 1 + i * KC_DOVI_RPU_PIECE_INTS;
+            piece[0] = curve->mapping_idc[i];
+            if (curve->mapping_idc[i] == AV_DOVI_MAPPING_POLYNOMIAL) {
+                piece[1] = curve->poly_order[i];
+                for (int j = 0; j <= curve->poly_order[i]; j++) kc_dovi_put_i64_(piece + 2 + 2 * j, curve->poly_coef[i][j]);
+            } else {
+                piece[8] = curve->mmr_order[i];
+                kc_dovi_put_i64_(piece + 9, curve->mmr_constant[i]);
+                for (int j = 0; j < curve->mmr_order[i]; j++)
+                    for (int t = 0; t < 7; t++) kc_dovi_put_i64_(piece + 11 + 2 * (7 * j + t), curve->mmr_coef[i][j][t]);
+            }
+        }
+        o += KC_DOVI_RPU_CURVE_INTS;
+    }
+    for (int k = 0; k < 3; k++) {
+        if (m->nlq_method_idc == AV_DOVI_NLQ_LINEAR_DZ) {
+            const AVDOVINLQParams *n = &m->nlq[k];
+            *o++ = n->nlq_offset;
+            o = kc_dovi_put_i64_(o, (int64_t)n->vdr_in_max);
+            o = kc_dovi_put_i64_(o, (int64_t)n->linear_deadzone_slope);
+            o = kc_dovi_put_i64_(o, (int64_t)n->linear_deadzone_threshold);
+        } else {
+            o += 1 + 3 * 2;
+        }
+    }
+#if KC_DOVI_NLQ_PIVOTS
+    *o++ = 1;
+    if (m->nlq_method_idc == AV_DOVI_NLQ_LINEAR_DZ) {
+        o[0] = m->nlq_pivots[0];
+        o[1] = m->nlq_pivots[1];
+    }
+    o += 2;
+#else
+    o += 1 + 2;
+#endif
+
+    *o++ = c->dm_metadata_id;
+    *o++ = c->scene_refresh_flag;
+    for (int i = 0; i < 9; i++) o = kc_dovi_put_q_(o, c->ycc_to_rgb_matrix[i]);
+    for (int i = 0; i < 3; i++) o = kc_dovi_put_q_(o, c->ycc_to_rgb_offset[i]);
+    for (int i = 0; i < 9; i++) o = kc_dovi_put_q_(o, c->rgb_to_lms_matrix[i]);
+    *o++ = c->signal_eotf;
+    *o++ = c->signal_eotf_param0;
+    *o++ = c->signal_eotf_param1;
+    *o++ = (int)(int32_t)c->signal_eotf_param2;
+    *o++ = c->signal_bit_depth;
+    *o++ = c->signal_color_space;
+    *o++ = c->signal_chroma_format;
+    *o++ = c->signal_full_range_flag;
+    *o++ = c->source_min_pq;
+    *o++ = c->source_max_pq;
+    *o++ = c->source_diagonal;
     return 1;
 }
 

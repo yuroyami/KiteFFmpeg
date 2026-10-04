@@ -71,8 +71,8 @@ public data class DolbyVisionMetadata(
     val sourceMaxPq: Int,
     /**
      * The brightness of the frame's scene, the RPU's level 1 metadata, or null when the frame
-     * carries none. Built against an FFmpeg older than 7.0 it is always null, because FFmpeg
-     * exports the RPU's extension blocks from 7.0 on.
+     * carries none. Built against an FFmpeg older than 7.1 it is always null, because FFmpeg
+     * exports the RPU's extension blocks from 7.1 on.
      */
     val sceneBrightness: DolbyVisionBrightness?,
 ) {
@@ -229,7 +229,7 @@ public sealed class DolbyVisionPiece {
 public data class DolbyVisionNonlinearQuantization(
     /**
      * `nlq_pivots`, two pivots as code values of the base layer, or null when built against an
-     * FFmpeg older than 7.0, which does not export them.
+     * FFmpeg older than 7.1, which does not export them.
      */
     val pivots: List<Int>?,
     /** The parameters of each of the three components. */
@@ -406,6 +406,103 @@ internal fun dolbyVisionMetadataOf(ints: IntArray): DolbyVisionMetadata = DolbyV
     sourceMaxPq = ints[3],
     sceneBrightness = if (ints[4] != 0) DolbyVisionBrightness(minPq = ints[5], averagePq = ints[6], maxPq = ints[7]) else null,
 )
+
+/** How many ints `ffkmp_frame_dovi_rpu` writes, which is the only capacity it accepts. */
+internal const val DOLBY_VISION_RPU_INTS: Int = 1402
+
+/** The ints of one piece, and of one curve, in `ffkmp_frame_dovi_rpu`'s layout. */
+private const val RPU_PIECE_INTS = 53
+private const val RPU_CURVE_INTS = 1 + 9 + 8 * RPU_PIECE_INTS
+
+/**
+ * Reads the whole RPU in the layout `ffkmp_frame_dovi_rpu` writes, which its header comment states.
+ * The C layer has already refused counts, kinds and orders outside FFmpeg's bounds.
+ */
+internal fun dolbyVisionRpuOf(ints: IntArray): DolbyVisionRpu {
+    var at = 0
+    fun int(): Int = ints[at++]
+    fun longAt(index: Int): Long = (ints[index].toLong() shl 32) or (ints[index + 1].toLong() and 0xFFFFFFFFL)
+    fun long(): Long = longAt(at).also { at += 2 }
+    fun rational(): Rational = Rational(int(), int())
+
+    val header = DolbyVisionRpuHeader(
+        rpuType = int(),
+        rpuFormat = int(),
+        vdrRpuProfile = int(),
+        vdrRpuLevel = int(),
+        chromaResamplingExplicitFilter = int() != 0,
+        coefficientDataType = int(),
+        coefficientLog2Denominator = int(),
+        vdrRpuNormalizedIdc = int(),
+        baseLayerFullRange = int() != 0,
+        baseLayerBitDepth = int(),
+        enhancementLayerBitDepth = int(),
+        vdrBitDepth = int(),
+        spatialResamplingFilter = int() != 0,
+        enhancementLayerSpatialResamplingFilter = int() != 0,
+        disableResidual = int() != 0,
+    )
+    val vdrRpuId = int()
+    val mappingColorSpace = int()
+    val mappingChromaFormat = int()
+    val nlqMethod = int()
+    val xPartitions = int()
+    val yPartitions = int()
+    val curves = List(3) {
+        val start = at
+        val count = ints[start]
+        val pivots = List(count) { i -> ints[start + 1 + i] }
+        val pieces = List(count - 1) { i ->
+            val piece = start + 10 + i * RPU_PIECE_INTS
+            if (ints[piece] == 0) {
+                DolbyVisionPiece.Polynomial(List(ints[piece + 1] + 1) { j -> longAt(piece + 2 + 2 * j) })
+            } else {
+                DolbyVisionPiece.Mmr(
+                    constant = longAt(piece + 9),
+                    coefficients = List(ints[piece + 8]) { j -> List(7) { t -> longAt(piece + 11 + 2 * (7 * j + t)) } },
+                )
+            }
+        }
+        at = start + RPU_CURVE_INTS
+        DolbyVisionCurve(pivots, pieces)
+    }
+    val components = List(3) { DolbyVisionNlqComponent(offset = int(), vdrInMax = long(), deadZoneSlope = long(), deadZoneThreshold = long()) }
+    val pivotsExported = int() != 0
+    val nlqPivots = listOf(int(), int())
+    val mapping = DolbyVisionMapping(
+        vdrRpuId = vdrRpuId,
+        mappingColorSpace = mappingColorSpace,
+        mappingChromaFormat = mappingChromaFormat,
+        curves = curves,
+        nonlinearQuantization = if (nlqMethod == 0) {
+            DolbyVisionNonlinearQuantization(pivots = nlqPivots.takeIf { pivotsExported }, components = components)
+        } else {
+            null
+        },
+        xPartitions = xPartitions,
+        yPartitions = yPartitions,
+    )
+    val color = DolbyVisionColor(
+        dmMetadataId = int(),
+        sceneRefresh = int(),
+        yccToRgbMatrix = List(9) { rational() },
+        yccToRgbOffset = List(3) { rational() },
+        rgbToLmsMatrix = List(9) { rational() },
+        signalEotf = int(),
+        signalEotfParam0 = int(),
+        signalEotfParam1 = int(),
+        signalEotfParam2 = int().toLong() and 0xFFFFFFFFL,
+        signalBitDepth = int(),
+        signalColorSpace = int(),
+        signalChromaFormat = int(),
+        signalFullRange = int(),
+        sourceMinPq = int(),
+        sourceMaxPq = int(),
+        sourceDiagonal = int(),
+    )
+    check(at == DOLBY_VISION_RPU_INTS) { "the Dolby Vision RPU layout read $at of $DOLBY_VISION_RPU_INTS ints" }
+    return DolbyVisionRpu(header, mapping, color)
+}
 
 /** The refusal of a composition on a hardware frame, before the C layer is asked. */
 internal fun dolbyVisionHardwareRefusal(): FFmpegException = FFmpegException(

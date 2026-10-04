@@ -437,7 +437,7 @@ static void case_metadata(void)
     kc_detail("level 1 read");
 #else
     KC_EQ_INT(out[4], 0);
-    kc_detail("FFmpeg before 7.0 exports no level 1");
+    kc_detail("FFmpeg before 7.1 exports no level 1");
 #endif
     av_frame_remove_side_data(frame, AV_FRAME_DATA_DOVI_METADATA);
     attach_rpu(frame, 0, 1);
@@ -447,6 +447,232 @@ static void case_metadata(void)
     KC_EQ_INT(ffkmp_frame_dovi_metadata(NULL, out), AVERROR(EINVAL));
     av_frame_free(&frame);
     av_frame_free(&bare);
+}
+
+/* ffkmp_frame_dovi_rpu's layout as its header comment states it, read back here on its own. */
+#define RPU_MAPPING 15
+#define RPU_CURVES (RPU_MAPPING + 6)
+#define RPU_PIECE 53
+#define RPU_CURVE (1 + 9 + 8 * RPU_PIECE)
+#define RPU_NLQ (RPU_CURVES + 3 * RPU_CURVE)
+#define RPU_NLQ_PIVOTS (RPU_NLQ + 3 * 7)
+#define RPU_COLOR (RPU_NLQ_PIVOTS + 3)
+#define KC_TEST_NLQ_PIVOTS (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 11, 100))
+
+static int64_t rpu_i64(const int *out, int at) { return (int64_t)(((uint64_t)(uint32_t)out[at] << 32) | (uint32_t)out[at + 1]); }
+
+static AVDOVIMetadata *rpu_of(AVFrame *frame)
+{
+    return (AVDOVIMetadata *)av_frame_get_side_data(frame, AV_FRAME_DATA_DOVI_METADATA)->data;
+}
+
+/* The fixture's RPU with a residual and an MMR piece in luma, every header and colour field given a
+ * value of its own, coefficients that need both halves of 64 bits, and leftovers planted where the
+ * counts and orders say nothing is read. */
+static AVFrame *rpu_frame(void)
+{
+    AVFrame *frame = av_frame_alloc();
+    AVDOVIMetadata *dovi;
+    AVDOVIRpuDataHeader *h;
+    AVDOVIDataMapping *m;
+    AVDOVIColorMetadata *c;
+    KC_NOT_NULL(frame);
+    attach_rpu(frame, 1, 1);
+    dovi = rpu_of(frame);
+    h = av_dovi_get_header(dovi);
+    m = av_dovi_get_mapping(dovi);
+    c = av_dovi_get_color(dovi);
+    h->rpu_format = 0x12;
+    h->vdr_rpu_profile = 1;
+    h->vdr_rpu_level = 3;
+    h->chroma_resampling_explicit_filter_flag = 1;
+    h->coef_data_type = 1;
+    h->vdr_rpu_normalized_idc = 2;
+    h->bl_video_full_range_flag = 0;
+    h->el_bit_depth = 11;
+    h->spatial_resampling_filter_flag = 1;
+    h->el_spatial_resampling_filter_flag = 0;
+    m->vdr_rpu_id = 4;
+    m->mapping_color_space = 1;
+    m->mapping_chroma_format_idc = 2;
+    m->num_x_partitions = 5;
+    m->num_y_partitions = 70000;
+    m->curves[0].poly_coef[0][1] = -(INT64_C(1) << 40) - 5;
+    m->curves[0].mmr_coef[1][1][6] = INT64_MIN + 3;
+    m->curves[0].pivots[5] = 999;
+    m->curves[0].poly_coef[1][0] = 77;
+    m->curves[0].poly_coef[0][2] = INT64_MAX;
+    m->curves[1].mmr_coef[0][2][0] = INT64_C(0x123456789);
+    m->curves[1].mapping_idc[1] = AV_DOVI_MAPPING_MMR;
+    m->curves[1].mmr_order[1] = 3;
+    m->curves[1].mmr_constant[1] = 55;
+    m->curves[2].poly_order[0] = 2;
+    m->curves[2].poly_coef[0][0] = 66;
+    m->curves[2].mmr_order[0] = 1;
+    m->nlq[1].nlq_offset = 1023;
+    m->nlq[1].vdr_in_max = UINT64_C(0x8000000000000001);
+    m->nlq[2].linear_deadzone_threshold = UINT64_C(0x500000003);
+#if KC_TEST_NLQ_PIVOTS
+    m->nlq_pivots[0] = 64;
+    m->nlq_pivots[1] = 940;
+#endif
+    c->dm_metadata_id = 6;
+    c->scene_refresh_flag = 1;
+    c->ycc_to_rgb_offset[0] = av_make_q(-3, 7);
+    c->signal_eotf = 0xFFFF;
+    c->signal_eotf_param0 = 0x8001;
+    c->signal_eotf_param1 = 2;
+    c->signal_eotf_param2 = 0xFFFFFFF0u;
+    c->signal_bit_depth = 12;
+    c->signal_color_space = 2;
+    c->signal_chroma_format = 1;
+    c->signal_full_range_flag = 3;
+    c->source_diagonal = 42;
+    return frame;
+}
+
+static void case_rpu(void)
+{
+    AVFrame *frame = rpu_frame(), *bare = av_frame_alloc();
+    const AVDOVIMetadata *dovi = rpu_of(frame);
+    const AVDOVIRpuDataHeader *h = av_dovi_get_header(dovi);
+    const AVDOVIDataMapping *m = av_dovi_get_mapping(dovi);
+    const AVDOVIColorMetadata *c = av_dovi_get_color(dovi);
+    static const int header[15] = { 2, 0x12, 1, 3, 1, 1, DENOM, 2, 0, 10, 11, 12, 1, 0, 0 };
+    int *out = calloc(KC_DOVI_RPU_INTS, sizeof(int));
+    kc_case("a frame's whole RPU reads in the documented layout, with nothing where the counts read nothing");
+    KC_NOT_NULL(out);
+    KC_NOT_NULL(bare);
+    for (int i = 0; i < KC_DOVI_RPU_INTS; i++) out[i] = 0x5A5A5A5A;
+    KC_EQ_INT(ffkmp_frame_dovi_rpu(frame, out, KC_DOVI_RPU_INTS), 1);
+    for (int i = 0; i < 15; i++) KC_EQ_INT(out[i], header[i]);
+    KC_EQ_INT(out[RPU_MAPPING + 0], 4);
+    KC_EQ_INT(out[RPU_MAPPING + 1], 1);
+    KC_EQ_INT(out[RPU_MAPPING + 2], 2);
+    KC_EQ_INT(out[RPU_MAPPING + 3], AV_DOVI_NLQ_LINEAR_DZ);
+    KC_EQ_INT(out[RPU_MAPPING + 4], 5);
+    KC_EQ_INT(out[RPU_MAPPING + 5], 70000);
+    for (int k = 0; k < 3; k++) {
+        const AVDOVIReshapingCurve *curve = &m->curves[k];
+        const int *at = out + RPU_CURVES + k * RPU_CURVE;
+        KC_EQ_INT(at[0], curve->num_pivots);
+        for (int i = 0; i < 9; i++) KC_EQ_INT(at[1 + i], i < curve->num_pivots ? curve->pivots[i] : 0);
+        for (int i = 0; i < 8; i++) {
+            const int *piece = at + 10 + i * RPU_PIECE;
+            const int used = i < curve->num_pivots - 1;
+            const int poly = used && curve->mapping_idc[i] == AV_DOVI_MAPPING_POLYNOMIAL;
+            const int mmr = used && curve->mapping_idc[i] == AV_DOVI_MAPPING_MMR;
+            KC_EQ_INT(piece[0], used ? (int)curve->mapping_idc[i] : 0);
+            KC_EQ_INT(piece[1], poly ? curve->poly_order[i] : 0);
+            for (int j = 0; j < 3; j++)
+                KC_EQ_I64(rpu_i64(piece, 2 + 2 * j), poly && j <= curve->poly_order[i] ? curve->poly_coef[i][j] : 0);
+            KC_EQ_INT(piece[8], mmr ? curve->mmr_order[i] : 0);
+            KC_EQ_I64(rpu_i64(piece, 9), mmr ? curve->mmr_constant[i] : 0);
+            for (int j = 0; j < 3; j++)
+                for (int t = 0; t < 7; t++)
+                    KC_EQ_I64(rpu_i64(piece, 11 + 2 * (7 * j + t)), mmr && j < curve->mmr_order[i] ? curve->mmr_coef[i][j][t] : 0);
+        }
+    }
+    KC_EQ_I64(rpu_i64(out, RPU_CURVES + 10 + 2 + 2), -(INT64_C(1) << 40) - 5);
+    KC_EQ_I64(rpu_i64(out, RPU_CURVES + 10 + RPU_PIECE + 11 + 2 * (7 + 6)), INT64_MIN + 3);
+    KC_EQ_INT(out[RPU_CURVES + 10 + RPU_PIECE + 2], 0);
+    KC_EQ_INT(out[RPU_CURVES + 10 + RPU_PIECE + 3], 0);
+    kc_detail("pieces, both halves of a coefficient, and leftovers beyond the orders");
+    for (int k = 0; k < 3; k++) {
+        const int *at = out + RPU_NLQ + 7 * k;
+        KC_EQ_INT(at[0], m->nlq[k].nlq_offset);
+        KC_EQ_I64(rpu_i64(at, 1), (int64_t)m->nlq[k].vdr_in_max);
+        KC_EQ_I64(rpu_i64(at, 3), (int64_t)m->nlq[k].linear_deadzone_slope);
+        KC_EQ_I64(rpu_i64(at, 5), (int64_t)m->nlq[k].linear_deadzone_threshold);
+    }
+    KC_EQ_INT(out[RPU_NLQ + 7], 1023);
+    KC_EQ_I64(rpu_i64(out, RPU_NLQ + 7 + 1), (int64_t)UINT64_C(0x8000000000000001));
+    KC_EQ_I64(rpu_i64(out, RPU_NLQ + 14 + 5), INT64_C(0x500000003));
+#if KC_TEST_NLQ_PIVOTS
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS], 1);
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS + 1], 64);
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS + 2], 940);
+    kc_detail("nlq pivots read");
+#else
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS], 0);
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS + 1], 0);
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS + 2], 0);
+    kc_detail("FFmpeg before 7.1 exports no nlq pivots");
+#endif
+    KC_EQ_INT(out[RPU_COLOR + 0], 6);
+    KC_EQ_INT(out[RPU_COLOR + 1], 1);
+    for (int i = 0; i < 9; i++) {
+        KC_EQ_INT(out[RPU_COLOR + 2 + 2 * i], c->ycc_to_rgb_matrix[i].num);
+        KC_EQ_INT(out[RPU_COLOR + 3 + 2 * i], c->ycc_to_rgb_matrix[i].den);
+        KC_EQ_INT(out[RPU_COLOR + 26 + 2 * i], c->rgb_to_lms_matrix[i].num);
+        KC_EQ_INT(out[RPU_COLOR + 27 + 2 * i], c->rgb_to_lms_matrix[i].den);
+    }
+    for (int i = 0; i < 3; i++) {
+        KC_EQ_INT(out[RPU_COLOR + 20 + 2 * i], c->ycc_to_rgb_offset[i].num);
+        KC_EQ_INT(out[RPU_COLOR + 21 + 2 * i], c->ycc_to_rgb_offset[i].den);
+    }
+    KC_EQ_INT(out[RPU_COLOR + 20], -3);
+    KC_EQ_INT(out[RPU_COLOR + 21], 7);
+    KC_EQ_INT(out[RPU_COLOR + 44], 0xFFFF);
+    KC_EQ_INT(out[RPU_COLOR + 45], 0x8001);
+    KC_EQ_INT(out[RPU_COLOR + 46], 2);
+    KC_EQ_INT((uint32_t)out[RPU_COLOR + 47], 0xFFFFFFF0u);
+    KC_EQ_INT(out[RPU_COLOR + 48], 12);
+    KC_EQ_INT(out[RPU_COLOR + 49], 2);
+    KC_EQ_INT(out[RPU_COLOR + 50], 1);
+    KC_EQ_INT(out[RPU_COLOR + 51], 3);
+    KC_EQ_INT(out[RPU_COLOR + 52], 7);
+    KC_EQ_INT(out[RPU_COLOR + 53], 3079);
+    KC_EQ_INT(out[RPU_COLOR + 54], 42);
+    KC_EQ_INT(RPU_COLOR + 55, KC_DOVI_RPU_INTS);
+    (void)h;
+
+    /* Without a residual the inverse quantization and its pivots read 0, whatever FFmpeg left. */
+    av_dovi_get_mapping(rpu_of(frame))->nlq_method_idc = AV_DOVI_NLQ_NONE;
+    KC_EQ_INT(ffkmp_frame_dovi_rpu(frame, out, KC_DOVI_RPU_INTS), 1);
+    KC_EQ_INT(out[RPU_MAPPING + 3], AV_DOVI_NLQ_NONE);
+    for (int i = RPU_NLQ; i < RPU_NLQ_PIVOTS; i++) KC_EQ_INT(out[i], 0);
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS], KC_TEST_NLQ_PIVOTS);
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS + 1], 0);
+    KC_EQ_INT(out[RPU_NLQ_PIVOTS + 2], 0);
+
+    KC_EQ_INT(ffkmp_frame_dovi_rpu(bare, out, KC_DOVI_RPU_INTS), 0);
+    KC_EQ_INT(ffkmp_frame_dovi_rpu(NULL, out, KC_DOVI_RPU_INTS), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_frame_dovi_rpu(frame, NULL, KC_DOVI_RPU_INTS), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_frame_dovi_rpu(frame, out, KC_DOVI_RPU_INTS - 1), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_frame_dovi_rpu(frame, out, KC_DOVI_RPU_INTS + 1), AVERROR(EINVAL));
+    free(out);
+    av_frame_free(&frame);
+    av_frame_free(&bare);
+}
+
+/* Each way an RPU can leave the bounds FFmpeg's parser keeps, on a frame that reads without it. */
+static void case_rpu_refusals(void)
+{
+    int *out = calloc(KC_DOVI_RPU_INTS, sizeof(int));
+    kc_case("an RPU outside the parser's bounds is refused as invalid data");
+    KC_NOT_NULL(out);
+    for (int bad = 0; bad < 9; bad++) {
+        AVFrame *frame = rpu_frame();
+        AVDOVIMetadata *dovi = rpu_of(frame);
+        AVDOVIDataMapping *m = av_dovi_get_mapping(dovi);
+        AVDOVIColorMetadata *c = av_dovi_get_color(dovi);
+        KC_EQ_INT(ffkmp_frame_dovi_rpu(frame, out, KC_DOVI_RPU_INTS), 1);
+        switch (bad) {
+        case 0: m->curves[1].num_pivots = 1; break;
+        case 1: m->curves[2].num_pivots = 10; break;
+        case 2: m->curves[0].mapping_idc[2] = 2; break;
+        case 3: m->curves[0].poly_order[0] = 3; break;
+        case 4: m->curves[1].mmr_order[0] = 0; break;
+        case 5: m->nlq_method_idc = 1; break;
+        case 6: c->ycc_to_rgb_matrix[8].den = 0; break;
+        case 7: c->ycc_to_rgb_offset[2].den = 0; break;
+        default: c->rgb_to_lms_matrix[4].den = 0; break;
+        }
+        KC_EQ_INT(ffkmp_frame_dovi_rpu(frame, out, KC_DOVI_RPU_INTS), AVERROR_INVALIDDATA);
+        av_frame_free(&frame);
+    }
+    free(out);
 }
 
 static void case_prepare_refusals(void)
@@ -617,6 +843,8 @@ int main(void)
 
     case_config();
     case_metadata();
+    case_rpu();
+    case_rpu_refusals();
     case_prepare_refusals();
     case_prepare_picture();
     case_matches_reference(AV_PIX_FMT_YUV420P10LE, "yuv420p10le", 0);

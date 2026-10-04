@@ -266,6 +266,7 @@ internal object Internals {
     private external fun nativeFrameIsHardware(token: Long): Boolean
     private external fun nativeFrameHwDownload(source: Long, destination: Long): Int
     private external fun nativeFrameDoviMetadata(token: Long): IntArray?
+    private external fun nativeFrameDoviRpu(token: Long): IntArray?
     private external fun nativeFrameDoviComposePrepare(source: Long, destination: Long): Int
     private external fun nativeFrameDoviComposeRows(source: Long, destination: Long, rowStart: Int, rowEnd: Int): Int
     private external fun nativeFrameUseBestEffort(token: Long)
@@ -632,6 +633,7 @@ internal object Internals {
     internal fun frameHwDownload(source: Long, destination: Long) = checked { nativeFrameHwDownload(source, destination) }
     internal fun frameDolbyVision(token: Long): DolbyVisionMetadata? =
         checked { nativeFrameDoviMetadata(token) }?.let(::dolbyVisionMetadataOf)
+    internal fun frameDolbyVisionRpu(token: Long): DolbyVisionRpu? = checked { nativeFrameDoviRpu(token) }?.let(::dolbyVisionRpuOf)
     internal fun frameDolbyVisionPrepare(source: Long, destination: Long) =
         checked { nativeFrameDoviComposePrepare(source, destination) }
     internal fun frameDolbyVisionRows(source: Long, destination: Long, rowStart: Int, rowEnd: Int) =

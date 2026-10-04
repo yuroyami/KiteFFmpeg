@@ -76,6 +76,26 @@ internal class DolbyVisionContractTest {
     }
 
     @Test
+    fun eachFrameReadsItsWholeRpuAsFfprobePrintsIt() = runTest {
+        val printed = runMediaOracle(
+            "ffprobe",
+            listOf("-v", "error", "-select_streams", "v:0", "-show_frames", "-show_entries", "frame=side_data_list", "-of", "flat", clip()),
+        )
+        val recorded = probedRpus(DolbyVisionFixtures.PROBED_RPU)
+        val probed = printed?.let(::probedRpus)
+        if (probed == null) println("Dolby Vision RPU: no ffprobe here, held to the recorded output only")
+        withFrames { _, frames ->
+            assertEquals(DolbyVisionFixtures.FRAMES, recorded.size, "the recorded output's frames")
+            probed?.let { assertEquals(DolbyVisionFixtures.FRAMES, it.size, "the frames ffprobe prints") }
+            frames.forEachIndexed { index, frame ->
+                val rpu = assertNotNull(frame.dolbyVisionRpu(), "the RPU of frame $index")
+                assertRpuMatchesProbe(rpu, recorded.getValue(index), "frame $index against the recorded ffprobe output")
+                probed?.let { assertRpuMatchesProbe(rpu, it.getValue(index), "frame $index against this host's ffprobe") }
+            }
+        }
+    }
+
+    @Test
     fun theComposedPictureIsHdr10AndMatchesLibplacebo() = runTest {
         withFrames { _, frames ->
             frames.forEachIndexed { index, frame ->
@@ -153,6 +173,7 @@ internal class DolbyVisionContractTest {
             try {
                 val frame = frames.first()
                 assertNull(frame.dolbyVision())
+                assertNull(frame.dolbyVisionRpu())
                 assertNull(frame.beginDolbyVisionComposition())
                 assertNull(frame.composeDolbyVision())
             } finally {

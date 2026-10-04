@@ -48,9 +48,12 @@ class WebDolbyVisionTest {
             val frames = source.decodedFrames(stream).toList()
             try {
                 assertEquals(DolbyVisionFixtures.FRAMES, frames.size, "decoded frames")
+                val probed = probedRpus(DolbyVisionFixtures.PROBED_RPU)
                 frames.forEachIndexed { index, frame ->
                     val metadata = assertNotNull(frame.dolbyVision(), "the metadata of frame $index")
                     assertEquals(DolbyVisionFixtures.SCENE_BRIGHTNESS[index], metadata.sceneBrightness, "level 1 of frame $index")
+                    val rpu = assertNotNull(frame.dolbyVisionRpu(), "the RPU of frame $index")
+                    assertRpuMatchesProbe(rpu, probed.getValue(index), "frame $index against the recorded ffprobe output")
                     assertNotNull(frame.composeDolbyVision(), "the composition of frame $index").use { composed ->
                         assertNull(composed.dolbyVision())
                         DolbyVisionFixtures.assertMatchesExpected(index, composed.copyPlanesToByteArray())

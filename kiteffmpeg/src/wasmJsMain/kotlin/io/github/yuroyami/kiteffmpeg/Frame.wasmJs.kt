@@ -7,6 +7,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_alloc
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_dovi_compose_prepare
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_dovi_compose_rows
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_dovi_metadata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_dovi_rpu
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_ch_layout_mask
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_channels
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_clone
@@ -178,8 +179,19 @@ public actual class Frame internal constructor(
         }
     }
 
-    public actual fun dolbyVisionRpu(): DolbyVisionRpu? =
-        throw FFmpegException(FFmpegError.Unsupported(0, "reading the whole Dolby Vision RPU is not wired yet"))
+    public actual fun dolbyVisionRpu(): DolbyVisionRpu? {
+        val m = requireModule()
+        val p = alive()
+        val ints = wasmAlloc(m, DOLBY_VISION_RPU_INTS * 4)
+        try {
+            val rc = ffkmp_frame_dovi_rpu(m, p, ints, DOLBY_VISION_RPU_INTS)
+            if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "reading the Dolby Vision RPU failed with $rc"))
+            if (rc == 0) return null
+            return dolbyVisionRpuOf(IntArray(DOLBY_VISION_RPU_INTS) { readInt32(m, ints + it * 4) })
+        } finally {
+            wasmFree(m, ints)
+        }
+    }
 
     public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? {
         val m = requireModule()

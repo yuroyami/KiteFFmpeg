@@ -1077,10 +1077,30 @@ KC_API int ffkmp_frame_hw_download(kc_frame *src, kc_frame *dst);
  * ffkmp_frame_dovi_metadata reads the RPU a decoder attached to a frame into out[8]: the base
  * layer's bit depth, whether the composition uses an enhancement layer's residual (0 or 1), the
  * source's lowest and highest level, whether level 1 is present (0 or 1), and level 1's lowest,
- * average and highest level. Levels are 12-bit PQ codes. Built against an FFmpeg older than 7.0,
+ * average and highest level. Levels are 12-bit PQ codes. Built against an FFmpeg older than 7.1,
  * which exports no extension block, level 1 is never present.
  *
  * Both return 1 when there is one, 0 when there is none, and AVERROR(EINVAL) for a NULL argument.
+ *
+ * ffkmp_frame_dovi_rpu reads the whole RPU a decoder attached to a frame into out, whose capacity
+ * must be exactly KC_DOVI_RPU_INTS ints. A 64-bit number takes two ints, the high half first, and a
+ * rational two, the numerator first. In order: the fifteen fields of AVDOVIRpuDataHeader from
+ * rpu_type to disable_residual_flag; the mapping's vdr_rpu_id, mapping_color_space,
+ * mapping_chroma_format_idc, nlq_method_idc, num_x_partitions and num_y_partitions; each of the
+ * three curves as num_pivots, nine pivots and eight pieces, each piece as mapping_idc, poly_order,
+ * three poly_coef, mmr_order, mmr_constant and three rows of seven mmr_coef; each component's
+ * nlq_offset, vdr_in_max, linear_deadzone_slope and linear_deadzone_threshold; whether this FFmpeg
+ * exports nlq_pivots (0 or 1), then the two pivots; and the colour's dm_metadata_id,
+ * scene_refresh_flag, ycc_to_rgb_matrix, ycc_to_rgb_offset, rgb_to_lms_matrix, signal_eotf, its
+ * three parameters (the last as its 32 bits), signal_bit_depth, signal_color_space,
+ * signal_chroma_format, signal_full_range_flag, source_min_pq, source_max_pq and source_diagonal.
+ * Every int that the counts, the mapping kinds and the orders leave unused is 0, and so are the
+ * inverse quantization and its pivots when nlq_method_idc is AV_DOVI_NLQ_NONE. It returns 1, 0 when
+ * the frame carries none, AVERROR(EINVAL) for a NULL argument or another capacity, and
+ * AVERROR_INVALIDDATA for an RPU outside the bounds FFmpeg's parser keeps: a curve of fewer than two
+ * or more than nine pivots, a piece that is neither a polynomial of order 1 or 2 nor an MMR of order
+ * 1 to 3, an nlq_method_idc that is neither none nor linear dead zone, or a matrix entry or offset
+ * whose denominator is 0.
  *
  * ffkmp_frame_dovi_compose_prepare gives dst, a blank frame, the picture that src's composition
  * fills: 10-bit 4:2:0 at src's size, BT.2020, PQ, limited range, chroma sited left, src's properties,
@@ -1097,6 +1117,8 @@ KC_API int ffkmp_frame_hw_download(kc_frame *src, kc_frame *dst);
  * lost its metadata. */
 KC_API int ffkmp_codecpar_dovi_config(kc_codec_par *p, int *out);
 KC_API int ffkmp_frame_dovi_metadata(kc_frame *f, int *out);
+#define KC_DOVI_RPU_INTS 1402
+KC_API int ffkmp_frame_dovi_rpu(kc_frame *f, int *out, int capacity);
 KC_API int ffkmp_frame_dovi_compose_prepare(kc_frame *src, kc_frame *dst);
 KC_API int ffkmp_frame_dovi_compose_rows(kc_frame *src, kc_frame *dst, int row_start, int row_end);
 

@@ -357,6 +357,9 @@ internal external fun ffkmp_frame_dovi_compose_rows(module: JsAny, a0: Int, a1: 
 @JsFun("(m, a0, a1) => m._ffkmp_frame_dovi_metadata(a0, a1)")
 internal external fun ffkmp_frame_dovi_metadata(module: JsAny, a0: Int, a1: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_frame_dovi_rpu(a0, a1, a2)")
+internal external fun ffkmp_frame_dovi_rpu(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_frame_fill_audio(a0, a1, a2)")
 internal external fun ffkmp_frame_fill_audio(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 

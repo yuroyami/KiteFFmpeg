@@ -355,7 +355,20 @@ A few things to know:
 - The frame must be in memory. Download a hardware frame with `downloadFromHardware()` first.
 - Reshaping happens at each chroma sample, and the result is interpolated to every pixel. Held against libplacebo's composition of the same clip, every sample landed within 4 codes, with a mean difference under half a code.
 - A profile 7 stream with a full enhancement layer adds a residual that FFmpeg does not decode, so its composition is the base layer's share of the picture. `usesEnhancementLayer` says when a frame is one of those.
-- Built against an FFmpeg older than 7.0, which exports no extension blocks, `sceneBrightness` is always null and the composed picture carries no content light level.
+- Built against an FFmpeg older than 7.1, which exports no extension blocks, `sceneBrightness` is always null and the composed picture carries no content light level.
+
+`frame.dolbyVisionRpu()` reads the whole RPU, for a caller that composes the picture somewhere else, such as in a shader, or wants to look inside it: the header, each component's reshaping curve in pieces between pivots, the inverse quantization of an enhancement layer's residual, and the colour matrices and signal levels. Every number is the one FFmpeg's decoder holds, which is the one `ffprobe -show_frames` prints for that frame. Coefficients are fixed-point numbers over two to the power of `header.coefficientLog2Denominator`, and `coefficientValue` turns one into a `Double`:
+
+```kotlin
+frame.dolbyVisionRpu()?.let { rpu ->
+    val luma = rpu.mapping.curves[0]
+    val polynomials = luma.pieces.filterIsInstance<DolbyVisionPiece.Polynomial>()
+        .map { piece -> piece.coefficients.map(rpu::coefficientValue) }
+    uploadLumaCurve(luma.pivots, polynomials)
+}
+```
+
+Built against an FFmpeg older than 7.1, the inverse quantization's two pivots read null.
 
 ## Subtitles
 

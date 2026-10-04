@@ -265,6 +265,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameSampleAspectRat
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameIsHardware",  "(J)Z",                    kj_frame_is_hardware)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameHwDownload",  "(JJ)I",                   kj_frame_hw_download)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameDoviMetadata", "(J)[I",                  kj_frame_dovi_metadata)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameDoviRpu",      "(J)[I",                  kj_frame_dovi_rpu)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameDoviComposePrepare","(JJ)I",            kj_frame_dovi_compose_prepare)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameDoviComposeRows","(JJII)I",             kj_frame_dovi_compose_rows)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameUseBestEffort","(J)V",                  kj_frame_use_best_effort)

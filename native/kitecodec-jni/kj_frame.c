@@ -318,6 +318,26 @@ JNIEXPORT jintArray JNICALL kj_frame_dovi_metadata(JNIEnv *env, jclass cls, jlon
     return kj_ints_new(env, packed, 8);
 }
 
+/* The frame's whole Dolby Vision RPU in ffkmp_frame_dovi_rpu's layout, or NULL when it carries none;
+ * an RPU the reader refuses throws. */
+JNIEXPORT jintArray JNICALL kj_frame_dovi_rpu(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    int out[KC_DOVI_RPU_INTS];
+    jint packed[KC_DOVI_RPU_INTS];
+    int rc;
+    (void)cls;
+    if (frame == NULL) return NULL;
+    rc = ffkmp_frame_dovi_rpu(frame, out, KC_DOVI_RPU_INTS);
+    if (rc < 0) {
+        kj_throw_ffmpeg(env, rc, "frame_dovi_rpu");
+        return NULL;
+    }
+    if (rc == 0) return NULL;
+    for (int i = 0; i < KC_DOVI_RPU_INTS; i++) packed[i] = out[i];
+    return kj_ints_new(env, packed, KC_DOVI_RPU_INTS);
+}
+
 JNIEXPORT jint JNICALL kj_frame_dovi_compose_prepare(JNIEnv *env, jclass cls, jlong src_token, jlong dst_token)
 {
     kc_frame *src = (kc_frame *)kj_handle_get(env, src_token, KJ_KIND_FRAME);

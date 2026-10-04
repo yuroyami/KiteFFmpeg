@@ -23,6 +23,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `Frame.dolbyVisionRpu()` reads the whole Dolby Vision RPU of a frame as FFmpeg's decoder parsed
+  it (#138): the header, each component's reshaping curve with its polynomial and MMR pieces, the
+  inverse quantization of an enhancement layer's residual, and the colour matrices and signal
+  levels, every one the same number `ffprobe -show_frames` prints. A caller that composes the
+  picture somewhere other than the CPU composer, such as in a shader, has what it needs, and
+  `DolbyVisionRpu.coefficientValue` turns a fixed-point coefficient into a number. The inverse
+  quantization's two pivots need FFmpeg 7.1 and read null before it. The C ABI is 3.25 and adds
+  `ffkmp_frame_dovi_rpu`.
 - `StreamDecoder.setSkipFrame` changes which frames an open video decoder skips, from the next
   packet sent (#140). It is FFmpeg's `skip_frame`, which `DecoderOptions.skipFrame` could set only
   when the decoder opened, so a caller can skip the frames nothing predicts from on the way to a

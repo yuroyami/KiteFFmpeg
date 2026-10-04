@@ -16,6 +16,7 @@ import ffmpeg.ffkmp_frame_a53_cc
 import ffmpeg.ffkmp_frame_dovi_compose_prepare
 import ffmpeg.ffkmp_frame_dovi_compose_rows
 import ffmpeg.ffkmp_frame_dovi_metadata
+import ffmpeg.ffkmp_frame_dovi_rpu
 import ffmpeg.ffkmp_frame_alloc
 import ffmpeg.ffkmp_frame_channels
 import ffmpeg.ffkmp_frame_clone
@@ -225,8 +226,14 @@ public actual class Frame internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun dolbyVisionRpu(): DolbyVisionRpu? =
-        throw FFmpegException(FFmpegError.Unsupported(0, "reading the whole Dolby Vision RPU is not wired yet"))
+    public actual fun dolbyVisionRpu(): DolbyVisionRpu? = withNative { frame ->
+        memScoped {
+            val ints = allocArray<IntVar>(DOLBY_VISION_RPU_INTS)
+            val rc = ffkmp_frame_dovi_rpu(frame, ints, DOLBY_VISION_RPU_INTS)
+            check0(rc, "frame Dolby Vision RPU")
+            if (rc == 0) null else dolbyVisionRpuOf(IntArray(DOLBY_VISION_RPU_INTS) { ints[it] })
+        }
+    }
 
     @Throws(FFmpegException::class)
     public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = withNative { source ->

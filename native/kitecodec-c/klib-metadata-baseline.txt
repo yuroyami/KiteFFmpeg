@@ -1404,6 +1404,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_dovi_metadata(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_dovi_rpu")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_frame_dovi_rpu(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?, capacity: kotlin/Int): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_dovi_compose_prepare")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_dovi_compose_prepare(src: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?, dst: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?): kotlin/Int
@@ -1417,7 +1421,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 24 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 25 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1530,6 +1534,10 @@ library {
 
       @kotlinx/cinterop/ExperimentalForeignApi
       public final const val KC_IO_REFUSED: kotlin/Int /* = -3 */
+        public final get
+
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final const val KC_DOVI_RPU_INTS: kotlin/Int /* = 1402 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
