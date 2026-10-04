@@ -1022,6 +1022,14 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_seek_micros(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?, stream_index: kotlin/Int, micros: kotlin/Long /* = platform/posix/int64_t^ */): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_read_pause")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_fmt_read_pause(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_read_play")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_fmt_read_play(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_read_frame")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_read_frame(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?, p: kotlinx/cinterop/CValuesRef<cnames/structs/AVPacket /* = ffmpeg/kc_packet^ */>?): kotlin/Int
@@ -1451,7 +1459,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 0 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 1 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

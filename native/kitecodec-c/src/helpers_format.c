@@ -603,6 +603,21 @@ KC_API int  ffkmp_fmt_seek_micros(AVFormatContext *ctx, int stream_index, int64_
     return kc_seek_keyframe(ctx, stream_index, 0, INT64_MIN, target, AVSEEK_FLAG_BACKWARD);
 }
 
+/* av_read_pause and av_read_play answer AVERROR(ENOSYS) for an input with no notion of pausing,
+   which is an answer rather than a failure, so it reads as 0 here (#136). */
+static int kc_pause_answer(int rc) {
+    if (rc >= 0) return 1;
+    return rc == AVERROR(ENOSYS) ? 0 : rc;
+}
+
+KC_API int ffkmp_fmt_read_pause(AVFormatContext *ctx) {
+    return ctx ? kc_pause_answer(av_read_pause(ctx)) : AVERROR(EINVAL);
+}
+
+KC_API int ffkmp_fmt_read_play(AVFormatContext *ctx) {
+    return ctx ? kc_pause_answer(av_read_play(ctx)) : AVERROR(EINVAL);
+}
+
 /* avformat_seek_file, which av_seek_frame cannot express: a bounded window rather than a single
    target. A player uses it to say "land at or before here, but no earlier than there", which is
    what makes a retry ladder cheap instead of a fixed pessimistic backoff. A window that ends at its

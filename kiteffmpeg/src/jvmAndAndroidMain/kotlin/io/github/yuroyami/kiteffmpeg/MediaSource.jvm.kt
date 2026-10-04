@@ -26,6 +26,9 @@ public actual class MediaSource internal constructor(
     private var demuxing = false
     private var readerActive = false
 
+    /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
+    private var paused = false
+
     internal fun checkOpen(): Long = synchronized(stateLock) {
         check(formatToken != 0L) { "MediaSource is closed" }
         formatToken
@@ -416,12 +419,22 @@ public actual class MediaSource internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun pause(): Boolean =
-        throw FFmpegException(FFmpegError.Unsupported(0, "pausing a source is not wired yet"))
+    public actual fun pause(): Boolean = synchronized(stateLock) {
+        val rc = Internals.fmtReadPause(checkOpen())
+        if (rc < 0) throw demuxFailure(rc)
+        if (rc == 1) paused = true
+        rc == 1
+    }
 
     @Throws(FFmpegException::class)
-    public actual fun resume(): Boolean =
-        throw FFmpegException(FFmpegError.Unsupported(0, "resuming a source is not wired yet"))
+    public actual fun resume(): Boolean = synchronized(stateLock) {
+        val token = checkOpen()
+        if (!paused) return@synchronized false
+        val rc = Internals.fmtReadPlay(token)
+        if (rc < 0) throw demuxFailure(rc)
+        paused = false
+        true
+    }
 
     public actual fun interrupt() {
         /* Deliberately NOT under the demux lock: the whole point is reaching a context another

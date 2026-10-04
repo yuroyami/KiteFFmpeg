@@ -327,6 +327,21 @@ JNIEXPORT jint JNICALL kj_fmt_seek_micros(JNIEnv *env, jclass cls, jlong token, 
     return ctx ? (jint)ffkmp_fmt_seek_micros(ctx, (int)stream_index, (int64_t)micros) : -1;
 }
 
+/* Pause and play answer 1, 0 for an input with no notion of pausing, or a negative FFmpeg error code (#136). */
+JNIEXPORT jint JNICALL kj_fmt_read_pause(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    return ctx ? (jint)ffkmp_fmt_read_pause(ctx) : -1;
+}
+
+JNIEXPORT jint JNICALL kj_fmt_read_play(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    return ctx ? (jint)ffkmp_fmt_read_play(ctx) : -1;
+}
+
 JNIEXPORT jint JNICALL kj_fmt_set_opt(JNIEnv *env, jclass cls, jlong token, jstring key, jstring value)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);

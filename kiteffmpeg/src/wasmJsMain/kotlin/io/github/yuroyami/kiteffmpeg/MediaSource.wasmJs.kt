@@ -77,6 +77,8 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_count
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_get
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_chapter_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_count
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_read_pause
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_read_play
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_get
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_stream
@@ -573,11 +575,24 @@ public actual class MediaSource internal constructor(
         }
     }
 
-    public actual fun pause(): Boolean =
-        throw FFmpegException(FFmpegError.Unsupported(0, "pausing a source is not wired yet"))
+    /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
+    private var paused = false
 
-    public actual fun resume(): Boolean =
-        throw FFmpegException(FFmpegError.Unsupported(0, "resuming a source is not wired yet"))
+    public actual fun pause(): Boolean {
+        val rc = ffkmp_fmt_read_pause(requireModule(), alive())
+        if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "pausing the source failed with $rc"))
+        if (rc == 1) paused = true
+        return rc == 1
+    }
+
+    public actual fun resume(): Boolean {
+        val context = alive()
+        if (!paused) return false
+        val rc = ffkmp_fmt_read_play(requireModule(), context)
+        if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "resuming the source failed with $rc"))
+        paused = false
+        return true
+    }
 
     public actual fun interrupt() {
         /* Single-threaded runtime: nothing can be blocked while this runs, so the flag only

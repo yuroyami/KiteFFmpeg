@@ -127,6 +127,8 @@ internal object Internals {
     private external fun nativeFmtDurationOrigin(token: Long): Int
     private external fun nativeFmtReadFrame(token: Long, packet: Long): Int
     private external fun nativeFmtSeekMicros(token: Long, stream: Int, micros: Long): Int
+    private external fun nativeFmtReadPause(token: Long): Int
+    private external fun nativeFmtReadPlay(token: Long): Int
     private external fun nativeFmtSetOpt(token: Long, key: String, value: String?): Int
     private external fun nativeFmtStartTime(token: Long): Long
     private external fun nativeFmtInputName(token: Long): String?
@@ -480,6 +482,8 @@ internal object Internals {
     internal fun fmtDurationOrigin(token: Long) = checked { nativeFmtDurationOrigin(token) }
     internal fun fmtReadFrame(token: Long, packet: Long) = checked { nativeFmtReadFrame(token, packet) }
     internal fun fmtSeekMicros(token: Long, stream: Int, micros: Long) = checked { nativeFmtSeekMicros(token, stream, micros) }
+    internal fun fmtReadPause(token: Long) = checked { nativeFmtReadPause(token) }
+    internal fun fmtReadPlay(token: Long) = checked { nativeFmtReadPlay(token) }
     internal fun fmtSetOpt(token: Long, key: String, value: String?) = checked { nativeFmtSetOpt(token, key, value) }
     internal fun fmtStartTime(token: Long) = checked { nativeFmtStartTime(token) }
     internal fun fmtInputName(token: Long) = checked { nativeFmtInputName(token) ?: "" }

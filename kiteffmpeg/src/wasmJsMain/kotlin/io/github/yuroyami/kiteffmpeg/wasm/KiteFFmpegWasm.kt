@@ -315,6 +315,12 @@ internal external fun ffkmp_fmt_program_stream(module: JsAny, a0: Int, a1: Int, 
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_read_frame(a0, a1)")
 internal external fun ffkmp_fmt_read_frame(module: JsAny, a0: Int, a1: Int): Int
 
+@JsFun("(m, a0) => m._ffkmp_fmt_read_pause(a0)")
+internal external fun ffkmp_fmt_read_pause(module: JsAny, a0: Int): Int
+
+@JsFun("(m, a0) => m._ffkmp_fmt_read_play(a0)")
+internal external fun ffkmp_fmt_read_play(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0, a1, a2, a3, a4, a5) => m._ffkmp_fmt_seek_file(a0, a1, a2, a3, a4, a5)")
 internal external fun ffkmp_fmt_seek_file(module: JsAny, a0: Int, a1: Int, a2: Long, a3: Long, a4: Long, a5: Int): Int
 

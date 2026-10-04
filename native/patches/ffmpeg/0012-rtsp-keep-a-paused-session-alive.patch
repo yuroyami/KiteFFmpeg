@@ -1,0 +1,69 @@
+Let a pause keep a paused RTSP session alive.
+
+An RTSP server ends a session it has not heard from within the timeout it announced, usually 60
+seconds, and a paused session is no exception. The demuxer sends its keepalive, GET_PARAMETER or
+OPTIONS, only from rtsp_read_packet after a packet arrived, and a paused client reads nothing, so a
+pause longer than the timeout lost the session and the play after it was refused. av_read_pause on
+a stream that was not playing returned at once.
+
+av_read_pause on a stream that is not playing now sends the same keepalive the read sends, by the
+same rule: GET_PARAMETER when the server offers it and OPTIONS otherwise, once half the session
+timeout has passed since the last request or the authentication went stale. It waits for the
+reply, because nobody reads the connection while paused, and a refusal is returned as the error of
+the pause. A caller keeps a paused session by pausing again every second or so. A stream that is
+playing pauses exactly as before, and the demuxer's own internal pauses are unchanged, so nothing
+changes for a caller that never pauses twice.
+
+Applied by BuildFFmpegTask before configure.
+
+diff --git a/libavformat/rtspdec.c b/libavformat/rtspdec.c
+index 4f970d4..ee47a30 100644
+--- a/libavformat/rtspdec.c
++++ b/libavformat/rtspdec.c
+@@ -594,6 +594,37 @@ static int rtsp_read_play(AVFormatContext *s)
+     return 0;
+ }
+ 
++/* A client that is not playing reads nothing, so the keepalive in
++ * rtsp_read_packet never runs, and the server ends the session once its
++ * timeout passes. A pause while not playing sends that keepalive when it is
++ * due, and waits for the reply, so nothing is left unread on the connection
++ * while nobody reads it. */
++static int rtsp_keep_session_alive(AVFormatContext *s)
++{
++    RTSPState *rt = s->priv_data;
++    RTSPMessageHeader reply1, *reply = &reply1;
++    const char *method;
++    int ret;
++
++    if ((rt->rtsp_flags & RTSP_FLAG_LISTEN) || !rt->session_id[0])
++        return 0;
++    if ((av_gettime_relative() - rt->last_cmd_time) / 1000000 < rt->timeout / 2 &&
++        !rt->auth_state.stale)
++        return 0;
++    if (rt->server_type == RTSP_SERVER_WMS ||
++        (rt->server_type != RTSP_SERVER_REAL && rt->get_parameter_supported))
++        method = "GET_PARAMETER";
++    else
++        method = "OPTIONS";
++    ret = ff_rtsp_send_cmd(s, method, rt->control_uri, NULL, reply, NULL);
++    rt->auth_state.stale = 0;
++    if (ret < 0)
++        return ret;
++    if (reply->status_code != RTSP_STATUS_OK)
++        return ff_rtsp_averror(reply->status_code, -1);
++    return 0;
++}
++
+ /* pause the stream */
+ static int rtsp_read_pause(AVFormatContext *s)
+ {
+@@ -619,6 +650,8 @@ static int rtsp_read_set_state(AVFormatContext *s,
+         case FF_INFMT_STATE_PLAY:
+             return rtsp_read_play(s);
+         case FF_INFMT_STATE_PAUSE:
++            if (((RTSPState *)s->priv_data)->state != RTSP_STATE_STREAMING)
++                return rtsp_keep_session_alive(s);
+             return rtsp_read_pause(s);
+         default:
+             return AVERROR(ENOTSUP);

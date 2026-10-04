@@ -75,6 +75,8 @@ import ffmpeg.ffkmp_fmt_nb_streams
 import ffmpeg.ffkmp_fmt_open_input
 import ffmpeg.ffkmp_fmt_interrupt
 import ffmpeg.ffkmp_fmt_read_frame
+import ffmpeg.ffkmp_fmt_read_pause
+import ffmpeg.ffkmp_fmt_read_play
 import ffmpeg.ffkmp_fmt_seek_micros
 import ffmpeg.ffkmp_fmt_start_time
 import ffmpeg.ffkmp_fmt_stream
@@ -194,6 +196,9 @@ public actual class MediaSource internal constructor(
     private var closed = false
     private var demuxing = false
     private var readerActive = false
+
+    /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
+    private var paused = false
 
     private fun beginDemux() = synchronized(stateLock) {
         check(!closed) { "MediaSource is closed" }
@@ -661,12 +666,23 @@ public actual class MediaSource internal constructor(
     }
 
     @Throws(FFmpegException::class)
-    public actual fun pause(): Boolean =
-        throw FFmpegException(FFmpegError.Unsupported(0, "pausing a source is not wired yet"))
+    public actual fun pause(): Boolean = synchronized(stateLock) {
+        check(!closed) { "MediaSource is closed" }
+        val rc = ffkmp_fmt_read_pause(ctx)
+        if (rc < 0) throw demuxFailure(rc)
+        if (rc == 1) paused = true
+        rc == 1
+    }
 
     @Throws(FFmpegException::class)
-    public actual fun resume(): Boolean =
-        throw FFmpegException(FFmpegError.Unsupported(0, "resuming a source is not wired yet"))
+    public actual fun resume(): Boolean = synchronized(stateLock) {
+        check(!closed) { "MediaSource is closed" }
+        if (!paused) return@synchronized false
+        val rc = ffkmp_fmt_read_play(ctx)
+        if (rc < 0) throw demuxFailure(rc)
+        paused = false
+        true
+    }
 
     public actual fun interrupt() {
         /* Deliberately NOT under stateLock: the whole point is reaching a context another thread

@@ -32,6 +32,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `MediaSource.pause` and `MediaSource.resume` tell a live source's server that playback paused or
+  resumed (#136), through FFmpeg's `av_read_pause` and `av_read_play` on every backend. An `rtsp://`
+  stream sends its server PAUSE and PLAY, so the camera stops sending while a viewer is paused, and
+  an `rtmp://` feed sends RTMP's pause and unpause. Every other source, a file and a
+  `MediaByteSource` included, answers false and nothing changes. A server ends a session that hears
+  nothing for its timeout, sixty seconds unless it says otherwise and a few seconds on some
+  cameras, and FFmpeg sends its keepalive only from inside a read, so a session paused for longer
+  ended and the resume met 454 Session Not Found. While paused, calling `pause` again every second
+  or so now sends that keepalive, GET_PARAMETER or OPTIONS as the server supports, once half the
+  session's timeout has passed since the last request, and nothing in between. That half is the
+  FFmpeg patch `0012-rtsp-keep-a-paused-session-alive.patch`, so it reaches a platform only with an
+  FFmpeg tree built from it, and the trees of 0.4.0 do not carry it. A `resume` reaches FFmpeg only
+  while a pause is in effect, because a PLAY on a playing RTSP stream restarts it from the last
+  seek, and a refused one throws and leaves the source paused. The C ABI is 4.1 and adds
+  `ffkmp_fmt_read_pause` and `ffkmp_fmt_read_play`.
+
 - `MediaByteSource.location` says where a source's bytes came from when that is not the address
   they were asked for, as after an HTTP redirect (#167). FFmpeg's HLS reader resolves the addresses
   inside a playlist against it, as it does after a redirect its own `http` follows, for the source

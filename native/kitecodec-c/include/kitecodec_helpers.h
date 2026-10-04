@@ -793,6 +793,23 @@ KC_API int  ffkmp_fmt_find_stream_info(kc_fmt_ctx *c);
  */
 KC_API int  ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t micros);
 
+/* Pause and play (#136). read_pause tells the server of a live input that the caller has stopped
+ * reading, through av_read_pause, and read_play tells it to play on, through av_read_play. Each
+ * answers 1 when the input has a notion of pausing and FFmpeg carried the call out, 0 when it has
+ * none, which FFmpeg answers with AVERROR(ENOSYS) and which is every input but an RTSP stream and
+ * an rtmp:// input, and a negative AVERROR when the server or the connection refused. A NULL
+ * context is refused with AVERROR(EINVAL).
+ *
+ * read_pause on an RTSP stream that is not playing sends the server FFmpeg's keepalive once half
+ * the session timeout has passed since the last request, and nothing before then, so pausing again
+ * every second or so keeps a paused session alive. That needs the FFmpeg patch
+ * 0012-rtsp-keep-a-paused-session-alive.patch; without it the call sends nothing and answers 1.
+ * read_play on an RTSP stream that is playing asks the server to play again from the last seek
+ * target, so call it only after a pause.
+ */
+KC_API int  ffkmp_fmt_read_pause(kc_fmt_ctx *ctx);
+KC_API int  ffkmp_fmt_read_play(kc_fmt_ctx *ctx);
+
 /* Ownership. On success the packet holds a new reference the caller owns. The packet must be
  * blank on entry, and must be unreferenced before it is filled again, or the reference
  * leaks. On failure the packet is left blank. A NULL context or packet is refused with

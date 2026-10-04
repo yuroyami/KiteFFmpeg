@@ -57,7 +57,36 @@ further than it needs can say so with `protocolWhitelist`, which holds every nes
 list.
 
 The tests prove the RTSP demuxer by publishing to it with the `ffmpeg` command line over UDP and
-over TCP. No camera, which is the server the demuxer dials, runs in them.
+over TCP, and they dial a small RTSP server of their own that ends a session after two silent
+seconds, as a strict camera does.
+
+### Pausing a live stream
+
+```kotlin
+camera.pause()             // the camera stops sending
+while (viewerIsPaused()) {
+    delay(1_000)
+    camera.pause()         // keeps the paused session alive
+}
+camera.resume()            // the camera plays on, from the live edge
+```
+
+`pause` asks the server to stop sending, so a paused viewer costs neither side any bandwidth, and
+`resume` asks it to play on, which for a live stream is the live edge rather than the moment of the
+pause. An `rtsp://` stream sends PAUSE and PLAY, and an `rtmp://` feed sends RTMP's pause and
+unpause. Every other source answers false and nothing changes, so a player can pause whatever it
+plays without asking what it is first.
+
+A camera ends a session that hears nothing for its timeout, which it states as the session starts,
+sixty seconds unless it says otherwise and a few seconds on some cameras. FFmpeg sends its keepalive
+only from inside a read, and a paused player does not read, so keep calling `pause` while paused:
+each call sends the keepalive once half that timeout has passed since the last request, and does
+nothing in between. A `resume` after the session ended throws, with the server's 454 Session Not
+Found, and the source stays paused; open the address again for a new session. The keepalive comes
+from an FFmpeg patch, so it reaches a platform only with an FFmpeg tree built from it.
+
+Stop reading before you pause, because a read then waits for media the server no longer sends, and
+call neither from another thread while a read or another call runs.
 
 ## Opening bytes from your own code
 

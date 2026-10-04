@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 4.0
+# abi-version 4.1
 #
-# Exact scope: 261 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 263 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 284 records.
+# records are sorted without deduplication. There must be exactly 286 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -111,6 +111,8 @@ KC_API int ffkmp_fmt_program_count(const kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_program_get(const kc_fmt_ctx *ctx, int index, int *out_id, int *out_number, int *out_stream_count);
 KC_API int ffkmp_fmt_program_stream(const kc_fmt_ctx *ctx, int index, int position);
 KC_API int ffkmp_fmt_read_frame(kc_fmt_ctx *c, kc_packet *p);
+KC_API int ffkmp_fmt_read_pause(kc_fmt_ctx *ctx);
+KC_API int ffkmp_fmt_read_play(kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_seek_file(kc_fmt_ctx *ctx, int stream_index, int64_t min_ts, int64_t ts, int64_t max_ts, int flags);
 KC_API int ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t micros);
 KC_API int ffkmp_fmt_set_metadata(kc_fmt_ctx *c, const char *key, const char *value);
