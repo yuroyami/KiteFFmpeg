@@ -5,7 +5,6 @@
 
 #include "kj_internal.h"
 
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -836,7 +835,7 @@ static int kj_nested_location(void *opaque, void *source, char *buf, int cap)
     (void)opaque;
     if (st->location == NULL) return 0;
     len = strlen(st->location);
-    if (len >= (size_t)INT_MAX) return KC_IO_ERR;
+    if (len >= (size_t)INT32_MAX) return KC_IO_ERR;
     if ((int)len < cap) memcpy(buf, st->location, len + 1);
     return (int)len;
 }
