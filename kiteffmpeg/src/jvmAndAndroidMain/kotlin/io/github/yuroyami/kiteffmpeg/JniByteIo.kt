@@ -2,7 +2,7 @@ package io.github.yuroyami.kiteffmpeg
 
 /**
  * The JNI face of one [MediaByteSource], through the custom AVIO bridge. The C side holds a
- * global ref to this object and calls [read] and [seek] BY NAME through cached jmethodIDs,
+ * global ref to this object and calls [read], [seek] and [tags] BY NAME through cached jmethodIDs,
  * from whatever thread drives the demuxer. The names and signatures are pinned in
  * native/kitecodec-jni/kj_format.c and the consumer keep rules; renaming either side alone
  * breaks the bridge at open time, loudly.
@@ -101,6 +101,20 @@ internal class JniByteIo(
     @Suppress("unused")
     fun location(): String? = try {
         io.openedLocation()
+    } catch (t: Throwable) {
+        failure = t
+        throw t
+    }
+
+    /**
+     * Called from C after every read of the input that returned bytes: the tags those bytes brought,
+     * as keys and values in turn, or null (#168). The exception from [MediaByteSource.takeTags] goes
+     * through, parked first, because C then fails the read it followed, as one from [read] does.
+     * Never called for a nested source, because FFmpeg reads no tags from one.
+     */
+    @Suppress("unused")
+    fun tags(): Array<String>? = try {
+        io.takeTags()?.ffmpegTagPairs()
     } catch (t: Throwable) {
         failure = t
         throw t

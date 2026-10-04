@@ -127,6 +127,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         m.stringToUTF8("webvtt", codecName, 9);
 
         m._ffkmp_fmt_open_input_io = (out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt) => {
+            m.__lastOpenTags = 0;
             m.__lastOpenRead = readFn;
             m.__lastOpenSeek = seekFn;
             m.__lastOpenSize = Number(size);
@@ -140,7 +141,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
             openCount++;
             return 0;
         };
-        m._ffkmp_fmt_open_input_io2 = (out, opaque, readFn, seekFn, size, url, location, mime, opener, keys, values, n, unused, interrupt) => {
+        m._ffkmp_fmt_open_input_io2 = (out, opaque, readFn, seekFn, tagsFn, size, url, location, mime, opener, keys, values, n, unused, interrupt) => {
             m.__lastOpenUrl = url === 0 ? null : m.UTF8ToString(url);
             m.__lastOpenLocation = location === 0 ? null : m.UTF8ToString(location);
             m.__lastOpenMime = mime === 0 ? null : m.UTF8ToString(mime);
@@ -174,7 +175,9 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
                     m.__nestedProbeResult = first + ' ' + untouched + ' ' + second + ' ' + text;
                 }
             }
-            return m._ffkmp_fmt_open_input_io(out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt);
+            const rc = m._ffkmp_fmt_open_input_io(out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt);
+            m.__lastOpenTags = tagsFn;
+            return rc;
         };
         m._ffkmp_fmt_find_stream_info = () => 0;
         m._ffkmp_fmt_start_time = () => 0n;
@@ -451,8 +454,8 @@ internal external fun fakeOpenReads(module: JsAny)
 
 /**
  * Makes the packet reader fake's demuxer read 16 bytes through the last open's read callback before
- * each packet, and seek through its seek callback, failing either with AVERROR(EIO) when the
- * callback fails, as FFmpeg's input bridge does.
+ * each packet, asking its tags callback after a read that brought bytes, and seek through its seek
+ * callback, failing with AVERROR(EIO) when a callback fails, as FFmpeg's input bridge does.
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
@@ -461,7 +464,9 @@ internal external fun fakeOpenReads(module: JsAny)
         const read = m._ffkmp_fmt_read_frame;
         m._ffkmp_fmt_read_frame = (ctx, packet) => {
             const scratch = m._malloc(16);
-            if (m.__table[m.__lastOpenRead](0, scratch, 16) < -1) return EIO;
+            const got = m.__table[m.__lastOpenRead](0, scratch, 16);
+            if (got < -1) return EIO;
+            if (got > 0 && m.__lastOpenTags && m.__table[m.__lastOpenTags](0, m.__tagsHandle || 0x900) < 0) return EIO;
             return read(ctx, packet);
         };
         m._ffkmp_avseek_flag_backward = () => 1;
@@ -473,6 +478,64 @@ internal external fun fakeOpenReads(module: JsAny)
     }""",
 )
 internal external fun fakeDemuxThroughSource(module: JsAny)
+
+/**
+ * Makes [module] keep the tags handed through `ffkmp_io_tag` as `key=value` strings in the order
+ * they came, and refuse what the C side refuses: a handle that is not the one the tags callback was
+ * given, a missing value, and a missing or empty key. A test can also name one key to refuse as an
+ * allocation failure would.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m) => {
+        m.__tagsHandle = 0x900;
+        m.__tagged = [];
+        m.__refusedKey = null;
+        m._ffkmp_io_tag = (tags, k, v) => {
+            if (tags !== m.__tagsHandle || k === 0 || v === 0) return -22;
+            const key = m.UTF8ToString(k);
+            if (key === '') return -22;
+            if (key === m.__refusedKey) return -12;
+            m.__tagged.push(key + '=' + m.UTF8ToString(v));
+            return 0;
+        };
+    }""",
+)
+internal external fun fakeIoTags(module: JsAny)
+
+/** Makes [module]'s `ffkmp_io_tag` refuse [key] as an allocation failure would. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, key) => { m.__refusedKey = key; }")
+internal external fun fakeRefuseTag(module: JsAny, key: String)
+
+/**
+ * Reads the last open's input as FFmpeg's input bridge does, [length] bytes at a time up to [count]
+ * reads, asking the tags callback after each read that brought bytes, and describes each read: its
+ * byte count and the tags it handed over, `EIO` where the tags callback failed, which ends the run,
+ * and `-1` at the end of the input.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    """(m, length, count) => {
+        const out = [];
+        const scratch = m._malloc(length);
+        for (let i = 0; i < count; i++) {
+            const got = m.__table[m.__lastOpenRead](0, scratch, length);
+            if (got <= 0) { out.push(String(got)); break; }
+            m.__tagged = [];
+            const failed = m.__lastOpenTags !== 0 && m.__table[m.__lastOpenTags](0, m.__tagsHandle) < 0;
+            out.push([String(got)].concat(m.__tagged, failed ? ['EIO'] : []).join(' '));
+            if (failed) break;
+        }
+        return out.join(' | ');
+    }""",
+)
+internal external fun fakeBridgeReads(module: JsAny, length: Int, count: Int): String
+
+/** The tags callback the last open was handed, as a table index; 0 when it was handed none. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__lastOpenTags")
+internal external fun fakeLastOpenTags(module: JsAny): Int
 
 /** The read callback the last open was handed, as a table index. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

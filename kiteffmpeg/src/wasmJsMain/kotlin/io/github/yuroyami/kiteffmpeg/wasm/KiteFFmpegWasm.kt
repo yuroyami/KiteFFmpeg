@@ -300,8 +300,8 @@ internal external fun ffkmp_fmt_open_input(module: JsAny, a0: Int, a1: Int): Int
 @JsFun("(m, a0, a1, a2, a3, a4, a5, a6) => m._ffkmp_fmt_open_input2(a0, a1, a2, a3, a4, a5, a6)")
 internal external fun ffkmp_fmt_open_input2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int): Int
 
-@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) => m._ffkmp_fmt_open_input_io2(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)")
-internal external fun ffkmp_fmt_open_input_io2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Long, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int, a13: Int): Int
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) => m._ffkmp_fmt_open_input_io2(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)")
+internal external fun ffkmp_fmt_open_input_io2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Long, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int, a13: Int, a14: Int): Int
 
 @JsFun("(m, a0) => m._ffkmp_fmt_program_count(a0)")
 internal external fun ffkmp_fmt_program_count(module: JsAny, a0: Int): Int
@@ -452,6 +452,9 @@ internal external fun ffkmp_graph_send(module: JsAny, a0: Int, a1: Int): Int
 
 @JsFun("(m, a0, a1, a2, a3) => m._ffkmp_image_get_buffer_size(a0, a1, a2, a3)")
 internal external fun ffkmp_image_get_buffer_size(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int): Int
+
+@JsFun("(m, a0, a1, a2) => m._ffkmp_io_tag(a0, a1, a2)")
+internal external fun ffkmp_io_tag(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
 @JsFun("(m) => m._ffkmp_media_type_attachment()")
 internal external fun ffkmp_media_type_attachment(module: JsAny): Int

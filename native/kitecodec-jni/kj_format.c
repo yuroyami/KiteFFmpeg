@@ -656,6 +656,7 @@ typedef struct kj_io_state {
     jobject   buffer;  /* global ref: the reusable jbyteArray */
     jmethodID read;    /* ([BI)I */
     jmethodID seek;    /* (JI)J */
+    jmethodID tags;    /* ()[Ljava/lang/String; on the input, NULL on a nested source */
     kj_opener_state *opener; /* the nested opener of a top-level open, or NULL */
     char     *location; /* a nested source's MediaByteSource.location, read as it opened, or NULL */
 } kj_io_state;
@@ -726,6 +727,49 @@ static int64_t kj_io_seek_cb(void *opaque, int64_t offset, int whence)
     int attached;
     JNIEnv *env = kj_io_env(st->vm, &attached);
     int64_t result = env != NULL ? kj_io_seek_with(env, st, offset, whence) : KC_IO_ERR;
+    kj_io_release(st->vm, attached);
+    return result;
+}
+
+/* The tags callback's work, on a thread that has a JNIEnv: the tags the input's last read brought,
+ * which JniByteIo.tags answers as keys and values in turn, already cut at any NUL and with every
+ * surrogate paired, so a conversion fails only for want of memory (#168). An exception from it,
+ * and a failed conversion, fail the read it followed. */
+static int kj_io_tags_with(JNIEnv *env, kj_io_state *st, kc_io_tags *tags)
+{
+    jobjectArray pairs;
+    jsize n, i;
+    int rc = 0;
+    pairs = (jobjectArray)(*env)->CallObjectMethod(env, st->cb, st->tags);
+    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return KC_IO_ERR; }
+    if (pairs == NULL) return 0;
+    n = (*env)->GetArrayLength(env, pairs);
+    for (i = 0; i + 1 < n && rc == 0; i += 2) {
+        /* One conversion at a time: a refused string throws, and no JNI call may follow it. */
+        jstring jk = (jstring)(*env)->GetObjectArrayElement(env, pairs, i);
+        jstring jv;
+        char *k = kj_string_dup(env, jk), *v = NULL;
+        if (jk != NULL) (*env)->DeleteLocalRef(env, jk);
+        if (k != NULL) {
+            jv = (jstring)(*env)->GetObjectArrayElement(env, pairs, i + 1);
+            v = kj_string_dup(env, jv);
+            if (jv != NULL) (*env)->DeleteLocalRef(env, jv);
+        }
+        if (k == NULL || v == NULL || ffkmp_io_tag(tags, k, v) < 0) rc = KC_IO_ERR;
+        free(k);
+        free(v);
+    }
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, pairs);
+    return rc;
+}
+
+static int kj_io_tags(void *opaque, kc_io_tags *tags)
+{
+    kj_io_state *st = (kj_io_state *)opaque;
+    int attached;
+    JNIEnv *env = kj_io_env(st->vm, &attached);
+    int result = env != NULL ? kj_io_tags_with(env, st, tags) : KC_IO_ERR;
     kj_io_release(st->vm, attached);
     return result;
 }
@@ -971,7 +1015,8 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
     st->read = (*env)->GetMethodID(env, cb_class, "read", "([BI)I");
     /* A failed lookup leaves NoSuchMethodError pending, and no JNI call may follow it. */
     st->seek = st->read != NULL ? (*env)->GetMethodID(env, cb_class, "seek", "(JI)J") : NULL;
-    if (st->read == NULL || st->seek == NULL) {
+    st->tags = st->seek != NULL ? (*env)->GetMethodID(env, cb_class, "tags", "()[Ljava/lang/String;") : NULL;
+    if (st->read == NULL || st->seek == NULL || st->tags == NULL) {
         (*env)->DeleteLocalRef(env, cb_class);
         if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
         free(st);
@@ -1030,7 +1075,7 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
     nested.location_fn = kj_nested_location;
 
     rc = ffkmp_fmt_open_input_io2(&ctx, st, kj_io_read,
-                                  seekable == JNI_TRUE ? kj_io_seek_cb : NULL,
+                                  seekable == JNI_TRUE ? kj_io_seek_cb : NULL, kj_io_tags,
                                   (int64_t)size, curl, clocation, cmime,
                                   st->opener != NULL ? &nested : NULL,
                                   (const char *const *)ckeys, (const char *const *)cvalues,

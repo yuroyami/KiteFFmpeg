@@ -54,6 +54,9 @@ public interface MediaByteSource : AutoCloseable {
      * It is asked after every read that returned bytes, on the same thread, and only of the source
      * given to [MediaSource.open]. A source a [MediaByteOpener] returns is never asked, because
      * FFmpeg reads no tags from one: the HLS reader reads each segment through an input of its own.
+     * On a page's main thread, where the web backend reads a source whole during the open, it is
+     * asked after each of those reads, and each answer reaches FFmpeg when FFmpeg reads the byte it
+     * belongs at, every time FFmpeg reads that byte.
      *
      * The tags belong at the first byte of the read that reported them, and FFmpeg merges them into
      * the container's tags, exactly as it does with the titles its own `http` reads from a station.
@@ -85,6 +88,59 @@ internal fun MediaByteSource.openedLocation(): String? {
     val location = location?.takeIf { it.isNotEmpty() } ?: return null
     require('\u0000' !in location) { "a byte source's location cannot hold a NUL character" }
     return location
+}
+
+/**
+ * The tags a [MediaByteSource.takeTags] answer hands FFmpeg, as keys and values in turn, or null
+ * when none is left. Each key and value ends at its first NUL character, as the C string it crosses
+ * as would, and a pair whose key is then empty is left out. An unpaired surrogate becomes U+FFFD, so
+ * every backend hands FFmpeg the same UTF-8 rather than each encoder's own repair, or a refusal.
+ */
+internal fun Map<String, String>.ffmpegTagPairs(): Array<String>? {
+    if (isEmpty()) return null
+    val pairs = ArrayList<String>(size * 2)
+    for ((key, value) in this) {
+        val cutKey = key.forCString()
+        if (cutKey.isEmpty()) continue
+        pairs += cutKey
+        pairs += value.forCString()
+    }
+    return if (pairs.isEmpty()) null else pairs.toTypedArray()
+}
+
+private fun String.forCString(): String {
+    val end = indexOf('\u0000').let { if (it < 0) length else it }
+    var clean = true
+    var i = 0
+    while (i < end) {
+        val c = this[i]
+        if (c.isHighSurrogate() && i + 1 < end && this[i + 1].isLowSurrogate()) {
+            i += 2
+            continue
+        }
+        if (c.isSurrogate()) {
+            clean = false
+            break
+        }
+        i++
+    }
+    if (clean) return if (end == length) this else substring(0, end)
+    val out = StringBuilder(end)
+    i = 0
+    while (i < end) {
+        val c = this[i]
+        when {
+            c.isHighSurrogate() && i + 1 < end && this[i + 1].isLowSurrogate() -> {
+                out.append(c).append(this[i + 1])
+                i += 2
+                continue
+            }
+            c.isSurrogate() -> out.append('�')
+            else -> out.append(c)
+        }
+        i++
+    }
+    return out.toString()
 }
 
 /** What a bridge records when [MediaByteSource.read] answered with more bytes than it was asked for. */

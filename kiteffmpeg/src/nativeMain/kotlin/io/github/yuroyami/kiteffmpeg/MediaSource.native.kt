@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import cnames.structs.kc_interrupt
+import cnames.structs.kc_io_tags
 import cnames.structs.kc_subtitle_converter
 import ffmpeg.ffkmp_subtitle_converter_open
 import ffmpeg.ffkmp_subtitle_decoder_open
@@ -51,6 +52,7 @@ import ffmpeg.ffkmp_fmt_close_input
 import ffmpeg.ffkmp_fmt_close_input_io
 import ffmpeg.ffkmp_fmt_nested_io_available
 import ffmpeg.ffkmp_fmt_open_input_io2
+import ffmpeg.ffkmp_io_tag
 import ffmpeg.ffkmp_fmt_duration
 import ffmpeg.ffkmp_fmt_duration_origin
 import ffmpeg.ffkmp_fmt_find_stream_info
@@ -1040,6 +1042,28 @@ private val byteSourceRead = staticCFunction { opaque: COpaquePointer?, buf: CPo
     }
 }
 
+/**
+ * Asked after every read of the input that returned bytes: hands FFmpeg the tags those bytes brought
+ * (#168). An exception from [MediaByteSource.takeTags], parked for the error it causes, and a tag
+ * FFmpeg refuses fail the read it followed. Never asked for a nested source, because FFmpeg reads
+ * no tags from one.
+ */
+private val byteSourceTags = staticCFunction { opaque: COpaquePointer?, tags: CPointer<kc_io_tags>? ->
+    val state = opaque!!.asStableRef<ByteSourceState>().get()
+    try {
+        val pairs = state.io.takeTags()?.ffmpegTagPairs() ?: return@staticCFunction 0
+        var index = 0
+        while (index + 1 < pairs.size) {
+            if (ffkmp_io_tag(tags, pairs[index], pairs[index + 1]) < 0) return@staticCFunction -2
+            index += 2
+        }
+        0
+    } catch (failure: Throwable) {
+        state.failure = failure
+        -2
+    }
+}
+
 private val byteSourceSeek = staticCFunction { opaque: COpaquePointer?, offset: Long, whence: Int ->
     val state = opaque!!.asStableRef<ByteSourceState>().get()
     try {
@@ -1172,6 +1196,7 @@ internal fun openMediaSourceIo(
                 stableRef.asCPointer(),
                 byteSourceRead,
                 if (canSeek) byteSourceSeek else null,
+                byteSourceTags,
                 total,
                 url,
                 location,

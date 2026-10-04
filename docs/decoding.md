@@ -291,6 +291,49 @@ The open of a seekable MPEG-TS file reads its end to measure the duration, which
 stream's last tag, so that stream's `StreamInfo.metadata` can already hold the last one. Reading then
 starts again from the beginning, and every timed ID3 packet brings its own set as it comes.
 
+### A station read through your own HTTP client
+
+FFmpeg's own `http` asks a station for its titles and takes them out of the audio, but a station you
+read through your own client reaches FFmpeg as bytes alone. Ask for the titles with the header
+`Icy-MetaData: 1`, read the interval between title blocks from the `icy-metaint` response header,
+take each block out of the bytes before `read` hands them over, and hand the title over from
+`takeTags`, which is asked after every read that brought bytes:
+
+```kotlin
+override fun read(into: ByteArray, offset: Int, length: Int): Int {
+    if (untilBlock == 0) {
+        // One length byte times 16, then text such as StreamTitle='Artist - Song';
+        streamTitle(readBlock())?.takeIf { it != lastTitle }?.let { title ->
+            lastTitle = title
+            pending = mapOf("title" to title)
+        }
+        untilBlock = metaInterval
+    }
+    val n = body.read(into, offset, minOf(length, untilBlock))
+    if (n > 0) untilBlock -= n
+    return n
+}
+
+override fun takeTags(): Map<String, String>? = pending.also { pending = null }
+```
+
+The tags belong at the first byte of the read that reported them, so stopping each read at the
+next block, as above and as FFmpeg's `http` does, puts the title on the first packet of the song
+after it, as `newContainerTags`, and in `source.metadata` from then on. A source that reads past
+the block puts the title early by what it read past. Keys go through as you give them: report
+`title` for a title to read as one, or `StreamTitle` to read as FFmpeg's `http` reports it. Report
+each change once. Tags reported during the open's own reads are in `source.metadata` when the open
+returns, and an exception thrown from `takeTags` fails the read it followed, with that exception as
+the cause.
+
+Only the source handed to `open` is asked. FFmpeg reads no tags from a source a nested opener
+returns, because the HLS reader reads each segment through an input of its own.
+
+On the web a station streams in a Web Worker, where the source is read on demand and asked as it is
+read. On a page's main thread a source is read whole during the open, which needs a size a station
+does not have; a source of known size there is asked after each read of that drain, and each answer
+reaches FFmpeg when it reads the byte the answer belongs at, again every time it reads that byte.
+
 ### Programmes
 
 A transport stream from a DVB tuner or an IPTV multiplex can carry several channels at once, each with its own picture, sound and subtitles, and the flat stream list cannot say which sound belongs to which picture. `source.programs` says it, as the container's programme tables state it:

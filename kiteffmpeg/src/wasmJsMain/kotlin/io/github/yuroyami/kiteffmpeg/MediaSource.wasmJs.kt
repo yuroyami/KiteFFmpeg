@@ -743,7 +743,7 @@ public actual class MediaSource internal constructor(
                 throw failure
             }
             val rc = try {
-                if (url == null && location == null && mimeType == null && nested == null) {
+                if (url == null && location == null && mimeType == null && nested == null && bridge.tagsPointer == 0) {
                     openInputIo(
                         m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
                         opts.keys, opts.values, options.size, unusedSlot,
@@ -761,8 +761,8 @@ public actual class MediaSource internal constructor(
                         mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
                         openerPointer = nested?.writeStruct() ?: 0
                         openInputIo2(
-                            m, slot, bridge.readPointer, bridge.seekPointer, bridge.size, urlPointer,
-                            locationPointer, mimePointer, openerPointer, opts.keys, opts.values,
+                            m, slot, bridge.readPointer, bridge.seekPointer, bridge.tagsPointer, bridge.size,
+                            urlPointer, locationPointer, mimePointer, openerPointer, opts.keys, opts.values,
                             options.size, unusedSlot,
                         )
                     } finally {
@@ -980,19 +980,20 @@ private external fun openInputIo(
 ): Int
 
 /**
- * The byte-source open with a url, the source's location, a MIME type for the probe, and a nested
- * opener or 0.
+ * The byte-source open with a tags callback or 0, a url, the source's location, a MIME type for the
+ * probe, and a nested opener or 0.
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
-    "(m, out, readFn, seekFn, size, url, location, mime, opener, keys, values, n, unused) => " +
-        "m._ffkmp_fmt_open_input_io2(out, 0, readFn, seekFn, BigInt(size), url, location, mime, opener, keys, values, n, unused, 0)",
+    "(m, out, readFn, seekFn, tagsFn, size, url, location, mime, opener, keys, values, n, unused) => " +
+        "m._ffkmp_fmt_open_input_io2(out, 0, readFn, seekFn, tagsFn, BigInt(size), url, location, mime, opener, keys, values, n, unused, 0)",
 )
 private external fun openInputIo2(
     module: kotlin.js.JsAny,
     out: Int,
     readFn: Int,
     seekFn: Int,
+    tagsFn: Int,
     size: Long,
     url: Int,
     location: Int,

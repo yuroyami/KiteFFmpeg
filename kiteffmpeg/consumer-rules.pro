@@ -28,6 +28,7 @@
     long size();
     boolean seekable();
     java.lang.String location();
+    java.lang.String[] tags();
 }
 
 # The nested opener: kj_format.c resolves these two on the opener's class, and size, seekable and

@@ -25,12 +25,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `MediaSource.primaryAudio` of a source with programmes is now the sound of `primaryVideo`'s own
   programme (#165), so it can name another stream than before, and it is null when that
   programme has no sound and no stream sits outside every programme.
-- The C ABI is 4.0 (#167). `ffkmp_fmt_open_input_io2` takes the input's `location` after its `url`,
-  and `kc_io_opener` gains `location_fn` after `close_fn`, so C code that calls the helper layer
-  itself, or fills a `kc_io_opener`, has to be built again against the new header. The Kotlin API
-  does not change with it.
+- The C ABI is 5.0 (#167, #168). `ffkmp_fmt_open_input_io2` takes a `tags_fn` after its `seek_fn`
+  and the input's `location` after its `url`, and `kc_io_opener` gains `location_fn` after
+  `close_fn`, so C code that calls the helper layer itself, or fills a `kc_io_opener`, has to be
+  built again against the new header. The Kotlin API changes only by what the entries below add.
 
 ### Added
+
+- A `MediaByteSource` hands FFmpeg the tags its bytes bring, through `takeTags` (#168). A player
+  that reads an internet radio station through its own HTTP client takes the title blocks out of
+  the audio, as FFmpeg's own `http` does, and hands each new title over. `takeTags` is asked after
+  every read that brought bytes, only of the source given to `MediaSource.open`, and null, the
+  default, hands over nothing. The tags belong at the first byte of that read and merge into the
+  container's tags, so they reach a caller as `Packet.newContainerTags` on the first packet FFmpeg
+  read past that byte and in `MediaSource.metadata` from then on, and the tags the open's own reads
+  brought are in `metadata` when the open returns. A key or a value ends at its first NUL, a pair
+  with an empty key is left out, an unpaired surrogate becomes U+FFFD, and an exception thrown from
+  `takeTags` fails the read it followed with that exception as the cause. On the web a source read
+  on demand is asked as it is read, and a staged one as it drains, with each answer reaching FFmpeg
+  when it reads the byte the answer belongs at. The C ABI is 5.0 and adds `ffkmp_io_tag`.
 
 - Tags that change during playback reach a caller (#135). `Packet.newContainerTags` and
   `Packet.newStreamTags` are each the whole new tag set, on the first packet a read hands out after

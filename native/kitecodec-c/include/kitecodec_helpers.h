@@ -665,8 +665,28 @@ typedef struct kc_io_opener {
     int  (*location_fn)(void *opaque, void *source, char *buf, int cap);
 } kc_io_opener;
 
-/* Ownership as ffkmp_fmt_open_input_io, whose paired close this shares. Four additions, each of
+/* Tags a caller's bytes brought, such as the song an internet radio station names in a title block
+ * between its audio bytes (#168). A tags_fn is asked after every read_fn call that returned bytes,
+ * with the same opaque, before FFmpeg reads any of them. It hands each tag those bytes brought to
+ * ffkmp_io_tag with the tags it was given, and returns 0, or a negative value to fail that read
+ * (AVERROR(EIO)). The tags belong at the first byte of that read: FFmpeg's demuxer reads them as the
+ * input's "metadata" option after the next packet, merges them into the context's tags and raises
+ * AVFMT_EVENT_FLAG_METADATA_UPDATED, exactly as it does with the titles its own http reads, so a
+ * caller that stops each read at the byte where its next tags belong places them there. Tags that
+ * the header's reads brought are already in the context's tags when the open returns. */
+typedef struct kc_io_tags kc_io_tags;
+typedef int (*kc_io_tags_fn)(void *opaque, kc_io_tags *tags);
+
+/* Adds one tag to those the current read brought; a later one with the same key replaces it. Valid
+ * only inside a tags_fn, with the tags it was given. 0, or AVERROR(EINVAL) for NULL tags, a NULL or
+ * empty key or a NULL value, or AVERROR(ENOMEM). */
+KC_API int  ffkmp_io_tag(kc_io_tags *tags, const char *key, const char *value);
+
+/* Ownership as ffkmp_fmt_open_input_io, whose paired close this shares. Five additions, each of
  * which may be NULL:
+ *
+ * tags_fn hands FFmpeg the tags the bytes brought, as kc_io_tags_fn describes. Only the input asks
+ * it: FFmpeg reads no tags from a nested source.
  *
  * url names the bytes. The probe matches it as it matches a file name, and relative URLs inside
  * the media resolve against it. It is never opened to read the input itself.
@@ -690,6 +710,7 @@ typedef struct kc_io_opener {
  */
 KC_API int  ffkmp_fmt_open_input_io2(kc_fmt_ctx **out,
                                      void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
+                                     kc_io_tags_fn tags_fn,
                                      int64_t size, const char *url, const char *location,
                                      const char *mime_type, const kc_io_opener *opener,
                                      const char *const *keys, const char *const *values,

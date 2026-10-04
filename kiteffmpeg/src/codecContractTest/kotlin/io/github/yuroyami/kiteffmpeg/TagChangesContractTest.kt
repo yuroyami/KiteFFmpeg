@@ -9,6 +9,7 @@ import kotlin.math.sin
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -21,6 +22,9 @@ import kotlin.test.assertTrue
  * tags, and a timed ID3 packet of an MPEG-TS data stream merges into that stream's. The library
  * writes the Ogg and the AAC itself, and the ADTS framing, the ID3 tags and the transport stream
  * are built here byte by byte, so the suite needs no command-line tool and runs on a device too.
+ *
+ * A byte source hands FFmpeg tags of its own the same way (#168), as a station's title would come
+ * through a caller's own HTTP client.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 class TagChangesContractTest {
@@ -97,6 +101,71 @@ class TagChangesContractTest {
             runBlocking { source.decodedFrames(audio).collect { it.close() } }
             assertEquals("Now playing", source.metadata["title"], "a decode flow's reads update the tags too")
             assertEquals("Radio", source.metadata["artist"])
+        }
+    }
+
+    @Test
+    fun aByteSourcesTagsRideThePacketThatHoldsTheirFirstByte() {
+        // Long enough that the open, whose probe reads about five seconds in reads of up to 64 KiB,
+        // stays well before the second song.
+        val frames = aacFrames(seconds = 40)
+        val cut = frames.size * 3 / 4
+        val songByte = frames.subList(0, cut).sumOf { it.size }
+        val stream = frames.joined()
+
+        val station = RadioSource(stream, songByte) {
+            mapOf(
+                "title" to "Second song\u0000and what a C string would never see",
+                "" to "a pair with no key",
+                "\u0000hidden" to "a key that is empty once cut",
+                "comment" to "a lone \uD800 surrogate",
+            )
+        }
+        MediaSource.open(station).use { source ->
+            assertEquals("Test radio", source.metadata["icy-name"], "the first read's tags are the open's")
+            assertNull(source.metadata["title"])
+            val packets = readAll(source)
+
+            val changed = packets.withIndex().filter { it.value.container != null }
+            assertEquals(1, changed.size, "the container's tags changed once:\n$packets")
+            val (index, change) = changed.single()
+            assertEquals(cut, index, "the change rode the packet that holds the song's first byte")
+            assertEquals(
+                mapOf("icy-name" to "Test radio", "title" to "Second song", "comment" to "a lone \uFFFD surrogate"),
+                change.container,
+                "the tags merged into what the open read, cut at a NUL, without an empty key, and repaired",
+            )
+            assertEquals(change.container, source.metadata)
+            assertEquals(change.container, change.copiedContainer, "a copy carries the change")
+            assertTrue(packets.none { it.stream != null })
+        }
+
+        MediaSource.open(BytesSource(stream, seekable = false)).use { source ->
+            assertTrue(readAll(source).none { it.container != null }, "a source that reports no tags hands out none")
+            assertNull(source.metadata["icy-name"])
+        }
+    }
+
+    @Test
+    fun aByteSourceWhoseTagsThrowFailsTheReadItFollowed() {
+        val frames = aacFrames(seconds = 40)
+        val cut = frames.size * 3 / 4
+        val songByte = frames.subList(0, cut).sumOf { it.size }
+        val refusal = IllegalStateException("the station's title block was malformed")
+
+        MediaSource.open(RadioSource(frames.joined(), songByte) { throw refusal }).use { source ->
+            var read = 0
+            val failure = assertFailsWith<FFmpegException> {
+                source.openPacketReader(source.streams).use { reader ->
+                    while (true) {
+                        val packet = reader.read() ?: break
+                        packet.close()
+                        read++
+                    }
+                }
+            }
+            assertEquals(cut, read, "every packet before the song's first byte was read")
+            assertEquals(refusal, failure.cause, "the source's own exception explains the failed read")
         }
     }
 
@@ -250,6 +319,42 @@ class TagChangesContractTest {
             bytes[2 * i + 1] = (value shr 8).toByte()
         }
         return bytes
+    }
+
+    /**
+     * A station with no size and no seek. It names itself with its first bytes and reports
+     * [atSong]'s tags with the second song's first byte, [songByte], stopping a read there as
+     * FFmpeg's `http` stops at a title block.
+     */
+    private class RadioSource(
+        private val bytes: ByteArray,
+        private val songByte: Int,
+        private val atSong: () -> Map<String, String>?,
+    ) : MediaByteSource {
+        private var position = 0
+        private var readStart = -1
+        override val size: Long? get() = null
+        override val seekable: Boolean get() = false
+
+        override fun read(into: ByteArray, offset: Int, length: Int): Int {
+            if (position >= bytes.size) return -1
+            val end = if (position < songByte) songByte else bytes.size
+            val count = minOf(length, end - position)
+            bytes.copyInto(into, offset, position, position + count)
+            readStart = position
+            position += count
+            return count
+        }
+
+        override fun seek(position: Long): Unit = error("a station cannot seek")
+
+        override fun takeTags(): Map<String, String>? = when (readStart) {
+            0 -> mapOf("icy-name" to "Test radio")
+            songByte -> atSong()
+            else -> null
+        }
+
+        override fun close() {}
     }
 
     private class BytesSource(private val bytes: ByteArray, override val seekable: Boolean = true) : MediaByteSource {

@@ -835,16 +835,35 @@ typedef struct kc_io_bridge {
     int         (*default_io_close2)(AVFormatContext *s, AVIOContext *pb);
     /* Every nested source still open, so the close can release what FFmpeg left behind. */
     kc_io_nested *nested;
+    /* The caller's tags_fn, or NULL, asked after every read that returned bytes (#168). */
+    kc_io_tags_fn tags_fn;
+    /* The tags the caller's reads brought that FFmpeg has not taken yet. The demuxer reads them as
+       the input's "metadata" option after every packet, merges them into the context's tags and
+       clears them, as it does with the titles FFmpeg's own http reads from a station. */
+    AVDictionary *metadata;
 } kc_io_bridge;
 
 /* The probe asks the input's AVIOContext for "mime_type" through AV_OPT_SEARCH_CHILDREN, and only
    when that context has a class. A custom AVIOContext has none, so a caller's MIME type never
    reached the probe. With a MIME type, the context gets kc_io_context_class, whose one child is
    the bridge, whose class answers mime_type. */
+#define KC_IO_MIME_TYPE_OPTION \
+    { .name = "mime_type", .help = "the MIME type the caller's bytes arrived with", \
+      .offset = offsetof(kc_io_bridge, mime_type), .type = AV_OPT_TYPE_STRING, \
+      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY }
+#define KC_IO_LOCATION_OPTION \
+    { .name = "location", .help = "where the caller's bytes came from, after any redirect", \
+      .offset = offsetof(kc_io_bridge, location), .type = AV_OPT_TYPE_STRING, \
+      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY }
+/* Not read-only, because the demuxer clears it once it has taken the tags, and flagged exactly as
+   the metadata option of FFmpeg's http is. */
+#define KC_IO_METADATA_OPTION \
+    { .name = "metadata", .help = "the tags the caller's bytes brought", \
+      .offset = offsetof(kc_io_bridge, metadata), .type = AV_OPT_TYPE_DICT, \
+      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_EXPORT }
+
 static const AVOption kc_io_bridge_options[] = {
-    { .name = "mime_type", .help = "the MIME type the caller's bytes arrived with",
-      .offset = offsetof(kc_io_bridge, mime_type), .type = AV_OPT_TYPE_STRING,
-      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY },
+    KC_IO_MIME_TYPE_OPTION,
     { .name = NULL },
 };
 
@@ -863,12 +882,8 @@ static const AVClass kc_io_bridge_class = {
    string too, which the probe matches against no format, as it does for an http input without a
    Content-Type. */
 static const AVOption kc_io_bridge_located_options[] = {
-    { .name = "mime_type", .help = "the MIME type the caller's bytes arrived with",
-      .offset = offsetof(kc_io_bridge, mime_type), .type = AV_OPT_TYPE_STRING,
-      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY },
-    { .name = "location", .help = "where the caller's bytes came from, after any redirect",
-      .offset = offsetof(kc_io_bridge, location), .type = AV_OPT_TYPE_STRING,
-      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY },
+    KC_IO_MIME_TYPE_OPTION,
+    KC_IO_LOCATION_OPTION,
     { .name = NULL },
 };
 
@@ -876,6 +891,37 @@ static const AVClass kc_io_bridge_located_class = {
     .class_name = "kc_io_bridge",
     .item_name  = av_default_item_name,
     .option     = kc_io_bridge_located_options,
+    .version    = LIBAVUTIL_VERSION_INT,
+};
+
+/* The demuxer asks the input for "metadata" after every packet, and the first time the option is
+   missing it stops asking for the rest of the session (metafree in read_frame_internal). So a bridge
+   with a tags_fn answers it from the open on, through one of these two classes, even while it holds
+   nothing, and a bridge without one never answers it, which costs FFmpeg nothing per packet. */
+static const AVOption kc_io_bridge_tagged_options[] = {
+    KC_IO_MIME_TYPE_OPTION,
+    KC_IO_METADATA_OPTION,
+    { .name = NULL },
+};
+
+static const AVClass kc_io_bridge_tagged_class = {
+    .class_name = "kc_io_bridge",
+    .item_name  = av_default_item_name,
+    .option     = kc_io_bridge_tagged_options,
+    .version    = LIBAVUTIL_VERSION_INT,
+};
+
+static const AVOption kc_io_bridge_located_tagged_options[] = {
+    KC_IO_MIME_TYPE_OPTION,
+    KC_IO_LOCATION_OPTION,
+    KC_IO_METADATA_OPTION,
+    { .name = NULL },
+};
+
+static const AVClass kc_io_bridge_located_tagged_class = {
+    .class_name = "kc_io_bridge",
+    .item_name  = av_default_item_name,
+    .option     = kc_io_bridge_located_tagged_options,
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
@@ -919,7 +965,18 @@ static int64_t kc_io_seek_through(kc_io_seek_fn seek_fn, void *source, const int
 
 static int kc_io_read_packet(void *opaque, uint8_t *buf, int len) {
     kc_io_bridge *b = (kc_io_bridge *)opaque;
-    return kc_io_read_through(b->read_fn, b->opaque, b->cell, buf, len);
+    int r = kc_io_read_through(b->read_fn, b->opaque, b->cell, buf, len);
+    /* The tags these bytes brought belong at their first byte, so they are asked for before the
+       demuxer reads any of them, and a tags_fn that fails fails the read (#168). */
+    if (r > 0 && b->tags_fn && b->tags_fn(b->opaque, (kc_io_tags *)b) < 0) return AVERROR(EIO);
+    return r;
+}
+
+KC_API int ffkmp_io_tag(kc_io_tags *tags, const char *key, const char *value) {
+    kc_io_bridge *b = (kc_io_bridge *)tags;
+    if (!b || b->magic != KC_IO_BRIDGE_MAGIC || !b->tags_fn) return AVERROR(EINVAL);
+    if (!key || !*key || !value) return AVERROR(EINVAL);
+    return av_dict_set(&b->metadata, key, value, 0);
 }
 
 static int64_t kc_io_seek(void *opaque, int64_t offset, int whence) {
@@ -1195,6 +1252,7 @@ static void kc_io_bridge_free(kc_io_bridge *bridge) {
     }
     av_freep(&bridge->mime_type);
     av_freep(&bridge->location);
+    av_dict_free(&bridge->metadata);
     av_free(bridge);
 }
 
@@ -1216,6 +1274,7 @@ KC_API int ffkmp_fmt_nested_io_available(void) {
 
 KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
                                     void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
+                                    kc_io_tags_fn tags_fn,
                                     int64_t size, const char *url, const char *location,
                                     const char *mime_type, const kc_io_opener *opener,
                                     const char *const *keys, const char *const *values,
@@ -1239,6 +1298,7 @@ KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
     bridge->opaque = opaque;
     bridge->read_fn = read_fn;
     bridge->seek_fn = seek_fn;
+    bridge->tags_fn = tags_fn;
     bridge->size = size;
     bridge->cell = interrupt ? &interrupt->raised : &bridge->interrupted;
     if (opener) bridge->opener = *opener;
@@ -1252,6 +1312,9 @@ KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
         if (!bridge->location) { kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
         bridge->av_class = &kc_io_bridge_located_class;
     }
+    if (tags_fn)
+        bridge->av_class = bridge->location ? &kc_io_bridge_located_tagged_class
+                                            : &kc_io_bridge_tagged_class;
 
     unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
     if (!buffer) { kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
@@ -1299,6 +1362,18 @@ KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
         kc_io_input_free(pb);
         return rc;
     }
+    /* The demuxer takes the caller's tags only after a packet, so the tags the header's reads
+       brought join the context's here, and a source whose first tags came with its first bytes has
+       them in the open's tags whether or not the probe reads a packet (#168). */
+    if (bridge->metadata) {
+        rc = av_dict_copy(&c->metadata, bridge->metadata, 0);
+        av_dict_free(&bridge->metadata);
+        if (rc < 0) {
+            av_dict_free(&options);
+            ffkmp_fmt_close_input_io(&c);
+            return rc;
+        }
+    }
     /* The key this layer added is not the caller's, so it never shows as unused. */
     if (opener) av_dict_set(&options, KC_TRUST_IO_OPEN_KEY, NULL, 0);
     if (unused) *unused = options;
@@ -1312,8 +1387,8 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
                                    int64_t size,
                                    const char *const *keys, const char *const *values,
                                    int n, AVDictionary **unused, kc_interrupt *interrupt) {
-    return ffkmp_fmt_open_input_io2(out, opaque, read_fn, seek_fn, size, NULL, NULL, NULL, NULL,
-                                    keys, values, n, unused, interrupt);
+    return ffkmp_fmt_open_input_io2(out, opaque, read_fn, seek_fn, NULL, size, NULL, NULL, NULL,
+                                    NULL, keys, values, n, unused, interrupt);
 }
 
 KC_API void ffkmp_fmt_close_input_io(AVFormatContext **ctx) {

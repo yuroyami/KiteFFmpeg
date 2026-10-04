@@ -258,7 +258,7 @@ static int open_playlist_at(kc_fmt_ctx **ctx, cursor *top, const char *playlist,
     top->bytes = (const unsigned char *)playlist;
     top->size = (int64_t)strlen(playlist);
     top->position = 0;
-    return ffkmp_fmt_open_input_io2(ctx, top, cursor_read, cursor_seek, top->size, url, location,
+    return ffkmp_fmt_open_input_io2(ctx, top, cursor_read, cursor_seek, NULL, top->size, url, location,
                                     mime, opener, keys, values, 1, unused, interrupt);
 }
 
@@ -279,7 +279,7 @@ static void case_the_plain_open_still_works(void)
     kc_fmt_ctx *ctx = NULL;
 
     kc_case("with no url, MIME type or opener, the open reads a WAV as before");
-    KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, top.size, NULL, NULL,
+    KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, NULL, top.size, NULL, NULL,
                                        NULL, NULL, NULL, NULL, 0, NULL, NULL), 0);
     KC_NOT_NULL(ctx);
     ffkmp_fmt_close_input_io(&ctx);
@@ -294,7 +294,7 @@ static void case_the_url_names_the_input(void)
     kc_fmt_ctx *ctx = NULL;
 
     kc_case("the url becomes the input's name, and nothing opens it");
-    KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, top.size,
+    KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, NULL, top.size,
                                        KC_BASE "tone.wav", NULL, "audio/wav", NULL, NULL, NULL, 0,
                                        NULL, NULL), 0);
     KC_NOT_NULL(ctx);
@@ -312,7 +312,7 @@ static void case_callers_cannot_set_trust_io_open(void)
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)0x1;
 
     kc_case("a caller's trust_io_open option is refused on the byte-source and the path open");
-    KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, top.size, NULL, NULL,
+    KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, NULL, top.size, NULL, NULL,
                                        NULL, NULL, keys, values, 1, NULL, NULL), AVERROR(EINVAL));
     KC_NULL(ctx);
     ctx = (kc_fmt_ctx *)0x1;
