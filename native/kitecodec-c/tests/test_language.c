@@ -7,8 +7,9 @@
  * 0005-write-a-bcp47-language-as-its-iso639-code makes each of them write the code of the language
  * the tag's first subtag names, and Matroska also write the whole tag as LanguageBCP47.
  *
- * Each case writes one audio stream of packets that are not real audio, since a writer copies them,
- * and reads the language back with FFmpeg, or for Matroska reads the elements themselves. A linked
+ * Each case writes one stream of packets that are not real media, since a writer copies them:
+ * audio, or for MPEG-TS's own subtitle and teletext descriptors a stream of either. It reads the
+ * language back with FFmpeg, or for Matroska reads the elements themselves. A linked
  * FFmpeg whose tree does not list the patch in lib/kiteffmpeg/ffmpeg-patches.txt, such as a
  * distribution's, runs only the case that holds without it.
  */
@@ -137,6 +138,45 @@ done:
     return ok;
 }
 
+/* Writes one stream of DVB subtitles or teletext, codec, tagged lang into an MPEG-TS file at path.
+ * The muxer copies the payload without reading it and carries the language in the stream's own
+ * descriptor, apart from the one audio uses. Returns 0, or -1 when this FFmpeg cannot write it. */
+static int write_ts_subtitles(enum AVCodecID codec, const char *lang)
+{
+    AVFormatContext *oc = NULL;
+    int ok = -1;
+    snprintf(path, sizeof(path), "%s.ts", base);
+    if (avformat_alloc_output_context2(&oc, NULL, "mpegts", path) < 0) return -1;
+    AVStream *st = avformat_new_stream(oc, NULL);
+    if (!st) goto done;
+    st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
+    st->codecpar->codec_id = codec;
+    st->time_base = (AVRational){ 1, 90000 };
+    if (av_dict_set(&st->metadata, "language", lang, 0) < 0) goto done;
+    if (avio_open(&oc->pb, path, AVIO_FLAG_WRITE) < 0) goto done;
+    if (avformat_write_header(oc, NULL) < 0) goto done;
+    for (int i = 0; i < 40; i++) {
+        AVPacket *pkt = av_packet_alloc();
+        if (!pkt || av_new_packet(pkt, 64) < 0) {
+            av_packet_free(&pkt);
+            goto done;
+        }
+        memset(pkt->data, 0x20, 64);
+        pkt->pts = pkt->dts = (int64_t)i * 9000;
+        pkt->stream_index = st->index;
+        pkt->flags |= AV_PKT_FLAG_KEY;
+        int rc = av_interleaved_write_frame(oc, pkt);
+        av_packet_free(&pkt);
+        if (rc < 0) goto done;
+    }
+    if (av_write_trailer(oc) < 0) goto done;
+    ok = 0;
+done:
+    if (oc && oc->pb) avio_closep(&oc->pb);
+    avformat_free_context(oc);
+    return ok;
+}
+
 /* The language FFmpeg reads back for the first stream of path, copied into out, or "" when the
  * stream has none. */
 static void read_language(char *out, size_t size)
@@ -159,6 +199,16 @@ static void check_round_trip(const char *format, const char *lang, const char *e
     KC_EQ_INT(write_tagged(format, lang), 0);
     read_language(read, sizeof(read));
     kc_detail("%s %s->%s", format, lang, read[0] ? read : "(none)");
+    KC_EQ_STR(read, expected);
+}
+
+/* Writes lang into an MPEG-TS stream of codec and reads it back. */
+static void check_subtitle_round_trip(enum AVCodecID codec, const char *lang, const char *expected)
+{
+    char read[64];
+    KC_EQ_INT(write_ts_subtitles(codec, lang), 0);
+    read_language(read, sizeof(read));
+    kc_detail("mpegts %s %s->%s", avcodec_get_name(codec), lang, read[0] ? read : "(none)");
     KC_EQ_STR(read, expected);
 }
 
@@ -205,6 +255,8 @@ static void case_a_three_letter_code_is_written_as_it_is(void)
     check_round_trip("mov", "eng", "eng");
     check_round_trip("mpegts", "eng", "eng");
     check_round_trip("mpegts", "eng,fre", "eng,fre");
+    check_subtitle_round_trip(AV_CODEC_ID_DVB_SUBTITLE, "eng", "eng");
+    check_subtitle_round_trip(AV_CODEC_ID_DVB_TELETEXT, "eng,fre", "eng,fre");
     check_round_trip("matroska", "eng", "eng");
 }
 
@@ -238,6 +290,17 @@ static void case_mpegts_takes_the_bibliographic_code(void)
     check_round_trip("mpegts", "de-CH", "ger");
     check_round_trip("mpegts", "pt-BR,en", "por,eng");
     check_round_trip("mpegts", "x-klingon", "");
+}
+
+/* The subtitle and teletext descriptors used to copy the tag three characters at a time, so
+ * zh-Hant became the two codes zh- and ant. */
+static void case_mpegts_subtitles_take_the_bibliographic_code(void)
+{
+    kc_case("MPEG-TS subtitles and teletext carry the bibliographic code of each BCP 47 tag's language");
+    check_subtitle_round_trip(AV_CODEC_ID_DVB_SUBTITLE, "zh-Hant", "chi");
+    check_subtitle_round_trip(AV_CODEC_ID_DVB_SUBTITLE, "pt-BR,en", "por,eng");
+    check_subtitle_round_trip(AV_CODEC_ID_DVB_TELETEXT, "zh-Hant", "chi");
+    check_subtitle_round_trip(AV_CODEC_ID_DVB_TELETEXT, "de-CH,en", "ger,eng");
 }
 
 static void case_matroska_writes_the_code_and_the_tag(void)
@@ -278,6 +341,7 @@ int main(void)
     case_mp4_takes_the_terminological_code();
     case_mov_finds_the_language_in_its_table();
     case_mpegts_takes_the_bibliographic_code();
+    case_mpegts_subtitles_take_the_bibliographic_code();
     case_matroska_writes_the_code_and_the_tag();
     case_webm_writes_only_the_code();
 
