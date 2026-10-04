@@ -8,6 +8,9 @@
  *
  * A linked FFmpeg without the trust_io_open patch, such as a distribution's, runs only the cases
  * that do not need it: the open with an opener must then fail with AVERROR(ENOSYS).
+ *
+ * Playlist variables (#166) need the patch that substitutes them, so their cases run only against
+ * a tree that lists it among the patches it was built with.
  */
 
 #include "harness.h"
@@ -21,6 +24,8 @@
 #include <libavformat/avformat.h>
 #include <libavutil/aes.h>
 #include <libavutil/base64.h>
+#include <libavutil/log.h>
+#include <stdarg.h>
 
 #define KC_BASE "https://media.example/live/"
 /* One second of 48 kHz stereo 16-bit PCM: more than three reads of the AES reader's buffer. */
@@ -449,6 +454,218 @@ static void case_an_interrupt_reaches_the_nested_reads(void)
     free(wav);
 }
 
+/* ---- Playlist variables, which need the patch that substitutes them ---- */
+
+/* FFmpeg's patch that defines and substitutes playlist variables. */
+#define KC_VARIABLES_PATCH "0011-hls-substitute-playlist-variables.patch"
+
+/* 1 when the linked FFmpeg's tree lists [patch] among the patches it was built with. */
+static int linked_tree_carries(const char *patch)
+{
+    char evidence[1024], line[512];
+    int found = 0;
+    snprintf(evidence, sizeof(evidence), "%s/kiteffmpeg/ffmpeg-patches.txt", KC_BUILD_FFMPEG_DIR);
+    FILE *f = fopen(evidence, "r");
+    if (!f) return 0;
+    while (!found && fgets(line, sizeof(line), f))
+        found = strncmp(line, patch, strlen(patch)) == 0;
+    fclose(f);
+    return found;
+}
+
+/* The error lines FFmpeg logged while a capture was on. */
+static char kc_logged[8192];
+
+static void capture_errors(void *avcl, int level, const char *fmt, va_list vl)
+{
+    char line[1024];
+    (void)avcl;
+    if ((level & 0xff) > AV_LOG_ERROR) return;
+    vsnprintf(line, sizeof(line), fmt, vl);
+    size_t used = strlen(kc_logged);
+    snprintf(kc_logged + used, sizeof(kc_logged) - used, "%s", line);
+}
+
+static void case_playlist_variables_reach_every_address(void)
+{
+    static const char master[] =
+        "#EXTM3U\n"
+        "#EXT-X-VERSION:8\n"
+        "#EXT-X-DEFINE:QUERYPARAM=\"token\"\n"
+        "#EXT-X-DEFINE:NAME=\"dir\",VALUE=\"v\"\n"
+        "#EXT-X-STREAM-INF:BANDWIDTH=1000000\n"
+        "{$dir}ideo.m3u8?token={$token}\n";
+    static const char media[] =
+        "#EXTM3U\n"
+        "#EXT-X-VERSION:8\n"
+        "#EXT-X-DEFINE:IMPORT=\"token\"\n"
+        "#EXT-X-DEFINE:NAME=\"name\",VALUE=\"seg0\"\n"
+        "#EXT-X-DEFINE:NAME=\"iv\",VALUE=\"000102030405060708090A0B0C0D0E0F\"\n"
+        "#EXT-X-TARGETDURATION:1\n"
+        "#EXT-X-PLAYLIST-TYPE:VOD\n"
+        "#EXT-X-KEY:METHOD=AES-128,URI=\"{$name}.key?token={$token}\",IV=0x{$iv}\n"
+        "#EXTINF:1.0,\n"
+        "{$name}.wav?token={$token}\n"
+        "#EXT-X-ENDLIST\n";
+    unsigned char *wav = make_wav();
+    unsigned char *out = malloc(KC_WAV_BYTES);
+    int cipher_size = 0;
+    unsigned char *cipher = encrypt_segment(wav, KC_WAV_BYTES, &cipher_size);
+    resource resources[] = {
+        { KC_BASE "video.m3u8?token=t=1", (const unsigned char *)media, (int64_t)strlen(media) },
+        { KC_BASE "seg0.wav?token=t=1", cipher, cipher_size },
+        { KC_BASE "seg0.key?token=t=1", kc_key, sizeof(kc_key) },
+    };
+    network net = { .resources = resources, .count = 3 };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = NULL;
+    int rc;
+
+    kc_case("a token the master's own address carries reaches the media playlist, the key and the "
+            "segment, percent-decoded, and the segment decrypts to the exact bytes");
+    KC_NOT_NULL(out);
+    rc = open_playlist(&ctx, &top, master, KC_BASE "master.m3u8?token=t%3D1", NULL, &opener, NULL,
+                       NULL);
+    kc_detail("rc=%d asked=%d", rc, net.asked_count);
+    for (int i = 0; i < net.asked_count; i++) kc_detail("asked %s", net.asked[i]);
+    KC_EQ_INT(rc, 0);
+    KC_NOT_NULL(ctx);
+    KC_CHECK(was_asked(&net, KC_BASE "video.m3u8?token=t=1"));
+    KC_CHECK(was_asked(&net, KC_BASE "seg0.key?token=t=1"));
+    KC_CHECK(was_asked(&net, KC_BASE "seg0.wav?token=t=1"));
+    for (int i = 0; i < net.asked_count; i++) KC_CHECK(strstr(net.asked[i], "{$") == NULL);
+    KC_EQ_I64(read_all(ctx, out, KC_WAV_BYTES), KC_PCM_BYTES);
+    KC_EQ_MEM(out, wav + 44, KC_PCM_BYTES);
+    ffkmp_fmt_close_input_io(&ctx);
+    KC_EQ_INT(net.closed, net.opened);
+    free(cipher);
+    free(out);
+    free(wav);
+}
+
+static void case_a_value_is_substituted_once_and_names_keep_their_case(void)
+{
+    static const char media[] =
+        "#EXTM3U\n"
+        "#EXT-X-VERSION:8\n"
+        "#EXT-X-DEFINE:NAME=\"b\",VALUE=\"x\"\n"
+        "#EXT-X-DEFINE:NAME=\"a\",VALUE=\"{$b}\"\n"
+        "#EXT-X-DEFINE:NAME=\"Case\",VALUE=\"upper\"\n"
+        "#EXT-X-DEFINE:NAME=\"case\",VALUE=\"lower\"\n"
+        "#EXT-X-TARGETDURATION:1\n"
+        "#EXT-X-PLAYLIST-TYPE:VOD\n"
+        "#EXTINF:1.0,\n"
+        "seg{$a}-{$Case}-{$case}-{$}-{$no space}.wav\n"
+        "#EXT-X-ENDLIST\n";
+    unsigned char *wav = make_wav();
+    resource resources[] = { { KC_BASE "seg{$b}-upper-lower-{$}-{$no space}.wav", wav, KC_WAV_BYTES } };
+    network net = { .resources = resources, .count = 1 };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = NULL;
+    int rc;
+
+    kc_case("a value holding a reference is used as it is, two names that differ in case are two "
+            "variables, and a {$ that names no variable stays as written");
+    rc = open_playlist(&ctx, &top, media, KC_BASE "index.m3u8", NULL, &opener, NULL, NULL);
+    kc_detail("rc=%d", rc);
+    for (int i = 0; i < net.asked_count; i++) kc_detail("asked %s", net.asked[i]);
+    KC_EQ_INT(rc, 0);
+    KC_CHECK(was_asked(&net, KC_BASE "seg{$b}-upper-lower-{$}-{$no space}.wav"));
+    ffkmp_fmt_close_input_io(&ctx);
+    KC_EQ_INT(net.closed, net.opened);
+    free(wav);
+}
+
+typedef struct {
+    const char *why;
+    const char *url;        /* the top-level playlist's address */
+    const char *top;        /* the top-level playlist */
+    const char *media;      /* the media playlist a master names as media.m3u8, or NULL */
+    const char *named;      /* what the logged error must name */
+    const char *says;       /* what else it must say, or NULL */
+} failing_playlist;
+
+#define KC_MEDIA_HEAD "#EXTM3U\n#EXT-X-VERSION:8\n#EXT-X-TARGETDURATION:1\n#EXT-X-PLAYLIST-TYPE:VOD\n"
+#define KC_MEDIA_TAIL "#EXTINF:1.0,\nseg0.wav\n#EXT-X-ENDLIST\n"
+
+static const failing_playlist kc_failing[] = {
+    { "a reference to a variable that nothing defined", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXTINF:1.0,\nseg0.wav?token={$missing}\n#EXT-X-ENDLIST\n", NULL, "'missing'", NULL },
+    { "a reference before the definition that gives it", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXTINF:1.0,\nseg0.wav?v={$late}\n#EXT-X-DEFINE:NAME=\"late\",VALUE=\"1\"\n"
+      "#EXT-X-ENDLIST\n", NULL, "'late'", NULL },
+    { "an IMPORT in a playlist that no master loaded", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:IMPORT=\"token\"\n" KC_MEDIA_TAIL, NULL, "'token'",
+      "which no master playlist loaded" },
+    { "an IMPORT in the master playlist itself", KC_BASE "master.m3u8",
+      "#EXTM3U\n#EXT-X-DEFINE:NAME=\"token\",VALUE=\"1\"\n#EXT-X-DEFINE:IMPORT=\"other\"\n"
+      "#EXT-X-STREAM-INF:BANDWIDTH=1\nmedia.m3u8\n", KC_MEDIA_HEAD KC_MEDIA_TAIL, "'other'",
+      "which no master playlist loaded" },
+    { "a QUERYPARAM that the address does not carry", KC_BASE "index.m3u8?other=1",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:QUERYPARAM=\"token\"\n" KC_MEDIA_TAIL, NULL, "'token'", NULL },
+    { "a QUERYPARAM whose parameter has no value", KC_BASE "index.m3u8?token",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:QUERYPARAM=\"token\"\n" KC_MEDIA_TAIL, NULL, "'token'", NULL },
+    { "a QUERYPARAM whose value holds a quote", KC_BASE "index.m3u8?token=a%22b",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:QUERYPARAM=\"token\"\n" KC_MEDIA_TAIL, NULL, "'token'", NULL },
+    { "a NAME without a VALUE", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:NAME=\"lonely\"\n" KC_MEDIA_TAIL, NULL, "'lonely'", NULL },
+    { "a name defined twice", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:NAME=\"twice\",VALUE=\"1\"\n#EXT-X-DEFINE:NAME=\"twice\",VALUE=\"2\"\n"
+      KC_MEDIA_TAIL, NULL, "'twice'", NULL },
+    { "a name with a character outside the set", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:NAME=\"bad.name\",VALUE=\"1\"\n" KC_MEDIA_TAIL, NULL, "'bad.name'", NULL },
+    { "a tag with both NAME and IMPORT", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:NAME=\"both\",VALUE=\"1\",IMPORT=\"both\"\n" KC_MEDIA_TAIL, NULL,
+      "exactly one of NAME, IMPORT and QUERYPARAM", NULL },
+    { "an undefined variable in an EXT-X-MAP address", KC_BASE "index.m3u8",
+      KC_MEDIA_HEAD "#EXT-X-MAP:URI=\"{$init}.mp4\"\n" KC_MEDIA_TAIL, NULL, "'init'", NULL },
+    { "an undefined variable in an EXT-X-MEDIA address", KC_BASE "master.m3u8",
+      "#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"a\",NAME=\"x\",URI=\"{$audio}.m3u8\"\n"
+      "#EXT-X-STREAM-INF:BANDWIDTH=1,AUDIO=\"a\"\nmedia.m3u8\n", KC_MEDIA_HEAD KC_MEDIA_TAIL, "'audio'", NULL },
+    { "an undefined variable in an EXT-X-STREAM-INF attribute", KC_BASE "master.m3u8",
+      "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1,AUDIO=\"{$group}\"\nmedia.m3u8\n",
+      KC_MEDIA_HEAD KC_MEDIA_TAIL, "'group'", NULL },
+    { "an IMPORT of a name the master does not define", KC_BASE "master.m3u8",
+      "#EXTM3U\n#EXT-X-DEFINE:NAME=\"other\",VALUE=\"1\"\n#EXT-X-STREAM-INF:BANDWIDTH=1\nmedia.m3u8\n",
+      KC_MEDIA_HEAD "#EXT-X-DEFINE:IMPORT=\"token\"\n" KC_MEDIA_TAIL, "'token'",
+      "the master playlist does not define it" },
+};
+
+static void case_a_playlist_the_specification_refuses_fails_the_open(const failing_playlist *f)
+{
+    unsigned char *wav = make_wav();
+    resource resources[] = {
+        { KC_BASE "media.m3u8", (const unsigned char *)(f->media ? f->media : ""),
+          f->media ? (int64_t)strlen(f->media) : 0 },
+        { KC_BASE "seg0.wav", wav, KC_WAV_BYTES },
+    };
+    network net = { .resources = resources, .count = f->media ? 2 : 1 };
+    if (!f->media) {
+        resources[0] = resources[1];
+        net.count = 1;
+    }
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)0x1;
+    int rc;
+
+    kc_case("%s fails the open with invalid data, and the error names it", f->why);
+    kc_logged[0] = 0;
+    av_log_set_callback(capture_errors);
+    rc = open_playlist(&ctx, &top, f->top, f->url, NULL, &opener, NULL, NULL);
+    av_log_set_callback(av_log_default_callback);
+    kc_detail("rc=%d logged: %s", rc, kc_logged);
+    KC_EQ_INT(rc, AVERROR_INVALIDDATA);
+    KC_NULL(ctx);
+    KC_CHECKF(strstr(kc_logged, f->named) != NULL, "the error does not name %s: %s", f->named, kc_logged);
+    if (f->says) KC_CHECKF(strstr(kc_logged, f->says) != NULL, "the error does not say %s: %s", f->says, kc_logged);
+    KC_CHECK(!was_asked(&net, KC_BASE "seg0.wav"));
+    KC_EQ_INT(net.closed, net.opened);
+    free(wav);
+}
+
 int main(void)
 {
     kc_suite_begin("test_nested_io");
@@ -472,6 +689,15 @@ int main(void)
     case_an_aes128_segment_decrypts(1);
     case_a_refused_segment_opens_nothing();
     case_an_interrupt_reaches_the_nested_reads();
+
+    if (!linked_tree_carries(KC_VARIABLES_PATCH)) {
+        kc_note("the linked FFmpeg's tree lacks %s, so the variable cases did not run", KC_VARIABLES_PATCH);
+        return kc_suite_end();
+    }
+    case_playlist_variables_reach_every_address();
+    case_a_value_is_substituted_once_and_names_keep_their_case();
+    for (size_t i = 0; i < sizeof(kc_failing) / sizeof(kc_failing[0]); i++)
+        case_a_playlist_the_specification_refuses_fails_the_open(&kc_failing[i]);
 
     return kc_suite_end();
 }

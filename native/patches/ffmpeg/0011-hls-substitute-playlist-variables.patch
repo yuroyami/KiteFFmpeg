@@ -1,0 +1,353 @@
+Let the HLS demuxer define and substitute playlist variables.
+
+An HLS playlist can define variables with EXT-X-DEFINE and use them as {$name} in its addresses
+and in its quoted attribute values (RFC 8216bis, sections 4.3, 4.4.2.3 and 6.3.1). A variable is
+defined by NAME and VALUE, by IMPORT from the master playlist that loaded a media playlist, or by
+QUERYPARAM from the query of the playlist's own URL, which is how a CDN hands a token from the
+master playlist down to every media playlist and segment. The demuxer knew none of it, so such a
+stream asked its server for addresses that still held the variable names, and every one failed.
+
+The demuxer now reads EXT-X-DEFINE and replaces each reference in URI lines and in the attribute
+lists of the four tags it reads, EXT-X-STREAM-INF, EXT-X-MEDIA, EXT-X-KEY and EXT-X-MAP. A
+replacement is not replaced again. QUERYPARAM reads the URL the playlist came from after any
+redirect, through the same "location" option that already rebases its relative addresses, and
+percent-decodes the value. The master playlist's variables are kept for its media playlists to
+import, and every other playlist's live for one load, so a reload defines them afresh.
+
+The specification's failures fail the playlist with AVERROR_INVALIDDATA and an error that names
+the variable: a reference to a variable that no earlier EXT-X-DEFINE gave, a tag with other than
+exactly one of NAME, IMPORT and QUERYPARAM, a NAME without a VALUE, a name outside [a-zA-Z0-9_-],
+a name defined twice, an IMPORT in a playlist that no master playlist loaded or of a name the
+master does not define, and a QUERYPARAM that the URL does not carry with a value. A playlist that
+uses no reference is read exactly as before.
+
+Applied by BuildFFmpegTask before configure.
+
+diff --git a/libavformat/hls.c b/libavformat/hls.c
+index b129900..b2b637f 100644
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -32,6 +32,7 @@
+ #include "libavformat/http.h"
+ #include "libavutil/aes.h"
+ #include "libavutil/avstring.h"
++#include "libavutil/bprint.h"
+ #include "libavutil/avassert.h"
+ #include "libavutil/intreadwrite.h"
+ #include "libavutil/mathematics.h"
+@@ -45,6 +46,7 @@
+ #include "avio_internal.h"
+ #include "id3v2.h"
+ #include "url.h"
++#include "urldecode.h"
+ 
+ #include "hls_sample_encryption.h"
+ 
+@@ -245,6 +247,10 @@ typedef struct HLSContext {
+     int http_seekable;
+     int seg_max_retry;
+     int trust_io_open;
++    /* KiteFFmpeg: the variables the master playlist defined, which its media playlists import,
++     * and whether the first playlist was a master playlist at all. */
++    AVDictionary *master_vars;
++    int has_master;
+     AVIOContext *playlist_pb;
+     HLSCryptoContext  crypto_ctx;
+ } HLSContext;
+@@ -820,6 +826,236 @@ static int test_segment(AVFormatContext *s, const AVInputFormat *in_fmt, struct
+     return 0;
+ }
+ 
++/* KiteFFmpeg: playlist variables, as EXT-X-DEFINE (RFC 8216bis, section 4.4.2.3) defines them and
++ * section 4.3 says where they are used. A playlist defines a variable by NAME and VALUE, by IMPORT
++ * from the master playlist that led to it, or by QUERYPARAM from the query of its own URL, the
++ * redirected one if it was redirected. A reference is "{$" NAME "}". References are replaced in
++ * URI lines and in the attribute lists of the four tags this demuxer reads: EXT-X-STREAM-INF,
++ * EXT-X-MEDIA, EXT-X-KEY and EXT-X-MAP. A replacement is not replaced again. A reference to a
++ * variable no earlier EXT-X-DEFINE gave fails the playlist, as section 6.3.1 asks. Definitions
++ * live for one load of one playlist; only the master's are kept, for its media playlists to
++ * import. */
++
++#define MAX_VARIABLE_NAME_LEN 256
++
++struct define_info {
++    char name[MAX_VARIABLE_NAME_LEN];
++    char value[MAX_URL_SIZE];
++    char import[MAX_VARIABLE_NAME_LEN];
++    char queryparam[MAX_VARIABLE_NAME_LEN];
++    int has_name, has_value, has_import, has_queryparam;
++};
++
++static void handle_define_args(void *context, const char *key,
++                               int key_len, char **dest, int *dest_len)
++{
++    struct define_info *info = context;
++    if (!strncmp(key, "NAME=", key_len)) {
++        info->has_name = 1;
++        *dest     =        info->name;
++        *dest_len = sizeof(info->name);
++    } else if (!strncmp(key, "VALUE=", key_len)) {
++        info->has_value = 1;
++        *dest     =        info->value;
++        *dest_len = sizeof(info->value);
++    } else if (!strncmp(key, "IMPORT=", key_len)) {
++        info->has_import = 1;
++        *dest     =        info->import;
++        *dest_len = sizeof(info->import);
++    } else if (!strncmp(key, "QUERYPARAM=", key_len)) {
++        info->has_queryparam = 1;
++        *dest     =        info->queryparam;
++        *dest_len = sizeof(info->queryparam);
++    }
++}
++
++/* The characters a variable name may hold: [a-z], [A-Z], [0-9], '-' and '_'. */
++static int is_variable_name_char(char ch)
++{
++    return av_isdigit(ch) || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
++           ch == '-' || ch == '_';
++}
++
++static int is_variable_name(const char *name)
++{
++    size_t len = strlen(name);
++    if (!len || len >= MAX_VARIABLE_NAME_LEN - 1)
++        return 0;
++    for (; *name; name++)
++        if (!is_variable_name_char(*name))
++            return 0;
++    return 1;
++}
++
++/* The percent-decoded value of the first query parameter of url called name, in *value, which the
++ * caller frees. AVERROR(ENOENT) when url has no such parameter, or has it with no value. */
++static int find_query_parameter(const char *url, const char *name, char **value)
++{
++    const char *q = strchr(url, '?');
++    size_t name_len = strlen(name);
++    *value = NULL;
++    if (!q)
++        return AVERROR(ENOENT);
++    for (q++; *q && *q != '#'; ) {
++        size_t len = strcspn(q, "&#");
++        if (len > name_len && !strncmp(q, name, name_len) && q[name_len] == '=') {
++            char *raw = av_strndup(q + name_len + 1, len - name_len - 1);
++            if (!raw)
++                return AVERROR(ENOMEM);
++            *value = ff_urldecode(raw, 0);
++            av_free(raw);
++            return *value ? 0 : AVERROR(ENOMEM);
++        }
++        q += len;
++        if (*q == '&')
++            q++;
++    }
++    return AVERROR(ENOENT);
++}
++
++/* Adds the variable an EXT-X-DEFINE tag defines to *vars. The master playlist's variables are kept
++ * only once it has been read, so an IMPORT in the master itself, or in a media playlist that no
++ * master loaded, finds none. */
++static int define_variable(HLSContext *c, AVDictionary **vars, const char *attributes,
++                           const char *url)
++{
++    struct define_info *info = av_mallocz(sizeof(*info));
++    const char *name, *value;
++    char *decoded = NULL;
++    int ret = AVERROR_INVALIDDATA;
++
++    if (!info)
++        return AVERROR(ENOMEM);
++    ff_parse_key_value(attributes, handle_define_args, info);
++    if (info->has_name + info->has_import + info->has_queryparam != 1) {
++        av_log(c->ctx, AV_LOG_ERROR, "EXT-X-DEFINE needs exactly one of NAME, IMPORT and "
++               "QUERYPARAM, in playlist %s\n", url);
++        goto end;
++    }
++    name = info->has_name ? info->name : info->has_import ? info->import : info->queryparam;
++    if (!is_variable_name(name)) {
++        av_log(c->ctx, AV_LOG_ERROR, "EXT-X-DEFINE names an invalid variable '%s', "
++               "in playlist %s\n", name, url);
++        goto end;
++    }
++    if (av_dict_get(*vars, name, NULL, AV_DICT_MATCH_CASE)) {
++        av_log(c->ctx, AV_LOG_ERROR, "Variable '%s' is defined twice, in playlist %s\n",
++               name, url);
++        goto end;
++    }
++    if (info->has_name) {
++        if (!info->has_value) {
++            av_log(c->ctx, AV_LOG_ERROR, "Variable '%s' has no VALUE, in playlist %s\n",
++                   name, url);
++            goto end;
++        }
++        value = info->value;
++    } else if (info->has_import) {
++        const AVDictionaryEntry *e;
++        if (!c->has_master) {
++            av_log(c->ctx, AV_LOG_ERROR, "Variable '%s' is imported by playlist %s, which no "
++                   "master playlist loaded\n", name, url);
++            goto end;
++        }
++        e = av_dict_get(c->master_vars, name, NULL, AV_DICT_MATCH_CASE);
++        if (!e) {
++            av_log(c->ctx, AV_LOG_ERROR, "Variable '%s' is imported by playlist %s, and the "
++                   "master playlist does not define it\n", name, url);
++            goto end;
++        }
++        value = e->value;
++    } else {
++        ret = find_query_parameter(url, name, &decoded);
++        if (ret == AVERROR(ENOENT)) {
++            av_log(c->ctx, AV_LOG_ERROR, "Variable '%s' comes from a query parameter that the "
++                   "URL of playlist %s does not carry with a value\n", name, url);
++            ret = AVERROR_INVALIDDATA;
++        }
++        if (ret < 0)
++            goto end;
++        ret = AVERROR_INVALIDDATA;
++        if (strpbrk(decoded, "\"\r\n")) {
++            av_log(c->ctx, AV_LOG_ERROR, "Variable '%s' takes a query parameter value that a "
++                   "quoted string cannot hold, in playlist %s\n", name, url);
++            goto end;
++        }
++        value = decoded;
++    }
++    ret = av_dict_set(vars, name, value, AV_DICT_MATCH_CASE);
++
++end:
++    av_free(decoded);
++    av_free(info);
++    return ret;
++}
++
++/* Replaces every variable reference in line, which holds line_size bytes, with its value. */
++static int substitute_variables(HLSContext *c, char *line, int line_size,
++                                const AVDictionary *vars, const char *url)
++{
++    AVBPrint out;
++    const char *p = line;
++    int ret = 0;
++
++    if (!strstr(line, "{$"))
++        return 0;
++    av_bprint_init(&out, 0, AV_BPRINT_SIZE_UNLIMITED);
++    while (*p) {
++        const char *start = p[0] == '{' && p[1] == '$' ? p + 2 : NULL;
++        const char *end = start;
++        if (start) {
++            while (is_variable_name_char(*end))
++                end++;
++        }
++        if (start && end > start && *end == '}') {
++            char name[MAX_VARIABLE_NAME_LEN];
++            const AVDictionaryEntry *e = NULL;
++            size_t len = end - start;
++            if (len < sizeof(name)) {
++                memcpy(name, start, len);
++                name[len] = 0;
++                e = av_dict_get(vars, name, NULL, AV_DICT_MATCH_CASE);
++            } else {
++                av_strlcpy(name, start, sizeof(name));
++            }
++            if (!e) {
++                av_log(c->ctx, AV_LOG_ERROR, "Variable '%s' is used before any EXT-X-DEFINE "
++                       "defines it, in playlist %s\n", name, url);
++                ret = AVERROR_INVALIDDATA;
++                goto end;
++            }
++            av_bprintf(&out, "%s", e->value);
++            p = end + 1;
++        } else {
++            av_bprint_chars(&out, *p, 1);
++            p++;
++        }
++    }
++    if (!av_bprint_is_complete(&out)) {
++        ret = AVERROR(ENOMEM);
++    } else if (out.len >= line_size) {
++        av_log(c->ctx, AV_LOG_ERROR, "A line of playlist %s is longer than %d bytes once its "
++               "variables are replaced\n", url, line_size - 1);
++        ret = AVERROR_INVALIDDATA;
++    } else {
++        memcpy(line, out.str, out.len + 1);
++    }
++
++end:
++    av_bprint_finalize(&out, NULL);
++    return ret;
++}
++
++/* Whether line is one whose variable references are replaced. */
++static int takes_variables(const char *line)
++{
++    return line[0] && (line[0] != '#' ||
++                       av_strstart(line, "#EXT-X-STREAM-INF:", NULL) ||
++                       av_strstart(line, "#EXT-X-MEDIA:", NULL) ||
++                       av_strstart(line, "#EXT-X-KEY:", NULL) ||
++                       av_strstart(line, "#EXT-X-MAP:", NULL));
++}
++
+ static int parse_playlist(HLSContext *c, const char *url,
+                           struct playlist *pls, AVIOContext *in)
+ {
+@@ -842,6 +1078,9 @@ static int parse_playlist(HLSContext *c, const char *url,
+     struct segment **prev_segments = NULL;
+     int prev_n_segments = 0;
+     int64_t prev_start_seq_no = -1;
++    /* KiteFFmpeg: this load's variables, and whether this is the demuxer's first playlist. */
++    AVDictionary *vars = NULL;
++    int top_level = !pls, saw_variant = 0;
+ 
+     if (is_http && !in && c->http_persistent && c->playlist_pb) {
+         in = c->playlist_pb;
+@@ -896,6 +1135,17 @@ static int parse_playlist(HLSContext *c, const char *url,
+     }
+     while (!avio_feof(in)) {
+         ff_get_chomp_line(in, line, sizeof(line));
++        if (av_strstart(line, "#EXT-X-DEFINE:", &ptr)) {
++            ret = define_variable(c, &vars, ptr, url);
++            if (ret < 0)
++                goto fail;
++            continue;
++        }
++        if (takes_variables(line)) {
++            ret = substitute_variables(c, line, sizeof(line), vars, url);
++            if (ret < 0)
++                goto fail;
++        }
+         if (av_strstart(line, "#EXT-X-STREAM-INF:", &ptr)) {
+             if (pls) {
+                 av_log(c->ctx, AV_LOG_ERROR,
+@@ -904,6 +1154,7 @@ static int parse_playlist(HLSContext *c, const char *url,
+                 goto fail;
+             }
+             is_variant = 1;
++            saw_variant = 1;
+             memset(&variant_info, 0, sizeof(variant_info));
+             ff_parse_key_value(ptr, handle_variant_args, &variant_info);
+         } else if (av_strstart(line, "#EXT-X-KEY:", &ptr)) {
+@@ -1154,8 +1405,15 @@ static int parse_playlist(HLSContext *c, const char *url,
+     }
+     if (pls)
+         pls->last_load_time = av_gettime_relative();
++    if (top_level && saw_variant) {
++        c->has_master = 1;
++        av_dict_free(&c->master_vars);
++        c->master_vars = vars;
++        vars = NULL;
++    }
+ 
+ fail:
++    av_dict_free(&vars);
+     av_free(new_url);
+     if (close_in)
+         ff_format_io_close(c->ctx, &in);
+@@ -2261,6 +2519,7 @@ static int hls_close(AVFormatContext *s)
+         av_free(c->crypto_ctx.aes_ctx);
+ 
+     av_dict_free(&c->avio_opts);
++    av_dict_free(&c->master_vars);
+     ff_format_io_close(c->ctx, &c->playlist_pb);
+ 
+     return 0;

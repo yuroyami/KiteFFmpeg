@@ -20,8 +20,8 @@ import kotlin.test.assertTrue
  *
  * A linked FFmpeg without the trust_io_open patch, such as a prebuilt tree from an older release,
  * refuses the opener with [FFmpegError.Unsupported]. Each test then checks that refusal and stops.
- * The last two tests need two later FFmpeg patches as well, `0003` and `0004`, and fail on a tree
- * built before them.
+ * The Matroska and subtitle tests need two later FFmpeg patches as well, `0003` and `0004`, and the
+ * two variable tests need `0011`, and each fails on a tree built before its patch.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 class HlsByteSourceContractTest {
@@ -219,6 +219,52 @@ class HlsByteSourceContractTest {
         }
     }
 
+    /**
+     * A token handed down through playlist variables reaches every address it is written into
+     * (#166). The master playlist takes the token from the query of its own address, a variant
+     * names its media playlist with it, and the media playlist imports it for its segment. FFmpeg
+     * read none of the definitions, so it asked for addresses that still held `{$token}`. The
+     * token arrives percent-encoded and is written into the addresses decoded, as the HLS
+     * specification has it.
+     */
+    @Test
+    fun aTokenHandedDownThroughPlaylistVariablesReachesEveryAddress() {
+        val opener = RecordingOpener(
+            mapOf(
+                "$BASE_URL/video.m3u8?token=t=1" to TOKEN_MEDIA_PLAYLIST.encodeToByteArray(),
+                "$BASE_URL/seg0.ts?token=t=1" to segment,
+            ),
+        )
+        val media = openPlaylist(opener, url = "$BASE_URL/master?token=t%3D1", playlist = TOKEN_MASTER_PLAYLIST) ?: return
+        media.use {
+            assertEquals(listOf("$BASE_URL/video.m3u8?token=t=1", "$BASE_URL/seg0.ts?token=t=1"), opener.asked.distinct())
+            val video = media.primaryVideo ?: error("the playlist has no video stream")
+            var packets = 0
+            media.openPacketReader(listOf(video)).use { reader ->
+                while (true) {
+                    val packet = reader.read() ?: break
+                    packet.close()
+                    packets++
+                }
+            }
+            assertTrue(packets >= 30, "expected at least 30 video packets from the segment, got $packets")
+        }
+        assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
+    }
+
+    /**
+     * A playlist that uses a variable no EXT-X-DEFINE gave fails the open, as the HLS specification
+     * requires, and asks for no address with the variable's name in it (#166).
+     */
+    @Test
+    fun aVariableNoPlaylistDefinesFailsTheOpenWithoutAskingForTheSegment() {
+        val opener = RecordingOpener(mapOf(SEGMENT_URL to segment))
+        val error = runCatching { openPlaylist(opener, playlist = mediaPlaylist("{\$name}.ts", seconds = 2)) }.exceptionOrNull()
+        if (error == null && opener.asked.isEmpty()) return // degraded: the open was refused up front
+        assertIs<FFmpegException>(error, "a playlist that uses an undefined variable must not open")
+        assertEquals(emptyList(), opener.asked, "no address may be asked for once a variable is undefined")
+    }
+
     private companion object {
         const val BASE_URL = "https://media.example/live"
         const val PLAYLIST_URL = "https://media.example/live/index"
@@ -255,6 +301,28 @@ class HlsByteSourceContractTest {
             #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=YES,AUTOSELECT=YES,URI="subs.m3u8"
             #EXT-X-STREAM-INF:BANDWIDTH=800000,SUBTITLES="subs"
             video.m3u8
+        """.trimIndent() + "\n"
+
+        /** A master playlist that takes a token from its own address and hands it to its variant. */
+        val TOKEN_MASTER_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:8
+            #EXT-X-DEFINE:QUERYPARAM="token"
+            #EXT-X-STREAM-INF:BANDWIDTH=800000
+            video.m3u8?token={${'$'}token}
+        """.trimIndent() + "\n"
+
+        /** The variant of [TOKEN_MASTER_PLAYLIST], which imports the token for its one segment. */
+        val TOKEN_MEDIA_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:8
+            #EXT-X-DEFINE:IMPORT="token"
+            #EXT-X-TARGETDURATION:2
+            #EXT-X-MEDIA-SEQUENCE:0
+            #EXT-X-PLAYLIST-TYPE:VOD
+            #EXTINF:2.0,
+            seg0.ts?token={${'$'}token}
+            #EXT-X-ENDLIST
         """.trimIndent() + "\n"
 
         /** Two WebVTT segments of two seconds, one cue each. */

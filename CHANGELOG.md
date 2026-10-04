@@ -120,6 +120,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- An HLS playlist that defines variables with `EXT-X-DEFINE` plays (#166). FFmpeg's HLS reader knew
+  no variables, so a stream that hands a token from its master playlist down to every media playlist
+  and segment asked for addresses that still held `{$token}`, and every one failed. The reader now
+  takes a variable from `NAME` and `VALUE`, from the master playlist by `IMPORT`, and from the query
+  of the playlist's own address by `QUERYPARAM`, decoded, and replaces each reference in addresses
+  and in the attributes of the variant, rendition, key and initialization section tags, once. A
+  playlist that breaks the specification's rules for variables, such as one that uses a variable
+  nothing defined, fails the open, and FFmpeg logs an error naming the variable. The fix is the
+  FFmpeg patch `0011-hls-substitute-playlist-variables.patch`, so it reaches a platform only with an
+  FFmpeg tree built from it, and the trees of 0.4.0 do not carry it.
 - A build of FFmpeg, dav1d or the libass chain compiles its vendored checkout only when it holds
   the commit its tag names, with nothing changed, added or ignored in it (#145). A checkout of
   another release, or one with an edited file, used to build under the pinned tag's name, and an
