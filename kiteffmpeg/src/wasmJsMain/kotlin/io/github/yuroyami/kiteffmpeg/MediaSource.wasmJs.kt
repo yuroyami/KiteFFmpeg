@@ -778,6 +778,8 @@ private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
                     ),
                     dolbyVision = readDolbyVisionConfig(m, par),
                     crop = readVideoCrop(m, par),
+                    spherical = readSphericalMapping(m, par),
+                    stereo3d = readStereo3d(m, par),
                 )
             } else {
                 null

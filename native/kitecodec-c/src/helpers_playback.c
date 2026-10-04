@@ -14,6 +14,8 @@
 #include <libavutil/intreadwrite.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/samplefmt.h>
+#include <libavutil/spherical.h>
+#include <libavutil/stereo3d.h>
 
 #include <limits.h>
 #include <math.h>
@@ -143,6 +145,117 @@ KC_API int ffkmp_codecpar_frame_cropping(AVCodecParameters *p, int *out) {
 #else
     return 0;
 #endif
+}
+
+/* FFmpeg's later projections and stereo fields arrived in 7.1 (lavu 59.23.100 and 59.24.100), and
+   the unspecified packing in lavu 59.27.100. */
+#define KC_SPHERICAL_APPLE (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 23, 100))
+#define KC_STEREO3D_APPLE (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 24, 100))
+#define KC_STEREO3D_UNSPEC (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 27, 100))
+#define KC_PARAMETRIC_IMMERSIVE (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(60, 7, 100))
+
+/* 1 for a projection this layer knows. The switch has no default, so an FFmpeg that adds one fails
+   to compile here until it is handled. */
+static int spherical_projection_known(enum AVSphericalProjection projection) {
+    switch (projection) {
+    case AV_SPHERICAL_EQUIRECTANGULAR:
+    case AV_SPHERICAL_CUBEMAP:
+    case AV_SPHERICAL_EQUIRECTANGULAR_TILE:
+#if KC_SPHERICAL_APPLE
+    case AV_SPHERICAL_HALF_EQUIRECTANGULAR:
+    case AV_SPHERICAL_RECTILINEAR:
+    case AV_SPHERICAL_FISHEYE:
+#endif
+#if KC_PARAMETRIC_IMMERSIVE
+    case AV_SPHERICAL_PARAMETRIC_IMMERSIVE:
+#endif
+        return 1;
+    }
+    return 0;
+}
+
+KC_API int ffkmp_codecpar_spherical(AVCodecParameters *p, int *out) {
+    if (!p || !out) return AVERROR(EINVAL);
+    const AVPacketSideData *sd = av_packet_side_data_get(p->coded_side_data, p->nb_coded_side_data,
+                                                         AV_PKT_DATA_SPHERICAL);
+    if (!sd || sd->size < sizeof(AVSphericalMapping)) return 0;
+    const AVSphericalMapping *m = (const AVSphericalMapping *)sd->data;
+    if (!spherical_projection_known(m->projection)) return 0;
+    const uint32_t bounds[5] = { m->bound_left, m->bound_top, m->bound_right, m->bound_bottom, m->padding };
+    out[0] = (int)m->projection;
+    out[1] = m->yaw;
+    out[2] = m->pitch;
+    out[3] = m->roll;
+    for (int i = 0; i < 5; i++) out[4 + i] = (int)(int32_t)bounds[i];
+    return 1;
+}
+
+/* 1 for a packing, a view and a primary eye this layer knows, with the same compile-time guard. */
+static int stereo3d_known(const AVStereo3D *s) {
+    int type = 0, view = 0;
+    switch (s->type) {
+    case AV_STEREO3D_2D:
+    case AV_STEREO3D_SIDEBYSIDE:
+    case AV_STEREO3D_TOPBOTTOM:
+    case AV_STEREO3D_FRAMESEQUENCE:
+    case AV_STEREO3D_CHECKERBOARD:
+    case AV_STEREO3D_SIDEBYSIDE_QUINCUNX:
+    case AV_STEREO3D_LINES:
+    case AV_STEREO3D_COLUMNS:
+#if KC_STEREO3D_UNSPEC
+    case AV_STEREO3D_UNSPEC:
+#endif
+        type = 1;
+    }
+    switch (s->view) {
+    case AV_STEREO3D_VIEW_PACKED:
+    case AV_STEREO3D_VIEW_LEFT:
+    case AV_STEREO3D_VIEW_RIGHT:
+#if KC_STEREO3D_UNSPEC
+    case AV_STEREO3D_VIEW_UNSPEC:
+#endif
+        view = 1;
+    }
+#if KC_STEREO3D_APPLE
+    int eye = 0;
+    switch (s->primary_eye) {
+    case AV_PRIMARY_EYE_NONE:
+    case AV_PRIMARY_EYE_LEFT:
+    case AV_PRIMARY_EYE_RIGHT:
+        eye = 1;
+    }
+    return type && view && eye;
+#else
+    return type && view;
+#endif
+}
+
+KC_API int ffkmp_codecpar_stereo3d(AVCodecParameters *p, int *out) {
+    if (!p || !out) return AVERROR(EINVAL);
+    const AVPacketSideData *sd = av_packet_side_data_get(p->coded_side_data, p->nb_coded_side_data,
+                                                         AV_PKT_DATA_STEREO3D);
+    if (!sd || sd->size < sizeof(AVStereo3D)) return 0;
+    const AVStereo3D *s = (const AVStereo3D *)sd->data;
+    if (!stereo3d_known(s)) return 0;
+    out[0] = (int)s->type;
+    out[1] = (s->flags & AV_STEREO3D_FLAG_INVERT) != 0;
+    out[2] = (int)s->view;
+#if KC_STEREO3D_APPLE
+    out[3] = (int)s->primary_eye;
+    out[4] = (int)(int32_t)s->baseline;
+    out[5] = s->horizontal_disparity_adjustment.num;
+    out[6] = s->horizontal_disparity_adjustment.den;
+    out[7] = s->horizontal_field_of_view.num;
+    out[8] = s->horizontal_field_of_view.den;
+#else
+    out[3] = 0;
+    out[4] = 0;
+    out[5] = 0;
+    out[6] = 1;
+    out[7] = 0;
+    out[8] = 1;
+#endif
+    return 1;
 }
 
 KC_API int ffkmp_codecpar_audio_frame_samples(AVCodecParameters *p, int frame_bytes) {

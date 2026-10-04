@@ -81,6 +81,9 @@ import kotlin.js.JsAny
             // Nor Dolby Vision: a stream that declares no configuration record.
             _ffkmp_codecpar_dovi_config: () => 0,
             _ffkmp_codecpar_frame_cropping: () => 0,
+            // Nor a spherical mapping or a stereo layout: a flat picture.
+            _ffkmp_codecpar_spherical: () => 0,
+            _ffkmp_codecpar_stereo3d: () => 0,
             _kc_ffmpeg_report_get: (p) => { HEAPU8.copyWithin(p, stage, stage + 2176); },
             _kc_ffmpeg_library_name: (i) => (i >= 0 && i < libs.length) ? libs[i] : 0,
             _kc_verdict_name: (v) => (v >= 0 && v < verdicts.length) ? verdicts[v] : 0,

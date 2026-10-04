@@ -4,6 +4,8 @@ import ffmpeg.ffkmp_codecctx_add_content_light
 import ffmpeg.ffkmp_codecctx_add_mastering_display
 import ffmpeg.ffkmp_codecpar_dovi_config
 import ffmpeg.ffkmp_codecpar_frame_cropping
+import ffmpeg.ffkmp_codecpar_spherical
+import ffmpeg.ffkmp_codecpar_stereo3d
 import ffmpeg.kc_codec_ctx
 import ffmpeg.kc_codec_par
 import kotlinx.cinterop.CPointer
@@ -49,6 +51,20 @@ internal fun readDolbyVisionConfig(par: CPointer<kc_codec_par>): DolbyVisionConf
 internal fun readVideoCrop(par: CPointer<kc_codec_par>): VideoCrop? = memScoped {
     val ints = allocArray<IntVar>(VIDEO_CROP_INTS)
     if (ffkmp_codecpar_frame_cropping(par, ints) > 0) videoCropOf(IntArray(VIDEO_CROP_INTS) { ints[it] }) else null
+}
+
+/** How [par]'s pictures map onto a sphere, or null when the container says nothing (#139). */
+@OptIn(ExperimentalForeignApi::class)
+internal fun readSphericalMapping(par: CPointer<kc_codec_par>): SphericalMapping? = memScoped {
+    val ints = allocArray<IntVar>(SPHERICAL_INTS)
+    if (ffkmp_codecpar_spherical(par, ints) > 0) sphericalMappingOf(IntArray(SPHERICAL_INTS) { ints[it] }) else null
+}
+
+/** How [par]'s pictures hold two eyes' views, or null when the container says nothing (#139). */
+@OptIn(ExperimentalForeignApi::class)
+internal fun readStereo3d(par: CPointer<kc_codec_par>): Stereo3D? = memScoped {
+    val ints = allocArray<IntVar>(STEREO3D_INTS)
+    if (ffkmp_codecpar_stereo3d(par, ints) > 0) stereo3dOf(IntArray(STEREO3D_INTS) { ints[it] }) else null
 }
 
 /** Gives an encoder [hdr] before it opens; each half is written only when present. */

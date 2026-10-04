@@ -10,8 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Upgrading
 
-- `VideoStreamInfo` gains `dolbyVision`, which changes its constructor and `copy`. Recompile a
-  library built against 0.4.0.
+- `VideoStreamInfo` gains `dolbyVision`, `crop`, `spherical` and `stereo3d`, which changes its
+  constructor and `copy`. Recompile a library built against 0.4.0.
 - `StreamInfo.language` of a Matroska track that carries `LanguageBCP47` is that tag now (#150).
   MKVToolNix writes it on every track, so an English track from such a file reads `en` where it
   read `eng`, and a Traditional Chinese one `zh-Hant` where it read `chi`. Code that compares a
@@ -23,6 +23,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `VideoStreamInfo.spherical` and `VideoStreamInfo.stereo3d` say how a stream's pictures wrap
+  around the viewer and how they hold the views of two eyes (#139), as Google's spherical video and
+  stereoscopic boxes in MP4, Apple's video extension box in MP4 and MOV, which FFmpeg reads from
+  7.1 on, and a Matroska track's `Projection` and `StereoMode` state them. FFmpeg reads all of it
+  and applies none. The projection is a sealed class whose tile carries its four bounds and whose
+  cube map carries its padding, the turn is the yaw, pitch and roll exactly as FFmpeg holds them,
+  and the stereo layout carries the packing, whether the eyes are reversed, and Apple's primary
+  eye, baseline, disparity adjustment and field of view. The C ABI is 3.26 and adds
+  `ffkmp_codecpar_spherical` and `ffkmp_codecpar_stereo3d`.
 - `Frame.dolbyVisionRpu()` reads the whole Dolby Vision RPU of a frame as FFmpeg's decoder parsed
   it (#138): the header, each component's reshaping curve with its polynomial and MMR pieces, the
   inverse quantization of an enhancement layer's residual, and the colour matrices and signal

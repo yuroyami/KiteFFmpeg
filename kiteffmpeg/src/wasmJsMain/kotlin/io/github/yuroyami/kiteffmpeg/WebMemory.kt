@@ -2,6 +2,8 @@ package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_dovi_config
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_frame_cropping
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_spherical
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_stereo3d
 import kotlin.js.JsAny
 
 /*
@@ -151,7 +153,6 @@ internal inline fun readHdr(
     }
 }
 
-/** The Dolby Vision configuration a stream's codec parameters carry, or null when they carry none. */
 /** The container's crop of [par]'s pictures, or null when it has none (#147). */
 internal fun readVideoCrop(module: JsAny, par: Int): VideoCrop? {
     val ints = wasmAlloc(module, VIDEO_CROP_INTS * 4)
@@ -163,6 +164,29 @@ internal fun readVideoCrop(module: JsAny, par: Int): VideoCrop? {
     }
 }
 
+/** How [par]'s pictures map onto a sphere, or null when the container says nothing (#139). */
+internal fun readSphericalMapping(module: JsAny, par: Int): SphericalMapping? {
+    val ints = wasmAlloc(module, SPHERICAL_INTS * 4)
+    try {
+        if (ffkmp_codecpar_spherical(module, par, ints) <= 0) return null
+        return sphericalMappingOf(IntArray(SPHERICAL_INTS) { readInt32(module, ints + it * 4) })
+    } finally {
+        wasmFree(module, ints)
+    }
+}
+
+/** How [par]'s pictures hold two eyes' views, or null when the container says nothing (#139). */
+internal fun readStereo3d(module: JsAny, par: Int): Stereo3D? {
+    val ints = wasmAlloc(module, STEREO3D_INTS * 4)
+    try {
+        if (ffkmp_codecpar_stereo3d(module, par, ints) <= 0) return null
+        return stereo3dOf(IntArray(STEREO3D_INTS) { readInt32(module, ints + it * 4) })
+    } finally {
+        wasmFree(module, ints)
+    }
+}
+
+/** The Dolby Vision configuration a stream's codec parameters carry, or null when they carry none. */
 internal fun readDolbyVisionConfig(module: JsAny, par: Int): DolbyVisionConfig? {
     val ints = wasmAlloc(module, DOLBY_VISION_INTS * 4)
     try {

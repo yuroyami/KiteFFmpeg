@@ -696,6 +696,8 @@ private fun buildStreams(format: Long): List<StreamInfo> = buildList {
                         hdr = Internals.codecParHdr(parameters),
                         dolbyVision = Internals.codecParDolbyVision(parameters),
                         crop = Internals.codecParCrop(parameters),
+                        spherical = Internals.codecParSpherical(parameters),
+                        stereo3d = Internals.codecParStereo3d(parameters),
                     ) else null,
                     audio = if (type == MediaType.Audio) AudioStreamInfo(
                         sampleRate = Internals.codecParSampleRate(parameters),

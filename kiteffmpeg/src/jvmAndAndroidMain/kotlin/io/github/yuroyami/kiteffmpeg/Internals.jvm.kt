@@ -179,6 +179,8 @@ internal object Internals {
     private external fun nativeCodecParHdr(token: Long): IntArray?
     private external fun nativeCodecParDoviConfig(token: Long): IntArray?
     private external fun nativeCodecParCropping(token: Long): IntArray?
+    private external fun nativeCodecParSpherical(token: Long): IntArray?
+    private external fun nativeCodecParStereo3d(token: Long): IntArray?
     private external fun nativeCodecParAudioFrameSamples(token: Long, frameBytes: Int): Int
     private external fun nativeCodecParFromContext(parameters: Long, context: Long): Int
     private external fun nativeCodecParCopy(destination: Long, source: Long): Int
@@ -545,6 +547,8 @@ internal object Internals {
     internal fun codecParDolbyVision(token: Long): DolbyVisionConfig? =
         checked { nativeCodecParDoviConfig(token) }?.let(::dolbyVisionConfigOf)
     internal fun codecParCrop(token: Long): VideoCrop? = checked { nativeCodecParCropping(token) }?.let(::videoCropOf)
+    internal fun codecParSpherical(token: Long): SphericalMapping? = checked { nativeCodecParSpherical(token) }?.let(::sphericalMappingOf)
+    internal fun codecParStereo3d(token: Long): Stereo3D? = checked { nativeCodecParStereo3d(token) }?.let(::stereo3dOf)
     internal fun codecParAudioFrameSamples(token: Long, frameBytes: Int) = checked { nativeCodecParAudioFrameSamples(token, frameBytes) }
     internal fun codecParFromContext(parameters: Long, context: Long) = checked { nativeCodecParFromContext(parameters, context) }
     internal fun codecParCopy(destination: Long, source: Long) = checked { nativeCodecParCopy(destination, source) }

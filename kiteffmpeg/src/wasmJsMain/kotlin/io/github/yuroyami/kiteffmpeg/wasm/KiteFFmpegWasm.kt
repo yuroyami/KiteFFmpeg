@@ -222,6 +222,12 @@ internal external fun ffkmp_codecpar_profile(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_codecpar_sample_rate(a0)")
 internal external fun ffkmp_codecpar_sample_rate(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_codecpar_spherical(a0, a1)")
+internal external fun ffkmp_codecpar_spherical(module: JsAny, a0: Int, a1: Int): Int
+
+@JsFun("(m, a0, a1) => m._ffkmp_codecpar_stereo3d(a0, a1)")
+internal external fun ffkmp_codecpar_stereo3d(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_codecpar_width(a0)")
 internal external fun ffkmp_codecpar_width(module: JsAny, a0: Int): Int
 

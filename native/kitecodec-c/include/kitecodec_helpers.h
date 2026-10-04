@@ -1007,6 +1007,22 @@ KC_API int ffkmp_stream_mirrored(kc_stream *s);
  * of the image. Returns 1 when the stream has one, 0 when it has none or FFmpeg is older than 7.1,
  * which does not read it, and AVERROR(EINVAL) for a NULL argument. */
 KC_API int ffkmp_codecpar_frame_cropping(kc_codec_par *p, int *out);
+/* How a stream's pictures map onto a sphere, from MP4's spherical video boxes, Apple's video
+ * extension box or a Matroska Projection element, which FFmpeg reads and does not apply. out[9]
+ * gets FFmpeg's AVSphericalProjection value, the yaw, pitch and roll as 16.16 fixed point, then the
+ * bits of four unsigned 0.32 fixed-point bounds, left, top, right and bottom, and of the unsigned
+ * cube map padding. Returns 1 when the stream has one, 0 when it has none or its projection is one
+ * this layer does not know, and AVERROR(EINVAL) for a NULL argument. */
+KC_API int ffkmp_codecpar_spherical(kc_codec_par *p, int *out);
+/* How a stream's pictures hold two eyes' views, from MP4's stereoscopic box, Apple's video
+ * extension box or a Matroska StereoMode, which FFmpeg reads and does not apply. out[9] gets
+ * FFmpeg's AVStereo3DType, 1 when the views are inverted, the AVStereo3DView, the
+ * AVStereo3DPrimaryEye, the bits of the unsigned baseline in micrometres, and the numerator and
+ * denominator of the horizontal disparity adjustment and of the horizontal field of view in
+ * degrees. Against an FFmpeg older than 7.1, which has none of the last four, they read as none,
+ * zero, 0/1 and 0/1. Returns 1 when the stream has one, 0 when it has none or a value this layer
+ * does not know, and AVERROR(EINVAL) for a NULL argument. */
+KC_API int ffkmp_codecpar_stereo3d(kc_codec_par *p, int *out);
 /* The samples per channel an audio packet of frame_bytes bytes holds, as FFmpeg reads it from the
  * codec (av_get_audio_frame_duration2): from the bytes for PCM and the codecs that code each sample
  * in a fixed number of bits, and from the codec's fixed frame size for the rest, 1024 for AAC and

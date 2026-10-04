@@ -68,3 +68,29 @@ public sealed class SphericalProjection {
     /** Apple's parametric immersive projection. */
     public data object ParametricImmersive : SphericalProjection()
 }
+
+/** How many ints `ffkmp_codecpar_spherical` writes. */
+internal const val SPHERICAL_INTS: Int = 9
+
+/**
+ * The mapping the C helper wrote, every backend's one reading of it: FFmpeg's projection value, the
+ * yaw, pitch and roll as 16.16 fixed point, then the bits of the unsigned 0.32 bounds, left, top,
+ * right and bottom, and of the unsigned cube map padding. Null for a projection it does not know.
+ */
+internal fun sphericalMappingOf(ints: IntArray): SphericalMapping? {
+    if (ints.size < SPHERICAL_INTS) return null
+    fun unsigned(index: Int): Long = ints[index].toLong() and 0xFFFFFFFFL
+    fun share(index: Int): Double = unsigned(index) / 4294967296.0
+    fun degrees(index: Int): Double = ints[index] / 65536.0
+    val projection = when (ints[0]) {
+        0 -> SphericalProjection.Equirectangular
+        1 -> SphericalProjection.Cubemap(padding = unsigned(8))
+        2 -> SphericalProjection.EquirectangularTile(left = share(4), top = share(5), right = share(6), bottom = share(7))
+        3 -> SphericalProjection.HalfEquirectangular
+        4 -> SphericalProjection.Rectilinear
+        5 -> SphericalProjection.Fisheye
+        6 -> SphericalProjection.ParametricImmersive
+        else -> return null
+    }
+    return SphericalMapping(projection, yaw = degrees(1), pitch = degrees(2), roll = degrees(3))
+}

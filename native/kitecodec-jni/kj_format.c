@@ -540,6 +540,26 @@ JNIEXPORT jintArray JNICALL kj_codecpar_frame_cropping(JNIEnv *env, jclass cls, 
     for (int i = 0; i < 4; i++) packed[i] = out[i];
     return kj_ints_new(env, packed, 4);
 }
+JNIEXPORT jintArray JNICALL kj_codecpar_spherical(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_codec_par *p = (kc_codec_par *)kj_handle_get(env, token, KJ_KIND_CODEC_PAR);
+    int out[9] = { 0 };
+    jint packed[9];
+    (void)cls;
+    if (p == NULL || ffkmp_codecpar_spherical(p, out) <= 0) return NULL;
+    for (int i = 0; i < 9; i++) packed[i] = out[i];
+    return kj_ints_new(env, packed, 9);
+}
+JNIEXPORT jintArray JNICALL kj_codecpar_stereo3d(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_codec_par *p = (kc_codec_par *)kj_handle_get(env, token, KJ_KIND_CODEC_PAR);
+    int out[9] = { 0 };
+    jint packed[9];
+    (void)cls;
+    if (p == NULL || ffkmp_codecpar_stereo3d(p, out) <= 0) return NULL;
+    for (int i = 0; i < 9; i++) packed[i] = out[i];
+    return kj_ints_new(env, packed, 9);
+}
 JNIEXPORT jint JNICALL kj_codecpar_audio_frame_samples(JNIEnv *env, jclass cls, jlong token, jint frame_bytes)
 {
     kc_codec_par *p = (kc_codec_par *)kj_handle_get(env, token, KJ_KIND_CODEC_PAR);

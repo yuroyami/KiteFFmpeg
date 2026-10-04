@@ -181,6 +181,28 @@ source.primaryAudio?.audio?.let { a ->
 | `video` | `VideoStreamInfo?` | Non-null for video streams |
 | `audio` | `AudioStreamInfo?` | Non-null for audio streams |
 
+### 360 degree and stereo video
+
+A 360 degree video is an ordinary picture that its container says to wrap around the viewer, and a stereo video holds the views of both eyes in each picture. FFmpeg reads what the container says and applies none of it, so a renderer that draws the picture as it comes shows a stretched panorama, or both views at once. `stream.video?.spherical` and `stream.video?.stereo3d` pass it on, and each is null when the container says nothing. They come from Google's spherical video and stereoscopic boxes in MP4, Apple's video extension box in MP4 and MOV, which FFmpeg reads from 7.1 on, and a Matroska track's `Projection` and `StereoMode`.
+
+```kotlin
+val video = stream.video ?: return
+video.spherical?.let { mapping ->
+    when (val projection = mapping.projection) {
+        SphericalProjection.Equirectangular -> println("the whole sphere")
+        is SphericalProjection.EquirectangularTile -> println("a part of the sphere, ${projection.left} of it to the left")
+        is SphericalProjection.Cubemap -> println("a cube map with ${projection.padding} pixels of padding")
+        else -> println(projection)
+    }
+    println("turned by yaw ${mapping.yaw}, pitch ${mapping.pitch} and roll ${mapping.roll} degrees")
+}
+video.stereo3d?.let { stereo ->
+    println("${stereo.type}, ${if (stereo.inverted) "the right eye first" else "the left eye first"}")
+}
+```
+
+A renderer splits each picture into the eyes' views as `stereo3d.type` says, maps each view onto the sphere as the projection says, and turns the sphere by the rotation `Ry(yaw) * Rx(pitch) * Rz(roll)` with the viewer at its centre. The angles are exactly the 16.16 fixed-point numbers FFmpeg holds, which a Matroska file's floating-point angles are rounded toward zero to fit. Apple's video extension box can say which eyes a picture holds without saying how they are packed, and then the type reads `Unspecified`. Apple's boxes also carry the eye to show in 2D, the distance between the lenses, how far to shift the views against each other, and the field of view, which the other containers do not state.
+
 ### Container metadata
 
 The container's own tag dictionary is a plain map:

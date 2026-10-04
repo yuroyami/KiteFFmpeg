@@ -1191,6 +1191,8 @@ private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> {
                 ),
                 dolbyVision = readDolbyVisionConfig(par),
                 crop = readVideoCrop(par),
+                spherical = readSphericalMapping(par),
+                stereo3d = readStereo3d(par),
             ) else null,
             audio = if (type == MediaType.Audio) AudioStreamInfo(
                 sampleRate = ffkmp_codecpar_sample_rate(par),
