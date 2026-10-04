@@ -8,6 +8,10 @@ import kotlin.test.assertNull
  * A stream reports the spherical mapping and the stereo layout its container states (#139):
  * Matroska's `Projection` and `StereoMode`, Google's spherical video and stereoscopic boxes in MP4,
  * and Apple's video extension box in MOV, and a stream with none of them reports neither.
+ *
+ * An MP4 that carries both Google's boxes and Apple's reads them as one description, whichever
+ * comes first (#160). The fix is the FFmpeg patch `0009`, so that test fails on a tree built before
+ * it: such a tree refuses the file at its header.
  */
 class SphericalContractTest {
 
@@ -70,6 +74,24 @@ class SphericalContractTest {
             Stereo3D(
                 type = Stereo3DType.Unspecified,
                 inverted = true,
+                view = Stereo3DView.Packed,
+                primaryEye = StereoEye.Right,
+                baselineMicrometres = 64_000,
+                horizontalDisparityAdjustment = Rational(-150, 10_000),
+                horizontalFieldOfView = Rational(110_500, 1_000),
+            ),
+            video.stereo3d,
+        )
+    }
+
+    @Test
+    fun applesBoxesBeforeGooglesAddUpToOneDescription() {
+        val video = videoOf(BothBoxesMp4.bytes, BothBoxesMp4.sha256)
+        assertEquals(SphericalMapping(SphericalProjection.Equirectangular, yaw = -12.5, pitch = 45.75, roll = -170.25), video.spherical)
+        assertEquals(
+            Stereo3D(
+                type = Stereo3DType.TopBottom,
+                inverted = false,
                 view = Stereo3DView.Packed,
                 primaryEye = StereoEye.Right,
                 baselineMicrometres = 64_000,
@@ -234,5 +256,41 @@ AAAAAAAAAQAAAABGRk1QAAACAAAAAgAAEAAQAEgAAABIAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA
 cXUAAABSZXllcwAAAA1zdHJpAAAAAAsAAAANaGVybwAAAAACAAAAGGNhbXMAAAAQYmxpbgAAAAAAAPoAAAAAGGNtZnkAAAAQZGFk
 agAAAAD///9qAAAADGhmb3YAAa+kAAAAEHBhc3AAAAABAAAAAQAAABhzdHRzAAAAAAAAAAEAAAABAAACgAAAABxzdHNjAAAAAAAA
 AAEAAAABAAAAAQAAAAEAAAAUc3RzegAAAAAAAAALAAAAAQAAABRzdGNvAAAAAAAAAAEAAAAk
+"""
+}
+
+/**
+ * [GoogleBoxesMp4] without its two boxes, with these added by hand at the end of its sample entry
+ * in this order: Apple's video extension box, saying equirectangular, both eyes, the right one
+ * primary, a baseline of 64 mm and a disparity adjustment of -0.015, then Apple's field of view
+ * box, saying 110.5 degrees, then Google's spherical video box, saying equirectangular turned by
+ * yaw -12.5, pitch 45.75 and roll -170.25, then Google's stereoscopic box, saying top and bottom.
+ * FFmpeg 9.0.2 without patch `0009` fails the header on the last box.
+ */
+private object BothBoxesMp4 {
+    const val sha256: String = "4e9b28e91e08e3cf53862c68c51ce4ec2381a0da8996dcc8e32a19e6bbf61eda"
+
+    val bytes: ByteArray by lazy {
+        decodeBase64(DATA.filterNot { it.isWhitespace() }).also { decoded ->
+            check(decoded.size == 1022) { "BothBoxesMp4 fixture size changed: ${decoded.size}" }
+            check(sha256Hex(decoded) == sha256) { "BothBoxesMp4 fixture digest changed" }
+        }
+    }
+
+    private val DATA: String = """
+AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAABNtZGF0AAAAB2WIhDomKA4AAAPDbW9vdgAAAGxtdmhk
+AAAAAAAAAAAAAAAAAAAD6AAAACgAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAxJ0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAACgAAAAAAAAAAAAA
+AAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEA
+AAAoAAAAAAABAAAAAAKKbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAA+gAAAAoBVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAA
+AAAAAAAAAABWaWRlb0hhbmRsZXIAAAACNW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAA
+AAx1cmwgAAAAAQAAAfVzdGJsAAABkXN0c2QAAAAAAAAAAQAAAYFhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAA
+SAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAAK2F2Y0MBQsAK/+EAFGdCwArd7ARAAAADAEAA
+AAyDxIngAQAEaM4PyAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAAAiYAAAImAAAAHJ2ZXh1AAAAGHByb2oAAAAQcHJqaQAA
+AABlcXVpAAAAUmV5ZXMAAAANc3RyaQAAAAADAAAADWhlcm8AAAAAAgAAABhjYW1zAAAAEGJsaW4AAAAAAAD6AAAAABhjbWZ5AAAA
+EGRhZGoAAAAA////agAAAAxoZm92AAGvpAAAAFFzdjNkAAAADXN2aGQAAAAAAAAAADxwcm9qAAAAGHByaGQAAAAA//OAAAAtwAD/
+VcAAAAAAHGVxdWkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1zdDNkAAAAAAEAAAAYc3R0cwAAAAAAAAABAAAAAQAAAoAAAAAcc3Rz
+YwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN0c3oAAAAAAAAACwAAAAEAAAAUc3RjbwAAAAAAAAABAAAAMAAAAD11ZHRhAAAANW1l
+dGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAACGlsc3Q=
 """
 }

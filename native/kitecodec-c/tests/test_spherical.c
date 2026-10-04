@@ -6,6 +6,10 @@
  * ffkmp_codecpar_stereo3d read them. Each file case opens a file from memory. FFmpeg older than 7.1
  * reads no video extension box and has no primary eye, baseline, disparity adjustment or field of
  * view, so against it the MOV answers that it has neither and those four read as their defaults.
+ *
+ * An MP4 can carry Google's boxes and Apple's at once, and FFmpeg 9.0.2 lost the turn, the packing
+ * or the whole file depending on their order (#160). The cases for that assemble each order from a
+ * plain MP4 and run only against a tree built with the patch that adds the two up.
  */
 
 #include "harness.h"
@@ -16,12 +20,18 @@
 #include <libavutil/mem.h>
 #include <libavutil/spherical.h>
 #include <libavutil/stereo3d.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 /* FFmpeg 7.1 is the first release that reads Apple's video extension box, and the first with the
  * later stereo fields, which libavutil 59.24.100 added. */
 #define KC_APPLE_STEREO (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 24, 100))
+
+/* The cases of #160 expect values that only libavutil 59.27.100 and later name. The patch they
+ * test is written against FFmpeg 9.0.2. */
+#define KC_ADDS_UP_CASES (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 27, 100))
 
 /* A 16x16 H.264 picture in Matroska whose track says an equirectangular projection turned by yaw
  * 90, pitch -30 and roll 15, and StereoMode 2, top and bottom with the right eye on top, set by
@@ -297,6 +307,65 @@ static const unsigned char kc_mov_spatial[] = {
     0x74, 0x63, 0x6f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x24,
 };
 
+#if KC_ADDS_UP_CASES
+/* The same picture remuxed to MP4 by FFmpeg 6.1 with neither description. Its movie box comes
+ * last, so a case can add boxes to its sample entry and its track without moving the media that the
+ * chunk offsets point at. */
+static const unsigned char kc_mp4_plain[] = {
+    0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x02, 0x00,
+    0x69, 0x73, 0x6f, 0x6d, 0x69, 0x73, 0x6f, 0x32, 0x61, 0x76, 0x63, 0x31, 0x6d, 0x70, 0x34, 0x31,
+    0x00, 0x00, 0x00, 0x08, 0x66, 0x72, 0x65, 0x65, 0x00, 0x00, 0x00, 0x13, 0x6d, 0x64, 0x61, 0x74,
+    0x00, 0x00, 0x00, 0x07, 0x65, 0x88, 0x84, 0x3a, 0x26, 0x28, 0x0e, 0x00, 0x00, 0x02, 0xe7, 0x6d,
+    0x6f, 0x6f, 0x76, 0x00, 0x00, 0x00, 0x6c, 0x6d, 0x76, 0x68, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe8, 0x00, 0x00, 0x00, 0x28, 0x00,
+    0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+    0x00, 0x02, 0x36, 0x74, 0x72, 0x61, 0x6b, 0x00, 0x00, 0x00, 0x5c, 0x74, 0x6b, 0x68, 0x64, 0x00,
+    0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24, 0x65, 0x64, 0x74, 0x73, 0x00, 0x00, 0x00, 0x1c, 0x65,
+    0x6c, 0x73, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x28, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0xae, 0x6d, 0x64, 0x69, 0x61, 0x00,
+    0x00, 0x00, 0x20, 0x6d, 0x64, 0x68, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x80, 0x00, 0x00, 0x02, 0x80, 0x55, 0xc4, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x2d, 0x68, 0x64, 0x6c, 0x72, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76,
+    0x69, 0x64, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56,
+    0x69, 0x64, 0x65, 0x6f, 0x48, 0x61, 0x6e, 0x64, 0x6c, 0x65, 0x72, 0x00, 0x00, 0x00, 0x01, 0x59,
+    0x6d, 0x69, 0x6e, 0x66, 0x00, 0x00, 0x00, 0x14, 0x76, 0x6d, 0x68, 0x64, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24, 0x64, 0x69, 0x6e, 0x66,
+    0x00, 0x00, 0x00, 0x1c, 0x64, 0x72, 0x65, 0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x0c, 0x75, 0x72, 0x6c, 0x20, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x19,
+    0x73, 0x74, 0x62, 0x6c, 0x00, 0x00, 0x00, 0xb5, 0x73, 0x74, 0x73, 0x64, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xa5, 0x61, 0x76, 0x63, 0x31, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x10, 0x00, 0x48, 0x00, 0x00, 0x00, 0x48, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0xff, 0xff, 0x00, 0x00, 0x00, 0x2b, 0x61, 0x76,
+    0x63, 0x43, 0x01, 0x42, 0xc0, 0x0a, 0xff, 0xe1, 0x00, 0x14, 0x67, 0x42, 0xc0, 0x0a, 0xdd, 0xec,
+    0x04, 0x40, 0x00, 0x00, 0x03, 0x00, 0x40, 0x00, 0x00, 0x0c, 0x83, 0xc4, 0x89, 0xe0, 0x01, 0x00,
+    0x04, 0x68, 0xce, 0x0f, 0xc8, 0x00, 0x00, 0x00, 0x10, 0x70, 0x61, 0x73, 0x70, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x14, 0x62, 0x74, 0x72, 0x74, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x08, 0x98, 0x00, 0x00, 0x08, 0x98, 0x00, 0x00, 0x00, 0x18, 0x73, 0x74, 0x74,
+    0x73, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x02,
+    0x80, 0x00, 0x00, 0x00, 0x1c, 0x73, 0x74, 0x73, 0x63, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0x14, 0x73, 0x74, 0x73, 0x7a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x00, 0x00, 0x14, 0x73, 0x74, 0x63, 0x6f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00, 0x3d, 0x75, 0x64, 0x74, 0x61, 0x00, 0x00, 0x00,
+    0x35, 0x6d, 0x65, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x68, 0x64, 0x6c,
+    0x72, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6d, 0x64, 0x69, 0x72, 0x61, 0x70, 0x70,
+    0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x69, 0x6c,
+    0x73, 0x74,
+};
+#endif
+
 typedef struct {
     const unsigned char *bytes;
     int64_t size;
@@ -384,6 +453,433 @@ static void expect_untouched(const int *out)
 {
     for (int i = 0; i < 9; i++) KC_EQ_INT(out[i], -7);
 }
+
+#if KC_ADDS_UP_CASES
+
+/* FFmpeg's patch that adds Google's and Apple's boxes up whatever order they come in. */
+#define KC_ADDS_UP_PATCH "0009-mov-add-up-the-360-and-stereo-boxes.patch"
+
+/* 1 when the linked FFmpeg's tree lists [patch] among the patches it was built with. */
+static int linked_tree_carries(const char *patch)
+{
+    char evidence[1024], line[512];
+    int found = 0;
+    snprintf(evidence, sizeof(evidence), "%s/kiteffmpeg/ffmpeg-patches.txt", KC_BUILD_FFMPEG_DIR);
+    FILE *f = fopen(evidence, "r");
+    if (!f) return 0;
+    while (!found && fgets(line, sizeof(line), f))
+        found = strncmp(line, patch, strlen(patch)) == 0;
+    fclose(f);
+    return found;
+}
+
+typedef struct {
+    unsigned char bytes[2048];
+    size_t size;
+} kc_buffer;
+
+static void put_raw(kc_buffer *b, const void *data, size_t n)
+{
+    if (b->size + n > sizeof(b->bytes)) {
+        KC_FAIL("an assembled file outgrew its %zu bytes", sizeof(b->bytes));
+        return;
+    }
+    memcpy(b->bytes + b->size, data, n);
+    b->size += n;
+}
+
+static void put_u8(kc_buffer *b, int v)
+{
+    const unsigned char byte = (unsigned char)v;
+    put_raw(b, &byte, 1);
+}
+
+static void put_u32(kc_buffer *b, uint32_t v)
+{
+    const unsigned char bytes[4] = { (unsigned char)(v >> 24), (unsigned char)(v >> 16),
+                                     (unsigned char)(v >> 8), (unsigned char)v };
+    put_raw(b, bytes, 4);
+}
+
+static uint32_t read_u32(const unsigned char *d)
+{
+    return (uint32_t)d[0] << 24 | (uint32_t)d[1] << 16 | (uint32_t)d[2] << 8 | d[3];
+}
+
+/* Starts a box and answers where it starts, for close_box to write its size once its content is in. */
+static size_t open_box(kc_buffer *b, const char *tag)
+{
+    const size_t at = b->size;
+    put_u32(b, 0);
+    put_raw(b, tag, 4);
+    return at;
+}
+
+/* A box that starts with a version and flags, both zero. */
+static size_t open_full_box(kc_buffer *b, const char *tag)
+{
+    const size_t at = open_box(b, tag);
+    put_u32(b, 0);
+    return at;
+}
+
+static void close_box(kc_buffer *b, size_t at)
+{
+    const uint32_t size = (uint32_t)(b->size - at);
+    if (at + 4 > b->size) return;
+    b->bytes[at] = (unsigned char)(size >> 24);
+    b->bytes[at + 1] = (unsigned char)(size >> 16);
+    b->bytes[at + 2] = (unsigned char)(size >> 8);
+    b->bytes[at + 3] = (unsigned char)size;
+}
+
+/* The boxes a case adds, laid out as Google's and Apple's specifications give them, and as
+ * FFmpeg 9.0.2 writes those it writes. */
+typedef enum {
+    KC_ST3D_TOP_BOTTOM, /* Google's stereoscopic box: top and bottom, the left eye on top */
+    KC_ST3D_MONO,       /* Google's stereoscopic box: one view */
+    KC_SV3D_TURNED,     /* Google's spherical video box: equirectangular, yaw -12.5, pitch 45.75, roll -170.25 */
+    KC_SV3D_CUBEMAP,    /* Google's spherical video box: a cube map with 2 pixels of padding, yaw 9 */
+    KC_VEXU_SPATIAL,    /* Apple's video extension box: equirectangular, both eyes, the right one
+                         * primary, a 64 mm baseline and a disparity adjustment of -0.015 */
+    KC_VEXU_REVERSED,   /* the same eyes, reversed, and no projection */
+    KC_VEXU_HALF,       /* half equirectangular, both eyes, the left one primary */
+    KC_VEXU_LEFT_ONLY,  /* the left eye's view alone, the left one primary */
+    KC_VEXU_PACK_FIRST, /* side by side in a pack box, then both eyes, the right one primary */
+    KC_VEXU_EYES_FIRST, /* both eyes, the right one primary, then side by side in a pack box */
+    KC_HFOV,            /* Apple's field of view box: 110.5 degrees */
+    KC_UUID_V1,         /* Google's first spherical box, in the track: equirectangular, top and bottom */
+} kc_part;
+
+static void put_sv3d(kc_buffer *b, int32_t yaw, int32_t pitch, int32_t roll, int cubemap, uint32_t padding)
+{
+    const size_t sv3d = open_box(b, "sv3d");
+    size_t at = open_full_box(b, "svhd");
+    put_u8(b, 0); /* an empty metadata source */
+    close_box(b, at);
+    const size_t proj = open_box(b, "proj");
+    at = open_full_box(b, "prhd");
+    put_u32(b, (uint32_t)yaw);
+    put_u32(b, (uint32_t)pitch);
+    put_u32(b, (uint32_t)roll);
+    close_box(b, at);
+    if (cubemap) {
+        at = open_full_box(b, "cbmp");
+        put_u32(b, 0); /* the 3 by 2 layout */
+        put_u32(b, padding);
+    } else {
+        at = open_full_box(b, "equi");
+        for (int i = 0; i < 4; i++) put_u32(b, 0); /* no bounds */
+    }
+    close_box(b, at);
+    close_box(b, proj);
+    close_box(b, sv3d);
+}
+
+static void put_prji(kc_buffer *b, const char *projection)
+{
+    const size_t proj = open_box(b, "proj"), at = open_full_box(b, "prji");
+    put_raw(b, projection, 4);
+    close_box(b, at);
+    close_box(b, proj);
+}
+
+/* [views] is the stri byte: 1 the left eye, 2 the right eye, 8 the two reversed. */
+static void put_eyes(kc_buffer *b, int views, int hero, uint32_t baseline, int32_t adjustment)
+{
+    const size_t eyes = open_box(b, "eyes");
+    size_t at = open_full_box(b, "stri"), outer;
+    put_u8(b, views);
+    close_box(b, at);
+    if (hero) {
+        at = open_full_box(b, "hero");
+        put_u8(b, hero);
+        close_box(b, at);
+    }
+    if (baseline) {
+        outer = open_box(b, "cams");
+        at = open_full_box(b, "blin");
+        put_u32(b, baseline);
+        close_box(b, at);
+        close_box(b, outer);
+    }
+    if (adjustment) {
+        outer = open_box(b, "cmfy");
+        at = open_full_box(b, "dadj");
+        put_u32(b, (uint32_t)adjustment);
+        close_box(b, at);
+        close_box(b, outer);
+    }
+    close_box(b, eyes);
+}
+
+static void put_side_by_side(kc_buffer *b)
+{
+    const size_t pack = open_box(b, "pack"), at = open_full_box(b, "pkin");
+    put_raw(b, "side", 4);
+    close_box(b, at);
+    close_box(b, pack);
+}
+
+static void put_part(kc_buffer *b, kc_part part)
+{
+    static const unsigned char spherical_uuid[16] = { 0xff, 0xcc, 0x82, 0x63, 0xf8, 0x55, 0x4a, 0x93,
+                                                      0x88, 0x14, 0x58, 0x7a, 0x02, 0x52, 0x1f, 0xdd };
+    static const char spherical_xml[] =
+        "<?xml version=\"1.0\"?><rdf:SphericalVideo "
+        "xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" "
+        "xmlns:GSpherical=\"http://ns.google.com/videos/1.0/spherical/\">"
+        "<GSpherical:Spherical>true</GSpherical:Spherical>"
+        "<GSpherical:Stitched>true</GSpherical:Stitched>"
+        "<GSpherical:StitchingSoftware>KiteFFmpeg</GSpherical:StitchingSoftware>"
+        "<GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType>"
+        "<GSpherical:StereoMode>top-bottom</GSpherical:StereoMode>"
+        "</rdf:SphericalVideo>";
+    size_t at;
+
+    switch (part) {
+    case KC_ST3D_TOP_BOTTOM:
+    case KC_ST3D_MONO:
+        at = open_full_box(b, "st3d");
+        put_u8(b, part == KC_ST3D_TOP_BOTTOM ? 1 : 0);
+        close_box(b, at);
+        break;
+    case KC_SV3D_TURNED:
+        put_sv3d(b, KC_DEGREES(-1250), KC_DEGREES(4575), KC_DEGREES(-17025), 0, 0);
+        break;
+    case KC_SV3D_CUBEMAP:
+        put_sv3d(b, KC_DEGREES(900), 0, 0, 1, 2);
+        break;
+    case KC_VEXU_SPATIAL:
+    case KC_VEXU_REVERSED:
+        at = open_box(b, "vexu");
+        if (part == KC_VEXU_SPATIAL) put_prji(b, "equi");
+        put_eyes(b, part == KC_VEXU_SPATIAL ? 3 : 3 | 8, 2, 64000, -150);
+        close_box(b, at);
+        break;
+    case KC_VEXU_HALF:
+        at = open_box(b, "vexu");
+        put_prji(b, "hequ");
+        put_eyes(b, 3, 1, 0, 0);
+        close_box(b, at);
+        break;
+    case KC_VEXU_LEFT_ONLY:
+        at = open_box(b, "vexu");
+        put_eyes(b, 1, 1, 0, 0);
+        close_box(b, at);
+        break;
+    case KC_VEXU_PACK_FIRST:
+    case KC_VEXU_EYES_FIRST:
+        at = open_box(b, "vexu");
+        if (part == KC_VEXU_PACK_FIRST) put_side_by_side(b);
+        put_eyes(b, 3, 2, 0, 0);
+        if (part == KC_VEXU_EYES_FIRST) put_side_by_side(b);
+        close_box(b, at);
+        break;
+    case KC_HFOV:
+        at = open_box(b, "hfov");
+        put_u32(b, 110500);
+        close_box(b, at);
+        break;
+    case KC_UUID_V1:
+        at = open_box(b, "uuid");
+        put_raw(b, spherical_uuid, sizeof(spherical_uuid));
+        put_raw(b, spherical_xml, sizeof(spherical_xml) - 1);
+        close_box(b, at);
+        break;
+    }
+}
+
+/* The offset of the box tagged [tag] among the boxes from [from] to [to], or 0 when it is not there. */
+static size_t find_box(const unsigned char *d, size_t from, size_t to, const char *tag)
+{
+    while (from + 8 <= to) {
+        const size_t size = read_u32(d + from);
+        if (memcmp(d + from + 4, tag, 4) == 0) return from;
+        if (size < 8) break;
+        from += size;
+    }
+    KC_FAIL("the plain MP4 has no %s box where the case looks for one", tag);
+    return 0;
+}
+
+static void grow_box(kc_buffer *file, size_t at, size_t growth)
+{
+    const uint32_t size = read_u32(file->bytes + at) + (uint32_t)growth;
+    file->bytes[at] = (unsigned char)(size >> 24);
+    file->bytes[at + 1] = (unsigned char)(size >> 16);
+    file->bytes[at + 2] = (unsigned char)(size >> 8);
+    file->bytes[at + 3] = (unsigned char)size;
+}
+
+/* The plain MP4 with [entry] added, in that order, at the end of its sample entry, and [track]
+ * added to its track, before its media box when [track_first] is 1 and after it otherwise.
+ * Every box that holds an addition grows by its size. */
+static void assemble(kc_buffer *file, const kc_part *entry, int entries, const kc_part *track, int tracks,
+                     int track_first)
+{
+    const unsigned char *d = kc_mp4_plain;
+    const size_t size = sizeof(kc_mp4_plain);
+    kc_buffer to_entry = { .size = 0 }, to_track = { .size = 0 };
+    size_t moov, trak, mdia, minf, stbl, stsd, avc1, entry_at, track_at, shift;
+
+    for (int i = 0; i < entries; i++) put_part(&to_entry, entry[i]);
+    for (int i = 0; i < tracks; i++) put_part(&to_track, track[i]);
+
+    moov = find_box(d, 0, size, "moov");
+    trak = find_box(d, moov + 8, moov + read_u32(d + moov), "trak");
+    mdia = find_box(d, trak + 8, trak + read_u32(d + trak), "mdia");
+    minf = find_box(d, mdia + 8, mdia + read_u32(d + mdia), "minf");
+    stbl = find_box(d, minf + 8, minf + read_u32(d + minf), "stbl");
+    stsd = find_box(d, stbl + 8, stbl + read_u32(d + stbl), "stsd");
+    avc1 = find_box(d, stsd + 16, stsd + read_u32(d + stsd), "avc1");
+    entry_at = avc1 + read_u32(d + avc1);
+    track_at = track_first ? mdia : trak + read_u32(d + trak);
+
+    file->size = 0;
+    if (track_first) {
+        put_raw(file, d, track_at);
+        put_raw(file, to_track.bytes, to_track.size);
+        put_raw(file, d + track_at, entry_at - track_at);
+        put_raw(file, to_entry.bytes, to_entry.size);
+        put_raw(file, d + entry_at, size - entry_at);
+    } else {
+        put_raw(file, d, entry_at);
+        put_raw(file, to_entry.bytes, to_entry.size);
+        put_raw(file, d + entry_at, track_at - entry_at);
+        put_raw(file, to_track.bytes, to_track.size);
+        put_raw(file, d + track_at, size - track_at);
+    }
+
+    /* The movie and the track hold both additions. The media box and the boxes inside it hold the
+     * sample entry's, and move by the track's when it went in ahead of them. */
+    grow_box(file, moov, to_entry.size + to_track.size);
+    grow_box(file, trak, to_entry.size + to_track.size);
+    shift = track_first ? to_track.size : 0;
+    grow_box(file, mdia + shift, to_entry.size);
+    grow_box(file, minf + shift, to_entry.size);
+    grow_box(file, stbl + shift, to_entry.size);
+    grow_box(file, stsd + shift, to_entry.size);
+    grow_box(file, avc1 + shift, to_entry.size);
+}
+
+/* Reads an assembled file, then reads it again counting allocations, which must balance. */
+static void read_assembled(const kc_buffer *file, reading *r)
+{
+    kc_alloc_counts before;
+    read_file(file->bytes, (int64_t)file->size, r);
+    kc_alloc_snapshot(&before);
+    read_file(file->bytes, (int64_t)file->size, r);
+    KC_ALLOC_BALANCED(&before);
+}
+
+static void expect_reading(const kc_part *entry, int entries, const kc_part *track, int tracks, int track_first,
+                           const int *spherical, const int *stereo)
+{
+    kc_buffer file;
+    reading r;
+    assemble(&file, entry, entries, track, tracks, track_first);
+    read_assembled(&file, &r);
+    KC_EQ_INT(r.spherical_found, spherical ? 1 : 0);
+    if (spherical) expect_ints(r.spherical, spherical, 9);
+    else expect_untouched(r.spherical);
+    KC_EQ_INT(r.stereo_found, stereo ? 1 : 0);
+    if (stereo) expect_ints(r.stereo, stereo, 9);
+    else expect_untouched(r.stereo);
+}
+
+static const int kc_turned[9] = { AV_SPHERICAL_EQUIRECTANGULAR, KC_DEGREES(-1250), KC_DEGREES(4575),
+                                  KC_DEGREES(-17025), 0, 0, 0, 0, 0 };
+static const int kc_unturned[9] = { AV_SPHERICAL_EQUIRECTANGULAR, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+static void case_the_two_descriptions_add_up_in_any_order(void)
+{
+    static const kc_part orders[4][4] = {
+        { KC_ST3D_TOP_BOTTOM, KC_SV3D_TURNED, KC_VEXU_SPATIAL, KC_HFOV }, /* as FFmpeg writes them */
+        { KC_ST3D_TOP_BOTTOM, KC_VEXU_SPATIAL, KC_HFOV, KC_SV3D_TURNED },
+        { KC_SV3D_TURNED, KC_VEXU_SPATIAL, KC_HFOV, KC_ST3D_TOP_BOTTOM },
+        { KC_VEXU_SPATIAL, KC_HFOV, KC_SV3D_TURNED, KC_ST3D_TOP_BOTTOM },
+    };
+    static const int stereo[9] = { AV_STEREO3D_TOPBOTTOM, 0, AV_STEREO3D_VIEW_PACKED, AV_PRIMARY_EYE_RIGHT,
+                                   64000, -150, 10000, 110500, 1000 };
+
+    kc_case("Google's and Apple's boxes read as one description in every order: Google's turn and packing "
+            "with Apple's eye, baseline, disparity and field of view");
+    for (int i = 0; i < 4; i++) expect_reading(orders[i], 4, NULL, 0, 0, kc_turned, stereo);
+}
+
+static void case_disagreeing_stereo_keeps_googles_whole(void)
+{
+    static const kc_part reversed[2][3] = {
+        { KC_ST3D_TOP_BOTTOM, KC_VEXU_REVERSED, KC_HFOV },
+        { KC_VEXU_REVERSED, KC_HFOV, KC_ST3D_TOP_BOTTOM },
+    };
+    static const kc_part mono[2][3] = {
+        { KC_ST3D_MONO, KC_VEXU_SPATIAL, KC_HFOV },
+        { KC_VEXU_SPATIAL, KC_HFOV, KC_ST3D_MONO },
+    };
+    static const kc_part packed[2][2] = {
+        { KC_ST3D_TOP_BOTTOM, KC_VEXU_PACK_FIRST },
+        { KC_VEXU_PACK_FIRST, KC_ST3D_TOP_BOTTOM },
+    };
+    static const kc_part left_only[2][2] = {
+        { KC_ST3D_TOP_BOTTOM, KC_VEXU_LEFT_ONLY },
+        { KC_VEXU_LEFT_ONLY, KC_ST3D_TOP_BOTTOM },
+    };
+    static const int top_bottom[9] = { AV_STEREO3D_TOPBOTTOM, 0, AV_STEREO3D_VIEW_PACKED, AV_PRIMARY_EYE_NONE,
+                                       0, 0, 1, 110500, 1000 };
+    static const int one_view[9] = { AV_STEREO3D_2D, 0, AV_STEREO3D_VIEW_PACKED, AV_PRIMARY_EYE_NONE,
+                                     0, 0, 1, 110500, 1000 };
+    static const int top_bottom_alone[9] = { AV_STEREO3D_TOPBOTTOM, 0, AV_STEREO3D_VIEW_PACKED,
+                                             AV_PRIMARY_EYE_NONE, 0, 0, 1, 0, 1 };
+
+    kc_case("when Apple's eyes are reversed, Google's top and bottom is kept whole and the field of view joins it");
+    for (int i = 0; i < 2; i++) expect_reading(reversed[i], 3, NULL, 0, 0, NULL, top_bottom);
+    kc_case("when Google's box says one view and Apple's two, Google's is kept and Apple's projection stands alone");
+    for (int i = 0; i < 2; i++) expect_reading(mono[i], 3, NULL, 0, 0, kc_unturned, one_view);
+    kc_case("when Apple's pack box says side by side and Google's top and bottom, Google's is kept whole");
+    for (int i = 0; i < 2; i++) expect_reading(packed[i], 2, NULL, 0, 0, NULL, top_bottom_alone);
+    kc_case("when Apple's box says the picture holds the left eye's view alone, Google's top and bottom is kept whole");
+    for (int i = 0; i < 2; i++) expect_reading(left_only[i], 2, NULL, 0, 0, NULL, top_bottom_alone);
+}
+
+static void case_disagreeing_projection_keeps_googles_whole(void)
+{
+    static const kc_part orders[2][2] = {
+        { KC_SV3D_CUBEMAP, KC_VEXU_HALF },
+        { KC_VEXU_HALF, KC_SV3D_CUBEMAP },
+    };
+    static const int cubemap[9] = { AV_SPHERICAL_CUBEMAP, KC_DEGREES(900), 0, 0, 0, 0, 0, 0, 2 };
+    static const int apples_eyes[9] = { AV_STEREO3D_UNSPEC, 0, AV_STEREO3D_VIEW_PACKED, AV_PRIMARY_EYE_LEFT,
+                                        0, 0, 1, 0, 1 };
+
+    kc_case("Google's cube map is kept whole over Apple's half sphere, and Apple's eyes stand alone");
+    for (int i = 0; i < 2; i++) expect_reading(orders[i], 2, NULL, 0, 0, cubemap, apples_eyes);
+}
+
+static void case_a_pack_box_keeps_its_packing(void)
+{
+    static const kc_part pack_first[1] = { KC_VEXU_PACK_FIRST }, eyes_first[1] = { KC_VEXU_EYES_FIRST };
+    static const int side_by_side[9] = { AV_STEREO3D_SIDEBYSIDE, 0, AV_STEREO3D_VIEW_PACKED, AV_PRIMARY_EYE_RIGHT,
+                                         0, 0, 1, 0, 1 };
+
+    kc_case("an eyes box keeps the side by side packing of the pack box before or after it");
+    expect_reading(pack_first, 1, NULL, 0, 0, NULL, side_by_side);
+    expect_reading(eyes_first, 1, NULL, 0, 0, NULL, side_by_side);
+}
+
+static void case_googles_first_box_counts_as_googles(void)
+{
+    static const kc_part apples[1] = { KC_VEXU_HALF }, googles[1] = { KC_UUID_V1 };
+    static const int stereo[9] = { AV_STEREO3D_TOPBOTTOM, 0, AV_STEREO3D_VIEW_PACKED, AV_PRIMARY_EYE_LEFT,
+                                   0, 0, 1, 0, 1 };
+
+    kc_case("Google's first spherical box in the track is kept over Apple's half sphere, before or after it");
+    expect_reading(apples, 1, googles, 1, 1, kc_unturned, stereo);
+    expect_reading(apples, 1, googles, 1, 0, kc_unturned, stereo);
+}
+
+#endif
 
 static void case_matroska_equirectangular_and_bottom_top(void)
 {
@@ -612,6 +1108,21 @@ int main(void)
     case_unknown_values_are_none();
     case_short_side_data_is_none();
     case_null_arguments_are_refused();
+
+#if KC_ADDS_UP_CASES
+    if (!linked_tree_carries(KC_ADDS_UP_PATCH)) {
+        kc_note("the linked FFmpeg's tree does not list %s, so the cases of both descriptions did not run",
+                KC_ADDS_UP_PATCH);
+        return kc_suite_end();
+    }
+    case_the_two_descriptions_add_up_in_any_order();
+    case_disagreeing_stereo_keeps_googles_whole();
+    case_disagreeing_projection_keeps_googles_whole();
+    case_a_pack_box_keeps_its_packing();
+    case_googles_first_box_counts_as_googles();
+#else
+    kc_note("FFmpeg older than 7.1 reads no video extension box, so the cases of both descriptions did not run");
+#endif
 
     return kc_suite_end();
 }

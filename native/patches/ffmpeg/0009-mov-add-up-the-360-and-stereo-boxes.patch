@@ -1,0 +1,210 @@
+Let the MOV demuxer add up Google's and Apple's 360 degree and stereo boxes in any order.
+
+An MP4 or MOV can say twice how its pictures wrap around the viewer and how they hold two eyes'
+views: in Google's st3d and sv3d boxes, or its older spherical uuid box, and in Apple's vexu box,
+with its proj, eyes and pack boxes, beside hfov. FFmpeg's own muxer writes both sets into an MP4
+under -strict unofficial. The demuxer read both into the same AVSphericalMapping and AVStereo3D,
+so whichever came later won, and each order went wrong in its own way. A proj box after sv3d
+replaced the mapping, losing its yaw, pitch and roll and leaking it. An sv3d box after proj
+leaked Apple's mapping. An eyes box set the packing to unspecified over the one st3d or a pack
+box gave. An st3d box after eyes failed the whole header with AVERROR_INVALIDDATA, so a file
+FFmpeg 6.1 opens no longer opened.
+
+The demuxer now keeps what Apple's boxes say apart and adds it to Google's once the header is
+read, so the order of the boxes no longer matters. Google's mapping is kept when there is one,
+because it states the projection and also the turn and any bounds or padding, which Apple's proj
+box has no room for; Apple's projection is used when there is not. Apple's primary eye, baseline
+and disparity adjustment join Google's packing when the two agree, which is when Apple's boxes
+say both views, not reversed, packed the same way or in a way they do not say. When they
+disagree, Google's stereo description is kept whole, as VLC, which reads only Google's boxes,
+shows it. The field of view describes the lens rather than the views and joins either way. A
+file with one set of boxes reads as before, except that an eyes box no longer overwrites a pack
+box's packing, and nothing leaks.
+
+Applied by BuildFFmpegTask before configure, after 0008. Fixes yuroyami/KiteFFmpeg#160.
+
+diff --git a/libavformat/isom.h b/libavformat/isom.h
+index aa7db56..720f966 100644
+--- a/libavformat/isom.h
++++ b/libavformat/isom.h
+@@ -268,6 +268,12 @@ typedef struct MOVStreamContext {
+     size_t stereo3d_size;
+     AVSphericalMapping *spherical;
+     size_t spherical_size;
++    /* What Apple's vexu and hfov boxes say, kept apart from what Google's st3d, sv3d and
++     * spherical uuid boxes say until mov_merge_vexu() adds the two up. */
++    AVStereo3D *vexu_stereo3d;
++    size_t vexu_stereo3d_size;
++    AVSphericalMapping *vexu_spherical;
++    size_t vexu_spherical_size;
+     AVMasteringDisplayMetadata *mastering;
+     size_t mastering_size;
+     AVContentLightMetadata *coll;
+diff --git a/libavformat/mov.c b/libavformat/mov.c
+index 867882f..9b742ac 100644
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -6970,13 +6970,13 @@ static int mov_read_pack(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+     if (type == AV_STEREO3D_2D)
+         return 0;
+ 
+-    if (!sc->stereo3d) {
+-        sc->stereo3d = av_stereo3d_alloc_size(&sc->stereo3d_size);
+-        if (!sc->stereo3d)
++    if (!sc->vexu_stereo3d) {
++        sc->vexu_stereo3d = av_stereo3d_alloc_size(&sc->vexu_stereo3d_size);
++        if (!sc->vexu_stereo3d)
+             return AVERROR(ENOMEM);
+     }
+ 
+-    sc->stereo3d->type = type;
++    sc->vexu_stereo3d->type = type;
+ 
+     return 0;
+ }
+@@ -7098,6 +7098,8 @@ static int mov_read_sv3d(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+         return 0;
+     }
+ 
++    /* This box replaces what a spherical uuid box or an earlier sv3d said. */
++    av_freep(&sc->spherical);
+     sc->spherical = av_spherical_alloc(&sc->spherical_size);
+     if (!sc->spherical)
+         return AVERROR(ENOMEM);
+@@ -7182,11 +7184,12 @@ static int mov_read_vexu_proj(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+         return AVERROR_INVALIDDATA;
+     }
+ 
+-    sc->spherical = av_spherical_alloc(&sc->spherical_size);
+-    if (!sc->spherical)
++    av_freep(&sc->vexu_spherical);
++    sc->vexu_spherical = av_spherical_alloc(&sc->vexu_spherical_size);
++    if (!sc->vexu_spherical)
+         return AVERROR(ENOMEM);
+ 
+-    sc->spherical->projection = projection;
++    sc->vexu_spherical->projection = projection;
+ 
+     return 0;
+ }
+@@ -7352,18 +7355,21 @@ static int mov_read_eyes(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+     if (type == AV_STEREO3D_2D)
+         return 0;
+ 
+-    if (!sc->stereo3d) {
+-        sc->stereo3d = av_stereo3d_alloc_size(&sc->stereo3d_size);
+-        if (!sc->stereo3d)
++    if (!sc->vexu_stereo3d) {
++        sc->vexu_stereo3d = av_stereo3d_alloc_size(&sc->vexu_stereo3d_size);
++        if (!sc->vexu_stereo3d)
+             return AVERROR(ENOMEM);
+     }
+ 
+-    sc->stereo3d->flags                           = flags;
+-    sc->stereo3d->type                            = type;
+-    sc->stereo3d->view                            = view;
+-    sc->stereo3d->primary_eye                     = primary_eye;
+-    sc->stereo3d->baseline                        = baseline;
+-    sc->stereo3d->horizontal_disparity_adjustment = horizontal_disparity_adjustment;
++    /* This box says which views a picture holds and not how they are packed, so it keeps the
++     * packing a pack box gave. */
++    if (sc->vexu_stereo3d->type == AV_STEREO3D_2D)
++        sc->vexu_stereo3d->type                        = type;
++    sc->vexu_stereo3d->flags                           = flags;
++    sc->vexu_stereo3d->view                            = view;
++    sc->vexu_stereo3d->primary_eye                     = primary_eye;
++    sc->vexu_stereo3d->baseline                        = baseline;
++    sc->vexu_stereo3d->horizontal_disparity_adjustment = horizontal_disparity_adjustment;
+ 
+     return 0;
+ }
+@@ -7447,18 +7453,67 @@ static int mov_read_hfov(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+     }
+ 
+ 
+-    if (!sc->stereo3d) {
+-        sc->stereo3d = av_stereo3d_alloc_size(&sc->stereo3d_size);
+-        if (!sc->stereo3d)
++    if (!sc->vexu_stereo3d) {
++        sc->vexu_stereo3d = av_stereo3d_alloc_size(&sc->vexu_stereo3d_size);
++        if (!sc->vexu_stereo3d)
+             return AVERROR(ENOMEM);
+     }
+ 
+-    sc->stereo3d->horizontal_field_of_view.num = avio_rb32(pb);
+-    sc->stereo3d->horizontal_field_of_view.den = 1000; // thousands of a degree
++    sc->vexu_stereo3d->horizontal_field_of_view.num = avio_rb32(pb);
++    sc->vexu_stereo3d->horizontal_field_of_view.den = 1000; // thousands of a degree
+ 
+     return 0;
+ }
+ 
++/**
++ * Add what Apple's vexu and hfov boxes say to what Google's st3d, sv3d or spherical uuid box
++ * said, whatever order they came in. Where both state the same thing and disagree, Google's
++ * description is kept whole; Apple's fills in what Google's cannot say.
++ */
++static void mov_merge_vexu(MOVStreamContext *sc)
++{
++    AVStereo3D *google = sc->stereo3d;
++    const AVStereo3D *apple = sc->vexu_stereo3d;
++
++    if (sc->vexu_spherical && !sc->spherical) {
++        sc->spherical      = sc->vexu_spherical;
++        sc->spherical_size = sc->vexu_spherical_size;
++        sc->vexu_spherical = NULL;
++    }
++    /* Otherwise Google's mapping states the projection too, and the turn and the bounds that
++     * Apple's proj box has no room for. */
++    av_freep(&sc->vexu_spherical);
++
++    if (!apple)
++        return;
++    if (!google) {
++        sc->stereo3d      = sc->vexu_stereo3d;
++        sc->stereo3d_size = sc->vexu_stereo3d_size;
++        sc->vexu_stereo3d = NULL;
++        return;
++    }
++
++    /* Google's two views are packed with the left eye's first. Apple's eyes and pack boxes
++     * agree with that when they say both views, not reversed, packed the same way or packed in
++     * a way they do not say, and then they add the primary eye, the baseline and the disparity
++     * adjustment. */
++    if (apple->type != AV_STEREO3D_2D &&
++        google->type != AV_STEREO3D_2D &&
++        !(apple->flags & AV_STEREO3D_FLAG_INVERT) &&
++        apple->view == AV_STEREO3D_VIEW_PACKED &&
++        (apple->type == AV_STEREO3D_UNSPEC || apple->type == google->type)) {
++        google->primary_eye                     = apple->primary_eye;
++        google->baseline                        = apple->baseline;
++        google->horizontal_disparity_adjustment = apple->horizontal_disparity_adjustment;
++    }
++    /* The field of view describes the lens rather than the views, and Google's boxes never
++     * state one. */
++    if (apple->horizontal_field_of_view.num)
++        google->horizontal_field_of_view = apple->horizontal_field_of_view;
++
++    av_freep(&sc->vexu_stereo3d);
++}
++
+ static int mov_parse_uuid_spherical(MOVStreamContext *sc, AVIOContext *pb, size_t len)
+ {
+     int ret = 0;
+@@ -10378,6 +10433,8 @@ static void mov_free_stream_context(AVFormatContext *s, AVStream *st)
+ 
+     av_freep(&sc->stereo3d);
+     av_freep(&sc->spherical);
++    av_freep(&sc->vexu_stereo3d);
++    av_freep(&sc->vexu_spherical);
+     av_freep(&sc->mastering);
+     av_freep(&sc->coll);
+     av_freep(&sc->ambient);
+@@ -11472,6 +11529,7 @@ static int mov_read_header(AVFormatContext *s)
+                 return err;
+             break;
+         case AVMEDIA_TYPE_VIDEO:
++            mov_merge_vexu(sc);
+             if (sc->display_matrix) {
+                 if (!av_packet_side_data_add(&st->codecpar->coded_side_data, &st->codecpar->nb_coded_side_data,
+                                              AV_PKT_DATA_DISPLAYMATRIX,

@@ -106,6 +106,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- An MP4 or MOV that carries both Google's and Apple's 360 degree and stereo boxes reads as one
+  description, whichever order the boxes come in (#160). FFmpeg's own writer puts both sets into
+  an MP4 under `-strict unofficial`, and its reader read both into the same mapping and stereo
+  layout, so the later box won: Apple's projection box after Google's spherical video box lost the
+  yaw, pitch and roll, Apple's eyes box set the packing to unspecified over the one Google's box or
+  Apple's own pack box gave, and Google's stereoscopic box after Apple's failed the whole header,
+  so a file FFmpeg 6.1 opens did not open. The reader now adds the two up. Google's mapping is kept
+  when there is one, because it also carries the turn and any bounds or padding, and Apple's
+  projection is used when there is not. Apple's primary eye, baseline and disparity adjustment
+  join Google's packing when the two agree on it, Google's stereo layout is kept whole when they
+  disagree, as VLC, which reads only Google's boxes, shows it, and the field of view joins either
+  way. The fix is the FFmpeg patch `0009-mov-add-up-the-360-and-stereo-boxes.patch`, so it reaches
+  a platform only with an FFmpeg tree built from it, and the trees of 0.4.0 do not carry it.
 - A remux of MPEG-4 Part 2 video into MPEG-TS can be decoded (#159). An encoder writing MPEG-4
   Part 2 for MP4 or Matroska puts the headers that give the picture size and coding in the
   extradata alone, MPEG-TS has nowhere to carry extradata, and FFmpeg's writer copied such a stream
