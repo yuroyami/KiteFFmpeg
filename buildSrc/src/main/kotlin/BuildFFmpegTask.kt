@@ -54,12 +54,15 @@ private val TargetTriple.isIos: Boolean
  * Every flavour shares the same demuxer/decoder/filter core: the editor-relevant subset, ~75%
  * smaller than a "full" build (25 MB vs 110 MB per ABI).
  *
- * Expects an FFmpeg source tree at [sourceDir] (`vendor/ffmpeg` by convention). Either a git
- * submodule or a plain clone:
- * `git clone --depth 1 --branch n8.0 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg`.
- * Up-to-date checking is input/output based: [sourceRef] pins the FFmpeg commit/tag the checkout is
- * expected to hold, so bumping it (or changing target/licence/configure flags) triggers a rebuild
- * while an already-populated output directory keeps the task UP-TO-DATE.
+ * Expects a git checkout of FFmpeg at [sourceDir] (`vendor/ffmpeg` by convention), a clone or a
+ * submodule, at exactly [sourceCommit], the commit the tag [sourceRef] names:
+ * `git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg`.
+ * Before it compiles anything the task refuses a checkout at any other commit and one that git
+ * does not call clean, counting untracked and ignored files (#145); a change to FFmpeg belongs in
+ * a patch under [sourcePatches]. Up-to-date checking is input/output based, and the pin, the
+ * checkout's state ([sourceState]) and the patches are inputs beside the target and the licence,
+ * so moving or editing the checkout runs the task again, which then refuses it, while an untouched
+ * checkout keeps a built tree UP-TO-DATE.
  */
 abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
 
@@ -70,22 +73,35 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
     @get:Input
     abstract val license: Property<FFmpegLicense>
 
-    /**
-     * The FFmpeg tag/commit the [sourceDir] checkout is pinned to (for example `n8.0`). Declared as
-     * an input so bumping the vendored FFmpeg invalidates previously built outputs. Hashing the
-     * whole FFmpeg source tree as an input directory would be prohibitively slow.
-     */
+    /** The FFmpeg tag this task builds (for example `n9.0.2`), the name its output carries. */
     @get:Input
     abstract val sourceRef: Property<String>
 
-    /** The FFmpeg source checkout, `<repoRoot>/vendor/ffmpeg`. Tracked via [sourceRef], not by content. */
+    /** The full commit [sourceRef] names upstream, the only one the [sourceDir] checkout may hold. */
+    @get:Input
+    abstract val sourceCommit: Property<String>
+
+    /**
+     * The FFmpeg source checkout, `<repoRoot>/vendor/ffmpeg`. Not hashed as an input directory,
+     * which would read its ten thousand files on every build; [sourceState] stands for it.
+     */
     @get:Internal
     abstract val sourceDir: DirectoryProperty
 
     /**
+     * The commit [sourceDir] holds, followed by a digest of every change when git does not call it
+     * clean, as [VendoredCheckout.state] reads it. Git finds the changed files by comparing each
+     * one's recorded size and time, so this costs what `git status` costs rather than a read of
+     * every file.
+     */
+    @get:Input
+    val sourceState: String
+        get() = VendoredCheckout.state(sourceDir.get().asFile)
+
+    /**
      * Committed source patches from `native/patches/ffmpeg`, applied in name order to the SCRATCH
      * copy of the source before configure. The vendored checkout itself stays pristine at
-     * [sourceRef], which is what keeps its tracked-by-ref identity honest. Content-tracked, so
+     * [sourceCommit], which the task checks before it builds. Content-tracked, so
      * editing a patch rebuilds. Each application is `patch -p1` with `--forward` and a rejected
      * hunk fails the build loudly. The applied list and each patch's SHA-256 are written beside
      * the configure evidence in the install tree (`lib/kiteffmpeg/ffmpeg-patches.txt`), so a
@@ -128,11 +144,11 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
         require(license != FFmpegLicense.GPL) {
             if (target.isIos) IOS_GPL_REFUSAL else LGPL_ONLY_REFUSAL
         }
-        require(sourceDir.exists()) {
-            "FFmpeg source not found at $sourceDir. Run:\n" +
-                "  git clone --depth 1 --branch ${sourceRef.get()} https://github.com/FFmpeg/FFmpeg vendor/ffmpeg\n" +
-                "(or add it as a git submodule for reproducible builds)"
-        }
+        VendoredCheckout.requirePristine(
+            sourceDir,
+            PinnedSource("FFmpeg", SOURCE_URL, sourceRef.get(), sourceCommit.get()),
+            PATCH_ADVICE,
+        )
         val scratch = createScratchWorkspace(Path.of(System.getProperty("java.io.tmpdir")))
         var succeeded = false
         try {
@@ -891,6 +907,20 @@ abstract class BuildFFmpegTask @Inject constructor() : DefaultTask() {
 
         /** The FFmpeg tag `vendor/ffmpeg` is expected to be checked out at. */
         const val DEFAULT_SOURCE_REF = "n9.0.2"
+
+        /**
+         * The commit [DEFAULT_SOURCE_REF] names upstream, read with `git ls-remote` on 2026-10-04.
+         * Moving the tag means moving this with it, after reading what the new commit holds.
+         */
+        const val DEFAULT_SOURCE_COMMIT = "946fcce07b6dcd0331c8cc609192aeff5e1924f8"
+
+        /** Where FFmpeg's tags are cloned from. */
+        const val SOURCE_URL = "https://github.com/FFmpeg/FFmpeg.git"
+
+        /** Where a change to FFmpeg goes instead of the checkout, for the refusal to say. */
+        const val PATCH_ADVICE =
+            "A change to FFmpeg belongs in a patch under native/patches/ffmpeg, which every build " +
+                "applies to its own copy of the source and lists in lib/kiteffmpeg/ffmpeg-patches.txt."
 
         /**
          * Normalises an FFmpeg release reference so a git tag and a release file can be compared.

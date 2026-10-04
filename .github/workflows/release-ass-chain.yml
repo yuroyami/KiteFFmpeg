@@ -27,6 +27,8 @@ concurrency:
   group: release-ass-chain-${{ github.event.inputs.release_tag }}
   cancel-in-progress: false
 
+# Each tag must be the one BuildAssChainTask.SOURCES pins beside its commit: the build refuses a
+# checkout at any other commit, so a tag changed here alone stops the run before it compiles.
 env:
   FRIBIDI_TAG: v1.0.17
   FREETYPE_TAG: VER-2-14-3

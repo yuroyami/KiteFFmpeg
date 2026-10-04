@@ -53,10 +53,17 @@ macOS arm64 is the reference development target. It is the one verified end-to-e
 To work on the static-linking path or the FFmpeg build tasks themselves:
 
 ```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 brew install nasm meson ninja                             # nasm for x86_64 asm, meson/ninja for dav1d
 ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64        # LGPL, and the only flavour built here
 ```
+
+A build checks each checkout before it compiles anything. It must hold the commit its tag names,
+which the build task pins beside the tag, with nothing changed, added or ignored in it, and the
+build stops and names whatever differs. A change to FFmpeg belongs in a patch under
+`native/patches/ffmpeg`, which every build applies to its own copy of the source and records.
+dav1d and the libass chain carry no patches.
 
 Every profile is portable as of 2026-08-22: no third-party media libraries are needed on any target,
 which is why that `brew install` line is three packages rather than eleven. **There is no

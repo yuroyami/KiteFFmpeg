@@ -30,13 +30,26 @@ import javax.inject.Inject
  */
 abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
 
-    /** The FFmpeg source checkout, `<repoRoot>/vendor/ffmpeg`. Tracked via [sourceRef], not content. */
+    /**
+     * The FFmpeg source checkout, `<repoRoot>/vendor/ffmpeg`, which must hold exactly
+     * [sourceCommit] with nothing changed beside it, as [BuildFFmpegTask] requires. [sourceState]
+     * stands for its content.
+     */
     @get:Internal
     abstract val sourceDir: DirectoryProperty
 
-    /** The FFmpeg tag the checkout is pinned to, which is what up-to-date checking keys on. */
+    /** The FFmpeg tag this task builds, the name its output carries. */
     @get:Input
     abstract val sourceRef: Property<String>
+
+    /** The full commit [sourceRef] names upstream, the only one the checkout may hold. */
+    @get:Input
+    abstract val sourceCommit: Property<String>
+
+    /** The commit the checkout holds and a digest of any change in it, from [VendoredCheckout.state]. */
+    @get:Input
+    val sourceState: String
+        get() = VendoredCheckout.state(sourceDir.get().asFile)
 
     /**
      * The committed patches from `native/patches/ffmpeg`, applied to the scratch copy before
@@ -68,10 +81,11 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
         require(variantName in VARIANTS) { "unknown wasm variant '$variantName', expected one of $VARIANTS" }
         val source = sourceDir.get().asFile
         val install = outputDir.get().asFile
-        require(source.exists()) {
-            "FFmpeg source not found at $source. Run:\n" +
-                "  git clone --depth 1 --branch ${sourceRef.get()} https://github.com/FFmpeg/FFmpeg vendor/ffmpeg"
-        }
+        VendoredCheckout.requirePristine(
+            source,
+            PinnedSource("FFmpeg", BuildFFmpegTask.SOURCE_URL, sourceRef.get(), sourceCommit.get()),
+            BuildFFmpegTask.PATCH_ADVICE,
+        )
         val emcc = requireOnPath("emcc")
         logger.lifecycle("[KiteFFmpeg wasm] emcc at $emcc, variant $variantName")
 
@@ -98,7 +112,7 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
 
             BuildFFmpegTask.writeConfigureEvidence(build.resolve("ffbuild/config.log"), prefix)
             BuildFFmpegTask.writePatchEvidence(patches, prefix)
-            writeWebBuildInfo(source, emcc, prefix)
+            writeWebBuildInfo(emcc, prefix)
             verifyWasmInstall(prefix)
 
             install.deleteRecursively()
@@ -174,11 +188,13 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
     /**
      * Writes `lib/kiteffmpeg/web-build-info.txt`: the FFmpeg tag and commit and the emscripten
      * version. The web zip carries it, and the bill of materials reads it, because nothing else
-     * says which source and compiler produced `kite.wasm`.
+     * says which source and compiler produced `kite.wasm`. The commit is [sourceCommit], which the
+     * checkout was proved to hold with nothing beside it before the build began; it used to be
+     * whatever HEAD said, which an edited checkout also says (#145).
      */
-    private fun writeWebBuildInfo(source: File, emcc: String, prefix: Path) {
-        val commit = capture(source, listOf("git", "rev-parse", "HEAD")).ifEmpty { "unknown" }
-        val emscripten = capture(source, listOf(emcc, "--version")).lineSequence().firstOrNull().orEmpty()
+    private fun writeWebBuildInfo(emcc: String, prefix: Path) {
+        val commit = sourceCommit.get()
+        val emscripten = capture(prefix.toFile(), listOf(emcc, "--version")).lineSequence().firstOrNull().orEmpty()
         val version = Regex("""\b(\d+\.\d+\.\d+)\b""").find(emscripten)?.groupValues?.get(1) ?: "unknown"
         val evidenceDir = prefix.resolve("lib/kiteffmpeg").also(Files::createDirectories)
         Files.writeString(

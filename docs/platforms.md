@@ -154,7 +154,7 @@ CI used to take a BtbN autobuild here. It stopped on 2026-08-24, for two reasons
 BtbN prunes old autobuilds, so a pinned tag eventually 404s, and a third-party build is not the
 build this project ships, so testing against it proved the wrong thing.
 
-**Option B: vendored static cross-compile.** Run `:kiteffmpeg:buildFFmpegForMingwX64` with a mingw-w64 cross toolchain (`x86_64-w64-mingw32-gcc`) available. This is realistic from a Linux host or MSYS2; it needs the `vendor/ffmpeg` clone described above.
+**Option B: vendored static cross-compile.** Run `:kiteffmpeg:buildFFmpegForMingwX64` with a mingw-w64 cross toolchain (`x86_64-w64-mingw32-gcc`) available. This is realistic from a Linux host or MSYS2; it needs the `vendor/ffmpeg` and `vendor/dav1d` clones that [Building from source](building-from-source.md#building-the-vendored-tree) describes.
 
 Windows builds, tests, and e2e-transcodes in CI via Option A, against this repository's own release tag, asset name and SHA-256, pinned in the workflow. There is no one-command onboarding path on a bare Windows machine and no system-FFmpeg discovery. You stage the tree yourself, from the release asset or with Option B.
 
@@ -163,7 +163,8 @@ Windows builds, tests, and e2e-transcodes in CI via Option A, against this repos
 Kotlin/Native treats the Android NDK as just another native family, so the entire decode → filter → encode → mux pipeline (and `Remuxer`) compiles untouched for `androidNativeArm64`, `androidNativeArm32`, and `androidNativeX64`.
 
 ```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 export ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/<version>
 ./gradlew :kiteffmpeg:buildFFmpegForAndroidArm64       # NDK cross-compile, ~6 min
 ./gradlew :kiteffmpeg:compileKotlinAndroidNativeArm64  # the klib

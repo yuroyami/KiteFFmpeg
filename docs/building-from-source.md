@@ -39,19 +39,22 @@ unzip -q "$asset" -d native-libs/lgpl/linux-x64
 
 The published artifacts embed a minimal static FFmpeg built from source by a Gradle task. The task drops `.a` libraries under `native-libs/<license>/<target>/`; `FFmpegPaths` compiles the C archive against that tree and switches the final link to the static libraries automatically.
 
-The task expects the FFmpeg source tree at `vendor/ffmpeg`. Cloning it is a **mandatory first step**:
+The task expects git checkouts of FFmpeg at `vendor/ffmpeg` and of dav1d, which every FFmpeg build compiles first, at `vendor/dav1d`. Cloning them is a **mandatory first step**:
 
 ```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 
 ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64
 # or build every target you have toolchains for:
 ./gradlew :kiteffmpeg:buildFFmpegForAll
 ```
 
+Each checkout must hold exactly the commit its tag names, with nothing changed, added or ignored in it, or the build stops before it compiles anything; [Troubleshooting](troubleshooting.md#vendored-build-prerequisites) says why and what to do. A change to FFmpeg belongs in a patch under `native/patches/ffmpeg`.
+
 Configure, make and install run in a unique hash-free directory under `java.io.tmpdir`. The task installs the normalised configure invocation as the single-line `lib/kiteffmpeg/ffmpeg-configure.txt` provenance record, requires it during verification, copies the verified install to a sibling staging directory and only then replaces `native-libs`. A failed build preserves the last good tree even when the checkout path contains `#`; packaging reads only that installed record.
 
-Every profile is portable (2026-08-22): no third-party libraries are needed on any target. The prerequisites are `make`, a C toolchain and, for the x86_64 targets' assembly, `nasm`. The dav1d flavour additionally needs `meson` and `ninja`. On macOS: `brew install nasm meson ninja`. See [Troubleshooting](troubleshooting.md#vendored-build-prerequisites) if configure fails.
+Every profile is portable (2026-08-22): no third-party libraries are needed on any target. The prerequisites are `make`, a C toolchain and, for the x86_64 targets' assembly, `nasm`. dav1d's build additionally needs `meson` and `ninja`. On macOS: `brew install nasm meson ninja`. See [Troubleshooting](troubleshooting.md#vendored-build-prerequisites) if configure fails.
 
 Every bake is **LGPL** (no libx264 / libx265). There are no GPL build tasks: a GPL tree is something you build and own yourself, and point this repository's build at.
 

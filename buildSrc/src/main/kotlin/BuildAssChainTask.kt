@@ -22,8 +22,9 @@ import java.nio.file.Files
  * `ass_add_font`, which is how every Android libass consumer works), and each would be its own
  * cross-build with its own maintenance duty.
  *
- * Needs meson, ninja, autotools (libass builds with autoconf) and source checkouts at
- * `vendor/{fribidi,freetype,harfbuzz,libass}`. Builds happen in a scratch directory because
+ * Needs meson, ninja, autotools (libass builds with autoconf) and a git checkout of each of
+ * [SOURCES] at `vendor/{fribidi,freetype,harfbuzz,libass}`, each holding exactly its pinned commit
+ * with nothing changed, added or ignored in it (#145). Builds happen in a scratch directory because
  * this repo lives under `#Kite`, a path pkg-config and autotools cannot be trusted with.
  */
 abstract class BuildAssChainTask : DefaultTask() {
@@ -38,6 +39,11 @@ abstract class BuildAssChainTask : DefaultTask() {
     @get:Internal
     abstract val vendorDir: DirectoryProperty
 
+    /** Each checkout's pin, the commit it holds and a digest of any change in it. */
+    @get:Input
+    val sourceState: String
+        get() = sourcesState(vendorDir.get().asFile)
+
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
@@ -51,11 +57,7 @@ abstract class BuildAssChainTask : DefaultTask() {
         val target = target.get()
         val vendor = vendorDir.get().asFile
         val output = outputDir.get().asFile
-        listOf("fribidi", "freetype", "harfbuzz", "libass").forEach { name ->
-            require(vendor.resolve(name).isDirectory) {
-                "missing checkout vendor/$name; clone it first (see BuildAssChainTask's KDoc)"
-            }
-        }
+        requirePristineSources(vendor)
         val meson = which("meson") ?: throw GradleException("meson not found. brew install meson ninja")
         val ninja = which("ninja") ?: throw GradleException("ninja not found. brew install ninja")
 
@@ -536,5 +538,46 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
 
         /** The chain this repo builds by default; mpv-android ships the same series. */
         const val DEFAULT_SOURCE_REFS = "fribidi-1.0.17 freetype-2.14.3 harfbuzz-14.5.0 libass-0.17.5"
+
+        /**
+         * The four checkouts under `vendor/`, each named by its directory, with the tag
+         * `release-ass-chain.yml` clones and the commit that tag names upstream, read with
+         * `git ls-remote` on 2026-10-04. Moving a tag means moving its commit with it.
+         */
+        val SOURCES: List<PinnedSource> = listOf(
+            PinnedSource(
+                "fribidi", "https://github.com/fribidi/fribidi.git", "v1.0.17",
+                "b93119f5fdc7ea47672cc304c1455ffa6dfe7536",
+            ),
+            PinnedSource(
+                "freetype", "https://gitlab.freedesktop.org/freetype/freetype.git", "VER-2-14-3",
+                "0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+            ),
+            PinnedSource(
+                "harfbuzz", "https://github.com/harfbuzz/harfbuzz.git", "14.5.0",
+                "863d3f7787c6df18d20e4535c5906bf3eb803bd5",
+            ),
+            PinnedSource(
+                "libass", "https://github.com/libass/libass.git", "0.17.5",
+                "4a05d8127f525943ebf45fdc6497c9e665947f0d",
+            ),
+        )
+
+        /** Refuses unless every checkout of [SOURCES] under [vendor] holds its commit and nothing else. */
+        fun requirePristineSources(vendor: File) {
+            SOURCES.forEach { source ->
+                VendoredCheckout.requirePristine(
+                    vendor.resolve(source.name),
+                    source,
+                    "This repository builds the libass chain exactly as released and carries no " +
+                        "patches for it, so each checkout has to be its pinned commit and nothing else.",
+                )
+            }
+        }
+
+        /** One line per checkout of [SOURCES] under [vendor]: its pin and what it holds. */
+        fun sourcesState(vendor: File): String = SOURCES.joinToString("\n") { source ->
+            "${source.name} ${source.commit}: ${VendoredCheckout.state(vendor.resolve(source.name))}"
+        }
     }
 }

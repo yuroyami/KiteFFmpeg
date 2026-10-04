@@ -36,11 +36,11 @@ on:
         required: true
         default: "ffmpeg-n9.0.2"
       ffmpeg_version:
-        description: "FFmpeg source tag to build (e.g. n9.0.2)"
+        description: "FFmpeg source tag to build (must equal BuildFFmpegTask.DEFAULT_SOURCE_REF; the build refuses a checkout of any other commit)"
         required: true
         default: "n9.0.2"
       dav1d_version:
-        description: "dav1d source tag (must equal BuildDav1dTask.DEFAULT_SOURCE_REF)"
+        description: "dav1d source tag (must equal BuildDav1dTask.DEFAULT_SOURCE_REF; the build refuses a checkout of any other commit)"
         required: true
         default: "1.5.4"
 

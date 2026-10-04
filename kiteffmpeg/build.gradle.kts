@@ -696,6 +696,7 @@ fun registerBuildFFmpeg(triple: TargetTriple, flavour: FFmpegLicense) = register
         target = triple
         license = flavour
         sourceRef = BuildFFmpegTask.DEFAULT_SOURCE_REF
+        sourceCommit = BuildFFmpegTask.DEFAULT_SOURCE_COMMIT
         // Committed source patches, applied to the scratch copy before configure.
         sourcePatches.from(fileTree(rootDir.resolve("native/patches/ffmpeg")) { include("*.patch") })
         // Release builds must produce a tree that links on a machine with none of these installed.
@@ -740,6 +741,7 @@ fun registerBuildFFmpegWasm(variantName: String, taskSuffix: String) =
     ) {
         variant = variantName
         sourceRef = BuildFFmpegTask.DEFAULT_SOURCE_REF
+        sourceCommit = BuildFFmpegTask.DEFAULT_SOURCE_COMMIT
         // The same committed patches as the native trees, so both builds are the same source.
         sourcePatches.from(fileTree(rootDir.resolve("native/patches/ffmpeg")) { include("*.patch") })
         emscriptenLlvmBin.set(
@@ -857,10 +859,9 @@ fun registerBuildDav1d(triple: TargetTriple) =
     tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.BuildDav1dTask>("buildDav1dFor${triple.gradleSuffix}") {
         target = triple
         sourceRef = io.github.yuroyami.kiteffmpeg.buildtools.BuildDav1dTask.DEFAULT_SOURCE_REF
+        sourceCommit = io.github.yuroyami.kiteffmpeg.buildtools.BuildDav1dTask.DEFAULT_SOURCE_COMMIT
         sourceDir.set(rootDir.resolve("vendor/dav1d"))
         outputDir.set(rootDir.resolve("native-libs/deps/${triple.dirName}/dav1d"))
-        // Configuration-time capture; the action may not touch Project (config cache).
-        repoRoot.set(rootDir)
     }
 
 // Linux and Windows joined the set when software AV1 went from "demand-driven" to demanded: AV1 files

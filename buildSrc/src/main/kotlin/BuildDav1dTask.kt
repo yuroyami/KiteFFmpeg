@@ -17,21 +17,32 @@ import java.nio.file.Files
  * [BuildFFmpegTask] picks it up when its dav1d switch is on (ACCEPTED,
  * demand-driven, optional).
  *
- * Needs meson, ninja and (for x86 asm) nasm on the host, and a dav1d source checkout at
- * [sourceDir]:  `git clone --depth 1 --branch <ref> https://code.videolan.org/videolan/dav1d
- * vendor/dav1d`. Like the FFmpeg task, the checkout is tracked by [sourceRef], not content.
+ * Needs meson, ninja and (for x86 asm) nasm on the host, and a git checkout of dav1d at
+ * [sourceDir] holding exactly [sourceCommit]: `git clone --depth 1 --branch 1.5.4
+ * https://code.videolan.org/videolan/dav1d.git vendor/dav1d`. Like the FFmpeg task, it refuses a
+ * checkout at another commit or with anything changed, added or ignored in it, and the checkout's
+ * state is an input (#145).
  */
 abstract class BuildDav1dTask : DefaultTask() {
 
     @get:Input
     abstract val target: Property<TargetTriple>
 
-    /** The dav1d tag the [sourceDir] checkout is pinned to, an input so bumping it rebuilds. */
+    /** The dav1d tag this task builds, an input so bumping it rebuilds. */
     @get:Input
     abstract val sourceRef: Property<String>
 
+    /** The full commit [sourceRef] names upstream, the only one the [sourceDir] checkout may hold. */
+    @get:Input
+    abstract val sourceCommit: Property<String>
+
     @get:Internal
     abstract val sourceDir: DirectoryProperty
+
+    /** The commit the checkout holds and a digest of any change in it, from [VendoredCheckout.state]. */
+    @get:Input
+    val sourceState: String
+        get() = VendoredCheckout.state(sourceDir.get().asFile)
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -41,28 +52,17 @@ abstract class BuildDav1dTask : DefaultTask() {
         description = "Cross-compile dav1d as a static library for the given target."
     }
 
-    /**
-     * The repository root, captured at CONFIGURATION time purely so the error message below can
-     * print a relative clone path.
-     *
-     * It used to read `project.rootDir` inside the task action, which the configuration cache
-     * forbids outright. Nothing caught it because nothing ever ran this task in CI: it failed on
-     * the first run that did, taking both iOS dav1d flavours with it.
-     */
-    @get:Internal
-    abstract val repoRoot: DirectoryProperty
-
     @TaskAction
     fun run() {
         val target = target.get()
         val source = sourceDir.get().asFile
         val output = outputDir.get().asFile
-        require(source.resolve("meson.build").isFile) {
-            "dav1d source not found at $source. Run:\n" +
-                "  git clone --depth 1 --branch ${sourceRef.get()} " +
-                "https://code.videolan.org/videolan/dav1d " +
-                source.relativeTo(repoRoot.get().asFile)
-        }
+        VendoredCheckout.requirePristine(
+            source,
+            PinnedSource("dav1d", SOURCE_URL, sourceRef.get(), sourceCommit.get()),
+            "This repository builds dav1d exactly as released and carries no patches for it, so " +
+                "the checkout has to be the pinned commit and nothing else.",
+        )
         val meson = which("meson") ?: throw GradleException("meson not found. brew install meson ninja nasm")
         val ninja = which("ninja") ?: throw GradleException("ninja not found. brew install ninja")
 
@@ -269,6 +269,12 @@ abstract class BuildDav1dTask : DefaultTask() {
     companion object {
         /** The dav1d release this repo builds by default; mpv-android ships the same series. */
         const val DEFAULT_SOURCE_REF = "1.5.4"
+
+        /** The commit [DEFAULT_SOURCE_REF] names upstream, read with `git ls-remote` on 2026-10-04. */
+        const val DEFAULT_SOURCE_COMMIT = "54706fc6bc0cdecab7e9593974a4039cc038fca7"
+
+        /** Where dav1d's tags are cloned from. */
+        const val SOURCE_URL = "https://code.videolan.org/videolan/dav1d.git"
 
         /**
          * Every target this task can write a cross file for, and therefore every target

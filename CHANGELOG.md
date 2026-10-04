@@ -106,6 +106,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A build of FFmpeg, dav1d or the libass chain compiles its vendored checkout only when it holds
+  the commit its tag names, with nothing changed, added or ignored in it (#145). A checkout of
+  another release, or one with an edited file, used to build under the pinned tag's name, and an
+  edit left a tree that was already built up to date, so an output could name a release it was
+  not. Each tag is now pinned beside its full commit, and the build stops before it compiles
+  anything and names whatever differs. The commit the checkout holds, with a digest of any change,
+  is a task input, so a checkout that moves or changes runs the build again and is refused, while
+  an untouched one stays up to date. A change to FFmpeg belongs in a patch under
+  `native/patches/ffmpeg`. The web build's record writes the commit it verified rather than
+  whatever the checkout's HEAD said.
 - The initial view that Google's first spherical box states in an MP4 track reads as the
   mapping's yaw, pitch and roll (#161). FFmpeg's reader found the projection and the stereo mode
   in the box's XML but read all three angles as 0, because it parsed each number from the start of

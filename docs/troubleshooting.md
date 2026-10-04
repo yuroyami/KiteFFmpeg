@@ -57,13 +57,16 @@ VideoEncoderSpec(
 
 The `buildFFmpegFor<Target>` tasks compile FFmpeg from source. They fail early when something they need is missing.
 
-**1. The FFmpeg source tree.** The task expects it at `vendor/ffmpeg` and stops with this exact instruction otherwise:
+**1. The source checkouts.** The task expects git checkouts of FFmpeg at `vendor/ffmpeg` and of dav1d at `vendor/dav1d`, and stops with the clone command for whichever is missing:
 
 ```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg vendor/ffmpeg
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 ```
 
-**2. Build tools.** `make`, a C toolchain (clang/gcc) and `nasm` (x86 assembly: configure fails without it on x86 targets). The dav1d flavour additionally needs `meson` and `ninja`:
+Each checkout must hold exactly the commit its tag names upstream, which the build task pins beside the tag, with nothing changed, added or ignored in it. The output carries the tag's name and records only the patches the build applied, so a build from anything else would name a release it is not. A checkout at another commit, one with a change in it, and a directory that is part of another repository rather than a checkout of its own all stop the build before it compiles anything, and the message lists what git reports. Move a change to FFmpeg into a patch under `native/patches/ffmpeg`, and set the checkout's changes aside with `git -C vendor/ffmpeg stash push --all`. dav1d and the libass chain carry no patches.
+
+**2. Build tools.** `make`, a C toolchain (clang/gcc) and `nasm` (x86 assembly: configure fails without it on x86 targets). dav1d's build, which every FFmpeg build runs first, also needs `meson` and `ninja`:
 
 ```bash
 brew install nasm meson ninja
@@ -82,7 +85,7 @@ packaging does not consult a vendor build log. On success, the verified install 
 sibling staging directory and replaces the output. On failure, the old output remains and the
 retained scratch path is printed for diagnosis.
 
-**4. Idempotence.** The task skips when `native-libs/<license>/<target>/lib/libavformat.a` already exists. To force a rebuild, delete that directory.
+**4. When a build runs again.** Gradle runs a bake again when its output tree changed or one of its inputs differs from the last successful run: the build logic, the target, the licence, the pinned tag and commit, the commit the checkout holds and any change in it, the patches, or the self-contained switch. Otherwise it reports UP-TO-DATE. A machine with no record of an earlier run, such as a fresh CI runner with a restored tree, builds again. To force a rebuild, pass `--rerun` to the task or delete its output directory.
 
 ## Android: "Android NDK not found"
 

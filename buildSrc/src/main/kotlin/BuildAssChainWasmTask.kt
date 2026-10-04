@@ -34,6 +34,11 @@ abstract class BuildAssChainWasmTask : DefaultTask() {
     @get:Internal
     abstract val vendorDir: DirectoryProperty
 
+    /** Each checkout's pin, the commit it holds and a digest of any change in it. */
+    @get:Input
+    val sourceState: String
+        get() = BuildAssChainTask.sourcesState(vendorDir.get().asFile)
+
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
@@ -46,11 +51,7 @@ abstract class BuildAssChainWasmTask : DefaultTask() {
     fun run() {
         val vendor = vendorDir.get().asFile
         val output = outputDir.get().asFile
-        listOf("fribidi", "freetype", "harfbuzz", "libass").forEach { name ->
-            require(vendor.resolve(name).isDirectory) {
-                "missing checkout vendor/$name; clone it first (see BuildAssChainTask's KDoc)"
-            }
-        }
+        BuildAssChainTask.requirePristineSources(vendor)
         val emcc = which("emcc") ?: throw GradleException("emcc not found. brew install emscripten")
         val emxx = which("em++") ?: throw GradleException("em++ not found beside emcc")
         val emar = which("emar") ?: throw GradleException("emar not found beside emcc")
