@@ -166,6 +166,7 @@ public actual class MediaSource internal constructor(
      */
     public actual val startTimeMicros: Long,
     public actual val chapters: List<Chapter> = emptyList(),
+    public actual val matroska: MatroskaSegment? = null,
     openPrograms: List<Program> = emptyList(),
     public actual val unusedOpenOptions: List<String> = emptyList(),
     /**

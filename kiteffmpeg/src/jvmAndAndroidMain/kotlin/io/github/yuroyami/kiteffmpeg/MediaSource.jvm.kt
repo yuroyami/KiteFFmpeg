@@ -15,6 +15,7 @@ public actual class MediaSource internal constructor(
     metadata: Map<String, String>,
     public actual val startTimeMicros: Long,
     public actual val chapters: List<Chapter> = emptyList(),
+    public actual val matroska: MatroskaSegment? = null,
     openPrograms: List<Program> = emptyList(),
     public actual val unusedOpenOptions: List<String> = emptyList(),
     /** Non-null exactly for custom-io opens: close then routes through the io close. */

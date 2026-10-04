@@ -209,6 +209,8 @@ public actual class MediaSource internal constructor(
             }
         }
 
+    public actual val matroska: MatroskaSegment? get() = null
+
     public actual val programs: List<Program> get() = table.programs
 
     /**

@@ -74,6 +74,14 @@ public expect class MediaSource : AutoCloseable {
     public val chapters: List<Chapter>
 
     /**
+     * What a Matroska file says about its segment, its editions and their chapters, which a player
+     * needs to play ordered chapters and linked segments. Null for a source that is not Matroska,
+     * and for a Matroska file read through an FFmpeg that does not hand these facts out, so null
+     * means unknown rather than "no editions". Read when the source opens. See [MatroskaSegment].
+     */
+    public val matroska: MatroskaSegment?
+
+    /**
      * The container's programmes, each a set of [streams] that play together, such as the channels
      * of a transport stream multiplex. Empty when the container declares none, as MP4 and Matroska
      * do not. Every stream index in it names one of [streams]. See [Program].

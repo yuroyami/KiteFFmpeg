@@ -33,6 +33,8 @@ public data class MediaProbe(
     val streams: List<StreamInfo>,
     /** The programmes, each a set of [streams] that play together. Empty for most containers; see [Program]. */
     val programs: List<Program> = emptyList(),
+    /** What a Matroska file says about its segment and editions, or null; see [MediaSource.matroska]. */
+    val matroska: MatroskaSegment? = null,
 ) {
     /**
      * The first video stream that is not cover art, which is what a thumbnail or a size wants. A file
@@ -86,4 +88,5 @@ private fun MediaSource.toProbe(): MediaProbe = MediaProbe(
     chapters = chapters,
     streams = streams,
     programs = programs,
+    matroska = matroska,
 )
