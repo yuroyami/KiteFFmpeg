@@ -1310,6 +1310,13 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_comment")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_disposition_comment(): kotlin/Int
+    }
+  }
+
+  library fragment {
+    // package name: ffmpeg
+
+    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_stream_rotation_degrees")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1322,13 +1329,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecpar_frame_cropping")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecpar_frame_cropping(p: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecParameters /* = ffmpeg/kc_codec_par^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/IntVarOf<kotlin/Int> /* = kotlinx/cinterop/IntVar^ */>?): kotlin/Int
-    }
-  }
-
-  library fragment {
-    // package name: ffmpeg
-
-    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecpar_spherical")
       @kotlinx/cinterop/ExperimentalForeignApi
