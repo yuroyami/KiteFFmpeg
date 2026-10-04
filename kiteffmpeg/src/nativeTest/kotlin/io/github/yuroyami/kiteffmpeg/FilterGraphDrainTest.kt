@@ -3,15 +3,13 @@ package io.github.yuroyami.kiteffmpeg
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * The push-style filter API, around the single frame the buffersink lands its output in. Two rules
- * are covered: that frame is released after every callback, and a send the graph cannot take is
- * never retried forever. A graph with two inputs reports the input it waits for, and a graph with
- * one input fails.
+ * The push-style filter API, around the single frame the buffersink lands its output in: that frame
+ * is released after every callback, and a graph with two inputs fed on one of them reports the
+ * input it waits for. A send the graph cannot take is covered by `FilterGraphWaitingContractTest`,
+ * whose backend can refuse one.
  */
 class FilterGraphDrainTest {
 
@@ -122,28 +120,5 @@ class FilterGraphDrainTest {
             graph.flushInput(0) { outputs++ }
             assertTrue(outputs > 0, "flushing the waiting input must release the mixed frames")
         }
-    }
-
-    /**
-     * The refusal rule. EAGAIN from a buffer source means the frame was not taken, so the send is
-     * made again after a drain that produced output. With no output, a graph with two inputs waits
-     * for the other one, which the feed reports, and a graph with one input can never take the
-     * frame, which is an error instead of a retry that never ends.
-     *
-     * The send is injected: the FFmpeg this binds to answers a buffer source write with 0 or a hard
-     * error and never with EAGAIN, so the branch is unreachable through [FilterGraph.feedInput].
-     */
-    @Test
-    fun aRefusedSendWaitsInATwoInputGraphAndFailsInASingleInputOne() {
-        val drained = mutableListOf<Frame>()
-        mixGraph().use { graph ->
-            assertFalse(graph.offer(index = 1, outputs = drained) { FFErrors.EAGAIN }, "a two-input graph waits")
-        }
-        passthroughGraph().use { graph ->
-            val ex = assertFailsWith<FFmpegException> { graph.offer(index = 0, outputs = drained) { FFErrors.EAGAIN } }
-            assertIs<FFmpegError.Internal>(ex.error)
-            assertTrue("input 0" in ex.message.orEmpty(), "the error names the input: ${ex.message}")
-        }
-        assertEquals(0, drained.size, "a graph that refused cannot have produced output")
     }
 }

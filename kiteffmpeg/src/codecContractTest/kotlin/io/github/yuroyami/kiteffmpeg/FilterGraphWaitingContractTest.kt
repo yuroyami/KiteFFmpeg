@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -14,19 +15,18 @@ import kotlin.test.assertTrue
 @OptIn(KiteFFmpegLowLevelApi::class)
 internal class FilterGraphWaitingContractTest {
 
-    private class GatedBackend : FilterBackend {
+    private class GatedBackend(override val inputCount: Int = 2, private val opens: Boolean = true) : FilterBackend {
         /** Every send that went in: the input, and the frame's timestamp or null for a flush. */
         val taken = mutableListOf<Pair<Int, Long?>>()
         var freed = false
         private var inputOneFed = false
 
-        override val inputCount: Int = 2
         override val outputTimeBase: Rational = Rational(1, 1_000_000)
 
         override fun setOutputFrameSize(samples: Int) = Unit
 
         override fun send(index: Int, frame: Frame?): Int {
-            if (index == 0 && !inputOneFed) return AGAIN
+            if (index == 0 && !(opens && inputOneFed)) return AGAIN
             if (index == 1) inputOneFed = true
             taken += index to frame?.ptsMicros
             return 0
@@ -107,5 +107,22 @@ internal class FilterGraphWaitingContractTest {
         }
         assertTrue(backend.freed)
         assertEquals(before, contractLiveHandleCount(), "a frame that waited was never closed")
+    }
+
+    /**
+     * A graph with one input has no other input to wait for, so a frame it will not take and no
+     * output to make room is an error naming the input, never a send retried for ever.
+     */
+    @Test
+    fun aSingleInputGraphThatRefusesAFrameFails() {
+        val before = contractLiveHandleCount()
+        val backend = GatedBackend(inputCount = 1, opens = false)
+        FilterGraph(backend).use { graph ->
+            val refused = assertFailsWith<FFmpegException> { graph.feedInput(0, frame(0L), ignore) }
+            assertIs<FFmpegError.Internal>(refused.error)
+            assertTrue("input 0" in refused.message.orEmpty(), "the error names the input: ${refused.message}")
+        }
+        assertEquals(emptyList(), backend.taken)
+        assertEquals(before, contractLiveHandleCount(), "the refused frame was never closed")
     }
 }

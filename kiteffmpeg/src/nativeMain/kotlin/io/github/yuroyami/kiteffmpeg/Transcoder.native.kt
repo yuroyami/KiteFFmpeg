@@ -307,9 +307,14 @@ public actual object Transcoder {
 
                             // No trim check here. The trim applies once, to the decoded input
                             // below; a filter that moves time may put its frames past endMicros,
-                            // and they still belong to the selection.
+                            // and they still belong to the selection. Checked here as well as
+                            // per tick: the rate can drop every frame a filter makes, and a filter
+                            // that never stops making them is stopped only by this check.
                             fun encodeVideo(frame: Frame) {
-                                frame.use { videoRate!!.push(it, ::encodeVideoTick) }
+                                frame.use {
+                                    context.ensureActive()
+                                    videoRate!!.push(it, ::encodeVideoTick)
+                                }
                             }
                             fun encodeAudio(frame: Frame) {
                                 context.ensureActive()

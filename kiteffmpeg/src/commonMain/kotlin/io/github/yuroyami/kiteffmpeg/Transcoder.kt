@@ -39,9 +39,10 @@ public expect object Transcoder {
      * read returns.
      *
      * The constant frame rate fills every gap in the input's timestamps, so a file with two frames
-     * a day apart makes a day of video. For a file you did not make, bound the work: call this
-     * inside `withTimeout`, or throw from [onProgress] once [TranscodeProgress.framesEncoded]
-     * passes your limit.
+     * a day apart makes a day of video, and a [videoFilter] that never stops producing, such as
+     * `tpad=stop=-1`, makes video for ever once the input ends. For a file or a filter you did not
+     * make, bound the work: call this inside `withTimeout`, or throw from [onProgress] once
+     * [TranscodeProgress.framesEncoded] passes your limit.
      *
      * @param input  input file path
      * @param output output file path

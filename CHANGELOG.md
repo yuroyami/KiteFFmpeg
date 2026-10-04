@@ -75,6 +75,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A filter graph hands each frame over as it comes out, before it asks the graph for the next one
+  (#141). `feedInput`, `flushInput` and `process` took every frame the graph had ready first, so a
+  filter that expands a short input held all of its frames before the first was seen, and one that
+  never stops producing, such as `tpad=stop=-1` once its input ends, never reached its callback:
+  nothing could stop it, a `Transcoder` cancelled inside `withTimeout` included, and it filled
+  memory. A callback now ends the call by throwing or by closing the graph, and `process` checks
+  for cancellation before each frame it emits, closing the frame that check stops. A frame handed
+  over is still the callback's only for the call, and the collector's to close, as before.
 - A transcode keeps the last frame of a stream whose frames each claim one unit of its time base
   when they lie further apart. That is the duration FFmpeg makes up for a stream that states none,
   and since #143 what a stream written at a fine constant rate to place frames at uneven times

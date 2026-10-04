@@ -3,9 +3,11 @@ package io.github.yuroyami.kiteffmpeg
 import io.github.yuroyami.kiteffmpeg.dsl.FilterChain
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 
 /** Per-input description for [FilterGraph.buildVideoMulti]. */
 public data class VideoInput(
@@ -65,9 +67,9 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
 
     /**
      * Serializes every native call on this graph against every other and against [close]. A
-     * caller's callback never runs under it: output is taken under the lock as owned frames and
-     * handed over after the lock is released, so a callback that waits on another thread, which
-     * itself needs this graph, cannot stop both.
+     * caller's callback never runs under it: output is taken under the lock one owned frame at a
+     * time and handed over after the lock is released, so a callback that waits on another thread,
+     * which itself needs this graph, cannot stop both.
      */
     private val lock = SynchronizedObject()
     private var closed = false
@@ -75,9 +77,9 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     private var freed = false
 
     /**
-     * Operations inside native code right now. [process] holds one across its suspending emits,
-     * where it cannot hold [lock], so a [close] from another thread or from the collector marks
-     * the graph closed and the last operation frees it on its way out.
+     * Operations in progress right now. Each call holds one from its start to its end, across the
+     * callbacks and suspending emits where it cannot hold [lock], so a [close] from another thread
+     * or from a callback marks the graph closed and the last operation frees it on its way out.
      */
     private var operations = 0
 
@@ -97,13 +99,11 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     public val outputTimeBase: Rational get() = backend.outputTimeBase
 
     private inline fun <R> operation(block: () -> R): R = synchronized(lock) {
-        check(!closed) { closedMessage() }
-        operations++
+        enter()
         try {
             block()
         } finally {
-            operations--
-            if (closed && operations == 0) freeNow()
+            leave()
         }
     }
 
@@ -125,55 +125,61 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
     }
 
     /**
-     * Push one frame into input [index]; every output frame that becomes available is handed
-     * to [onOutput]. Closes [frame] (the graph keeps its own reference). Output frames are
-     * valid only for the duration of the callback; [Frame.copy] to keep one.
+     * Push one frame into input [index]; each output frame is handed to [onOutput] as it comes out,
+     * before the graph is asked for the next one. Closes [frame] (the graph keeps its own
+     * reference). Output frames are valid only for the duration of the callback; [Frame.copy] to
+     * keep one.
      *
-     * [onOutput] runs after this graph's lock is released, so it may call back into the graph,
-     * [close] included; frames it has not seen yet stay valid, because each is its own reference.
+     * [onOutput] runs with this graph's lock released, so it may call back into the graph. Two
+     * things it can do end the call: throw, and the throw comes out of this call, or [close] the
+     * graph, and the call returns without asking the graph for anything more. Either one stops a
+     * filter that never stops producing, such as `tpad=stop=-1` once its input has ended.
      *
      * @return how many frames came out, and whether the graph now waits for a particular input
      * @throws IllegalStateException when input [index] was flushed
      */
     @Throws(FFmpegException::class)
     public fun feedInput(index: Int, frame: Frame, onOutput: (Frame) -> Unit): FeedResult {
-        val outputs = ArrayList<Frame>()
-        val result = try {
-            operation {
-                requireUnspent()
-                requireInput(index)
-                check(!flushed[index]) { "Input $index is flushed and takes no more frames." }
-                // Anything the input would not take earlier goes first; a refused frame waits too.
-                if (!sendWaiting(index, outputs) || !offer(index, outputs) { backend.send(index, frame) }) {
-                    waiting[index].addLast(frame.copy())
+        try {
+            synchronized(lock) {
+                enter()
+                try {
+                    requireUnspent()
+                    requireInput(index)
+                    check(!flushed[index]) { flushedMessage(index) }
+                } catch (failure: Throwable) {
+                    leave()
+                    throw failure
                 }
-                drain(outputs)
-                resultOf(outputs.size)
             }
         } catch (failure: Throwable) {
-            outputs.forEach(Frame::close)
+            frame.close()
             throw failure
+        }
+        val call = Call(index, frame, endsOnClose = true)
+        try {
+            pump(call) { out -> out.use(onOutput) }
+            return finish(call)
         } finally {
             frame.close()
+            synchronized(lock) { leave() }
         }
-        deliver(outputs, onOutput)
-        return result
     }
 
     /**
-     * Signal EOF on input [index] and drain whatever the graph can produce. Filters like
-     * `overlay` emit their final frames only once every input is flushed. Flush every input,
-     * in any order. The last call delivers the remaining frames.
+     * Signal EOF on input [index] and hand over whatever the graph can produce, one frame at a
+     * time as for [feedInput]. Filters like `overlay` emit their final frames only once every input
+     * is flushed. Flush every input, in any order. The last call delivers the remaining frames.
      *
-     * [onOutput] runs after this graph's lock is released, as for [feedInput].
+     * [onOutput] runs with this graph's lock released, and can end the call, as for [feedInput].
      *
      * @return how many frames came out, and whether the graph now waits for a particular input
      */
     @Throws(FFmpegException::class)
     public fun flushInput(index: Int, onOutput: (Frame) -> Unit): FeedResult {
-        val outputs = ArrayList<Frame>()
-        val result = try {
-            operation {
+        synchronized(lock) {
+            enter()
+            try {
                 requireUnspent()
                 requireInput(index)
                 // A second flush of the same input adds nothing.
@@ -181,16 +187,18 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
                     flushed[index] = true
                     waiting[index].addLast(null)
                 }
-                sendWaiting(index, outputs)
-                drain(outputs)
-                resultOf(outputs.size)
+            } catch (failure: Throwable) {
+                leave()
+                throw failure
             }
-        } catch (failure: Throwable) {
-            outputs.forEach(Frame::close)
-            throw failure
         }
-        deliver(outputs, onOutput)
-        return result
+        val call = Call(index, frame = null, endsOnClose = true)
+        try {
+            pump(call) { out -> out.use(onOutput) }
+            return finish(call)
+        } finally {
+            synchronized(lock) { leave() }
+        }
     }
 
     private fun requireInput(index: Int) {
@@ -199,46 +207,96 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
         }
     }
 
+    private fun flushedMessage(index: Int) = "Input $index is flushed and takes no more frames."
+
+    /** Starts an operation, under [lock]. */
+    private fun enter() {
+        check(!closed) { closedMessage() }
+        operations++
+    }
+
+    /** Ends an operation, under [lock]; the last one out of a closed graph frees it. */
+    private fun leave() {
+        operations--
+        if (closed && operations == 0) freeNow()
+    }
+
     /**
-     * Makes one send to input [index], and makes it again each time the graph makes room by
-     * producing output into [outputs]. False when the input would not take it and the graph
-     * produced nothing: a graph with several inputs then waits for another one, and [resultOf]
-     * names it. A graph with one input has no other input to wait for, so that is an error.
-     *
-     * [send] is a parameter so a test can drive the refusal: the FFmpeg this binds to answers a
-     * buffer source write with 0 or a hard error and never with EAGAIN.
+     * One call's work on input [index]: what the input has waiting goes in first, oldest first,
+     * then [frame] when there is one, and then the graph is asked for output until it has none.
      */
-    internal fun offer(index: Int, outputs: MutableList<Frame>, send: () -> Int): Boolean {
+    private class Call(val index: Int, var frame: Frame?, val endsOnClose: Boolean) {
+        /** False once everything went in, or the input would not take it and it waits. */
+        var sending = true
+        var produced = 0
+    }
+
+    /**
+     * Runs [call] to its end, handing each output frame to [handOver] with [lock] released before
+     * the graph is asked for the next. The lock is held for one send or one receive at a time, so
+     * a frame the graph makes is never held back behind the ones it makes after it, and nothing
+     * here runs without end inside the lock (#141). The operation ledger, not the lock, is what
+     * keeps a [close] in between from freeing the graph under the call.
+     */
+    private inline fun pump(call: Call, handOver: (Frame) -> Unit) {
         while (true) {
-            val rc = send()
-            if (rc >= 0) return true
-            if (!backend.isAgain(rc)) throw FFmpegException(backend.error(rc))
-            if (drain(outputs)) continue
-            if (backend.inputCount > 1) return false
-            throw FFmpegException(
-                FFmpegError.Internal(
-                    "Filter graph input $index would not take a frame and produced nothing. The graph " +
-                        "has no other input to wait for, so it can never take this frame.",
-                ),
-            )
+            val out = synchronized(lock) { step(call) } ?: return
+            call.produced++
+            handOver(out)
         }
     }
 
-    /** Sends what input [index] would not take earlier, oldest first. False when something still waits. */
-    private fun sendWaiting(index: Int, outputs: MutableList<Frame>): Boolean {
-        val queue = waiting[index]
-        while (queue.isNotEmpty()) {
-            val next = queue.first()
-            val taken = if (next != null) {
-                offer(index, outputs) { backend.send(index, next) }
+    /** What [call] produced, and the input the graph waits for unless the call ended it. */
+    private fun finish(call: Call): FeedResult = synchronized(lock) {
+        if (closed) FeedResult.Ready(call.produced) else resultOf(call.produced)
+    }
+
+    /**
+     * Under [lock]: sends what [call] still has to send, and returns the next output frame, owned
+     * by the caller, or null when the call is over. A send the input will not take is made again
+     * after an output frame, handed over first, makes room. When the input will not take it and
+     * the graph has nothing to give, a graph with several inputs waits for another one, which
+     * [resultOf] names, and the frame waits with its input. A graph with one input has no other
+     * input to wait for, so that is an error.
+     */
+    private fun step(call: Call): Frame? {
+        if (call.endsOnClose && closed) return null
+        val queue = waiting[call.index]
+        while (call.sending) {
+            val queued = queue.isNotEmpty()
+            val next = if (queued) {
+                queue.first()
             } else {
-                // An input already at its end is done, not broken.
-                offer(index, outputs) { backend.send(index, null).let { rc -> if (backend.isEof(rc)) 0 else rc } }
+                val own = call.frame
+                if (own == null) {
+                    call.sending = false
+                    break
+                }
+                // A flush from another thread can land between two steps of this call.
+                check(!flushed[call.index]) { flushedMessage(call.index) }
+                own
             }
-            if (!taken) return false
-            queue.removeFirst()?.close()
+            // An input already at its end is done, not broken.
+            val rc = backend.send(call.index, next).let { rc -> if (next == null && backend.isEof(rc)) 0 else rc }
+            if (rc >= 0) {
+                if (queued) queue.removeFirst()?.close() else call.frame = null
+                continue
+            }
+            if (!backend.isAgain(rc)) throw FFmpegException(backend.error(rc))
+            backend.receive()?.let { return it }
+            if (backend.inputCount < 2) {
+                throw FFmpegException(
+                    FFmpegError.Internal(
+                        "Filter graph input ${call.index} would not take a frame and produced nothing. The " +
+                            "graph has no other input to wait for, so it can never take this frame.",
+                    ),
+                )
+            }
+            call.frame?.let { queue.addLast(it.copy()) }
+            call.frame = null
+            call.sending = false
         }
-        return true
+        return backend.receive()
     }
 
     /**
@@ -260,30 +318,6 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
         return if (wanted < 0) FeedResult.Ready(produced) else FeedResult.NeedsInput(wanted, produced)
     }
 
-    /** Moves every frame the sink has ready into [outputs]; true when at least one came out. */
-    private fun drain(outputs: MutableList<Frame>): Boolean {
-        var produced = false
-        while (true) {
-            val out = backend.receive() ?: return produced
-            outputs += out
-            produced = true
-        }
-    }
-
-    /** Hands [outputs] to [onOutput] one by one, closing each after its call and the rest on a throw. */
-    private fun deliver(outputs: List<Frame>, onOutput: (Frame) -> Unit) {
-        for (i in outputs.indices) {
-            try {
-                onOutput(outputs[i])
-            } catch (failure: Throwable) {
-                for (j in i + 1 until outputs.size) outputs[j].close()
-                throw failure
-            } finally {
-                outputs[i].close()
-            }
-        }
-    }
-
     /** Single-input convenience used by Transcoder. */
     internal fun feedFrame(frame: Frame, onOutput: (Frame) -> Unit) {
         feedInput(0, frame, onOutput)
@@ -296,7 +330,13 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
 
     /**
      * Drive [input] through the graph (single-input graphs only), emitting each processed frame
-     * owned by the collector. Closes every input frame once consumed.
+     * owned by the collector as it comes out, before the graph is asked for the next one. Closes
+     * every input frame once consumed.
+     *
+     * The collector ends it the way it ends any flow: `take`, `first` or cancelling its coroutine.
+     * Cancellation is checked before each frame is emitted, so a collector that never suspends
+     * still stops a filter that never stops producing, such as `tpad=stop=-1` once its input has
+     * ended; the frame the check stops is closed, never stranded.
      *
      * One shot: the graph takes [input] to its end and is closed when the flow ends, because a
      * graph that has seen its end of stream cannot take more. A second call, or a [feedInput]
@@ -312,67 +352,56 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
             check(backend.inputCount == 1) { "process() drives single-input graphs; use feedInput for multi-input" }
             spent = true
         }
-        return flow {
+        return ProcessFlow(input)
+    }
+
+    /**
+     * Implements [Flow] directly rather than through the `flow` builder, as `bufferFrames` does:
+     * the builder's `emit` checks for cancellation before it passes the value on, so a frame taken
+     * from the graph could be refused there and reach no one (#115). Here the frame stays ours
+     * until the collector's own `emit` is called with it.
+     */
+    private inner class ProcessFlow(private val input: Flow<Frame>) : Flow<Frame> {
+        override suspend fun collect(collector: FlowCollector<Frame>) {
             // The ledger without the lock across emits: a lock held across a suspension is a
             // deadlock waiting for a dispatcher. The ledger is what keeps a concurrent close from
             // freeing the graph mid-collection; the free waits for the finally below.
-            synchronized(lock) {
-                check(!closed) { closedMessage() }
-                operations++
-            }
+            synchronized(lock) { enter() }
             try {
                 input.collect { frame ->
-                    val outputs = ArrayList<Frame>()
                     try {
-                        synchronized(lock) {
-                            // One input: offer takes the frame or throws.
-                            offer(0, outputs) { backend.send(0, frame) }
-                            drain(outputs)
-                        }
-                    } catch (failure: Throwable) {
-                        outputs.forEach(Frame::close)
-                        throw failure
+                        // One input: a frame it will not take is an error, never a wait.
+                        pump(Call(0, frame, endsOnClose = false)) { out -> collector.handOver(out) }
                     } finally {
                         frame.close()
                     }
-                    emitOwned(outputs)
                 }
-                val outputs = ArrayList<Frame>()
-                try {
-                    synchronized(lock) {
-                        offer(0, outputs) { backend.send(0, null).let { rc -> if (backend.isEof(rc)) 0 else rc } }
-                        drain(outputs)
-                    }
-                } catch (failure: Throwable) {
-                    outputs.forEach(Frame::close)
-                    throw failure
+                synchronized(lock) {
+                    flushed[0] = true
+                    waiting[0].addLast(null)
                 }
-                emitOwned(outputs)
+                pump(Call(0, frame = null, endsOnClose = false)) { out -> collector.handOver(out) }
             } finally {
                 synchronized(lock) {
-                    operations--
                     closed = true
-                    if (operations == 0) freeNow()
+                    leave()
                 }
             }
         }
     }
 
     /**
-     * Emits each of [outputs], owned by the collector. A frame that reached emit is the
-     * collector's even when emit then throws: `first` and `take` end a flow by throwing out of
-     * emit after the value was delivered, and nothing here can tell that apart from a failed
-     * delivery, so only the frames that never reached emit are closed.
+     * Emits [out], owned by the collector, unless the collector's coroutine is cancelled, which
+     * closes it instead. A frame that reached emit is the collector's even when emit then throws:
+     * `first` and `take` end a flow by throwing out of emit after the value was delivered.
      */
-    private suspend fun FlowCollector<Frame>.emitOwned(outputs: List<Frame>) {
-        for (i in outputs.indices) {
-            try {
-                emit(outputs[i])
-            } catch (failure: Throwable) {
-                for (j in i + 1 until outputs.size) outputs[j].close()
-                throw failure
-            }
+    private suspend fun FlowCollector<Frame>.handOver(out: Frame) {
+        val context = currentCoroutineContext()
+        if (!context.isActive) {
+            out.close()
+            context.ensureActive()
         }
+        emit(out)
     }
 
     override fun close() {
