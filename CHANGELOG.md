@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   more than its code, such as `pt-BR`, now reads back as that tag rather than as `por`.
 - `MediaProbe` gains `programs`, which changes its constructor and `copy`. Recompile a library
   built against 0.4.0.
+- `MediaSource.primaryAudio` of a source with programmes is now the sound of `primaryVideo`'s own
+  programme (#165), so it can name another stream than before, and it is null when that
+  programme has no sound and no stream sits outside every programme.
 
 ### Added
 
@@ -176,6 +179,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `zh-TW` agrees with `zh-Hant`. Preference order still comes before closeness, a related language
   such as Middle English `enm` is not English, and `und`, `mul`, `mis`, `zxx` and `qaa` to `qtz`
   match nothing. The rules follow mpv's, which also folds every spelling of a language into one.
+- A multiplex no longer plays one channel's picture with another channel's sound (#165).
+  `TrackSelector` picked video and audio each from the whole stream list, so a transport stream
+  whose radio channel came first paired the television's picture with the radio's sound, and a
+  language preference took the sound of whichever channel spoke it. A new
+  `selectAudio(streams, programs, video)` chooses only among the sound of the picture's own
+  programme, falling back to a stream in no programme when that programme has none, and
+  `primaryAudio` uses it. mpv keeps the tracks beside its video to that video's programmes the
+  same way, and a source with no programmes selects as before.
 - An MP4 or MOV track reports its extended language tag, the `elng` box, as
   `StreamInfo.language`, and a remux writes one (#157). ISO/IEC 14496-12 and QuickTime keep a whole
   BCP 47 tag such as `zh-Hant` in that box beside the three-letter code in `mdhd`, and Apple's

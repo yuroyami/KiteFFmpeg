@@ -53,16 +53,25 @@ public data class TrackSelector(
      * every audio stream is a candidate, as in the [selectAudio] that takes the streams alone. The
      * audio rules of [TrackSelector] then pick among the candidates.
      */
-    public fun selectAudio(streams: List<StreamInfo>, programs: List<Program>, video: StreamInfo?): StreamInfo? =
-        selectAudio(streams)
+    public fun selectAudio(streams: List<StreamInfo>, programs: List<Program>, video: StreamInfo?): StreamInfo? {
+        val audio = streams.filter { it.type == MediaType.Audio }
+        val homes = if (video == null) emptyList() else programs.filter { video.index in it.streamIndexes }
+        if (homes.isEmpty()) return pickAudio(audio)
+        val beside = homes.flatMapTo(HashSet()) { it.streamIndexes }
+        val placed = programs.flatMapTo(HashSet()) { it.streamIndexes }
+        return pickAudio(audio.filter { it.index in beside }.ifEmpty { audio.filter { it.index !in placed } })
+    }
 
     /**
      * The audio stream to play from [streams], or null when there is none. It knows nothing of
      * programmes, so for a source that has them use the [selectAudio] that takes the picture and
      * the programmes.
      */
-    public fun selectAudio(streams: List<StreamInfo>): StreamInfo? {
-        val audio = streams.filter { it.type == MediaType.Audio }
+    public fun selectAudio(streams: List<StreamInfo>): StreamInfo? =
+        pickAudio(streams.filter { it.type == MediaType.Audio })
+
+    /** The audio rules applied to [audio], which holds only audio streams, in container order. */
+    private fun pickAudio(audio: List<StreamInfo>): StreamInfo? {
         val candidates = audio.filter { !it.disposition.isForSpecialAudience }.ifEmpty { audio }
         val wanted = preferredAudioLanguages.map { it to LanguageTag.parse(it) }
         val matches = candidates.associateWith { match(wanted, it.language) }

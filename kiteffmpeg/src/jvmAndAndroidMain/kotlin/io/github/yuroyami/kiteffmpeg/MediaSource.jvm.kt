@@ -107,7 +107,7 @@ public actual class MediaSource internal constructor(
         if (durationMicros == null) null else DurationOrigin.ofCode(Internals.fmtDurationOrigin(formatToken))
     public actual val isSeekable: Boolean = Internals.fmtIsSeekable(formatToken)
     public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)
-    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams)
+    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams, programs, primaryVideo)
 
     @Volatile
     public actual var corruptData: CorruptData = CorruptData.Skip

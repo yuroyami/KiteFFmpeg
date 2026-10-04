@@ -24,6 +24,13 @@ import kotlin.test.assertTrue
  * and each table's checksum recomputed, so only the service description table still names
  * ChannelB. FFmpeg then makes a programme for it with no number and no streams, and finds that
  * channel's two streams by their packets, outside any programme.
+ *
+ * A third fixture is a multiplex whose first channel is a radio channel, one MP2 sound, and whose
+ * second is a television channel, one MPEG-2 picture and one MP2 sound, made the same way with
+ * `-map 0:a -map 1:v -map 2:a -program title=Radio:program_num=1:st=0
+ * -program title=Television:program_num=2:st=1:st=2` over a 440 Hz sine, `testsrc` and an 880 Hz
+ * sine. The radio's sound comes first, so a selection that ignores programmes pairs the
+ * television's picture with it (#165).
  */
 class ProgramContractTest {
 
@@ -63,6 +70,27 @@ class ProgramContractTest {
         MediaSource.open(materializeContractMedia(ContractMedia.bytes, ContractMedia.sha256)).use { source ->
             assertTrue(source.streams.isNotEmpty())
             assertEquals(emptyList(), source.programs)
+        }
+    }
+
+    @Test
+    fun thePrimarySoundIsThePrimaryPicturesOwn() {
+        MediaSource.open(materializeContractMedia(RadioAndTelevisionTs.bytes, RadioAndTelevisionTs.sha256)).use { source ->
+            assertEquals(listOf(listOf(0), listOf(1, 2)), source.programs.map { it.streamIndexes })
+            assertEquals(1, source.primaryVideo?.index)
+            assertEquals(2, source.primaryAudio?.index)
+        }
+    }
+
+    @Test
+    fun aLanguagePreferenceChoosesOnlyAmongThePicturesChannelSound() {
+        MediaSource.open(materializeContractMedia(TwoChannelsTs.bytes, TwoChannelsTs.sha256)).use { source ->
+            val english = TrackSelector(listOf("eng"))
+            val video = english.selectVideo(source.streams)
+            assertEquals(0, video?.index)
+            assertEquals(1, english.selectAudio(source.streams, source.programs, video)?.index)
+            val channelB = source.streams.single { it.index == 2 }
+            assertEquals(3, english.selectAudio(source.streams, source.programs, channelB)?.index)
         }
     }
 
@@ -186,5 +214,47 @@ HpiuIqxdOGcrK7D//RTEU2giK6kjOttdMyzmJKiqboy8EitVJeocNVR64moitB3BbK0rjEPsJCuH7wx9
 jaubrVsyTKRHAQMxPwD/////////////////////////////////////////////////////////////////////////////////
 /08hjFwxBpEMfNlQkfoUgkq6O9Oje+7MAP/9FMRDZCIAAPX+MY+Ye+al+ep+iq+daOpbGvmpSh0tjXzXlHuWxr5ug7WAM9qUIZIE
 FujS7uti2NfNd3WxbGvmu7rYtjXzXd1sWxr5ru62LY1813dbFsa+a7uti2NfNA==
+"""
+}
+
+private object RadioAndTelevisionTs {
+    const val sha256: String = "0e851e53ea99ebf3d0c1e950d61ca674d026516c47ae20f1b1dba553c91b8e71"
+
+    val bytes: ByteArray by lazy {
+        decodeBase64(DATA.filterNot { it.isWhitespace() }).also { decoded ->
+            check(decoded.size == 2068) { "RadioAndTelevisionTs fixture size changed: ${decoded.size}" }
+            check(sha256Hex(decoded) == sha256) { "RadioAndTelevisionTs fixture digest changed" }
+        }
+    }
+
+    private val DATA: String = """
+R0AREABC8DsAAcEAAP8B/wAB/IAQSA4BBkZGbXBlZwVSYWRpbwAC/IAVSBMBBkZGbXBlZwpUZWxldmlzaW9uAganOv//////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////9HQAAQAACwEQABwQAAAAHwAAAC8AEggnpN////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+/0dQABAAArASAAHBAADhAPAAA+EA8ADXhkRc////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////R1ABEAACsBcAAsEAAOEB8AAC4QHwAAPhAvAAwE8bO///////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//9HQQEwB1AAAHzPfgAAAAHgAACAgAUhAAffbQAAAbMBABAT///gGAAAAbUUigABAAAAAAG4AAgAQAAAAQAAD//4AAABtY//80GA
+AAABARPzqABuAXAgfjggfhgDEB0AnANCYAxAMAC4BOQwB8gB0AagOiEGoSTQDRBDAdAMQ0sMTyGUXkgOwEw0hfrwYgrjEJ6b1oIA
+GIIAFRNBA+pADABCAYAD0A1AYgOwB+TQHRDADQA1ATgIQKp5QCcoAEcBARH8NIQBWGl4B2lIFEhoFCEUQwFBZeIW+DGS3uaAOAGI
+AvBAApBA/KAE4aCCA6APwEKQDUAfgF4A/JgYA2AqQunAIQKgMQK8MKBCAIDeWA2QAxzl7L2yRmG1YIAJwA7AFgIAHgAwAMgB2QwB
+iAPAHeJo0lhgaAxAdAJgGz8hoCS0k0mnJIYxaMtDGyAMOWAFhYASlABW6eAP0ACoEEBx8ACXExG4BeNJXAdAB+gAuxfSBQAn5CAb
+9GJPRwEBMn4A////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////8pUgE6EgUAFAA5AFoA4GoA
+LibgBtwGBYDAbyaViWAJOAL2AYFOAnISA0soAYgB24YjBvJpD3cAtCZHQQAwB1AAAHsMfgAAAAHAASiAgAUhAAfYYf/9FMRTZCIs
+/MVlcv4dxh1l0e962LY18173t6tjXzXs6nlpKkVqCa2rs183hDkouC+BPOAny2FusxkMTLYS6pnky2thEzR7rJYrMlABLr1NkziE
+pvIGnc4hIAsOhuqlDP/9FMRTaCIqqMl4y000JYejycsK8sR3R6IsM1YDrNGMuAh40yD2RuhL2NSQhG6jBXb5mnWsEErypue3uqYH
+Q1sJMkcBADE5AP//////////////////////////////////////////////////////////////////////////824HhoGDWKTx
+yErWAPE3sgMcVyZ+mnBw6EqqS0AA//0UxENkIgAAtf5Rz5yP52n6Gz6W35dZbFsa+aV2ti2NfNFtRtbGvmqjs2A0GhQZkpPy6NLu
+62LY1813dbFsa+a7uti2NfNd3WxbGvmu7rYtjXzXd1sWxr5ru62LY180R0ECMAFAAAABwAEogIAFIQAH2GH//RTEU2QiKD0TGLOG
+s9ns4s3veti2NfNe6C2LY180/J1PaS49aH0mS7NfNJdohLgKQVlyNMtjX6sohS62KuqobS9LY2wwtHiUmr5I05IrypDhuwttHpiu
+IqxdOGcrK7D//RTEU2giK6kjOttdMyzmJKiqboy8EitVJeocNVR64moitB3BbK0rjEPsJCuH7wx9IZhlo+LawPH7YDbquCzKjaub
+rVsyTKRHAQIxPwD//////////////////////////////////////////////////////////////////////////////////08h
+jFwxBpEMfNlQkfoUgkq6O9Oje+7MAP/9FMRDZCIAAPX+MY+Ye+al+ep+iq+daOpbGvmpSh0tjXzXlHuWxr5ug7WAM9qUIZIEFujS
+7uti2NfNd3WxbGvmu7rYtjXzXd1sWxr5ru62LY1813dbFsa+a7uti2NfNA==
 """
 }

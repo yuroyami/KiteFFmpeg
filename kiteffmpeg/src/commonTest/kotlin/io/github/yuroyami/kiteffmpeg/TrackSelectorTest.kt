@@ -182,6 +182,56 @@ class TrackSelectorTest {
         assertEquals(english, TrackSelector(listOf("jpn")).selectAudio(listOf(describedJapanese, english)))
     }
 
+    private fun program(id: Int, vararg streams: Int) = Program(id = id, number = id, streamIndexes = streams.toList())
+
+    @Test
+    fun aPreferredLanguageNeverTakesTheSoundOfAnotherProgramme() {
+        val video = stream(0, MediaType.Video)
+        val french = stream(1, MediaType.Audio, language = "fra")
+        val otherPicture = stream(2, MediaType.Video)
+        val english = stream(3, MediaType.Audio, language = "eng")
+        val streams = listOf(video, french, otherPicture, english)
+        val programs = listOf(program(1, 0, 1), program(2, 2, 3))
+        assertEquals(french, TrackSelector(listOf("eng")).selectAudio(streams, programs, video))
+        assertEquals(english, TrackSelector(listOf("fra")).selectAudio(streams, programs, otherPicture))
+    }
+
+    @Test
+    fun aPictureInTwoProgrammesTakesTheSoundOfEither() {
+        val video = stream(0, MediaType.Video)
+        val french = stream(1, MediaType.Audio, language = "fra")
+        val english = stream(2, MediaType.Audio, language = "eng")
+        val german = stream(3, MediaType.Audio, language = "deu")
+        val streams = listOf(video, french, english, german)
+        val programs = listOf(program(1, 0, 1), program(2, 0, 2), program(3, 3))
+        assertEquals(english, TrackSelector(listOf("eng")).selectAudio(streams, programs, video))
+        assertEquals(french, TrackSelector(listOf("deu")).selectAudio(streams, programs, video))
+    }
+
+    @Test
+    fun soundInNoProgrammeCountsOnlyWhenThePicturesProgrammesHaveNone() {
+        val video = stream(0, MediaType.Video)
+        val own = stream(1, MediaType.Audio, language = "fra")
+        val other = stream(2, MediaType.Audio, language = "eng")
+        val loose = stream(3, MediaType.Audio, language = "eng")
+        val english = TrackSelector(listOf("eng"))
+        assertEquals(own, english.selectAudio(listOf(video, own, other, loose), listOf(program(1, 0, 1), program(2, 2)), video))
+        assertEquals(loose, english.selectAudio(listOf(video, other, loose), listOf(program(1, 0), program(2, 2)), video))
+        assertNull(english.selectAudio(listOf(video, other), listOf(program(1, 0), program(2, 2)), video))
+    }
+
+    @Test
+    fun withoutAProgrammeForThePictureEverySoundIsACandidate() {
+        val video = stream(0, MediaType.Video)
+        val first = stream(1, MediaType.Audio, language = "fra")
+        val english = stream(2, MediaType.Audio, language = "eng")
+        val streams = listOf(video, first, english)
+        val selector = TrackSelector(listOf("eng"))
+        assertEquals(english, selector.selectAudio(streams, emptyList(), video))
+        assertEquals(english, selector.selectAudio(streams, listOf(program(1, 1)), video))
+        assertEquals(english, selector.selectAudio(streams, listOf(program(1, 0, 1)), null))
+    }
+
     @Test
     fun noStreamOfTheKindAnswersNull() {
         assertNull(TrackSelector.Default.selectVideo(listOf(stream(0, MediaType.Audio))))

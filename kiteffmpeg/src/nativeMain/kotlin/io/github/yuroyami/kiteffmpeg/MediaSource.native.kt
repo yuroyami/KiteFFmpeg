@@ -271,7 +271,7 @@ public actual class MediaSource internal constructor(
     public actual val isSeekable: Boolean = ffkmp_fmt_is_seekable(ctx) != 0
 
     public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)
-    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams)
+    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams, programs, primaryVideo)
 
     public actual var corruptData: CorruptData = CorruptData.Skip
 

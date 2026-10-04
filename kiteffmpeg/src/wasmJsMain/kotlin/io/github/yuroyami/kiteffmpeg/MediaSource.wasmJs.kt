@@ -208,7 +208,7 @@ public actual class MediaSource internal constructor(
         get() = ffkmp_fmt_is_seekable(requireModule(), alive()) != 0
 
     public actual val primaryVideo: StreamInfo? get() = TrackSelector.Default.selectVideo(streams)
-    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams)
+    public actual val primaryAudio: StreamInfo? get() = TrackSelector.Default.selectAudio(streams, programs, primaryVideo)
 
     /**
      * True while a packet reader holds the demux cursor.
