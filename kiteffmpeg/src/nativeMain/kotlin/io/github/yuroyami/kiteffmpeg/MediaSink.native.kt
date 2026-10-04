@@ -62,6 +62,7 @@ import ffmpeg.ffkmp_rescale_q
 import ffmpeg.ffkmp_stream_codecpar
 import ffmpeg.ffkmp_stream_copy_identity
 import ffmpeg.ffkmp_stream_index
+import ffmpeg.ffkmp_stream_set_avg_frame_rate
 import ffmpeg.ffkmp_stream_set_time_base
 import ffmpeg.ffkmp_stream_time_base
 import ffmpeg.kc_codec
@@ -204,7 +205,7 @@ public actual class MediaSink internal constructor(
             spec.hdr?.let { hdr -> applyHdr(cc, hdr) }
             spec.options.forEach { (k, v) -> check0(ffkmp_codecctx_set_opt(cc, k, v), "av_opt_set ('$k')") }
         }
-        val stream = newStreamFor(codecCtx, spec.sampleAspectRatio)
+        val stream = newStreamFor(codecCtx, spec.sampleAspectRatio, spec.frameRate)
         val core = EncoderCore(
             sink = this,
             codecCtx = codecCtx,
@@ -383,9 +384,15 @@ public actual class MediaSink internal constructor(
     /**
      * Create the muxer stream for an opened encoder context and copy its parameters over. A
      * [sampleAspectRatio] goes on the stream too, because Matroska reads the stream's and never
-     * the codec parameters'.
+     * the codec parameters'. A video encoder's [frameRate] goes on it as the average rate, as
+     * FFmpeg's command line does: the encoder hands back packets with no duration, and the muxer
+     * gives each one frame at that rate, so the last frame does not end where it starts (#143).
      */
-    private fun newStreamFor(codecCtx: CPointer<kc_codec_ctx>, sampleAspectRatio: Rational? = null): CPointer<kc_stream> {
+    private fun newStreamFor(
+        codecCtx: CPointer<kc_codec_ctx>,
+        sampleAspectRatio: Rational? = null,
+        frameRate: Rational? = null,
+    ): CPointer<kc_stream> {
         var mutated = false
         try {
             val stream = ffkmp_fmt_new_stream(ctx, null)
@@ -397,6 +404,9 @@ public actual class MediaSink internal constructor(
             check0(ffkmp_codecpar_from_context(par, codecCtx), "avcodec_parameters_from_context")
             sampleAspectRatio?.let { sar ->
                 check0(ffkmp_stream_set_sample_aspect_ratio(stream, sar.num, sar.den), "stream sample aspect ratio")
+            }
+            frameRate?.let { rate ->
+                check0(ffkmp_stream_set_avg_frame_rate(stream, rate.num, rate.den), "stream frame rate")
             }
             val tb = codecCtxTimeBase(codecCtx)
             ffkmp_stream_set_time_base(stream, tb.num, tb.den)

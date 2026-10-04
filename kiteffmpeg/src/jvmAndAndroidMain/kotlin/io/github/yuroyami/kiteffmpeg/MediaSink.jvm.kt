@@ -119,7 +119,7 @@ public actual class MediaSink internal constructor(
                 check0(Internals.codecCtxSetOpt(codecContext, key, value), "av_opt_set ('$key')")
             }
         }
-        val stream = newStreamFor(context, spec.sampleAspectRatio)
+        val stream = newStreamFor(context, spec.sampleAspectRatio, spec.frameRate)
         val core = EncoderCore(this, context, stream, Internals.codecCtxTimeBase(context), false)
         encoderCores += core
         VideoEncoder(core)
@@ -280,9 +280,11 @@ public actual class MediaSink internal constructor(
     /**
      * Create the muxer stream for an opened encoder context and copy its parameters over. A
      * [sampleAspectRatio] goes on the stream too, because Matroska reads the stream's and never
-     * the codec parameters'.
+     * the codec parameters'. A video encoder's [frameRate] goes on it as the average rate, as
+     * FFmpeg's command line does: the encoder hands back packets with no duration, and the muxer
+     * gives each one frame at that rate, so the last frame does not end where it starts (#143).
      */
-    private fun newStreamFor(context: Long, sampleAspectRatio: Rational? = null): Long {
+    private fun newStreamFor(context: Long, sampleAspectRatio: Rational? = null, frameRate: Rational? = null): Long {
         var stream = 0L
         var parameters = 0L
         var mutated = false
@@ -293,6 +295,7 @@ public actual class MediaSink internal constructor(
             parameters = Internals.streamCodecPar(stream)
             check0(Internals.codecParFromContext(parameters, context), "avcodec_parameters_from_context")
             sampleAspectRatio?.let { sar -> check0(Internals.streamSetSar(stream, sar), "stream sample aspect ratio") }
+            frameRate?.let { rate -> check0(Internals.streamSetAvgFrameRate(stream, rate), "stream frame rate") }
             Internals.streamSetTimeBase(stream, Internals.codecCtxTimeBase(context))
             declaredStreams += 1
             return stream

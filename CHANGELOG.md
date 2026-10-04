@@ -75,6 +75,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- An encoded video keeps its last frame (#143). FFmpeg's encoders hand back packets with no
+  duration, and a `MediaSink` video stream declared no frame rate, so the muxer could not give the
+  last packet one: an MP4 or MOV ended on a sample of length zero that players drop, 14 frames at
+  10 fps played as 13, a single frame played as none, and a Matroska file stated a length one frame
+  short. The stream now declares `VideoEncoderSpec.frameRate` as its average rate, as FFmpeg's
+  command line does, and the muxer gives each packet one frame at that rate. The C ABI is 3.22 and
+  adds `ffkmp_stream_set_avg_frame_rate`.
 - On the web, a codec module out of memory no longer has strings and out-slots written at address
   zero, or captions, extradata and metadata read from there as if they were the answer (#142). The
   module grows its memory, so a failed allocation returns zero instead of aborting; every

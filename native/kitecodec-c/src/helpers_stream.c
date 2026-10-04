@@ -36,6 +36,11 @@ KC_API int ffkmp_stream_set_sample_aspect_ratio(AVStream *s, int num, int den) {
     s->sample_aspect_ratio = av_make_q(num, den);
     return 0;
 }
+KC_API int ffkmp_stream_set_avg_frame_rate(AVStream *s, int num, int den) {
+    if (!s || num <= 0 || den <= 0) return AVERROR(EINVAL);
+    s->avg_frame_rate = av_make_q(num, den);
+    return 0;
+}
 
 /* Copies what names src into dst: every tag, language and title among them, and the disposition
    flags. Also the stream-level pixel shape, which a Matroska demuxer reads from the container and

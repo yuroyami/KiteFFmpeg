@@ -477,6 +477,9 @@ internal external fun ffkmp_stream_mirrored(module: JsAny, a0: Int): Int
 @JsFun("(m, a0) => m._ffkmp_stream_rotation_degrees(a0)")
 internal external fun ffkmp_stream_rotation_degrees(module: JsAny, a0: Int): Int
 
+@JsFun("(m, a0, a1, a2) => m._ffkmp_stream_set_avg_frame_rate(a0, a1, a2)")
+internal external fun ffkmp_stream_set_avg_frame_rate(module: JsAny, a0: Int, a1: Int, a2: Int): Int
+
 @JsFun("(m, a0, a1, a2) => m._ffkmp_stream_set_sample_aspect_ratio(a0, a1, a2)")
 internal external fun ffkmp_stream_set_sample_aspect_ratio(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 

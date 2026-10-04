@@ -151,6 +151,31 @@ static void case_a_stream_takes_and_copies_its_pixel_shape(void)
     ffkmp_fmt_free_output(&ctx);
 }
 
+/* The rate the muxer gives a video packet without a duration as its length (#143). */
+static void case_a_stream_takes_its_average_frame_rate(void)
+{
+    kc_fmt_ctx *ctx = NULL;
+    kc_stream *s;
+    int n = 0, d = 0;
+
+    kc_case("the stream's average frame rate is set, read back, and refused when invalid");
+    KC_EQ_INT(ffkmp_fmt_alloc_output2(&ctx, "kiteffmpeg-rate.mp4", "mp4"), 0);
+    s = ffkmp_fmt_new_stream(ctx, NULL);
+    KC_NOT_NULL(s);
+    KC_EQ_INT(ffkmp_stream_set_avg_frame_rate(s, 24000, 1001), 0);
+    ffkmp_stream_avg_frame_rate(s, &n, &d);
+    KC_EQ_INT(n, 24000);
+    KC_EQ_INT(d, 1001);
+    KC_EQ_INT(ffkmp_stream_set_avg_frame_rate(s, 0, 1), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_stream_set_avg_frame_rate(s, 25, 0), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_stream_set_avg_frame_rate(s, -25, 1), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_stream_set_avg_frame_rate(NULL, 25, 1), AVERROR(EINVAL));
+    ffkmp_stream_avg_frame_rate(s, &n, &d);
+    KC_EQ_INT(n, 24000);
+    KC_EQ_INT(d, 1001);
+    ffkmp_fmt_free_output(&ctx);
+}
+
 static void case_an_encoder_takes_an_exact_channel_layout(void)
 {
     AVCodecContext *c = ffkmp_codecctx_alloc(ffkmp_find_encoder_by_name("aac"));
@@ -173,6 +198,7 @@ int main(void)
     case_an_encoder_hands_the_muxer_what_it_was_given();
     case_a_frame_reports_each_half_it_carries();
     case_a_stream_takes_and_copies_its_pixel_shape();
+    case_a_stream_takes_its_average_frame_rate();
     case_an_encoder_takes_an_exact_channel_layout();
 
     return kc_suite_end();

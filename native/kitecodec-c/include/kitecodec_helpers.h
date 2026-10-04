@@ -838,6 +838,13 @@ KC_API void ffkmp_stream_set_time_base(kc_stream *s, int n, int d);
  * AVERROR(EINVAL). */
 KC_API int ffkmp_stream_set_sample_aspect_ratio(kc_stream *s, int num, int den);
 
+/* The stream's average frame rate, which a muxer writes as the track's frame rate and from which it
+ * gives a video packet that carries no duration the length of one frame. An encoder hands back its
+ * packets without durations, so an output stream that declares no rate ends on a sample of length
+ * zero, which MP4 players drop. A NULL stream or a rate whose terms are not both positive is refused
+ * with AVERROR(EINVAL). */
+KC_API int ffkmp_stream_set_avg_frame_rate(kc_stream *s, int num, int den);
+
 /* Filter graphs (single-input video / audio) */
 
 /* The def's header removal forces this boolean wrapper before the typed outcome model lands

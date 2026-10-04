@@ -1124,6 +1124,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_stream_set_sample_aspect_ratio(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVStream /* = ffmpeg/kc_stream^ */>?, num: kotlin/Int, den: kotlin/Int): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_stream_set_avg_frame_rate")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_stream_set_avg_frame_rate(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVStream /* = ffmpeg/kc_stream^ */>?, num: kotlin/Int, den: kotlin/Int): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_filter_exists")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_filter_exists(@kotlinx/cinterop/internal/CCall.CString name: kotlin/String?): kotlin/Int
@@ -1300,10 +1304,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_chroma_location")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_frame_chroma_location(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?): kotlin/Int
-
-      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_is_keyframe")
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_frame_is_keyframe(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?): kotlin/Int
     }
   }
 
@@ -1311,6 +1311,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_is_keyframe")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_frame_is_keyframe(f: kotlinx/cinterop/CValuesRef<cnames/structs/AVFrame /* = ffmpeg/kc_frame^ */>?): kotlin/Int
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_frame_sample_aspect_ratio")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1397,7 +1401,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 21 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 22 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

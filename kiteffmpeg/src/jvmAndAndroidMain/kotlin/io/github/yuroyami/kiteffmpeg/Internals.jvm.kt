@@ -97,6 +97,7 @@ internal object Internals {
     private external fun nativeComponentNames(kind: Int): String
     private external fun nativeStreamCopyIdentity(dstToken: Long, srcToken: Long): Int
     private external fun nativeStreamSetSar(token: Long, num: Int, den: Int): Int
+    private external fun nativeStreamSetAvgFrameRate(token: Long, num: Int, den: Int): Int
     private external fun nativeFmtAddChapter(
         fmtToken: Long,
         id: Long,
@@ -437,6 +438,7 @@ internal object Internals {
     internal fun componentNames(kind: Int): String = checked { nativeComponentNames(kind) }
     internal fun streamCopyIdentity(dstToken: Long, srcToken: Long) = checked { nativeStreamCopyIdentity(dstToken, srcToken) }
     internal fun streamSetSar(token: Long, sar: Rational) = checked { nativeStreamSetSar(token, sar.num, sar.den) }
+    internal fun streamSetAvgFrameRate(token: Long, rate: Rational) = checked { nativeStreamSetAvgFrameRate(token, rate.num, rate.den) }
     internal fun fmtAddChapter(
         fmtToken: Long,
         id: Long,

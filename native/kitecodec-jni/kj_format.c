@@ -1088,6 +1088,14 @@ JNIEXPORT jint JNICALL kj_stream_set_sar(JNIEnv *env, jclass cls, jlong token, j
     return s ? ffkmp_stream_set_sample_aspect_ratio(s, num, den) : -22;
 }
 
+/* The average frame rate of an encoder's stream, from which the muxer dates a packet's length. */
+JNIEXPORT jint JNICALL kj_stream_set_avg_frame_rate(JNIEnv *env, jclass cls, jlong token, jint num, jint den)
+{
+    kc_stream *s = (kc_stream *)kj_handle_get(env, token, KJ_KIND_STREAM);
+    (void)cls;
+    return s ? ffkmp_stream_set_avg_frame_rate(s, num, den) : -22;
+}
+
 /* The identity of a copied stream: every tag, the disposition flags and the pixel shape. */
 JNIEXPORT jint JNICALL kj_stream_copy_identity(JNIEnv *env, jclass cls, jlong dst_token, jlong src_token)
 {

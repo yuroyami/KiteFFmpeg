@@ -101,6 +101,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSwrDefaultLayoutMask
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeComponentNames",   "(I)Ljava/lang/String;",         kj_component_names)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamCopyIdentity", "(JJ)I",                       kj_stream_copy_identity)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamSetSar",       "(JII)I",                       kj_stream_set_sar)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeStreamSetAvgFrameRate", "(JII)I",                    kj_stream_set_avg_frame_rate)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtAddChapter",    "(JJJJ[Ljava/lang/String;[Ljava/lang/String;)I", kj_fmt_add_chapter)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtCloseInputIo",  "(J)V",                   kj_fmt_close_input_io)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtChapterCount",  "(J)I",                   kj_fmt_chapter_count)
