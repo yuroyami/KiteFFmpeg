@@ -611,6 +611,7 @@ private fun openMediaSourceIo(
             io.seekable,
             io.size ?: -1L,
             url,
+            io.openedLocation(),
             mimeType,
             nested,
             options.keys.toTypedArray().takeIf { it.isNotEmpty() },

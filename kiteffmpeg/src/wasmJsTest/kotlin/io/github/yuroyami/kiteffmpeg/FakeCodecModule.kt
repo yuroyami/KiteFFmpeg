@@ -140,10 +140,40 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
             openCount++;
             return 0;
         };
-        m._ffkmp_fmt_open_input_io2 = (out, opaque, readFn, seekFn, size, url, mime, opener, keys, values, n, unused, interrupt) => {
+        m._ffkmp_fmt_open_input_io2 = (out, opaque, readFn, seekFn, size, url, location, mime, opener, keys, values, n, unused, interrupt) => {
             m.__lastOpenUrl = url === 0 ? null : m.UTF8ToString(url);
+            m.__lastOpenLocation = location === 0 ? null : m.UTF8ToString(location);
             m.__lastOpenMime = mime === 0 ? null : m.UTF8ToString(mime);
             m.__lastOpenOpener = opener;
+            // What FFmpeg's HLS reader does with one address, when a test asked for it: open it
+            // through the opener, ask its location into a small buffer and then a big enough one,
+            // and close it.
+            const probe = m.__nestedProbe;
+            m.__nestedProbe = null;
+            if (probe && opener !== 0) {
+                const fn = (at) => m.__table[m.HEAP32[(opener + at) >> 2]];
+                const address = m._malloc(m.lengthBytesUTF8(probe.url) + 1);
+                m.stringToUTF8(probe.url, address, m.lengthBytesUTF8(probe.url) + 1);
+                const slots = m._malloc(24);
+                const rc = fn(probe.openAt)(0, address, slots, slots + 8, slots + 16);
+                if (rc !== 0) {
+                    m.__nestedProbeResult = 'open ' + rc;
+                } else {
+                    const source = m.HEAP32[slots >> 2];
+                    const small = m._malloc(probe.small + 1);
+                    m.HEAPU8[small] = 0x7f;
+                    const first = fn(probe.locationAt)(0, source, small, probe.small);
+                    const untouched = m.HEAPU8[small] === 0x7f;
+                    let second = 0, text = null;
+                    if (first > 0) {
+                        const big = m._malloc(first + 1);
+                        second = fn(probe.locationAt)(0, source, big, first + 1);
+                        text = m.UTF8ToString(big);
+                    }
+                    fn(probe.closeAt)(0, source);
+                    m.__nestedProbeResult = first + ' ' + untouched + ' ' + second + ' ' + text;
+                }
+            }
             return m._ffkmp_fmt_open_input_io(out, opaque, readFn, seekFn, size, keys, values, n, unused, interrupt);
         };
         m._ffkmp_fmt_find_stream_info = () => 0;
@@ -370,6 +400,43 @@ internal external fun setFakeDecoderOpenFails(module: JsAny, fails: Boolean)
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => String(m.__lastOpenUrl) + ' ' + String(m.__lastOpenMime) + ' ' + String(m.__lastOpenOpener)")
 internal external fun fakeLastOpenHints(module: JsAny): String
+
+/** The location the last byte-source open told FFmpeg, or null when it named none. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__lastOpenLocation === undefined ? null : m.__lastOpenLocation")
+internal external fun fakeLastOpenLocation(module: JsAny): String?
+
+/**
+ * Makes the next byte-source open with a nested opener ask it for [url] as FFmpeg's HLS reader does:
+ * open, the location into a buffer of [small] bytes and then into one that holds it, and close. The
+ * offsets are the struct's, from `OpenerLayout`. [fakeNestedProbeResult] says what each step answered.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun(
+    "(m, url, openAt, locationAt, closeAt, small) => " +
+        "{ m.__nestedProbe = { url: url, openAt: openAt, locationAt: locationAt, closeAt: closeAt, small: small }; }",
+)
+internal external fun fakeProbeNestedLocation(
+    module: JsAny,
+    url: String,
+    openAt: Int,
+    locationAt: Int,
+    closeAt: Int,
+    small: Int,
+)
+
+/**
+ * What the probe saw: `open <rc>` when the open failed, otherwise the first location answer, whether
+ * the small buffer stayed untouched, the second answer and the address it wrote, joined by spaces.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => String(m.__nestedProbeResult)")
+internal external fun fakeNestedProbeResult(module: JsAny): String
+
+/** Makes [module] answer as one linked from an FFmpeg with the trust_io_open patch, which a nested opener needs. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => { m._ffkmp_fmt_nested_io_available = () => 1; }")
+internal external fun withNestedIo(module: JsAny)
 
 /** Makes [module] answer as one linked from an FFmpeg without the trust_io_open patch. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

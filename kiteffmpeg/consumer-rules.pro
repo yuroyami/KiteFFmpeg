@@ -27,10 +27,11 @@
     long seek(long, int);
     long size();
     boolean seekable();
+    java.lang.String location();
 }
 
-# The nested opener: kj_format.c resolves these two on the opener's class, and size and seekable
-# above on JniByteIo's, when a byte-source open has a nested opener.
+# The nested opener: kj_format.c resolves these two on the opener's class, and size, seekable and
+# location above on JniByteIo's, when a byte-source open has a nested opener.
 -keep class io.github.yuroyami.kiteffmpeg.JniByteOpener {
     io.github.yuroyami.kiteffmpeg.JniByteIo open(java.lang.String);
     void close(io.github.yuroyami.kiteffmpeg.JniByteIo);

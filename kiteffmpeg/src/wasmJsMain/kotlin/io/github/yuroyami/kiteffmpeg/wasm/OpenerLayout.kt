@@ -13,5 +13,6 @@ internal object OpenerLayout {
     const val readFn: Int = 8
     const val seekFn: Int = 12
     const val closeFn: Int = 16
-    const val SIZE_OF: Int = 20
+    const val locationFn: Int = 20
+    const val SIZE_OF: Int = 24
 }

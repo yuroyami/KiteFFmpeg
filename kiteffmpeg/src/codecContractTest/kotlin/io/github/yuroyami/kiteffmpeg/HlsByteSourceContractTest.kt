@@ -21,7 +21,8 @@ import kotlin.test.assertTrue
  * A linked FFmpeg without the trust_io_open patch, such as a prebuilt tree from an older release,
  * refuses the opener with [FFmpegError.Unsupported]. Each test then checks that refusal and stops.
  * The Matroska and subtitle tests need two later FFmpeg patches as well, `0003` and `0004`, and the
- * two variable tests need `0011`, and each fails on a tree built before its patch.
+ * two variable tests need `0011`, and each fails on a tree built before its patch. The location
+ * tests need no patch of their own: the C layer hands FFmpeg the address, as its own http does.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 class HlsByteSourceContractTest {
@@ -29,10 +30,15 @@ class HlsByteSourceContractTest {
     /** Thrown by the test opener, so `assertSame` proves that this exact object arrived. */
     private class OpenerFailure(message: String) : RuntimeException(message)
 
-    /** Serves [resources] by address, and counts what it opened and what came back closed. */
+    /**
+     * Serves [resources] by address, each source naming its address in [redirects] as its location,
+     * as after a redirect, and counts what it opened and what came back closed.
+     */
     private class RecordingOpener(
         private val resources: Map<String, ByteArray>,
         private val failWith: Throwable? = null,
+        private val redirects: Map<String, String> = emptyMap(),
+        private val locationFailures: Map<String, Throwable> = emptyMap(),
     ) : MediaByteOpener {
         val asked = mutableListOf<String>()
         var opened = 0
@@ -43,15 +49,21 @@ class HlsByteSourceContractTest {
             failWith?.let { throw it }
             val bytes = resources[url] ?: return null
             opened++
-            return MemorySource(bytes) { closed++ }
+            return MemorySource(bytes, redirects[url], locationFailures[url]) { closed++ }
         }
     }
 
-    private class MemorySource(private val bytes: ByteArray, private val onClose: () -> Unit = {}) : MediaByteSource {
+    private class MemorySource(
+        private val bytes: ByteArray,
+        private val redirectedTo: String? = null,
+        private val locationFailure: Throwable? = null,
+        private val onClose: () -> Unit = {},
+    ) : MediaByteSource {
         private var position = 0
 
         override val size: Long get() = bytes.size.toLong()
         override val seekable: Boolean get() = true
+        override val location: String? get() = locationFailure?.let { throw it } ?: redirectedTo
 
         override fun read(into: ByteArray, offset: Int, length: Int): Int {
             if (position >= bytes.size) return -1
@@ -74,9 +86,15 @@ class HlsByteSourceContractTest {
         url: String = PLAYLIST_URL,
         mimeType: String? = HLS_TYPE,
         playlist: String = PLAYLIST,
+        location: String? = null,
     ): MediaSource? =
         try {
-            MediaSource.open(MemorySource(playlist.encodeToByteArray()), url = url, mimeType = mimeType, nestedOpener = opener)
+            MediaSource.open(
+                MemorySource(playlist.encodeToByteArray(), redirectedTo = location),
+                url = url,
+                mimeType = mimeType,
+                nestedOpener = opener,
+            )
         } catch (error: FFmpegException) {
             if (error.error !is FFmpegError.Unsupported || "trust_io_open" !in error.message.orEmpty()) throw error
             println("HLS contract degraded: the linked FFmpeg lacks the trust_io_open patch")
@@ -265,8 +283,120 @@ class HlsByteSourceContractTest {
         assertEquals(emptyList(), opener.asked, "no address may be asked for once a variable is undefined")
     }
 
+    /** Reads every packet of the video stream and returns how many there were. */
+    private fun videoPackets(media: MediaSource): Int {
+        val video = media.primaryVideo ?: error("the playlist has no video stream")
+        var packets = 0
+        media.openPacketReader(listOf(video)).use { reader ->
+            while (true) {
+                val packet = reader.read() ?: break
+                packet.close()
+                packets++
+            }
+        }
+        return packets
+    }
+
+    /**
+     * A playlist whose source followed a redirect to another host asks for its segment beside the
+     * place it really is, as it would if FFmpeg's own http had followed the redirect (#167). Before,
+     * the segment was asked for beside the address the playlist was requested at, where it is not.
+     */
+    @Test
+    fun aRedirectedPlaylistAsksForItsSegmentWhereItCameFrom() {
+        val opener = RecordingOpener(mapOf("$CDN_URL/seg0.ts" to segment))
+        val media = openPlaylist(opener, location = "$CDN_URL/index") ?: return
+        media.use {
+            assertEquals(listOf("$CDN_URL/seg0.ts"), opener.asked.distinct())
+            assertTrue(videoPackets(media) >= 30, "the segment holds at least 30 video packets")
+        }
+        assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
+    }
+
+    /**
+     * A master playlist whose source followed a redirect asks for its variants beside the place it
+     * came from, and a variant with no location of its own resolves its segment beside itself (#167).
+     */
+    @Test
+    fun aRedirectedMasterPlaylistAsksForItsVariantsWhereItCameFrom() {
+        val opener = RecordingOpener(
+            mapOf(
+                "$CDN_URL/video.m3u8" to mediaPlaylist("seg0.ts", seconds = 2).encodeToByteArray(),
+                "$CDN_URL/seg0.ts" to segment,
+            ),
+        )
+        val media = openPlaylist(
+            opener,
+            url = "$BASE_URL/master",
+            playlist = SINGLE_VARIANT_MASTER_PLAYLIST,
+            location = "$CDN_URL/master",
+        ) ?: return
+        media.use {
+            assertEquals(listOf("$CDN_URL/video.m3u8", "$CDN_URL/seg0.ts"), opener.asked.distinct())
+            assertTrue(videoPackets(media) >= 30, "the segment holds at least 30 video packets")
+        }
+        assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
+    }
+
+    /** A variant playlist that a nested opener followed to another host resolves its segment there (#167). */
+    @Test
+    fun aRedirectedVariantAsksForItsSegmentWhereItCameFrom() {
+        val opener = RecordingOpener(
+            mapOf(
+                "$BASE_URL/video.m3u8" to mediaPlaylist("seg0.ts", seconds = 2).encodeToByteArray(),
+                "$CDN_URL/seg0.ts" to segment,
+            ),
+            redirects = mapOf("$BASE_URL/video.m3u8" to "$CDN_URL/video.m3u8"),
+        )
+        val media = openPlaylist(opener, url = "$BASE_URL/master", playlist = SINGLE_VARIANT_MASTER_PLAYLIST) ?: return
+        media.use {
+            assertEquals(listOf("$BASE_URL/video.m3u8", "$CDN_URL/seg0.ts"), opener.asked.distinct())
+            assertTrue(videoPackets(media) >= 30, "the segment holds at least 30 video packets")
+        }
+        assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
+    }
+
+    /**
+     * A variant whose location getter throws fails rather than resolving its segment against the
+     * address it was asked for, and the open carries the getter's exception as its cause (#167).
+     */
+    @Test
+    fun aVariantWhoseLocationThrowsFailsTheOpenWithThatCause() {
+        val thrown = OpenerFailure("the variant could not say where its redirect led")
+        val opener = RecordingOpener(
+            mapOf(
+                "$BASE_URL/video.m3u8" to mediaPlaylist("seg0.ts", seconds = 2).encodeToByteArray(),
+                "$BASE_URL/seg0.ts" to segment,
+            ),
+            locationFailures = mapOf("$BASE_URL/video.m3u8" to thrown),
+        )
+        val error = runCatching {
+            openPlaylist(opener, url = "$BASE_URL/master", playlist = SINGLE_VARIANT_MASTER_PLAYLIST)?.close()
+        }.exceptionOrNull()
+        if (error == null && opener.asked.isEmpty()) return // degraded: the open was refused up front
+        assertIs<FFmpegException>(error, "a variant that cannot say where it came from must not open")
+        assertSame(thrown, error.cause, "the open must carry the location getter's exception as its cause")
+        assertEquals(listOf("$BASE_URL/video.m3u8"), opener.asked, "no segment may be asked for")
+        assertEquals(opener.opened, opener.closed, "the variant must be closed once")
+    }
+
+    /** A source whose location getter throws fails its own open with that exception, and is closed once. */
+    @Test
+    fun aPlaylistWhoseLocationThrowsFailsTheOpenAndIsClosed() {
+        val thrown = OpenerFailure("the playlist could not say where its redirect led")
+        var closes = 0
+        val source = MemorySource(PLAYLIST.encodeToByteArray(), locationFailure = thrown) { closes++ }
+        val error = runCatching {
+            MediaSource.open(source, url = PLAYLIST_URL, mimeType = HLS_TYPE, nestedOpener = RecordingOpener(emptyMap())).close()
+        }.exceptionOrNull()
+        if (error is FFmpegException && error.error is FFmpegError.Unsupported) return // degraded: no trust_io_open
+        assertSame(thrown, error, "the getter's own exception must reach the caller")
+        assertEquals(1, closes, "the open owns the source, so a failed open closes it once")
+    }
+
     private companion object {
         const val BASE_URL = "https://media.example/live"
+        const val CDN_URL = "https://cdn.example/edge/live"
         const val PLAYLIST_URL = "https://media.example/live/index"
         const val SEGMENT_URL = "https://media.example/live/seg0.ts"
         const val HLS_TYPE = "application/vnd.apple.mpegurl"
@@ -300,6 +430,14 @@ class HlsByteSourceContractTest {
             #EXT-X-VERSION:3
             #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",DEFAULT=YES,AUTOSELECT=YES,URI="subs.m3u8"
             #EXT-X-STREAM-INF:BANDWIDTH=800000,SUBTITLES="subs"
+            video.m3u8
+        """.trimIndent() + "\n"
+
+        /** A master playlist of one video variant, named by a relative address. */
+        val SINGLE_VARIANT_MASTER_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-STREAM-INF:BANDWIDTH=800000
             video.m3u8
         """.trimIndent() + "\n"
 

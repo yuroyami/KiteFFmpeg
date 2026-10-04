@@ -1,6 +1,6 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 3.27
+# abi-version 4.0
 #
 # Exact scope: 261 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
@@ -106,7 +106,7 @@ KC_API int ffkmp_fmt_nested_io_available(void);
 KC_API int ffkmp_fmt_open_input(kc_fmt_ctx **out, const char *path);
 KC_API int ffkmp_fmt_open_input2(kc_fmt_ctx **out, const char *path, const char *const *keys, const char *const *values, int n, kc_dict **unused, kc_interrupt *interrupt);
 KC_API int ffkmp_fmt_open_input_io(kc_fmt_ctx **out, void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn, int64_t size, const char *const *keys, const char *const *values, int n, kc_dict **unused, kc_interrupt *interrupt);
-KC_API int ffkmp_fmt_open_input_io2(kc_fmt_ctx **out, void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn, int64_t size, const char *url, const char *mime_type, const kc_io_opener *opener, const char *const *keys, const char *const *values, int n, kc_dict **unused, kc_interrupt *interrupt);
+KC_API int ffkmp_fmt_open_input_io2(kc_fmt_ctx **out, void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn, int64_t size, const char *url, const char *location, const char *mime_type, const kc_io_opener *opener, const char *const *keys, const char *const *values, int n, kc_dict **unused, kc_interrupt *interrupt);
 KC_API int ffkmp_fmt_program_count(const kc_fmt_ctx *ctx);
 KC_API int ffkmp_fmt_program_get(const kc_fmt_ctx *ctx, int index, int *out_id, int *out_number, int *out_stream_count);
 KC_API int ffkmp_fmt_program_stream(const kc_fmt_ctx *ctx, int index, int position);

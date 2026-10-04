@@ -71,6 +71,7 @@ internal object Internals {
         seekable: Boolean,
         size: Long,
         url: String?,
+        location: String?,
         mimeType: String?,
         opener: JniByteOpener?,
         keys: Array<String>?,
@@ -427,6 +428,7 @@ internal object Internals {
         seekable: Boolean,
         size: Long,
         url: String?,
+        location: String?,
         mimeType: String?,
         opener: JniByteOpener?,
         keys: Array<String>?,
@@ -434,7 +436,7 @@ internal object Internals {
         unusedKeysOut: Array<String?>?,
         interruptToken: Long = 0L,
     ) = token("custom io open") {
-        nativeFmtOpenInputIo(io, seekable, size, url, mimeType, opener, keys, values, unusedKeysOut, interruptToken)
+        nativeFmtOpenInputIo(io, seekable, size, url, location, mimeType, opener, keys, values, unusedKeysOut, interruptToken)
     }
     internal fun fmtNestedIoAvailable(): Boolean = checked { nativeFmtNestedIoAvailable() }
     internal fun fmtAllocOutputIo(cb: JniByteSink, format: String) =

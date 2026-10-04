@@ -68,7 +68,8 @@ has bytes, and the returned `MediaSource` closes it.
 Three optional parameters say where the bytes come from:
 
 - `url` is the address the bytes came from. FFmpeg recognises formats by it, as it does by a file
-  name, and resolves relative addresses inside the media against it.
+  name, and resolves relative addresses inside the media against it, unless the source names its
+  `location`, as after a redirect.
 - `mimeType` is the type the bytes arrived with, such as a server's `Content-Type`. FFmpeg's probe
   uses it.
 - `nestedOpener` is a `MediaByteOpener`. It opens the other addresses that the media names.
@@ -98,7 +99,15 @@ val playlist = MediaSource.open(
 
 Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`.
 
-- Every address reaches the opener absolute, already resolved against `url`.
+- Every address reaches the opener absolute, already resolved against the address of the playlist
+  that names it, which for the playlist you open is `url`.
+- A source that came through a redirect names the address the redirect led to in
+  `MediaByteSource.location`. The addresses inside it then resolve against that, as they would if
+  FFmpeg's own `http` had followed the redirect, so a playlist that a CDN moved to another host
+  asks for its segments, keys and variants on that host. This holds for the source handed to
+  `open` and for every source the opener returns. The location is read once, as the source opens,
+  so follow the redirects before you return the source; a getter that throws fails that address,
+  and the open carries its exception as the cause. `url` still names the input.
 - `mimeType` matters when `url` does not end in `.m3u8` or `.m3u`. Without it, the probe does not
   recognise the playlist and the open fails.
 - An AES-128 segment reaches the opener as the address of its encrypted bytes. The key comes through
@@ -124,7 +133,8 @@ On the web, a read cannot wait for the network, so the opener has to answer at o
 serve the bytes it already holds, and a Web Worker, where a synchronous `XMLHttpRequest` is still
 allowed, can fetch each address as it is asked. Each source the opener returns is read whole into
 the codec module's memory and closed straight away, so a segment is held in memory while FFmpeg
-reads it, up to 512 MB per source. `url` and `mimeType` reach the probe as on the other platforms.
+reads it, up to 512 MB per source. `url` and `mimeType` reach the probe as on the other platforms,
+and a source's `location` counts as it does there.
 
 The `MediaByteSource` handed to `open` itself is read on demand in a Web Worker: FFmpeg calls its
 `read` and `seek` as it needs bytes, so a source that answers with synchronous range requests plays

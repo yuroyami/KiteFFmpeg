@@ -47,6 +47,17 @@ public interface MediaByteSource : AutoCloseable {
     public val location: String? get() = null
 }
 
+/**
+ * The [MediaByteSource.location] a bridge hands FFmpeg: null for none or an empty one. An address
+ * holding a NUL character is refused, because the C string it crosses as would end there and FFmpeg
+ * would resolve against a different place than the one named.
+ */
+internal fun MediaByteSource.openedLocation(): String? {
+    val location = location?.takeIf { it.isNotEmpty() } ?: return null
+    require('\u0000' !in location) { "a byte source's location cannot hold a NUL character" }
+    return location
+}
+
 /** What a bridge records when [MediaByteSource.read] answered with more bytes than it was asked for. */
 internal fun byteSourceOverCount(returned: Int, asked: Int): IllegalStateException = IllegalStateException(
     "the byte source answered a read of $asked bytes with $returned, and MediaByteSource.read " +

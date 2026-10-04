@@ -916,6 +916,8 @@ internal class ByteSourceState(
     val io: MediaByteSource,
     /** The nested opener of a top-level open, whose failures this reports too. Null for a nested source. */
     val nested: NestedOpenerState? = null,
+    /** A nested source's [MediaByteSource.location] in UTF-8, read as it opened, or null. */
+    val location: ByteArray? = null,
 ) {
     var position: Long = 0
     val scratch = ByteArray(64 * 1024)
@@ -1013,7 +1015,10 @@ private val nestedOpen = staticCFunction {
         io = nested.opener.open(url!!.toKString()) ?: return@staticCFunction -3
         val total = io.size ?: -1L
         val canSeek = io.seekable
-        source!!.pointed.value = StableRef.create(ByteSourceState(io)).asCPointer()
+        // Read once, here, and a getter that throws fails the address like a failed open, because
+        // resolving its playlist against the address it was asked for would be wrong.
+        val location = io.openedLocation()?.encodeToByteArray()
+        source!!.pointed.value = StableRef.create(ByteSourceState(io, location = location)).asCPointer()
         size!!.pointed.value = total
         seekable!!.pointed.value = if (canSeek) 1 else 0
         0
@@ -1023,6 +1028,18 @@ private val nestedOpen = staticCFunction {
         io?.let { opened -> runCatching { opened.close() }.exceptionOrNull()?.let { nested.closeFailures += it } }
         -2
     }
+}
+
+/* A nested source's location, contract as kc_io_opener's location_fn: the length without the NUL,
+ * 0 for none, and the address written with its NUL only when it fits [cap]. */
+private val nestedLocation = staticCFunction {
+        _: COpaquePointer?, source: COpaquePointer?, buf: CPointer<ByteVar>?, cap: Int ->
+    val location = source!!.asStableRef<ByteSourceState>().get().location ?: return@staticCFunction 0
+    if (location.size < cap && buf != null) {
+        copyInto(buf, location, 0, location.size)
+        buf[location.size] = 0
+    }
+    location.size
 }
 
 private val nestedClose = staticCFunction { opaque: COpaquePointer?, source: COpaquePointer? ->
@@ -1072,6 +1089,7 @@ internal fun openMediaSourceIo(
         if (nested != null && ffkmp_fmt_nested_io_available() == 0) throw nestedOpenerNeedsPatchedFFmpeg()
         val canSeek = io.seekable
         val total = io.size ?: -1L
+        val location = io.openedLocation()
         memScoped {
             val ctxVar = allocPointerTo<kc_fmt_ctx>()
             val n = options.size
@@ -1090,6 +1108,7 @@ internal fun openMediaSourceIo(
                     read_fn = byteSourceRead
                     seek_fn = byteSourceSeek
                     close_fn = nestedClose
+                    location_fn = nestedLocation
                 }
             }
             val rc = ffkmp_fmt_open_input_io2(
@@ -1099,6 +1118,7 @@ internal fun openMediaSourceIo(
                 if (canSeek) byteSourceSeek else null,
                 total,
                 url,
+                location,
                 mimeType,
                 opener?.ptr,
                 keys, values, n, unusedVar.ptr, interrupt,

@@ -646,20 +646,35 @@ KC_API int  ffkmp_fmt_open_input_io(kc_fmt_ctx **out,
  * The bytes are then read through read_fn and seek_fn, with *source as their opaque and the same
  * contracts as the custom AVIO bridge above. A NULL seek_fn makes every nested source unseekable.
  * close_fn releases a *source that open_fn produced, exactly once, either when FFmpeg is done with
- * it or at the paired close. Every call runs on the thread that drives the demuxer. */
+ * it or at the paired close. Every call runs on the thread that drives the demuxer.
+ *
+ * location_fn, which may be NULL, says where a source's bytes came from when that is not the URL
+ * open_fn was given, as after an HTTP redirect. It is called once, right after open_fn serves a
+ * URL. It writes the address as UTF-8 into buf, NUL-terminated, when it fits in cap bytes, and
+ * returns the address's length without the NUL, or 0 when the bytes came from the URL asked for.
+ * A return of cap or more is called again with a buffer that fits, and a negative return fails
+ * that URL (AVERROR(EIO)). FFmpeg reads the address as the source's "location" option, as it reads
+ * the location of its own http protocol, so the HLS demuxer, and the DASH one in a build that has
+ * it, resolve the addresses inside a redirected playlist or manifest against it. */
 typedef struct kc_io_opener {
     void *opaque;
     int  (*open_fn)(void *opaque, const char *url, void **source, int64_t *size, int *seekable);
     kc_io_read_fn read_fn;
     kc_io_seek_fn seek_fn;
     void (*close_fn)(void *opaque, void *source);
+    int  (*location_fn)(void *opaque, void *source, char *buf, int cap);
 } kc_io_opener;
 
-/* Ownership as ffkmp_fmt_open_input_io, whose paired close this shares. Three additions, each of
+/* Ownership as ffkmp_fmt_open_input_io, whose paired close this shares. Four additions, each of
  * which may be NULL:
  *
  * url names the bytes. The probe matches it as it matches a file name, and relative URLs inside
  * the media resolve against it. It is never opened to read the input itself.
+ *
+ * location is where the bytes came from when that is not url, as after an HTTP redirect. The
+ * input answers it as its "location" option, as a nested source answers its location_fn, so the
+ * HLS demuxer resolves relative URLs against it while url still names the input. An empty
+ * location is the same as NULL.
  *
  * mime_type is the type the bytes arrived with. The probe weighs it as it weighs an HTTP
  * Content-Type, so an HLS playlist whose url has no .m3u8 name opens with an HLS MIME type.
@@ -675,8 +690,8 @@ typedef struct kc_io_opener {
  */
 KC_API int  ffkmp_fmt_open_input_io2(kc_fmt_ctx **out,
                                      void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
-                                     int64_t size, const char *url, const char *mime_type,
-                                     const kc_io_opener *opener,
+                                     int64_t size, const char *url, const char *location,
+                                     const char *mime_type, const kc_io_opener *opener,
                                      const char *const *keys, const char *const *values,
                                      int n, kc_dict **unused, kc_interrupt *interrupt);
 

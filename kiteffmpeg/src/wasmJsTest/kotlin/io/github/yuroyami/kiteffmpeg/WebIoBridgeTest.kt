@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.wasm.OpenerLayout
+import kotlin.js.JsAny
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -7,6 +9,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -41,7 +44,12 @@ class WebIoBridgeTest {
         private val failAfterBytes: Int = -1,
         /** From this many bytes on, each read reports one byte more than it read. */
         private val overCountAfterBytes: Int = -1,
+        private val givenLocation: String? = null,
+        private val locationFailure: Throwable? = null,
     ) : MediaByteSource {
+        override val location: String?
+            get() = locationFailure?.let { throw it } ?: givenLocation
+
         var closeCount: Int = 0
             private set
         val seekCalls: MutableList<Long> = mutableListOf()
@@ -167,6 +175,98 @@ class WebIoBridgeTest {
         } finally {
             media.close()
         }
+    }
+
+    /** Even with no url, no MIME type and no opener, the location is enough to reach the open that takes it. */
+    @Test
+    fun theSourceLocationReachesTheOpen() {
+        val module = fakePacketReaderCodecModule()
+        useCodecModule(module)
+        val media = MediaSource.open(
+            FakeByteSource(ByteArray(1000) { it.toByte() }, givenLocation = "https://cdn.example/x/master.m3u8"),
+        )
+        try {
+            assertEquals("https://cdn.example/x/master.m3u8", fakeLastOpenLocation(module))
+        } finally {
+            media.close()
+        }
+    }
+
+    @Test
+    fun anEmptyLocationReachesTheOpenAsNone() {
+        val module = fakePacketReaderCodecModule()
+        useCodecModule(module)
+        val media = MediaSource.open(
+            FakeByteSource(ByteArray(1000) { it.toByte() }, givenLocation = ""),
+            url = "https://cdn.example/live/index",
+        )
+        try {
+            assertEquals(null, fakeLastOpenLocation(module), "an empty location must be the same as none")
+        } finally {
+            media.close()
+        }
+    }
+
+    @Test
+    fun aLocationThatThrowsFailsTheOpenAndClosesTheSource() {
+        useCodecModule(fakePacketReaderCodecModule())
+        val thrown = IllegalStateException("the redirect could not be followed")
+        val source = FakeByteSource(ByteArray(1000) { it.toByte() }, locationFailure = thrown)
+        val failure = assertFailsWith<IllegalStateException> { MediaSource.open(source, url = "https://cdn.example/a") }
+        assertSame(thrown, failure, "the getter's own exception must reach the caller")
+        assertEquals(1, source.closeCount, "the open owns the source, so a failed open closes it once")
+    }
+
+    @Test
+    fun aNestedSourceAnswersItsLocationAsFFmpegAsksForIt() {
+        val module = fakePacketReaderCodecModule()
+        useCodecModule(module)
+        val location = "https://cdn.example/x/v1/index.m3u8"
+        val nested = FakeByteSource(ByteArray(64), givenLocation = location)
+        probeNested(module, small = 4)
+        MediaSource.open(FakeByteSource(ByteArray(1000)), url = "https://origin.example/v1/index.m3u8", nestedOpener = { nested })
+            .close()
+        assertEquals(
+            "${location.length} true ${location.length} $location",
+            fakeNestedProbeResult(module),
+            "a buffer too small must be left alone and the length answered, then the address written whole",
+        )
+        assertEquals(1, nested.closeCount)
+    }
+
+    @Test
+    fun aNestedSourceWithoutALocationAnswersNone() {
+        val module = fakePacketReaderCodecModule()
+        useCodecModule(module)
+        probeNested(module, small = 64)
+        MediaSource.open(FakeByteSource(ByteArray(1000)), url = "https://origin.example/v1/index.m3u8", nestedOpener = {
+            FakeByteSource(ByteArray(64), givenLocation = "")
+        }).close()
+        assertEquals("0 true 0 null", fakeNestedProbeResult(module))
+    }
+
+    @Test
+    fun aNestedLocationThatThrowsFailsThatAddress() {
+        val module = fakePacketReaderCodecModule()
+        useCodecModule(module)
+        val nested = FakeByteSource(ByteArray(64), locationFailure = IllegalStateException("no redirect answer"))
+        probeNested(module, small = 64)
+        MediaSource.open(FakeByteSource(ByteArray(1000)), url = "https://origin.example/v1/index.m3u8", nestedOpener = { nested })
+            .close()
+        assertEquals("open -2", fakeNestedProbeResult(module), "the address must fail rather than resolve against the wrong place")
+        assertEquals(1, nested.closeCount, "a source the opener returned is closed even when its address fails")
+    }
+
+    private fun probeNested(module: JsAny, small: Int) {
+        withNestedIo(module)
+        fakeProbeNestedLocation(
+            module,
+            "https://origin.example/v1/media.m3u8",
+            OpenerLayout.openFn,
+            OpenerLayout.locationFn,
+            OpenerLayout.closeFn,
+            small,
+        )
     }
 
     /**

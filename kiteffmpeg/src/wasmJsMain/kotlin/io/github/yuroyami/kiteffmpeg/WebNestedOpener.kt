@@ -4,8 +4,9 @@ import io.github.yuroyami.kiteffmpeg.wasm.OpenerLayout
 import kotlin.js.JsAny
 
 /**
- * A [MediaByteOpener] as the codec module's `kc_io_opener`: four callbacks in its function table
- * that serve the playlists, segments and keys an HLS playlist names (#123).
+ * A [MediaByteOpener] as the codec module's `kc_io_opener`: five callbacks in its function table
+ * that serve the playlists, segments and keys an HLS playlist names (#123), and say where each one
+ * came from (#167).
  *
  * FFmpeg asks for an address from inside a read and wants the bytes before that read returns, and
  * nothing on the web may wait for a network answer in the middle of one. So open runs the caller's
@@ -40,6 +41,7 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
         writeInt32(module, struct + OpenerLayout.readFn, callbackOf(callbacks, "read"))
         writeInt32(module, struct + OpenerLayout.seekFn, callbackOf(callbacks, "seek"))
         writeInt32(module, struct + OpenerLayout.closeFn, callbackOf(callbacks, "close"))
+        writeInt32(module, struct + OpenerLayout.locationFn, callbackOf(callbacks, "location"))
         return struct
     }
 
@@ -64,8 +66,11 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
             failure = thrown
             return KC_IO_ERR
         }
+        // The location is read once, as the source arrives, and a getter that throws fails the
+        // address like a failed open, because resolving its playlist against the address it was
+        // asked for would be wrong.
         val staged = try {
-            stage(io)
+            stage(io, io.openedLocation())
         } catch (thrown: Throwable) {
             failure = thrown
             null
@@ -78,8 +83,11 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
         return staged ?: KC_IO_ERR
     }
 
-    /** Reads [io] to its end into the module's memory and registers the bytes. Returns their address. */
-    private fun stage(io: MediaByteSource): Int {
+    /**
+     * Reads [io] to its end into the module's memory and registers the bytes with [location]. Returns
+     * their address.
+     */
+    private fun stage(io: MediaByteSource, location: String?): Int {
         val declared = io.size
         if (declared != null && declared > MAX_BYTES) throw tooLarge(declared)
         val chunk = ByteArray(CHUNK)
@@ -106,7 +114,7 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
                 writeBytes(module, buffer + written, bytes, bytes.size)
                 written += bytes.size
             }
-            registerStaged(callbacks, buffer, written)
+            registerStaged(callbacks, buffer, written, location)
         } catch (thrown: Throwable) {
             wasmFree(module, buffer)
             throw thrown
@@ -133,12 +141,13 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
 }
 
 /**
- * Registers the four `kc_io_opener` callbacks and returns their state: the table indices, and the
+ * Registers the five `kc_io_opener` callbacks and returns their state: the table indices, and the
  * staged sources by address.
  *
  * Read and seek are the playlist bridge's, answered from the staged bytes of the source FFmpeg
- * names. Open asks [open] for the address and fills FFmpeg's three out-slots, and close frees the
- * staged bytes, once, whatever FFmpeg does after.
+ * names. Open asks [open] for the address and fills FFmpeg's three out-slots, location answers the
+ * staged source's location in UTF-8 as `location_fn` asks, and close frees the staged bytes, once,
+ * whatever FFmpeg does after.
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
@@ -180,6 +189,17 @@ internal class WebNestedOpener(private val module: JsAny, private val opener: Me
         state.close = m.addFunction((opaque, source) => {
             if (sources.delete(source)) m._free(source);
         }, 'vii');
+        state.location = m.addFunction((opaque, source, buf, cap) => {
+            const s = sources.get(source);
+            if (!s) return -2;
+            if (s.location === null) return 0;
+            const n = s.location.length;
+            if (n < cap) {
+                m.HEAPU8.set(s.location, buf);
+                m.HEAPU8[buf + n] = 0;
+            }
+            return n;
+        }, 'iiiii');
         return state;
     }"""
 )
@@ -190,8 +210,11 @@ private external fun installNestedCallbacks(module: JsAny, open: (String) -> Int
 private external fun callbackOf(callbacks: JsAny, name: String): Int
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-@JsFun("(state, base, total) => { state.sources.set(base, { total: total, pos: 0 }); }")
-private external fun registerStaged(callbacks: JsAny, base: Int, total: Int)
+@JsFun(
+    "(state, base, total, location) => { state.sources.set(base, { total: total, pos: 0, " +
+        "location: location == null ? null : new TextEncoder().encode(location) }); }",
+)
+private external fun registerStaged(callbacks: JsAny, base: Int, total: Int, location: String?)
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
@@ -202,6 +225,7 @@ private external fun registerStaged(callbacks: JsAny, base: Int, total: Int)
         m.removeFunction(state.read);
         m.removeFunction(state.seek);
         m.removeFunction(state.close);
+        m.removeFunction(state.location);
     }"""
 )
 private external fun releaseNestedCallbacks(module: JsAny, callbacks: JsAny)

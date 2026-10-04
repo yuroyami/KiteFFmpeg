@@ -5,6 +5,7 @@
 
 #include "kj_internal.h"
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -634,6 +635,7 @@ typedef struct kj_io_state {
     jmethodID read;    /* ([BI)I */
     jmethodID seek;    /* (JI)J */
     kj_opener_state *opener; /* the nested opener of a top-level open, or NULL */
+    char     *location; /* a nested source's MediaByteSource.location, read as it opened, or NULL */
 } kj_io_state;
 
 /* The JNIEnv of the thread FFmpeg runs a callback on. Every open reaches FFmpeg from Java today, so
@@ -717,6 +719,7 @@ struct kj_opener_state {
     jmethodID seek;      /* JniByteIo (JI)J */
     jmethodID size;      /* JniByteIo ()J */
     jmethodID seekable;  /* JniByteIo ()Z */
+    jmethodID location;  /* JniByteIo ()Ljava/lang/String; */
 };
 
 static void kj_opener_state_free(JNIEnv *env, kj_opener_state *os)
@@ -732,12 +735,15 @@ static void kj_io_state_free(JNIEnv *env, kj_io_state *st)
     if (st->cb != NULL) (*env)->DeleteGlobalRef(env, st->cb);
     if (st->buffer != NULL) (*env)->DeleteGlobalRef(env, st->buffer);
     kj_opener_state_free(env, st->opener);
+    free(st->location);
     free(st);
 }
 
 /* Serves one nested URL on a thread that has a JNIEnv. The Kotlin opener answers with a JniByteIo,
  * or null to decline. It lets its own exception through, and that is how a failure differs from a
- * refusal here: the exception is cleared and reported as KC_IO_ERR. */
+ * refusal here: the exception is cleared and reported as KC_IO_ERR. The source's location is read
+ * here, once, while the source opens; a getter that throws fails the address like a failed open,
+ * because resolving its playlist against the address it was asked for would be wrong. */
 static int kj_nested_open_with(JNIEnv *env, kj_opener_state *os, const char *url,
                                void **source, int64_t *size, int *seekable)
 {
@@ -746,6 +752,9 @@ static int kj_nested_open_with(JNIEnv *env, kj_opener_state *os, const char *url
     jlong total;
     jboolean can_seek;
     jbyteArray local_buffer;
+    jstring jlocation;
+    char *location = NULL;
+    int location_failed = 0;
     kj_io_state *st;
     if (jurl == NULL) {
         if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -760,6 +769,26 @@ static int kj_nested_open_with(JNIEnv *env, kj_opener_state *os, const char *url
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); total = -1; }
     can_seek = (*env)->CallBooleanMethod(env, io, os->seekable);
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); can_seek = JNI_FALSE; }
+    /* JniByteIo parks the getter's exception and lets it through, and it answers null for an empty
+     * address. kj_string_dup refuses an embedded NUL by throwing, which fails the address too. */
+    jlocation = (jstring)(*env)->CallObjectMethod(env, io, os->location);
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        location_failed = 1;
+    } else if (jlocation != NULL) {
+        location = kj_string_dup(env, jlocation);
+        if (location == NULL) {
+            if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+            location_failed = 1;
+        }
+    }
+    if (jlocation != NULL) (*env)->DeleteLocalRef(env, jlocation);
+    if (location_failed) {
+        (*env)->CallVoidMethod(env, os->opener, os->close, io);
+        if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, io);
+        return KC_IO_ERR;
+    }
     st = (kj_io_state *)calloc(1, sizeof(kj_io_state));
     local_buffer = st != NULL ? (*env)->NewByteArray(env, KJ_IO_BUFFER_SIZE) : NULL;
     if (st != NULL) {
@@ -768,7 +797,10 @@ static int kj_nested_open_with(JNIEnv *env, kj_opener_state *os, const char *url
         st->seek = os->seek;
         st->cb = (*env)->NewGlobalRef(env, io);
         st->buffer = local_buffer != NULL ? (*env)->NewGlobalRef(env, local_buffer) : NULL;
+        st->location = location;
+        location = NULL;
     }
+    free(location);
     if (local_buffer != NULL) (*env)->DeleteLocalRef(env, local_buffer);
     if (st == NULL || st->cb == NULL || st->buffer == NULL) {
         if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -794,6 +826,19 @@ static int kj_nested_open(void *opaque, const char *url, void **source, int64_t 
     int result = env != NULL ? kj_nested_open_with(env, os, url, source, size, seekable) : KC_IO_ERR;
     kj_io_release(os->vm, attached);
     return result;
+}
+
+/* A nested source's location, which kj_nested_open_with already read. */
+static int kj_nested_location(void *opaque, void *source, char *buf, int cap)
+{
+    const kj_io_state *st = (const kj_io_state *)source;
+    size_t len;
+    (void)opaque;
+    if (st->location == NULL) return 0;
+    len = strlen(st->location);
+    if (len >= (size_t)INT_MAX) return KC_IO_ERR;
+    if ((int)len < cap) memcpy(buf, st->location, len + 1);
+    return (int)len;
 }
 
 /* Hands one nested source back to the Kotlin opener, which closes its MediaByteSource. */
@@ -830,7 +875,10 @@ static kj_opener_state *kj_opener_state_new(JNIEnv *env, JavaVM *vm, jobject ope
     (*env)->DeleteLocalRef(env, opener_class);
     os->size = os->close != NULL ? (*env)->GetMethodID(env, io_class, "size", "()J") : NULL;
     os->seekable = os->size != NULL ? (*env)->GetMethodID(env, io_class, "seekable", "()Z") : NULL;
-    if (os->seekable == NULL) {
+    os->location = os->seekable != NULL
+        ? (*env)->GetMethodID(env, io_class, "location", "()Ljava/lang/String;")
+        : NULL;
+    if (os->location == NULL) {
         if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
         free(os);
         kj_throw_handle(env, "custom io open: JniByteOpener or JniByteIo methods not found (keep rules?)");
@@ -854,13 +902,15 @@ JNIEXPORT jboolean JNICALL kj_fmt_nested_io_available(JNIEnv *env, jclass cls)
 
 JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb,
                                              jboolean seekable, jlong size,
-                                             jstring url, jstring mime_type, jobject opener,
+                                             jstring url, jstring location, jstring mime_type,
+                                             jobject opener,
                                              jobjectArray keys, jobjectArray values,
                                              jobjectArray unused_keys_out, jlong interrupt_token)
 {
     kj_io_state *st = NULL;
     kc_fmt_ctx *ctx = NULL;
     char *curl = NULL;
+    char *clocation = NULL;
     char *cmime = NULL;
     kc_io_opener nested;
     char **ckeys = NULL;
@@ -946,6 +996,8 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
     /* One conversion at a time, like the keys: a refused string throws, and no JNI call may follow. */
     curl = kj_string_dup(env, url);
     if (url != NULL && curl == NULL) goto oom;
+    clocation = kj_string_dup(env, location);
+    if (location != NULL && clocation == NULL) goto oom;
     cmime = kj_string_dup(env, mime_type);
     if (mime_type != NULL && cmime == NULL) goto oom;
     nested.opaque = st->opener;
@@ -953,10 +1005,12 @@ JNIEXPORT jlong JNICALL kj_fmt_open_input_io(JNIEnv *env, jclass cls, jobject cb
     nested.read_fn = kj_io_read;
     nested.seek_fn = kj_io_seek_cb;
     nested.close_fn = kj_nested_close;
+    nested.location_fn = kj_nested_location;
 
     rc = ffkmp_fmt_open_input_io2(&ctx, st, kj_io_read,
                                   seekable == JNI_TRUE ? kj_io_seek_cb : NULL,
-                                  (int64_t)size, curl, cmime, st->opener != NULL ? &nested : NULL,
+                                  (int64_t)size, curl, clocation, cmime,
+                                  st->opener != NULL ? &nested : NULL,
                                   (const char *const *)ckeys, (const char *const *)cvalues,
                                   (int)n, &unused, interrupt);
     goto done;
@@ -964,6 +1018,7 @@ oom:
     rc = -12;
 done:
     free(curl);
+    free(clocation);
     free(cmime);
     if (ckeys != NULL) { for (i = 0; i < n; i++) free(ckeys[i]); free(ckeys); }
     if (cvalues != NULL) { for (i = 0; i < n; i++) free(cvalues[i]); free(cvalues); }

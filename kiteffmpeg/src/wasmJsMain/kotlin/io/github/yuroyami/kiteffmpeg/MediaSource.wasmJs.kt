@@ -646,6 +646,14 @@ public actual class MediaSource internal constructor(
                 runCatching { io.close() }
                 throw nestedOpenerNeedsPatchedFFmpeg()
             }
+            // Read before the bridge, which may stage the source whole and close it. The open owns
+            // io already, so a getter that throws closes it, and a close that fails too rides on it.
+            val location = try {
+                io.openedLocation()
+            } catch (failure: Throwable) {
+                runCatching { io.close() }.exceptionOrNull()?.let(failure::addSuppressed)
+                throw failure
+            }
             val bridge = WebIoBridge.install(io)
             val nested = try {
                 nestedOpener?.let { WebNestedOpener(m, it) }
@@ -680,27 +688,31 @@ public actual class MediaSource internal constructor(
                 throw failure
             }
             val rc = try {
-                if (url == null && mimeType == null && nested == null) {
+                if (url == null && location == null && mimeType == null && nested == null) {
                     openInputIo(
                         m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
                         opts.keys, opts.values, options.size, unusedSlot,
                     )
                 } else {
-                    // Input only, copied by the C side, so both go back right after the call.
+                    // Input only, copied by the C side, so all three go back right after the call.
                     var urlPointer = 0
+                    var locationPointer = 0
                     var mimePointer = 0
                     // Copied by the C side as well; the callbacks it names live until the close.
                     var openerPointer = 0
                     try {
                         urlPointer = url?.let { allocCString(m, it) } ?: 0
+                        locationPointer = location?.let { allocCString(m, it) } ?: 0
                         mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
                         openerPointer = nested?.writeStruct() ?: 0
                         openInputIo2(
                             m, slot, bridge.readPointer, bridge.seekPointer, bridge.size, urlPointer,
-                            mimePointer, openerPointer, opts.keys, opts.values, options.size, unusedSlot,
+                            locationPointer, mimePointer, openerPointer, opts.keys, opts.values,
+                            options.size, unusedSlot,
                         )
                     } finally {
                         if (urlPointer != 0) wasmFree(m, urlPointer)
+                        if (locationPointer != 0) wasmFree(m, locationPointer)
                         if (mimePointer != 0) wasmFree(m, mimePointer)
                         if (openerPointer != 0) wasmFree(m, openerPointer)
                     }
@@ -901,11 +913,14 @@ private external fun openInputIo(
     unused: Int,
 ): Int
 
-/** The byte-source open with a url and a MIME type for the probe, and a nested opener or 0. */
+/**
+ * The byte-source open with a url, the source's location, a MIME type for the probe, and a nested
+ * opener or 0.
+ */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
-    "(m, out, readFn, seekFn, size, url, mime, opener, keys, values, n, unused) => " +
-        "m._ffkmp_fmt_open_input_io2(out, 0, readFn, seekFn, BigInt(size), url, mime, opener, keys, values, n, unused, 0)",
+    "(m, out, readFn, seekFn, size, url, location, mime, opener, keys, values, n, unused) => " +
+        "m._ffkmp_fmt_open_input_io2(out, 0, readFn, seekFn, BigInt(size), url, location, mime, opener, keys, values, n, unused, 0)",
 )
 private external fun openInputIo2(
     module: kotlin.js.JsAny,
@@ -914,6 +929,7 @@ private external fun openInputIo2(
     seekFn: Int,
     size: Long,
     url: Int,
+    location: Int,
     mime: Int,
     opener: Int,
     keys: Int,

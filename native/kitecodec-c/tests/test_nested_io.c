@@ -9,6 +9,10 @@
  * A linked FFmpeg without the trust_io_open patch, such as a distribution's, runs only the cases
  * that do not need it: the open with an opener must then fail with AVERROR(ENOSYS).
  *
+ * A source can say where its bytes came from after a redirect (#167), and the HLS demuxer then
+ * resolves the addresses inside it against that location, as it does after FFmpeg's own http
+ * follows a redirect. Those cases need the trust_io_open patch too.
+ *
  * Playlist variables (#166) need the patch that substitutes them, so their cases run only against
  * a tree that lists it among the patches it was built with.
  */
@@ -49,9 +53,19 @@ typedef struct {
     int64_t size;
 } resource;
 
+/* A URL whose bytes say they came from somewhere else, as after an HTTP redirect. */
+typedef struct {
+    const char *url;
+    const char *location;
+} redirect;
+
 typedef struct {
     const resource *resources;
     int count;
+    const redirect *redirects;  /* the URLs whose sources name a location */
+    int redirect_count;
+    int location_fails;         /* location_fn answers with a failure */
+    int location_calls;
     const char *refuse;         /* a URL the opener declines, or NULL */
     kc_interrupt *raise_on_open; /* a cell the opener raises before it serves, or NULL */
     char asked[KC_MAX_ASKED][512];
@@ -86,6 +100,13 @@ static int64_t cursor_seek(void *opaque, int64_t offset, int whence)
     return target;
 }
 
+/* What the opener serves: a cursor, first so that cursor_read and cursor_seek take it, and the
+   location its bytes name. */
+typedef struct {
+    cursor at;
+    const char *location;
+} served;
+
 static int network_open(void *opaque, const char *url, void **source, int64_t *size, int *seekable)
 {
     network *net = (network *)opaque;
@@ -93,18 +114,34 @@ static int network_open(void *opaque, const char *url, void **source, int64_t *s
     if (net->refuse && strcmp(url, net->refuse) == 0) return KC_IO_REFUSED;
     for (int i = 0; i < net->count; i++) {
         if (strcmp(url, net->resources[i].url) != 0) continue;
-        cursor *c = calloc(1, sizeof(cursor));
+        served *c = calloc(1, sizeof(served));
         if (!c) return KC_IO_ERR;
-        c->bytes = net->resources[i].bytes;
-        c->size = net->resources[i].size;
+        c->at.bytes = net->resources[i].bytes;
+        c->at.size = net->resources[i].size;
+        for (int r = 0; r < net->redirect_count; r++) {
+            if (strcmp(url, net->redirects[r].url) == 0) c->location = net->redirects[r].location;
+        }
         if (net->raise_on_open) ffkmp_interrupt_raise(net->raise_on_open);
         *source = c;
-        *size = c->size;
+        *size = c->at.size;
         *seekable = 1;
         net->opened++;
         return 0;
     }
     return KC_IO_REFUSED;
+}
+
+static int network_location(void *opaque, void *source, char *buf, int cap)
+{
+    network *net = (network *)opaque;
+    const served *c = (const served *)source;
+    int len;
+    net->location_calls++;
+    if (net->location_fails) return KC_IO_ERR;
+    if (!c->location) return 0;
+    len = (int)strlen(c->location);
+    if (len < cap) memcpy(buf, c->location, (size_t)len + 1);
+    return len;
 }
 
 static void network_close(void *opaque, void *source)
@@ -116,7 +153,14 @@ static void network_close(void *opaque, void *source)
 
 static kc_io_opener opener_for(network *net)
 {
-    kc_io_opener opener = { net, network_open, cursor_read, cursor_seek, network_close };
+    kc_io_opener opener = {
+        .opaque = net,
+        .open_fn = network_open,
+        .read_fn = cursor_read,
+        .seek_fn = cursor_seek,
+        .close_fn = network_close,
+        .location_fn = network_location,
+    };
     return opener;
 }
 
@@ -202,10 +246,10 @@ static int64_t read_all(kc_fmt_ctx *ctx, unsigned char *out, int64_t capacity)
     return total;
 }
 
-/* Opens the playlist over a cursor, with the given url, MIME type and opener. */
-static int open_playlist(kc_fmt_ctx **ctx, cursor *top, const char *playlist, const char *url,
-                         const char *mime, const kc_io_opener *opener, kc_interrupt *interrupt,
-                         kc_dict **unused)
+/* Opens the playlist over a cursor, with the given url, location, MIME type and opener. */
+static int open_playlist_at(kc_fmt_ctx **ctx, cursor *top, const char *playlist, const char *url,
+                            const char *location, const char *mime, const kc_io_opener *opener,
+                            kc_interrupt *interrupt, kc_dict **unused)
 {
     /* The WAV demuxer declares no file extension, so FFmpeg's segment extension check refuses a
        WAV segment. That check is FFmpeg's policy and not this suite's subject. */
@@ -214,8 +258,16 @@ static int open_playlist(kc_fmt_ctx **ctx, cursor *top, const char *playlist, co
     top->bytes = (const unsigned char *)playlist;
     top->size = (int64_t)strlen(playlist);
     top->position = 0;
-    return ffkmp_fmt_open_input_io2(ctx, top, cursor_read, cursor_seek, top->size, url, mime, opener,
-                                    keys, values, 1, unused, interrupt);
+    return ffkmp_fmt_open_input_io2(ctx, top, cursor_read, cursor_seek, top->size, url, location,
+                                    mime, opener, keys, values, 1, unused, interrupt);
+}
+
+/* Opens the playlist over a cursor, with the given url, MIME type and opener, and no location. */
+static int open_playlist(kc_fmt_ctx **ctx, cursor *top, const char *playlist, const char *url,
+                         const char *mime, const kc_io_opener *opener, kc_interrupt *interrupt,
+                         kc_dict **unused)
+{
+    return open_playlist_at(ctx, top, playlist, url, NULL, mime, opener, interrupt, unused);
 }
 
 /* ---- Cases that run on any FFmpeg ---- */
@@ -228,7 +280,7 @@ static void case_the_plain_open_still_works(void)
 
     kc_case("with no url, MIME type or opener, the open reads a WAV as before");
     KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, top.size, NULL, NULL,
-                                       NULL, NULL, NULL, 0, NULL, NULL), 0);
+                                       NULL, NULL, NULL, NULL, 0, NULL, NULL), 0);
     KC_NOT_NULL(ctx);
     ffkmp_fmt_close_input_io(&ctx);
     KC_NULL(ctx);
@@ -243,8 +295,8 @@ static void case_the_url_names_the_input(void)
 
     kc_case("the url becomes the input's name, and nothing opens it");
     KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, top.size,
-                                       KC_BASE "tone.wav", "audio/wav", NULL, NULL, NULL, 0, NULL,
-                                       NULL), 0);
+                                       KC_BASE "tone.wav", NULL, "audio/wav", NULL, NULL, NULL, 0,
+                                       NULL, NULL), 0);
     KC_NOT_NULL(ctx);
     KC_EQ_STR(ctx->url, KC_BASE "tone.wav");
     ffkmp_fmt_close_input_io(&ctx);
@@ -261,7 +313,7 @@ static void case_callers_cannot_set_trust_io_open(void)
 
     kc_case("a caller's trust_io_open option is refused on the byte-source and the path open");
     KC_EQ_INT(ffkmp_fmt_open_input_io2(&ctx, &top, cursor_read, cursor_seek, top.size, NULL, NULL,
-                                       NULL, keys, values, 1, NULL, NULL), AVERROR(EINVAL));
+                                       NULL, NULL, keys, values, 1, NULL, NULL), AVERROR(EINVAL));
     KC_NULL(ctx);
     ctx = (kc_fmt_ctx *)0x1;
     KC_EQ_INT(ffkmp_fmt_open_input2(&ctx, "unused.wav", keys, values, 1, NULL, NULL), AVERROR(EINVAL));
@@ -452,6 +504,166 @@ static void case_an_interrupt_reaches_the_nested_reads(void)
     ffkmp_interrupt_free(&cell);
     free(playlist);
     free(wav);
+}
+
+/* ---- Where a redirected source's bytes came from (#167) ---- */
+
+#define KC_CDN "https://cdn.example/x/"
+
+/* A master playlist with one variant, video.m3u8, beside it. */
+static const char kc_master[] =
+    "#EXTM3U\n"
+    "#EXT-X-STREAM-INF:BANDWIDTH=1000000\n"
+    "video.m3u8\n";
+
+static void case_a_redirected_variant_resolves_against_its_location(int with_location_fn)
+{
+    char *media = make_playlist(NULL);
+    unsigned char *wav = make_wav();
+    unsigned char *out = malloc(KC_WAV_BYTES);
+    resource resources[] = {
+        { KC_BASE "video.m3u8", (const unsigned char *)media, (int64_t)strlen(media) },
+        { KC_CDN "seg0.wav", wav, KC_WAV_BYTES },
+    };
+    redirect moved[] = { { KC_BASE "video.m3u8", KC_CDN "video.m3u8" } };
+    network net = { .resources = resources, .count = 2, .redirects = moved, .redirect_count = 1 };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = NULL;
+    int rc;
+
+    if (!with_location_fn) opener.location_fn = NULL;
+    kc_case("a variant playlist that came from another address %s",
+            with_location_fn ? "has its segment asked for beside that address"
+                             : "has its segment asked for beside the address asked for, without a location_fn");
+    KC_NOT_NULL(out);
+    rc = open_playlist(&ctx, &top, kc_master, KC_BASE "master.m3u8", NULL, &opener, NULL, NULL);
+    kc_detail("rc=%d asked=%d", rc, net.asked_count);
+    for (int i = 0; i < net.asked_count; i++) kc_detail("asked %s", net.asked[i]);
+    KC_CHECK(was_asked(&net, KC_BASE "video.m3u8"));
+    if (with_location_fn) {
+        KC_EQ_INT(rc, 0);
+        KC_NOT_NULL(ctx);
+        KC_CHECK(was_asked(&net, KC_CDN "seg0.wav"));
+        KC_CHECK(!was_asked(&net, KC_BASE "seg0.wav"));
+        /* Once for the variant, once for the segment, which came from where it was asked. */
+        KC_EQ_INT(net.location_calls, 2);
+        KC_EQ_I64(read_all(ctx, out, KC_WAV_BYTES), KC_PCM_BYTES);
+        KC_EQ_MEM(out, wav + 44, KC_PCM_BYTES);
+        ffkmp_fmt_close_input_io(&ctx);
+    } else {
+        KC_CHECK(rc < 0);
+        KC_NULL(ctx);
+        KC_CHECK(was_asked(&net, KC_BASE "seg0.wav"));
+        KC_EQ_INT(net.location_calls, 0);
+    }
+    KC_EQ_INT(net.closed, net.opened);
+    free(out);
+    free(wav);
+    free(media);
+}
+
+static void case_the_input_location_rebases_its_variants(const char *location)
+{
+    char *media = make_playlist(NULL);
+    unsigned char *wav = make_wav();
+    int located = location && *location;
+    const char *base = located ? KC_CDN : KC_BASE;
+    char variant[128], segment[128];
+    resource resources[2];
+    network net = { .resources = resources, .count = 2 };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = NULL;
+    int rc;
+
+    snprintf(variant, sizeof(variant), "%svideo.m3u8", base);
+    snprintf(segment, sizeof(segment), "%sseg0.wav", base);
+    resources[0] = (resource){ variant, (const unsigned char *)media, (int64_t)strlen(media) };
+    resources[1] = (resource){ segment, wav, KC_WAV_BYTES };
+    kc_case("a master playlist with %s location resolves its variant against %s, and keeps its url "
+            "as its name", located ? "a" : location ? "an empty" : "no",
+            located ? "the location" : "the url");
+    rc = open_playlist_at(&ctx, &top, kc_master, KC_BASE "master.m3u8", location, NULL, &opener,
+                          NULL, NULL);
+    kc_detail("rc=%d", rc);
+    for (int i = 0; i < net.asked_count; i++) kc_detail("asked %s", net.asked[i]);
+    KC_EQ_INT(rc, 0);
+    KC_NOT_NULL(ctx);
+    KC_EQ_STR(ctx->url, KC_BASE "master.m3u8");
+    KC_CHECK(was_asked(&net, variant));
+    KC_CHECK(was_asked(&net, segment));
+    ffkmp_fmt_close_input_io(&ctx);
+    KC_EQ_INT(net.closed, net.opened);
+    free(wav);
+    free(media);
+}
+
+static void case_a_long_location_takes_a_second_call(void)
+{
+    /* Longer than the first buffer the layer offers, and shorter than hls.c's MAX_URL_SIZE. */
+    enum { KC_LONG_DIR = 3000 };
+    char *media = make_playlist(NULL);
+    unsigned char *wav = make_wav();
+    char *location = malloc(64 + KC_LONG_DIR);
+    char *segment = malloc(64 + KC_LONG_DIR);
+    char dir[KC_LONG_DIR + 1];
+    int rc;
+
+    KC_NOT_NULL(location);
+    KC_NOT_NULL(segment);
+    memset(dir, 'd', KC_LONG_DIR);
+    dir[KC_LONG_DIR] = 0;
+    snprintf(location, 64 + KC_LONG_DIR, KC_CDN "%s/video.m3u8", dir);
+    snprintf(segment, 64 + KC_LONG_DIR, KC_CDN "%s/seg0.wav", dir);
+    resource resources[] = {
+        { KC_BASE "video.m3u8", (const unsigned char *)media, (int64_t)strlen(media) },
+        { segment, wav, KC_WAV_BYTES },
+    };
+    redirect moved[] = { { KC_BASE "video.m3u8", location } };
+    network net = { .resources = resources, .count = 2, .redirects = moved, .redirect_count = 1 };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = NULL;
+
+    kc_case("a location of %d bytes, longer than the first buffer, is asked for again and used whole",
+            (int)strlen(location));
+    rc = open_playlist(&ctx, &top, kc_master, KC_BASE "master.m3u8", NULL, &opener, NULL, NULL);
+    kc_detail("rc=%d", rc);
+    KC_EQ_INT(rc, 0);
+    KC_NOT_NULL(ctx);
+    /* The opener serves the segment only at its full address, so the open proves it arrived whole. */
+    KC_EQ_INT(net.opened, 2);
+    KC_EQ_INT(net.location_calls, 3);
+    ffkmp_fmt_close_input_io(&ctx);
+    KC_EQ_INT(net.closed, net.opened);
+    free(segment);
+    free(location);
+    free(wav);
+    free(media);
+}
+
+static void case_a_failed_location_fails_that_address(void)
+{
+    char *media = make_playlist(NULL);
+    resource resources[] = {
+        { KC_BASE "video.m3u8", (const unsigned char *)media, (int64_t)strlen(media) },
+    };
+    network net = { .resources = resources, .count = 1, .location_fails = 1 };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)0x1;
+    int rc;
+
+    kc_case("a location_fn that fails fails the address it was asked about, and its source closes");
+    rc = open_playlist(&ctx, &top, kc_master, KC_BASE "master.m3u8", NULL, &opener, NULL, NULL);
+    kc_detail("rc=%d", rc);
+    KC_CHECK(rc < 0);
+    KC_NULL(ctx);
+    KC_EQ_INT(net.opened, 1);
+    KC_EQ_INT(net.closed, 1);
+    KC_CHECK(!was_asked(&net, KC_BASE "seg0.wav"));
+    free(media);
 }
 
 /* ---- Playlist variables, which need the patch that substitutes them ---- */
@@ -689,6 +901,13 @@ int main(void)
     case_an_aes128_segment_decrypts(1);
     case_a_refused_segment_opens_nothing();
     case_an_interrupt_reaches_the_nested_reads();
+    case_a_redirected_variant_resolves_against_its_location(1);
+    case_a_redirected_variant_resolves_against_its_location(0);
+    case_the_input_location_rebases_its_variants(KC_CDN "master.m3u8");
+    case_the_input_location_rebases_its_variants("");
+    case_the_input_location_rebases_its_variants(NULL);
+    case_a_long_location_takes_a_second_call();
+    case_a_failed_location_fails_that_address();
 
     if (!linked_tree_carries(KC_VARIABLES_PATCH)) {
         kc_note("the linked FFmpeg's tree lacks %s, so the variable cases did not run", KC_VARIABLES_PATCH);

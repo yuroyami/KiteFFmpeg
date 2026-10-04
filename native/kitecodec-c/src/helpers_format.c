@@ -772,7 +772,8 @@ typedef struct kc_io_nested kc_io_nested;
 
 /* The bridge the AVIOContext's opaque points at. The magic pins provenance so the paired
    close can refuse to free state it did not create. av_class is first, so that the probe can
-   read mime_type from the bridge (see kc_io_context_class); it stays NULL without a MIME type. */
+   read mime_type, and a demuxer location, from the bridge (see kc_io_context_class); it stays
+   NULL with neither. */
 #define KC_IO_BRIDGE_MAGIC 0x4B43494Fu /* "KCIO" */
 typedef struct kc_io_bridge {
     const AVClass *av_class;
@@ -789,6 +790,8 @@ typedef struct kc_io_bridge {
     int          *cell;
     /* The MIME type the probe reads, owned; NULL when the caller gave none. */
     char         *mime_type;
+    /* Where the bytes came from when that is not the url, owned; NULL when the caller gave none. */
+    char         *location;
     /* The caller's nested opener, copied; open_fn is NULL when the open has none. */
     kc_io_opener  opener;
     /* FFmpeg's own io_open and io_close2, for the data: URLs the opener never sees. */
@@ -814,6 +817,30 @@ static const AVClass kc_io_bridge_class = {
     .class_name = "kc_io_bridge",
     .item_name  = av_default_item_name,
     .option     = kc_io_bridge_options,
+    .version    = LIBAVUTIL_VERSION_INT,
+};
+
+/* The HLS and DASH demuxers ask a playlist's AVIOContext for "location" through
+   AV_OPT_SEARCH_CHILDREN and resolve the addresses inside against the answer, which FFmpeg's http
+   protocol gives after a redirect. A bridge with a location gets this class instead, which answers
+   both. Only such a bridge gets it, because an unset location would read as an empty string, and
+   an empty location would rebase every address on nothing. An unset mime_type reads as an empty
+   string too, which the probe matches against no format, as it does for an http input without a
+   Content-Type. */
+static const AVOption kc_io_bridge_located_options[] = {
+    { .name = "mime_type", .help = "the MIME type the caller's bytes arrived with",
+      .offset = offsetof(kc_io_bridge, mime_type), .type = AV_OPT_TYPE_STRING,
+      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY },
+    { .name = "location", .help = "where the caller's bytes came from, after any redirect",
+      .offset = offsetof(kc_io_bridge, location), .type = AV_OPT_TYPE_STRING,
+      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY },
+    { .name = NULL },
+};
+
+static const AVClass kc_io_bridge_located_class = {
+    .class_name = "kc_io_bridge",
+    .item_name  = av_default_item_name,
+    .option     = kc_io_bridge_located_options,
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
@@ -869,12 +896,17 @@ static int64_t kc_io_seek(void *opaque, int64_t offset, int whence) {
 
 /* One source the nested opener produced. Its AVIOContext reads through the opener's read_fn and
    seek_fn with source as their opaque. An AES-128 source decrypts on the way, as RFC 8216,
-   section 5.2 describes it: CBC with the playlist's key and IV, and PKCS#7 padding at the end. */
+   section 5.2 describes it: CBC with the playlist's key and IV, and PKCS#7 padding at the end.
+   av_class is first, so that a demuxer can read location from it (see kc_io_nested_class); it
+   stays NULL when the source came from the URL it was opened by. */
 #define KC_IO_NESTED_MAGIC 0x4B434E53u /* "KCNS" */
 #define KC_AES_BLOCK 16
 /* The encrypted bytes one step reads and decrypts; a whole number of blocks. */
 #define KC_CRYPT_BUFFER (64 * 1024)
+/* The first buffer a location_fn writes into; a longer address gets a second call. */
+#define KC_LOCATION_GUESS 2048
 struct kc_io_nested {
+    const AVClass *av_class;
     uint32_t      magic;
     kc_io_bridge *parent;
     void         *source;       /* the caller's, released through parent->opener.close_fn */
@@ -889,6 +921,24 @@ struct kc_io_nested {
     int           plain_pos;
     int           plain_len;
     int           ended;        /* the source has no more bytes */
+    char         *location;     /* where the bytes came from, owned; NULL for the URL asked for */
+};
+
+/* A nested source whose opener named a location answers it as kc_io_bridge_located_class does
+   for the input: its context gets kc_io_context_class, whose one child is the source, whose class
+   answers "location". Only such a source gets the class, for the same reason. */
+static const AVOption kc_io_nested_options[] = {
+    { .name = "location", .help = "where the bytes came from, after any redirect",
+      .offset = offsetof(kc_io_nested, location), .type = AV_OPT_TYPE_STRING,
+      .default_val = { .str = NULL }, .flags = AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_READONLY },
+    { .name = NULL },
+};
+
+static const AVClass kc_io_nested_class = {
+    .class_name = "kc_io_nested",
+    .item_name  = av_default_item_name,
+    .option     = kc_io_nested_options,
+    .version    = LIBAVUTIL_VERSION_INT,
 };
 
 static int kc_io_nested_read(void *opaque, uint8_t *buf, int len) {
@@ -950,7 +1000,33 @@ static void kc_io_nested_free(kc_io_nested *n) {
     av_free(n->aes);
     av_free(n->cipher);
     av_free(n->plain);
+    av_free(n->location);
     av_free(n);
+}
+
+/* Asks the opener where source's bytes came from, into *out, which stays NULL when they came from
+   the URL asked for. */
+static int kc_io_nested_location(const kc_io_opener *opener, void *source, char **out) {
+    int cap = KC_LOCATION_GUESS;
+    *out = NULL;
+    if (!opener->location_fn) return 0;
+    for (int attempt = 0; attempt < 2; attempt++) {
+        char *buf = av_malloc((size_t)cap);
+        if (!buf) return AVERROR(ENOMEM);
+        int len = opener->location_fn(opener->opaque, source, buf, cap);
+        if (len < 0) { av_free(buf); return AVERROR(EIO); }
+        if (len == 0) { av_free(buf); return 0; }
+        if (len < cap) {
+            buf[len] = 0;
+            *out = buf;
+            return 0;
+        }
+        av_free(buf);
+        if (len == INT_MAX) return AVERROR(EIO);
+        cap = len + 1;
+    }
+    /* The address grew between the two calls. */
+    return AVERROR(EIO);
 }
 
 static void kc_io_nested_unlink(kc_io_bridge *p, kc_io_nested *n) {
@@ -1023,6 +1099,11 @@ static int kc_io_open_nested(AVFormatContext *s, AVIOContext **pb, const char *u
     n->parent = p;
     n->source = source;
     n->size = size;
+    int located = kc_io_nested_location(&p->opener, source, &n->location);
+    if (located < 0) {
+        kc_io_nested_free(n);
+        return located;
+    }
     int can_seek = !encrypted && seekable && p->opener.seek_fn;
     unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
     if (encrypted) {
@@ -1046,6 +1127,10 @@ static int kc_io_open_nested(AVFormatContext *s, AVIOContext **pb, const char *u
         return AVERROR(ENOMEM);
     }
     n->pb->seekable = can_seek ? AVIO_SEEKABLE_NORMAL : 0;
+    if (n->location) {
+        n->av_class = &kc_io_nested_class;
+        n->pb->av_class = &kc_io_context_class;
+    }
     n->next = p->nested;
     p->nested = n;
     *pb = n->pb;
@@ -1074,6 +1159,7 @@ static void kc_io_bridge_free(kc_io_bridge *bridge) {
         kc_io_nested_free(n);
     }
     av_freep(&bridge->mime_type);
+    av_freep(&bridge->location);
     av_free(bridge);
 }
 
@@ -1095,8 +1181,8 @@ KC_API int ffkmp_fmt_nested_io_available(void) {
 
 KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
                                     void *opaque, kc_io_read_fn read_fn, kc_io_seek_fn seek_fn,
-                                    int64_t size, const char *url, const char *mime_type,
-                                    const kc_io_opener *opener,
+                                    int64_t size, const char *url, const char *location,
+                                    const char *mime_type, const kc_io_opener *opener,
                                     const char *const *keys, const char *const *values,
                                     int n, AVDictionary **unused, kc_interrupt *interrupt) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
@@ -1126,6 +1212,11 @@ KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
         if (!bridge->mime_type) { kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
         bridge->av_class = &kc_io_bridge_class;
     }
+    if (location && *location) {
+        bridge->location = av_strdup(location);
+        if (!bridge->location) { kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
+        bridge->av_class = &kc_io_bridge_located_class;
+    }
 
     unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
     if (!buffer) { kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
@@ -1136,7 +1227,7 @@ KC_API int ffkmp_fmt_open_input_io2(AVFormatContext **out,
     if (!pb) { av_freep(&buffer); kc_io_bridge_free(bridge); return AVERROR(ENOMEM); }
     /* Seekability truth for demuxers that ask the pb instead of probing a seek. */
     pb->seekable = seek_fn ? AVIO_SEEKABLE_NORMAL : 0;
-    if (mime_type) pb->av_class = &kc_io_context_class;
+    if (bridge->av_class) pb->av_class = &kc_io_context_class;
 
     AVFormatContext *c = avformat_alloc_context();
     if (!c) { kc_io_input_free(pb); return AVERROR(ENOMEM); }
@@ -1186,7 +1277,7 @@ KC_API int ffkmp_fmt_open_input_io(AVFormatContext **out,
                                    int64_t size,
                                    const char *const *keys, const char *const *values,
                                    int n, AVDictionary **unused, kc_interrupt *interrupt) {
-    return ffkmp_fmt_open_input_io2(out, opaque, read_fn, seek_fn, size, NULL, NULL, NULL,
+    return ffkmp_fmt_open_input_io2(out, opaque, read_fn, seek_fn, size, NULL, NULL, NULL, NULL,
                                     keys, values, n, unused, interrupt);
 }
 

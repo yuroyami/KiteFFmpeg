@@ -73,7 +73,7 @@ lines = [
 def camel(s):
     head, *rest = s.split("_")
     return head + "".join(w.capitalize() for w in rest)
-for k in ["opaque", "open_fn", "read_fn", "seek_fn", "close_fn"]:
+for k in ["opaque", "open_fn", "read_fn", "seek_fn", "close_fn", "location_fn"]:
     lines.append("    const val %s: Int = %d" % (camel(k), o[k]))
 lines.append("    const val SIZE_OF: Int = %d" % o["sizeof"])
 lines.append("}")

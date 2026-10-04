@@ -93,6 +93,20 @@ internal class JniByteIo(
     }
 
     /**
+     * Called from C for a nested source, once, as it opens: its [MediaByteSource.location], null
+     * when it has none or names an empty one. Unlike the getters above, this one lets the exception
+     * through, parked first, because C then fails the address rather than resolving its playlist
+     * against the wrong place.
+     */
+    @Suppress("unused")
+    fun location(): String? = try {
+        io.openedLocation()
+    } catch (t: Throwable) {
+        failure = t
+        throw t
+    }
+
+    /**
      * Attaches the swallowed exception to [error] as its cause, once. [error] is what FFmpeg's error
      * code became, and without the cause it only says that an I/O operation failed. When this source
      * swallowed nothing, a failure of the nested opener explains the error instead.

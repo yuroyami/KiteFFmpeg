@@ -25,8 +25,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `MediaSource.primaryAudio` of a source with programmes is now the sound of `primaryVideo`'s own
   programme (#165), so it can name another stream than before, and it is null when that
   programme has no sound and no stream sits outside every programme.
+- The C ABI is 4.0 (#167). `ffkmp_fmt_open_input_io2` takes the input's `location` after its `url`,
+  and `kc_io_opener` gains `location_fn` after `close_fn`, so C code that calls the helper layer
+  itself, or fills a `kc_io_opener`, has to be built again against the new header. The Kotlin API
+  does not change with it.
 
 ### Added
+
+- `MediaByteSource.location` says where a source's bytes came from when that is not the address
+  they were asked for, as after an HTTP redirect (#167). FFmpeg's HLS reader resolves the addresses
+  inside a playlist against it, as it does after a redirect its own `http` follows, for the source
+  handed to `MediaSource.open` and for every source a nested opener returns, so a playlist that a
+  CDN moved to another host asks for its segments, keys and variants there rather than beside the
+  address it was asked for. It is read once, as the source opens, on every backend including the
+  web, and a getter that throws fails that address with its exception as the cause. The C ABI is
+  4.0 and gives `ffkmp_fmt_open_input_io2` a `location` and `kc_io_opener` a `location_fn`.
 
 - `MediaSource.programs` and `MediaProbe.programs` list a source's programmes (#148), the sets of
   streams that play together, such as the channels of a DVB or IPTV transport stream. Each

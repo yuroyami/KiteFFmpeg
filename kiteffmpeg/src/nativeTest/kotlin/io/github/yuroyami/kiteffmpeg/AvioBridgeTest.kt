@@ -249,6 +249,89 @@ class AvioBridgeTest {
         assertEquals(1, source.closes)
     }
 
+    /**
+     * A playlist whose source followed a redirect asks for its segment beside the place it came from
+     * (#167). The segment is refused, so the address the opener was asked for is the whole answer.
+     */
+    @Test
+    fun aRedirectedPlaylistAsksForItsSegmentWhereItCameFrom() {
+        val asked = mutableListOf<String>()
+        val source = CountingCloseSource(MEDIA_PLAYLIST.encodeToByteArray(), redirectedTo = "https://cdn.example/edge/index")
+        if (!openRefusingSegments(source, "https://media.example/live/index", asked)) return
+        assertEquals(listOf("https://cdn.example/edge/seg0.ts"), asked.distinct())
+        assertEquals(1, source.closes)
+    }
+
+    /** A variant that the nested opener followed to another host resolves its segment there (#167). */
+    @Test
+    fun aRedirectedVariantAsksForItsSegmentWhereItCameFrom() {
+        val asked = mutableListOf<String>()
+        val variant = CountingCloseSource(MEDIA_PLAYLIST.encodeToByteArray(), redirectedTo = "https://cdn.example/edge/video.m3u8")
+        val source = CountingCloseSource(MASTER_PLAYLIST.encodeToByteArray())
+        val opener = MediaByteOpener { url ->
+            asked += url
+            if (url == "https://media.example/live/video.m3u8") variant else null
+        }
+        if (!openRefusingSegments(source, "https://media.example/live/master", asked, opener)) return
+        assertEquals(listOf("https://media.example/live/video.m3u8", "https://cdn.example/edge/seg0.ts"), asked.distinct())
+        assertEquals(1, variant.closes, "the variant must be closed once")
+    }
+
+    @Test
+    fun aVariantWhoseLocationThrowsFailsTheOpenWithThatCause() {
+        val asked = mutableListOf<String>()
+        val thrown = IllegalStateException("the variant could not say where its redirect led")
+        val variant = CountingCloseSource(MEDIA_PLAYLIST.encodeToByteArray(), locationFailure = thrown)
+        val opener = MediaByteOpener { url ->
+            asked += url
+            if (url == "https://media.example/live/video.m3u8") variant else null
+        }
+        val error = try {
+            MediaSource.open(
+                CountingCloseSource(MASTER_PLAYLIST.encodeToByteArray()),
+                url = "https://media.example/live/master",
+                mimeType = HLS_TYPE,
+                nestedOpener = opener,
+            ).close()
+            null
+        } catch (failure: FFmpegException) {
+            failure
+        }
+        if (error != null && error.error is FFmpegError.Unsupported && "trust_io_open" in error.message.orEmpty()) return
+        assertTrue(error != null, "a variant that cannot say where it came from must not open")
+        assertSame(thrown, error.cause, "the open must carry the location getter's exception as its cause")
+        assertEquals(listOf("https://media.example/live/video.m3u8"), asked, "no segment may be asked for")
+        assertEquals(1, variant.closes, "the variant must be closed once")
+    }
+
+    @Test
+    fun aLocationThatThrowsFailsTheOpenAndClosesTheSource() {
+        val thrown = IllegalStateException("the redirect could not be followed")
+        val source = CountingCloseSource(MEDIA_PLAYLIST.encodeToByteArray(), locationFailure = thrown)
+        assertSame(thrown, assertFails { MediaSource.open(source, url = "https://media.example/live/index", mimeType = HLS_TYPE) })
+        assertEquals(1, source.closes, "the open owns the source, so a failed open closes it once")
+    }
+
+    /**
+     * Opens an HLS playlist whose every segment the opener refuses, which fails the open after the
+     * segment's address was asked for. False when the linked FFmpeg lacks the trust_io_open patch.
+     */
+    private fun openRefusingSegments(
+        source: MediaByteSource,
+        url: String,
+        asked: MutableList<String>,
+        opener: MediaByteOpener = MediaByteOpener { address -> asked += address; null },
+    ): Boolean {
+        val error = assertFailsWith<FFmpegException> {
+            MediaSource.open(source, url = url, mimeType = HLS_TYPE, nestedOpener = opener).close()
+        }
+        if (error.error is FFmpegError.Unsupported && "trust_io_open" in error.message.orEmpty()) {
+            println("location test degraded: the linked FFmpeg lacks the trust_io_open patch")
+            return false
+        }
+        return true
+    }
+
     /** A source that fails when the open asks for its [size] or whether it is [seekable]. */
     private class InspectionFailingSource(
         private val failSize: Boolean = false,
@@ -268,11 +351,16 @@ class AvioBridgeTest {
     }
 
     /** Counts closes rather than recording a flag, so a double close is a failure too. */
-    private class CountingCloseSource(private val bytes: ByteArray) : MediaByteSource {
+    private class CountingCloseSource(
+        private val bytes: ByteArray,
+        private val redirectedTo: String? = null,
+        private val locationFailure: Throwable? = null,
+    ) : MediaByteSource {
         private var position = 0
         var closes = 0
         override val size: Long get() = bytes.size.toLong()
         override val seekable: Boolean = true
+        override val location: String? get() = locationFailure?.let { throw it } ?: redirectedTo
         override fun read(into: ByteArray, offset: Int, length: Int): Int {
             if (position >= bytes.size) return -1
             val count = minOf(length, bytes.size - position)
@@ -282,5 +370,27 @@ class AvioBridgeTest {
         }
         override fun seek(position: Long) { this.position = position.toInt() }
         override fun close() { closes++ }
+    }
+
+    private companion object {
+        const val HLS_TYPE = "application/vnd.apple.mpegurl"
+
+        val MEDIA_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-TARGETDURATION:2
+            #EXT-X-MEDIA-SEQUENCE:0
+            #EXT-X-PLAYLIST-TYPE:VOD
+            #EXTINF:2.0,
+            seg0.ts
+            #EXT-X-ENDLIST
+        """.trimIndent() + "\n"
+
+        val MASTER_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-STREAM-INF:BANDWIDTH=800000
+            video.m3u8
+        """.trimIndent() + "\n"
     }
 }

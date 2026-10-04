@@ -18,6 +18,7 @@ int main(void) {
     OFF(read_fn);
     OFF(seek_fn);
     OFF(close_fn);
+    OFF(location_fn);
     printf("  \"sizeof\": %zu\n", sizeof(kc_io_opener));
     printf("}\n");
     return 0;
