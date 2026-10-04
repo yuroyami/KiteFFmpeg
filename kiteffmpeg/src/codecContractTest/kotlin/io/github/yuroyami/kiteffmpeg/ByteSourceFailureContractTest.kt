@@ -35,6 +35,8 @@ class ByteSourceFailureContractTest {
         assertTrue(source.failedReads > 0, "the open never read from the source")
         assertIs<FFmpegException>(error)
         assertSame(thrown, error.cause, "the open must carry the source's exception as its cause")
+        // The bridge answered FFmpeg with an I/O error, and the failure is typed by that code.
+        assertIs<FFmpegError.Io>(error.error, "the open was typed ${error.error}")
     }
 
     @Test

@@ -54,6 +54,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_audio
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_subtitle
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_video
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_avg_frame_rate
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_strerror
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_codecpar
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_discard_all
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_discard_none
@@ -558,9 +559,8 @@ public actual class MediaSource internal constructor(
         try {
             // What FFmpeg logged while it refused rides on the exception (#170).
             withLoggedReason {
-                if (ffkmp_codecctx_from_par(m, ctx, par) < 0) {
-                    throw FFmpegException(FFmpegError.Internal("copying codec parameters failed"))
-                }
+                val parRc = ffkmp_codecctx_from_par(m, ctx, par)
+                if (parRc < 0) throw FFmpegException(webAvError(m, parRc, "avcodec_parameters_to_context"))
                 if (lowDelay) ffkmp_codecctx_set_low_delay(m, ctx, 1)
                 if (threadCount == 1) ffkmp_codecctx_set_threads(m, ctx, 1, 0)
                 // Typed options through the same av_opt_set funnel the other backends use, between
@@ -573,9 +573,8 @@ public actual class MediaSource internal constructor(
                         )
                     }
                 }
-                if (ffkmp_codecctx_open(m, ctx, codec) < 0) {
-                    throw FFmpegException(FFmpegError.Internal("opening the decoder failed"))
-                }
+                val openRc = ffkmp_codecctx_open(m, ctx, codec)
+                if (openRc < 0) throw FFmpegException(webAvError(m, openRc, "avcodec_open2"))
             }
         } catch (failure: Throwable) {
             ffkmp_codecctx_free(m, ctx)
@@ -598,7 +597,7 @@ public actual class MediaSource internal constructor(
                 if (rc == FFmpegError.AVERROR_DECODER_NOT_FOUND) {
                     throw FFmpegException(FFmpegError.DecoderNotFound(rc, decoderNotFoundMessage(stream.codec, requested = null)))
                 }
-                if (rc < 0) throw FFmpegException(FFmpegError.Internal("opening the subtitle decoder failed with $rc"))
+                if (rc < 0) throw FFmpegException(webAvError(m, rc, "opening the subtitle decoder"))
                 SubtitleDecoder(readInt32(m, slot), stream, lifetime)
             }
         } finally {
@@ -785,19 +784,20 @@ public actual class MediaSource internal constructor(
                 wasmFree(m, unusedSlot); wasmFree(m, slot); releaseIo()
                 // The opener's own exception is the cause, because FFmpeg only saw an error code.
                 throw FFmpegException(
-                    FFmpegError.InvalidData(rc, "could not open this media ($rc)"),
+                    webAvError(m, rc, "avformat_open_input"),
                     bridge.takeFailure() ?: nested?.takeFailure(),
                 )
             }
             val leftover = drainUnusedKeys(m, unusedSlot)
             wasmFree(m, unusedSlot)
             val ctx = readInt32(m, slot)
-            if (ffkmp_fmt_find_stream_info(m, ctx) < 0) {
+            val infoRc = ffkmp_fmt_find_stream_info(m, ctx)
+            if (infoRc < 0) {
                 ffkmp_fmt_close_input_io(m, slot)
                 wasmFree(m, slot)
                 releaseIo()
                 throw FFmpegException(
-                    FFmpegError.InvalidData(0, "could not read stream information"),
+                    webAvError(m, infoRc, "avformat_find_stream_info"),
                     bridge.takeFailure() ?: nested?.takeFailure(),
                 )
             }
@@ -1164,4 +1164,13 @@ private class CStringArrays(val keys: Int, val values: Int, private val strings:
             return CStringArrays(keys, values, strings)
         }
     }
+}
+
+/**
+ * FFmpeg's failure [code] typed as the JVM and native backends type it, with FFmpeg's own text for
+ * the code after [label] (#171).
+ */
+internal fun webAvError(m: kotlin.js.JsAny, code: Int, label: String): FFmpegError {
+    val text = utf8OrNull(m, ffkmp_strerror(m, code)) ?: "AVERROR($code)"
+    return FFmpegError.fromCode(code, "$label: $text (code=$code)")
 }

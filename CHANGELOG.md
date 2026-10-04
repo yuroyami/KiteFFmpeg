@@ -216,6 +216,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- On the web, a failed open, stream discovery, decoder open or subtitle decoder open is typed by the
+  code FFmpeg returned, as on the JVM and native (#171). The open was always `InvalidData`, so a
+  source that threw read as invalid data rather than `Io`, the stream discovery and the decoder
+  open dropped the code altogether, and the two decoder opens answered `Internal` for a refused
+  option or a memory failure. Each message now carries FFmpeg's text for the code.
+
 - On the web, a packet read or a seek that fails because the `MediaByteSource` threw carries that
   exception as its cause, and its error is typed from FFmpeg's code, so a range request that fails
   in the middle of a song reads as an I/O error with the request's own failure behind it (#169). It

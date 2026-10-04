@@ -73,6 +73,8 @@ import kotlin.js.JsAny
             __stage: stage,
             __mallocCount: () => mallocCount,
             __lastMalloc: () => lastMalloc,
+            // FFmpeg's text for a code, which the backend puts in a failure's message.
+            _ffkmp_strerror: (code) => cstr("error text for " + code),
             // No HDR metadata unless a surface scripts some: a stream or frame that declares none.
             _ffkmp_codecpar_mastering_display: () => 0,
             _ffkmp_codecpar_content_light: () => 0,
@@ -179,7 +181,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
             m.__lastOpenTags = tagsFn;
             return rc;
         };
-        m._ffkmp_fmt_find_stream_info = () => 0;
+        m._ffkmp_fmt_find_stream_info = () => m.__streamInfoRc ?? 0;
         m._ffkmp_fmt_start_time = () => 0n;
         m._ffkmp_fmt_nb_streams = (ctx) => ctx === CONTEXT ? 2 : 0;
         m._ffkmp_fmt_stream = (ctx, index) =>
@@ -345,7 +347,7 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
             return c;
         };
         m._ffkmp_codecctx_from_par = () => 0;
-        m._ffkmp_codecctx_open = () => 0;
+        m._ffkmp_codecctx_open = () => m.__codecOpenRc ?? 0;
         m._ffkmp_codecctx_set_low_delay = () => {};
         m._ffkmp_codecctx_set_threads = () => {};
         m._ffkmp_codecctx_set_opt = () => 0;
@@ -395,6 +397,14 @@ private external fun installFakeDecodeSurface(module: JsAny): JsAny
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, s) => m.__setDecodeScript(s)")
 internal external fun setFakeDecodeScript(module: JsAny, script: String)
+
+/**
+ * Makes the fake's step [key] answer [rc]: `__streamInfoRc` for the stream discovery,
+ * `__codecOpenRc` for a decoder open and `__subtitleOpenRc` for a subtitle decoder open.
+ */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, key, rc) => { m[key] = rc; }")
+internal external fun setFakeReturn(module: JsAny, key: String, rc: Int)
 
 /** Makes the next `openDecoder` fail the way a missing decoder does. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
@@ -1050,6 +1060,7 @@ internal fun fakeSubtitleCodecModule(): JsAny = installFakeSubtitleSurface(fakeP
         m.stringToUTF8("0,0,Default,,0,0,0,,Hi", text, 32);
         const view = () => new DataView(m.HEAPU8.buffer);
         m._ffkmp_subtitle_decoder_open = (ctx, index, out) => {
+            if (m.__subtitleOpenRc) return m.__subtitleOpenRc;
             m.HEAP32[out >> 2] = DECODER + index;
             return 0;
         };
