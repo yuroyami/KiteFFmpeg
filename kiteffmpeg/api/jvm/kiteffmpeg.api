@@ -1407,6 +1407,145 @@ public final class io/github/yuroyami/kiteffmpeg/SeekDirection : java/lang/Enum 
 	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/SeekDirection;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/SphericalMapping {
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/SphericalProjection;DDD)V
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/SphericalProjection;
+	public final fun component2 ()D
+	public final fun component3 ()D
+	public final fun component4 ()D
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/SphericalProjection;DDD)Lio/github/yuroyami/kiteffmpeg/SphericalMapping;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/SphericalMapping;Lio/github/yuroyami/kiteffmpeg/SphericalProjection;DDDILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/SphericalMapping;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPitch ()D
+	public final fun getProjection ()Lio/github/yuroyami/kiteffmpeg/SphericalProjection;
+	public final fun getRoll ()D
+	public final fun getYaw ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract class io/github/yuroyami/kiteffmpeg/SphericalProjection {
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SphericalProjection$Cubemap : io/github/yuroyami/kiteffmpeg/SphericalProjection {
+	public fun <init> (J)V
+	public final fun component1 ()J
+	public final fun copy (J)Lio/github/yuroyami/kiteffmpeg/SphericalProjection$Cubemap;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/SphericalProjection$Cubemap;JILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/SphericalProjection$Cubemap;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPadding ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SphericalProjection$Equirectangular : io/github/yuroyami/kiteffmpeg/SphericalProjection {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/SphericalProjection$Equirectangular;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SphericalProjection$EquirectangularTile : io/github/yuroyami/kiteffmpeg/SphericalProjection {
+	public fun <init> (DDDD)V
+	public final fun component1 ()D
+	public final fun component2 ()D
+	public final fun component3 ()D
+	public final fun component4 ()D
+	public final fun copy (DDDD)Lio/github/yuroyami/kiteffmpeg/SphericalProjection$EquirectangularTile;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/SphericalProjection$EquirectangularTile;DDDDILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/SphericalProjection$EquirectangularTile;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBottom ()D
+	public final fun getLeft ()D
+	public final fun getRight ()D
+	public final fun getTop ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SphericalProjection$Fisheye : io/github/yuroyami/kiteffmpeg/SphericalProjection {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/SphericalProjection$Fisheye;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SphericalProjection$HalfEquirectangular : io/github/yuroyami/kiteffmpeg/SphericalProjection {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/SphericalProjection$HalfEquirectangular;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SphericalProjection$ParametricImmersive : io/github/yuroyami/kiteffmpeg/SphericalProjection {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/SphericalProjection$ParametricImmersive;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/SphericalProjection$Rectilinear : io/github/yuroyami/kiteffmpeg/SphericalProjection {
+	public static final field INSTANCE Lio/github/yuroyami/kiteffmpeg/SphericalProjection$Rectilinear;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Stereo3D {
+	public fun <init> (Lio/github/yuroyami/kiteffmpeg/Stereo3DType;ZLio/github/yuroyami/kiteffmpeg/Stereo3DView;Lio/github/yuroyami/kiteffmpeg/StereoEye;Ljava/lang/Long;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;)V
+	public final fun component1 ()Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public final fun component2 ()Z
+	public final fun component3 ()Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/StereoEye;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun component7 ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun copy (Lio/github/yuroyami/kiteffmpeg/Stereo3DType;ZLio/github/yuroyami/kiteffmpeg/Stereo3DView;Lio/github/yuroyami/kiteffmpeg/StereoEye;Ljava/lang/Long;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;)Lio/github/yuroyami/kiteffmpeg/Stereo3D;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteffmpeg/Stereo3D;Lio/github/yuroyami/kiteffmpeg/Stereo3DType;ZLio/github/yuroyami/kiteffmpeg/Stereo3DView;Lio/github/yuroyami/kiteffmpeg/StereoEye;Ljava/lang/Long;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/Stereo3D;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBaselineMicrometres ()Ljava/lang/Long;
+	public final fun getHorizontalDisparityAdjustment ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getHorizontalFieldOfView ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getInverted ()Z
+	public final fun getPrimaryEye ()Lio/github/yuroyami/kiteffmpeg/StereoEye;
+	public final fun getType ()Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public final fun getView ()Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Stereo3DType : java/lang/Enum {
+	public static final field Checkerboard Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field Columns Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field FrameSequence Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field Lines Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field Monoscopic Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field SideBySide Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field SideBySideQuincunx Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field TopBottom Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static final field Unspecified Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/Stereo3DType;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/Stereo3DView : java/lang/Enum {
+	public static final field Left Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+	public static final field Packed Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+	public static final field Right Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+	public static final field Unspecified Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/Stereo3DView;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/StereoEye : java/lang/Enum {
+	public static final field Left Lio/github/yuroyami/kiteffmpeg/StereoEye;
+	public static final field Right Lio/github/yuroyami/kiteffmpeg/StereoEye;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/StereoEye;
+	public static fun values ()[Lio/github/yuroyami/kiteffmpeg/StereoEye;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/StreamDecoder : java/lang/AutoCloseable {
 	public fun close ()V
 	public final fun flush ()V
@@ -1678,11 +1817,13 @@ public final class io/github/yuroyami/kiteffmpeg/VideoInput {
 }
 
 public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
-	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;Lio/github/yuroyami/kiteffmpeg/SphericalMapping;Lio/github/yuroyami/kiteffmpeg/Stereo3D;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;Lio/github/yuroyami/kiteffmpeg/SphericalMapping;Lio/github/yuroyami/kiteffmpeg/Stereo3D;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()I
 	public final fun component10 ()Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;
 	public final fun component11 ()Lio/github/yuroyami/kiteffmpeg/VideoCrop;
+	public final fun component12 ()Lio/github/yuroyami/kiteffmpeg/SphericalMapping;
+	public final fun component13 ()Lio/github/yuroyami/kiteffmpeg/Stereo3D;
 	public final fun component2 ()I
 	public final fun component3-OLR4av4 ()Ljava/lang/String;
 	public final fun component4 ()Lio/github/yuroyami/kiteffmpeg/Rational;
@@ -1691,8 +1832,8 @@ public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
 	public final fun component7 ()Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
 	public final fun component8 ()Lio/github/yuroyami/kiteffmpeg/FieldOrder;
 	public final fun component9 ()Lio/github/yuroyami/kiteffmpeg/HdrMetadata;
-	public final fun copy-ltvDMww (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
-	public static synthetic fun copy-ltvDMww$default (Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public final fun copy-JgYl8mY (IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;Lio/github/yuroyami/kiteffmpeg/SphericalMapping;Lio/github/yuroyami/kiteffmpeg/Stereo3D;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
+	public static synthetic fun copy-JgYl8mY$default (Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;IILjava/lang/String;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/Rational;Lio/github/yuroyami/kiteffmpeg/ColorInfo;Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;Lio/github/yuroyami/kiteffmpeg/FieldOrder;Lio/github/yuroyami/kiteffmpeg/HdrMetadata;Lio/github/yuroyami/kiteffmpeg/DolbyVisionConfig;Lio/github/yuroyami/kiteffmpeg/VideoCrop;Lio/github/yuroyami/kiteffmpeg/SphericalMapping;Lio/github/yuroyami/kiteffmpeg/Stereo3D;ILjava/lang/Object;)Lio/github/yuroyami/kiteffmpeg/VideoStreamInfo;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getColor ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
 	public final fun getCrop ()Lio/github/yuroyami/kiteffmpeg/VideoCrop;
@@ -1703,6 +1844,8 @@ public final class io/github/yuroyami/kiteffmpeg/VideoStreamInfo {
 	public final fun getHeight ()I
 	public final fun getPixelFormat-OLR4av4 ()Ljava/lang/String;
 	public final fun getSampleAspectRatio ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun getSpherical ()Lio/github/yuroyami/kiteffmpeg/SphericalMapping;
+	public final fun getStereo3d ()Lio/github/yuroyami/kiteffmpeg/Stereo3D;
 	public final fun getVp9 ()Lio/github/yuroyami/kiteffmpeg/Vp9CodecInfo;
 	public final fun getWidth ()I
 	public fun hashCode ()I

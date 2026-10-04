@@ -344,6 +344,48 @@ final enum class io.github.yuroyami.kiteffmpeg/SeekDirection : kotlin/Enum<io.gi
     final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/SeekDirection> // io.github.yuroyami.kiteffmpeg/SeekDirection.values|values#static(){}[0]
 }
 
+final enum class io.github.yuroyami.kiteffmpeg/Stereo3DType : kotlin/Enum<io.github.yuroyami.kiteffmpeg/Stereo3DType> { // io.github.yuroyami.kiteffmpeg/Stereo3DType|null[0]
+    enum entry Checkerboard // io.github.yuroyami.kiteffmpeg/Stereo3DType.Checkerboard|null[0]
+    enum entry Columns // io.github.yuroyami.kiteffmpeg/Stereo3DType.Columns|null[0]
+    enum entry FrameSequence // io.github.yuroyami.kiteffmpeg/Stereo3DType.FrameSequence|null[0]
+    enum entry Lines // io.github.yuroyami.kiteffmpeg/Stereo3DType.Lines|null[0]
+    enum entry Monoscopic // io.github.yuroyami.kiteffmpeg/Stereo3DType.Monoscopic|null[0]
+    enum entry SideBySide // io.github.yuroyami.kiteffmpeg/Stereo3DType.SideBySide|null[0]
+    enum entry SideBySideQuincunx // io.github.yuroyami.kiteffmpeg/Stereo3DType.SideBySideQuincunx|null[0]
+    enum entry TopBottom // io.github.yuroyami.kiteffmpeg/Stereo3DType.TopBottom|null[0]
+    enum entry Unspecified // io.github.yuroyami.kiteffmpeg/Stereo3DType.Unspecified|null[0]
+
+    final val entries // io.github.yuroyami.kiteffmpeg/Stereo3DType.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.yuroyami.kiteffmpeg/Stereo3DType> // io.github.yuroyami.kiteffmpeg/Stereo3DType.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.yuroyami.kiteffmpeg/Stereo3DType // io.github.yuroyami.kiteffmpeg/Stereo3DType.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/Stereo3DType> // io.github.yuroyami.kiteffmpeg/Stereo3DType.values|values#static(){}[0]
+}
+
+final enum class io.github.yuroyami.kiteffmpeg/Stereo3DView : kotlin/Enum<io.github.yuroyami.kiteffmpeg/Stereo3DView> { // io.github.yuroyami.kiteffmpeg/Stereo3DView|null[0]
+    enum entry Left // io.github.yuroyami.kiteffmpeg/Stereo3DView.Left|null[0]
+    enum entry Packed // io.github.yuroyami.kiteffmpeg/Stereo3DView.Packed|null[0]
+    enum entry Right // io.github.yuroyami.kiteffmpeg/Stereo3DView.Right|null[0]
+    enum entry Unspecified // io.github.yuroyami.kiteffmpeg/Stereo3DView.Unspecified|null[0]
+
+    final val entries // io.github.yuroyami.kiteffmpeg/Stereo3DView.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.yuroyami.kiteffmpeg/Stereo3DView> // io.github.yuroyami.kiteffmpeg/Stereo3DView.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.yuroyami.kiteffmpeg/Stereo3DView // io.github.yuroyami.kiteffmpeg/Stereo3DView.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/Stereo3DView> // io.github.yuroyami.kiteffmpeg/Stereo3DView.values|values#static(){}[0]
+}
+
+final enum class io.github.yuroyami.kiteffmpeg/StereoEye : kotlin/Enum<io.github.yuroyami.kiteffmpeg/StereoEye> { // io.github.yuroyami.kiteffmpeg/StereoEye|null[0]
+    enum entry Left // io.github.yuroyami.kiteffmpeg/StereoEye.Left|null[0]
+    enum entry Right // io.github.yuroyami.kiteffmpeg/StereoEye.Right|null[0]
+
+    final val entries // io.github.yuroyami.kiteffmpeg/StereoEye.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<io.github.yuroyami.kiteffmpeg/StereoEye> // io.github.yuroyami.kiteffmpeg/StereoEye.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): io.github.yuroyami.kiteffmpeg/StereoEye // io.github.yuroyami.kiteffmpeg/StereoEye.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<io.github.yuroyami.kiteffmpeg/StereoEye> // io.github.yuroyami.kiteffmpeg/StereoEye.values|values#static(){}[0]
+}
+
 final enum class io.github.yuroyami.kiteffmpeg/Vp9BitDepth : kotlin/Enum<io.github.yuroyami.kiteffmpeg/Vp9BitDepth> { // io.github.yuroyami.kiteffmpeg/Vp9BitDepth|null[0]
     enum entry Eight // io.github.yuroyami.kiteffmpeg/Vp9BitDepth.Eight|null[0]
     enum entry Ten // io.github.yuroyami.kiteffmpeg/Vp9BitDepth.Ten|null[0]
@@ -2050,6 +2092,59 @@ final class io.github.yuroyami.kiteffmpeg/Resampler : kotlin/AutoCloseable { // 
     final fun flush(): io.github.yuroyami.kiteffmpeg/Frame? // io.github.yuroyami.kiteffmpeg/Resampler.flush|flush(){}[0]
 }
 
+final class io.github.yuroyami.kiteffmpeg/SphericalMapping { // io.github.yuroyami.kiteffmpeg/SphericalMapping|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/SphericalProjection, kotlin/Double, kotlin/Double, kotlin/Double) // io.github.yuroyami.kiteffmpeg/SphericalMapping.<init>|<init>(io.github.yuroyami.kiteffmpeg.SphericalProjection;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
+
+    final val pitch // io.github.yuroyami.kiteffmpeg/SphericalMapping.pitch|{}pitch[0]
+        final fun <get-pitch>(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalMapping.pitch.<get-pitch>|<get-pitch>(){}[0]
+    final val projection // io.github.yuroyami.kiteffmpeg/SphericalMapping.projection|{}projection[0]
+        final fun <get-projection>(): io.github.yuroyami.kiteffmpeg/SphericalProjection // io.github.yuroyami.kiteffmpeg/SphericalMapping.projection.<get-projection>|<get-projection>(){}[0]
+    final val roll // io.github.yuroyami.kiteffmpeg/SphericalMapping.roll|{}roll[0]
+        final fun <get-roll>(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalMapping.roll.<get-roll>|<get-roll>(){}[0]
+    final val yaw // io.github.yuroyami.kiteffmpeg/SphericalMapping.yaw|{}yaw[0]
+        final fun <get-yaw>(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalMapping.yaw.<get-yaw>|<get-yaw>(){}[0]
+
+    final fun component1(): io.github.yuroyami.kiteffmpeg/SphericalProjection // io.github.yuroyami.kiteffmpeg/SphericalMapping.component1|component1(){}[0]
+    final fun component2(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalMapping.component2|component2(){}[0]
+    final fun component3(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalMapping.component3|component3(){}[0]
+    final fun component4(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalMapping.component4|component4(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/SphericalProjection = ..., kotlin/Double = ..., kotlin/Double = ..., kotlin/Double = ...): io.github.yuroyami.kiteffmpeg/SphericalMapping // io.github.yuroyami.kiteffmpeg/SphericalMapping.copy|copy(io.github.yuroyami.kiteffmpeg.SphericalProjection;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalMapping.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalMapping.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalMapping.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/Stereo3D { // io.github.yuroyami.kiteffmpeg/Stereo3D|null[0]
+    constructor <init>(io.github.yuroyami.kiteffmpeg/Stereo3DType, kotlin/Boolean, io.github.yuroyami.kiteffmpeg/Stereo3DView, io.github.yuroyami.kiteffmpeg/StereoEye?, kotlin/Long?, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational?) // io.github.yuroyami.kiteffmpeg/Stereo3D.<init>|<init>(io.github.yuroyami.kiteffmpeg.Stereo3DType;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.Stereo3DView;io.github.yuroyami.kiteffmpeg.StereoEye?;kotlin.Long?;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational?){}[0]
+
+    final val baselineMicrometres // io.github.yuroyami.kiteffmpeg/Stereo3D.baselineMicrometres|{}baselineMicrometres[0]
+        final fun <get-baselineMicrometres>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/Stereo3D.baselineMicrometres.<get-baselineMicrometres>|<get-baselineMicrometres>(){}[0]
+    final val horizontalDisparityAdjustment // io.github.yuroyami.kiteffmpeg/Stereo3D.horizontalDisparityAdjustment|{}horizontalDisparityAdjustment[0]
+        final fun <get-horizontalDisparityAdjustment>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/Stereo3D.horizontalDisparityAdjustment.<get-horizontalDisparityAdjustment>|<get-horizontalDisparityAdjustment>(){}[0]
+    final val horizontalFieldOfView // io.github.yuroyami.kiteffmpeg/Stereo3D.horizontalFieldOfView|{}horizontalFieldOfView[0]
+        final fun <get-horizontalFieldOfView>(): io.github.yuroyami.kiteffmpeg/Rational? // io.github.yuroyami.kiteffmpeg/Stereo3D.horizontalFieldOfView.<get-horizontalFieldOfView>|<get-horizontalFieldOfView>(){}[0]
+    final val inverted // io.github.yuroyami.kiteffmpeg/Stereo3D.inverted|{}inverted[0]
+        final fun <get-inverted>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Stereo3D.inverted.<get-inverted>|<get-inverted>(){}[0]
+    final val primaryEye // io.github.yuroyami.kiteffmpeg/Stereo3D.primaryEye|{}primaryEye[0]
+        final fun <get-primaryEye>(): io.github.yuroyami.kiteffmpeg/StereoEye? // io.github.yuroyami.kiteffmpeg/Stereo3D.primaryEye.<get-primaryEye>|<get-primaryEye>(){}[0]
+    final val type // io.github.yuroyami.kiteffmpeg/Stereo3D.type|{}type[0]
+        final fun <get-type>(): io.github.yuroyami.kiteffmpeg/Stereo3DType // io.github.yuroyami.kiteffmpeg/Stereo3D.type.<get-type>|<get-type>(){}[0]
+    final val view // io.github.yuroyami.kiteffmpeg/Stereo3D.view|{}view[0]
+        final fun <get-view>(): io.github.yuroyami.kiteffmpeg/Stereo3DView // io.github.yuroyami.kiteffmpeg/Stereo3D.view.<get-view>|<get-view>(){}[0]
+
+    final fun component1(): io.github.yuroyami.kiteffmpeg/Stereo3DType // io.github.yuroyami.kiteffmpeg/Stereo3D.component1|component1(){}[0]
+    final fun component2(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Stereo3D.component2|component2(){}[0]
+    final fun component3(): io.github.yuroyami.kiteffmpeg/Stereo3DView // io.github.yuroyami.kiteffmpeg/Stereo3D.component3|component3(){}[0]
+    final fun component4(): io.github.yuroyami.kiteffmpeg/StereoEye? // io.github.yuroyami.kiteffmpeg/Stereo3D.component4|component4(){}[0]
+    final fun component5(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/Stereo3D.component5|component5(){}[0]
+    final fun component6(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/Stereo3D.component6|component6(){}[0]
+    final fun component7(): io.github.yuroyami.kiteffmpeg/Rational? // io.github.yuroyami.kiteffmpeg/Stereo3D.component7|component7(){}[0]
+    final fun copy(io.github.yuroyami.kiteffmpeg/Stereo3DType = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/Stereo3DView = ..., io.github.yuroyami.kiteffmpeg/StereoEye? = ..., kotlin/Long? = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational? = ...): io.github.yuroyami.kiteffmpeg/Stereo3D // io.github.yuroyami.kiteffmpeg/Stereo3D.copy|copy(io.github.yuroyami.kiteffmpeg.Stereo3DType;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.Stereo3DView;io.github.yuroyami.kiteffmpeg.StereoEye?;kotlin.Long?;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/Stereo3D.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/Stereo3D.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/Stereo3D.toString|toString(){}[0]
+}
+
 final class io.github.yuroyami.kiteffmpeg/StreamDecoder : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/StreamDecoder|null[0]
     final val stream // io.github.yuroyami.kiteffmpeg/StreamDecoder.stream|{}stream[0]
         final fun <get-stream>(): io.github.yuroyami.kiteffmpeg/StreamInfo // io.github.yuroyami.kiteffmpeg/StreamDecoder.stream.<get-stream>|<get-stream>(){}[0]
@@ -2395,7 +2490,7 @@ final class io.github.yuroyami.kiteffmpeg/VideoInput { // io.github.yuroyami.kit
 }
 
 final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyami.kiteffmpeg/VideoStreamInfo|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ..., io.github.yuroyami.kiteffmpeg/VideoCrop? = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?;io.github.yuroyami.kiteffmpeg.VideoCrop?){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, io.github.yuroyami.kiteffmpeg/PixelFormat, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/Rational, io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ..., io.github.yuroyami.kiteffmpeg/VideoCrop? = ..., io.github.yuroyami.kiteffmpeg/SphericalMapping? = ..., io.github.yuroyami.kiteffmpeg/Stereo3D? = ...) // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.<init>|<init>(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?;io.github.yuroyami.kiteffmpeg.VideoCrop?;io.github.yuroyami.kiteffmpeg.SphericalMapping?;io.github.yuroyami.kiteffmpeg.Stereo3D?){}[0]
 
     final val color // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color|{}color[0]
         final fun <get-color>(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.color.<get-color>|<get-color>(){}[0]
@@ -2415,6 +2510,10 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
         final fun <get-pixelFormat>(): io.github.yuroyami.kiteffmpeg/PixelFormat // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.pixelFormat.<get-pixelFormat>|<get-pixelFormat>(){}[0]
     final val sampleAspectRatio // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.sampleAspectRatio|{}sampleAspectRatio[0]
         final fun <get-sampleAspectRatio>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.sampleAspectRatio.<get-sampleAspectRatio>|<get-sampleAspectRatio>(){}[0]
+    final val spherical // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.spherical|{}spherical[0]
+        final fun <get-spherical>(): io.github.yuroyami.kiteffmpeg/SphericalMapping? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.spherical.<get-spherical>|<get-spherical>(){}[0]
+    final val stereo3d // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.stereo3d|{}stereo3d[0]
+        final fun <get-stereo3d>(): io.github.yuroyami.kiteffmpeg/Stereo3D? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.stereo3d.<get-stereo3d>|<get-stereo3d>(){}[0]
     final val vp9 // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.vp9|{}vp9[0]
         final fun <get-vp9>(): io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.vp9.<get-vp9>|<get-vp9>(){}[0]
     final val width // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.width|{}width[0]
@@ -2423,6 +2522,8 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
     final fun component1(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component1|component1(){}[0]
     final fun component10(): io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component10|component10(){}[0]
     final fun component11(): io.github.yuroyami.kiteffmpeg/VideoCrop? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component11|component11(){}[0]
+    final fun component12(): io.github.yuroyami.kiteffmpeg/SphericalMapping? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component12|component12(){}[0]
+    final fun component13(): io.github.yuroyami.kiteffmpeg/Stereo3D? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component13|component13(){}[0]
     final fun component2(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component2|component2(){}[0]
     final fun component3(): io.github.yuroyami.kiteffmpeg/PixelFormat // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component3|component3(){}[0]
     final fun component4(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component4|component4(){}[0]
@@ -2431,7 +2532,7 @@ final class io.github.yuroyami.kiteffmpeg/VideoStreamInfo { // io.github.yuroyam
     final fun component7(): io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component7|component7(){}[0]
     final fun component8(): io.github.yuroyami.kiteffmpeg/FieldOrder // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component8|component8(){}[0]
     final fun component9(): io.github.yuroyami.kiteffmpeg/HdrMetadata? // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.component9|component9(){}[0]
-    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ..., io.github.yuroyami.kiteffmpeg/VideoCrop? = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?;io.github.yuroyami.kiteffmpeg.VideoCrop?){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ..., io.github.yuroyami.kiteffmpeg/PixelFormat = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/Rational = ..., io.github.yuroyami.kiteffmpeg/ColorInfo = ..., io.github.yuroyami.kiteffmpeg/Vp9CodecInfo? = ..., io.github.yuroyami.kiteffmpeg/FieldOrder = ..., io.github.yuroyami.kiteffmpeg/HdrMetadata? = ..., io.github.yuroyami.kiteffmpeg/DolbyVisionConfig? = ..., io.github.yuroyami.kiteffmpeg/VideoCrop? = ..., io.github.yuroyami.kiteffmpeg/SphericalMapping? = ..., io.github.yuroyami.kiteffmpeg/Stereo3D? = ...): io.github.yuroyami.kiteffmpeg/VideoStreamInfo // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.copy|copy(kotlin.Int;kotlin.Int;io.github.yuroyami.kiteffmpeg.PixelFormat;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.Rational;io.github.yuroyami.kiteffmpeg.ColorInfo;io.github.yuroyami.kiteffmpeg.Vp9CodecInfo?;io.github.yuroyami.kiteffmpeg.FieldOrder;io.github.yuroyami.kiteffmpeg.HdrMetadata?;io.github.yuroyami.kiteffmpeg.DolbyVisionConfig?;io.github.yuroyami.kiteffmpeg.VideoCrop?;io.github.yuroyami.kiteffmpeg.SphericalMapping?;io.github.yuroyami.kiteffmpeg.Stereo3D?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/VideoStreamInfo.toString|toString(){}[0]
@@ -2796,6 +2897,73 @@ sealed class io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.k
     }
 
     final object Companion // io.github.yuroyami.kiteffmpeg/FFmpegError.Companion|null[0]
+}
+
+sealed class io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection|null[0]
+    final class Cubemap : io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap|null[0]
+        constructor <init>(kotlin/Long) // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.<init>|<init>(kotlin.Long){}[0]
+
+        final val padding // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.padding|{}padding[0]
+            final fun <get-padding>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.padding.<get-padding>|<get-padding>(){}[0]
+
+        final fun component1(): kotlin/Long // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.component1|component1(){}[0]
+        final fun copy(kotlin/Long = ...): io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.copy|copy(kotlin.Long){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalProjection.Cubemap.toString|toString(){}[0]
+    }
+
+    final class EquirectangularTile : io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile|null[0]
+        constructor <init>(kotlin/Double, kotlin/Double, kotlin/Double, kotlin/Double) // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.<init>|<init>(kotlin.Double;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
+
+        final val bottom // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.bottom|{}bottom[0]
+            final fun <get-bottom>(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.bottom.<get-bottom>|<get-bottom>(){}[0]
+        final val left // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.left|{}left[0]
+            final fun <get-left>(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.left.<get-left>|<get-left>(){}[0]
+        final val right // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.right|{}right[0]
+            final fun <get-right>(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.right.<get-right>|<get-right>(){}[0]
+        final val top // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.top|{}top[0]
+            final fun <get-top>(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.top.<get-top>|<get-top>(){}[0]
+
+        final fun component1(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.component1|component1(){}[0]
+        final fun component2(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.component2|component2(){}[0]
+        final fun component3(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.component3|component3(){}[0]
+        final fun component4(): kotlin/Double // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.component4|component4(){}[0]
+        final fun copy(kotlin/Double = ..., kotlin/Double = ..., kotlin/Double = ..., kotlin/Double = ...): io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.copy|copy(kotlin.Double;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalProjection.EquirectangularTile.toString|toString(){}[0]
+    }
+
+    final object Equirectangular : io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection.Equirectangular|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalProjection.Equirectangular.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalProjection.Equirectangular.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalProjection.Equirectangular.toString|toString(){}[0]
+    }
+
+    final object Fisheye : io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection.Fisheye|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalProjection.Fisheye.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalProjection.Fisheye.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalProjection.Fisheye.toString|toString(){}[0]
+    }
+
+    final object HalfEquirectangular : io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection.HalfEquirectangular|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalProjection.HalfEquirectangular.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalProjection.HalfEquirectangular.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalProjection.HalfEquirectangular.toString|toString(){}[0]
+    }
+
+    final object ParametricImmersive : io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection.ParametricImmersive|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalProjection.ParametricImmersive.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalProjection.ParametricImmersive.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalProjection.ParametricImmersive.toString|toString(){}[0]
+    }
+
+    final object Rectilinear : io.github.yuroyami.kiteffmpeg/SphericalProjection { // io.github.yuroyami.kiteffmpeg/SphericalProjection.Rectilinear|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/SphericalProjection.Rectilinear.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/SphericalProjection.Rectilinear.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/SphericalProjection.Rectilinear.toString|toString(){}[0]
+    }
 }
 
 final object io.github.yuroyami.kiteffmpeg/FFmpeg { // io.github.yuroyami.kiteffmpeg/FFmpeg|null[0]

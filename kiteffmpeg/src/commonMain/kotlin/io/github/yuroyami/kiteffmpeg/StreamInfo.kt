@@ -147,6 +147,18 @@ public data class VideoStreamInfo(
      * the image, or null when it says nothing. A renderer leaves them out; FFmpeg does not.
      */
     val crop: VideoCrop? = null,
+    /**
+     * How the pictures map onto a sphere around the viewer, as the container states it, or null
+     * when it says nothing, which is a flat video. A 360 degree video reads
+     * [SphericalProjection.Equirectangular] or [SphericalProjection.Cubemap].
+     */
+    val spherical: SphericalMapping? = null,
+    /**
+     * How the pictures hold the views of two eyes, as the container states it, or null when it
+     * says nothing. A stereoscopic 360 degree video has both this and [spherical], and each eye's
+     * view maps onto the sphere on its own.
+     */
+    val stereo3d: Stereo3D? = null,
 )
 
 /**
