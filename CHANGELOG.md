@@ -106,6 +106,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- The initial view that Google's first spherical box states in an MP4 track reads as the
+  mapping's yaw, pitch and roll (#161). FFmpeg's reader found the projection and the stereo mode
+  in the box's XML but read all three angles as 0, because it parsed each number from the start of
+  its tag rather than after it. The specification draws heading, pitch and roll on the axes FFmpeg
+  draws for yaw, pitch and roll, so they carry over with their signs as they are, a fraction is
+  kept to the nearest step of 16.16, and the number reads the same in every locale. The fix is the
+  FFmpeg patch `0010-mov-read-the-initial-view-of-the-spherical-uuid-box.patch`, so it reaches a
+  platform only with an FFmpeg tree built from it, and the trees of 0.4.0 do not carry it.
 - A frame converted to another pixel format, to be saved as an image or fed to an encoder, is
   exact on every platform (#164). The conversion took swscale's fast path, which lands up to 3 off
   the colour matrix from YUV to RGB, repeats each chroma sample across a pair of pixels in a row,

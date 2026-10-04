@@ -1,0 +1,75 @@
+Let the MOV demuxer read the initial view that Google's first spherical box states.
+
+Version 1 of Google's spherical video metadata is an XML document in a uuid box inside the track,
+and besides the projection and the stereo mode it can state where the viewer first looks, with
+InitialViewHeadingDegrees, InitialViewPitchDegrees and InitialViewRollDegrees. The demuxer found
+each element with av_stristr and handed what it found straight to strtol, but that points at the
+opening tag's '<' rather than at the number after it, so strtol found no digits and every angle
+read as 0 while the projection and the stereo mode read correctly.
+
+The demuxer now reads the number after each opening tag. The specification draws its initial
+view on the axes spherical.h draws for AVSphericalMapping, heading from -180 at the left to 180
+at the right and pitch from -90 at the bottom to 90 at the top, and its roll of 90 turns the up
+vector to the right, where spherical.h tilts the view to the right for a positive roll. So
+heading becomes yaw, pitch stays pitch and roll stays roll with their signs as they are, as this
+demuxer already reads sv3d's pose. VLC's MP4 reader skips these
+angles, and it reads the same three from a photo sphere's metadata with the signs it gives sv3d's
+pose. The specification states each angle as an integer, and a fraction is kept too, rounded to the
+nearest step of 16.16. The number is read with av_sscanf, because strtod follows the process
+locale, and a JVM sets that from the user's, so in a German one it read 15.5 as 15. An element
+that holds no number, or one that 16.16 cannot carry, leaves its angle at 0 as before.
+
+Applied by BuildFFmpegTask before configure, after 0009. Fixes yuroyami/KiteFFmpeg#161.
+
+diff --git a/libavformat/mov.c b/libavformat/mov.c
+index 9b742ac..2d6ea52 100644
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -7514,6 +7514,23 @@ static void mov_merge_vexu(MOVStreamContext *sc)
+     av_freep(&sc->vexu_stereo3d);
+ }
+ 
++/**
++ * Read the angle in degrees that an element of the spherical uuid box holds, as 16.16 fixed
++ * point. The number follows the element's opening tag. Version 1 of Google's specification
++ * states an integer, and a fraction is kept too, read the same way in every locale. An element
++ * that is missing, holds no number or holds one that 16.16 cannot carry leaves the angle as it
++ * was.
++ */
++static void mov_parse_uuid_spherical_angle(const char *xml, const char *tag, int32_t *angle)
++{
++    const char *val = av_stristr(xml, tag);
++    double degrees;
++
++    if (val && av_sscanf(val + strlen(tag), "%lf", &degrees) == 1 &&
++        isfinite(degrees) && fabs(degrees) <= 32767.0)
++        *angle = lrint(degrees * (1 << 16));
++}
++
+ static int mov_parse_uuid_spherical(MOVStreamContext *sc, AVIOContext *pb, size_t len)
+ {
+     int ret = 0;
+@@ -7560,16 +7577,13 @@ static int mov_parse_uuid_spherical(MOVStreamContext *sc, AVIOContext *pb, size_
+             sc->stereo3d->type = mode;
+         }
+ 
+-        /* orientation */
+-        val = av_stristr(buffer, "<GSpherical:InitialViewHeadingDegrees>");
+-        if (val)
+-            sc->spherical->yaw = strtol(val, NULL, 10) * (1 << 16);
+-        val = av_stristr(buffer, "<GSpherical:InitialViewPitchDegrees>");
+-        if (val)
+-            sc->spherical->pitch = strtol(val, NULL, 10) * (1 << 16);
+-        val = av_stristr(buffer, "<GSpherical:InitialViewRollDegrees>");
+-        if (val)
+-            sc->spherical->roll = strtol(val, NULL, 10) * (1 << 16);
++        /* orientation, which the specification draws on the same axes as AVSphericalMapping */
++        mov_parse_uuid_spherical_angle(buffer, "<GSpherical:InitialViewHeadingDegrees>",
++                                       &sc->spherical->yaw);
++        mov_parse_uuid_spherical_angle(buffer, "<GSpherical:InitialViewPitchDegrees>",
++                                       &sc->spherical->pitch);
++        mov_parse_uuid_spherical_angle(buffer, "<GSpherical:InitialViewRollDegrees>",
++                                       &sc->spherical->roll);
+     }
+ 
+ out:

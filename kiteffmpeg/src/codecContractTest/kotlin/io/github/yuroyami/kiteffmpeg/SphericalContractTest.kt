@@ -12,6 +12,10 @@ import kotlin.test.assertNull
  * An MP4 that carries both Google's boxes and Apple's reads them as one description, whichever
  * comes first (#160). The fix is the FFmpeg patch `0009`, so that test fails on a tree built before
  * it: such a tree refuses the file at its header.
+ *
+ * Google's first spherical box, a uuid box holding XML, states the initial view in whole degrees,
+ * and FFmpeg 9.0.2 read every angle of it as 0 (#161). The fix is the FFmpeg patch `0010`, so that
+ * test fails on a tree built before it.
  */
 class SphericalContractTest {
 
@@ -63,6 +67,13 @@ class SphericalContractTest {
     fun googleBoxesReadNegativeAndFractionalAnglesExactly() {
         val video = videoOf(GoogleBoxesMp4.bytes, GoogleBoxesMp4.sha256)
         assertEquals(SphericalMapping(SphericalProjection.Equirectangular, yaw = -12.5, pitch = 45.75, roll = -170.25), video.spherical)
+        assertEquals(packed(Stereo3DType.TopBottom, inverted = false), video.stereo3d)
+    }
+
+    @Test
+    fun googlesFirstBoxReadsItsInitialView() {
+        val video = videoOf(InitialViewMp4.bytes, InitialViewMp4.sha256)
+        assertEquals(SphericalMapping(SphericalProjection.Equirectangular, yaw = 90.0, pitch = -30.0, roll = 15.0), video.spherical)
         assertEquals(packed(Stereo3DType.TopBottom, inverted = false), video.stereo3d)
     }
 
@@ -292,5 +303,46 @@ EGRhZGoAAAAA////agAAAAxoZm92AAGvpAAAAFFzdjNkAAAADXN2aGQAAAAAAAAAADxwcm9qAAAAGHBy
 VcAAAAAAHGVxdWkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1zdDNkAAAAAAEAAAAYc3R0cwAAAAAAAAABAAAAAQAAAoAAAAAcc3Rz
 YwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN0c3oAAAAAAAAACwAAAAEAAAAUc3RjbwAAAAAAAAABAAAAMAAAAD11ZHRhAAAANW1l
 dGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAACGlsc3Q=
+"""
+}
+
+/**
+ * The plain MP4 the C suite builds its files from, a 16x16 H.264 picture, with Google's first
+ * spherical box added by hand to its track ahead of the media box: equirectangular, top and bottom,
+ * and an initial view at heading 90, pitch -30 and roll 15. FFmpeg 9.0.2 without patch `0010`
+ * reads that view as 0, 0 and 0.
+ */
+private object InitialViewMp4 {
+    const val sha256: String = "b1db81904d961cd558f4d3d98cc7d4a61f0defe400baf482127f55b97e4c174f"
+
+    val bytes: ByteArray by lazy {
+        decodeBase64(DATA.filterNot { it.isWhitespace() }).also { decoded ->
+            check(decoded.size == 1528) { "InitialViewMp4 fixture size changed: ${decoded.size}" }
+            check(sha256Hex(decoded) == sha256) { "InitialViewMp4 fixture digest changed" }
+        }
+    }
+
+    private val DATA: String = """
+AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAABNtZGF0AAAAB2WIhDomKA4AAAW9bW9vdgAAAGxtdmhk
+AAAAAAAAAAAAAAAAAAAD6AAAACgAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAABQx0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAACgAAAAAAAAAAAAA
+AAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEA
+AAAoAAAAAAABAAAAAALWdXVpZP/MgmP4VUqTiBRYegJSH908P3htbCB2ZXJzaW9uPSIxLjAiPz48cmRmOlNwaGVyaWNhbFZpZGVv
+IHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyIgeG1sbnM6R1NwaGVyaWNhbD0i
+aHR0cDovL25zLmdvb2dsZS5jb20vdmlkZW9zLzEuMC9zcGhlcmljYWwvIj48R1NwaGVyaWNhbDpTcGhlcmljYWw+dHJ1ZTwvR1Nw
+aGVyaWNhbDpTcGhlcmljYWw+PEdTcGhlcmljYWw6U3RpdGNoZWQ+dHJ1ZTwvR1NwaGVyaWNhbDpTdGl0Y2hlZD48R1NwaGVyaWNh
+bDpTdGl0Y2hpbmdTb2Z0d2FyZT5LaXRlRkZtcGVnPC9HU3BoZXJpY2FsOlN0aXRjaGluZ1NvZnR3YXJlPjxHU3BoZXJpY2FsOlBy
+b2plY3Rpb25UeXBlPmVxdWlyZWN0YW5ndWxhcjwvR1NwaGVyaWNhbDpQcm9qZWN0aW9uVHlwZT48R1NwaGVyaWNhbDpTdGVyZW9N
+b2RlPnRvcC1ib3R0b208L0dTcGhlcmljYWw6U3RlcmVvTW9kZT48R1NwaGVyaWNhbDpJbml0aWFsVmlld0hlYWRpbmdEZWdyZWVz
+PjkwPC9HU3BoZXJpY2FsOkluaXRpYWxWaWV3SGVhZGluZ0RlZ3JlZXM+PEdTcGhlcmljYWw6SW5pdGlhbFZpZXdQaXRjaERlZ3Jl
+ZXM+LTMwPC9HU3BoZXJpY2FsOkluaXRpYWxWaWV3UGl0Y2hEZWdyZWVzPjxHU3BoZXJpY2FsOkluaXRpYWxWaWV3Um9sbERlZ3Jl
+ZXM+MTU8L0dTcGhlcmljYWw6SW5pdGlhbFZpZXdSb2xsRGVncmVlcz48L3JkZjpTcGhlcmljYWxWaWRlbz4AAAGubWRpYQAAACBt
+ZGhkAAAAAAAAAAAAAAAAAAA+gAAAAoBVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAAB
+WW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAARlzdGJsAAAAtXN0
+c2QAAAAAAAAAAQAAAKVhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAGP//AAAAK2F2Y0MBQsAK/+EAFGdCwArd7ARAAAADAEAAAAyDxIngAQAEaM4PyAAAABBwYXNwAAAA
+AQAAAAEAAAAUYnRydAAAAAAAAAiYAAAImAAAABhzdHRzAAAAAAAAAAEAAAABAAACgAAAABxzdHNjAAAAAAAAAAEAAAABAAAAAQAA
+AAEAAAAUc3RzegAAAAAAAAALAAAAAQAAABRzdGNvAAAAAAAAAAEAAAAwAAAAPXVkdGEAAAA1bWV0YQAAAAAAAAAhaGRscgAAAAAA
+AAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAIaWxzdA==
 """
 }

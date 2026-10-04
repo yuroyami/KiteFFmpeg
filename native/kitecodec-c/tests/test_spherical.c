@@ -10,6 +10,9 @@
  * An MP4 can carry Google's boxes and Apple's at once, and FFmpeg 9.0.2 lost the turn, the packing
  * or the whole file depending on their order (#160). The cases for that assemble each order from a
  * plain MP4 and run only against a tree built with the patch that adds the two up.
+ *
+ * Google's first spherical box states the initial view as text, and FFmpeg 9.0.2 read every angle
+ * of it as 0 (#161). The cases for that run only against a tree built with the patch that reads it.
  */
 
 #include "harness.h"
@@ -459,6 +462,9 @@ static void expect_untouched(const int *out)
 /* FFmpeg's patch that adds Google's and Apple's boxes up whatever order they come in. */
 #define KC_ADDS_UP_PATCH "0009-mov-add-up-the-360-and-stereo-boxes.patch"
 
+/* FFmpeg's patch that reads the initial view of Google's first spherical box. */
+#define KC_INITIAL_VIEW_PATCH "0010-mov-read-the-initial-view-of-the-spherical-uuid-box.patch"
+
 /* 1 when the linked FFmpeg's tree lists [patch] among the patches it was built with. */
 static int linked_tree_carries(const char *patch)
 {
@@ -549,6 +555,9 @@ typedef enum {
     KC_VEXU_EYES_FIRST, /* both eyes, the right one primary, then side by side in a pack box */
     KC_HFOV,            /* Apple's field of view box: 110.5 degrees */
     KC_UUID_V1,         /* Google's first spherical box, in the track: equirectangular, top and bottom */
+    KC_UUID_V1_WHOLE,   /* the same, its initial view at heading 90, pitch -30 and roll 15 */
+    KC_UUID_V1_FRACTIONS, /* the same, at heading -12.5 after a space, pitch 45.75 and roll 33.3 */
+    KC_UUID_V1_UNREADABLE, /* the same, at heading "east", pitch 40000 and roll "nan" */
 } kc_part;
 
 static void put_sv3d(kc_buffer *b, int32_t yaw, int32_t pitch, int32_t roll, int cubemap, uint32_t padding)
@@ -633,8 +642,21 @@ static void put_part(kc_buffer *b, kc_part part)
         "<GSpherical:Stitched>true</GSpherical:Stitched>"
         "<GSpherical:StitchingSoftware>KiteFFmpeg</GSpherical:StitchingSoftware>"
         "<GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType>"
-        "<GSpherical:StereoMode>top-bottom</GSpherical:StereoMode>"
-        "</rdf:SphericalVideo>";
+        "<GSpherical:StereoMode>top-bottom</GSpherical:StereoMode>";
+    static const char whole_view[] =
+        "<GSpherical:InitialViewHeadingDegrees>90</GSpherical:InitialViewHeadingDegrees>"
+        "<GSpherical:InitialViewPitchDegrees>-30</GSpherical:InitialViewPitchDegrees>"
+        "<GSpherical:InitialViewRollDegrees>15</GSpherical:InitialViewRollDegrees>";
+    static const char fractional_view[] =
+        "<GSpherical:InitialViewHeadingDegrees> -12.5</GSpherical:InitialViewHeadingDegrees>"
+        "<GSpherical:InitialViewPitchDegrees>45.75</GSpherical:InitialViewPitchDegrees>"
+        "<GSpherical:InitialViewRollDegrees>33.3</GSpherical:InitialViewRollDegrees>";
+    static const char unreadable_view[] =
+        "<GSpherical:InitialViewHeadingDegrees>east</GSpherical:InitialViewHeadingDegrees>"
+        "<GSpherical:InitialViewPitchDegrees>40000</GSpherical:InitialViewPitchDegrees>"
+        "<GSpherical:InitialViewRollDegrees>nan</GSpherical:InitialViewRollDegrees>";
+    static const char spherical_end[] = "</rdf:SphericalVideo>";
+    const char *view;
     size_t at;
 
     switch (part) {
@@ -682,9 +704,17 @@ static void put_part(kc_buffer *b, kc_part part)
         close_box(b, at);
         break;
     case KC_UUID_V1:
+    case KC_UUID_V1_WHOLE:
+    case KC_UUID_V1_FRACTIONS:
+    case KC_UUID_V1_UNREADABLE:
+        view = part == KC_UUID_V1_WHOLE ? whole_view
+             : part == KC_UUID_V1_FRACTIONS ? fractional_view
+             : part == KC_UUID_V1_UNREADABLE ? unreadable_view : "";
         at = open_box(b, "uuid");
         put_raw(b, spherical_uuid, sizeof(spherical_uuid));
         put_raw(b, spherical_xml, sizeof(spherical_xml) - 1);
+        put_raw(b, view, strlen(view));
+        put_raw(b, spherical_end, sizeof(spherical_end) - 1);
         close_box(b, at);
         break;
     }
@@ -877,6 +907,26 @@ static void case_googles_first_box_counts_as_googles(void)
     kc_case("Google's first spherical box in the track is kept over Apple's half sphere, before or after it");
     expect_reading(apples, 1, googles, 1, 1, kc_unturned, stereo);
     expect_reading(apples, 1, googles, 1, 0, kc_unturned, stereo);
+}
+
+static void case_googles_first_box_turns_its_initial_view(void)
+{
+    static const kc_part whole[1] = { KC_UUID_V1_WHOLE }, fractions[1] = { KC_UUID_V1_FRACTIONS },
+                         unreadable[1] = { KC_UUID_V1_UNREADABLE };
+    static const int turned_whole[9] = { AV_SPHERICAL_EQUIRECTANGULAR, KC_DEGREES(9000), KC_DEGREES(-3000),
+                                         KC_DEGREES(1500), 0, 0, 0, 0, 0 };
+    /* 33.3 degrees is 2182348.8 in 16.16, which rounds to 2182349. */
+    static const int turned_fractions[9] = { AV_SPHERICAL_EQUIRECTANGULAR, KC_DEGREES(-1250), KC_DEGREES(4575),
+                                             2182349, 0, 0, 0, 0, 0 };
+    static const int stereo[9] = { AV_STEREO3D_TOPBOTTOM, 0, AV_STEREO3D_VIEW_PACKED, AV_PRIMARY_EYE_NONE,
+                                   0, 0, 1, 0, 1 };
+
+    kc_case("Google's first spherical box turns its initial view by the whole degrees its specification states");
+    expect_reading(NULL, 0, whole, 1, 1, turned_whole, stereo);
+    kc_case("Google's first spherical box keeps a fraction of a degree to the nearest step of 16.16");
+    expect_reading(NULL, 0, fractions, 1, 1, turned_fractions, stereo);
+    kc_case("an angle that is no number or that 16.16 cannot hold leaves the initial view unturned");
+    expect_reading(NULL, 0, unreadable, 1, 1, kc_unturned, stereo);
 }
 
 #endif
@@ -1110,18 +1160,25 @@ int main(void)
     case_null_arguments_are_refused();
 
 #if KC_ADDS_UP_CASES
-    if (!linked_tree_carries(KC_ADDS_UP_PATCH)) {
+    if (linked_tree_carries(KC_ADDS_UP_PATCH)) {
+        case_the_two_descriptions_add_up_in_any_order();
+        case_disagreeing_stereo_keeps_googles_whole();
+        case_disagreeing_projection_keeps_googles_whole();
+        case_a_pack_box_keeps_its_packing();
+        case_googles_first_box_counts_as_googles();
+    } else {
         kc_note("the linked FFmpeg's tree does not list %s, so the cases of both descriptions did not run",
                 KC_ADDS_UP_PATCH);
-        return kc_suite_end();
     }
-    case_the_two_descriptions_add_up_in_any_order();
-    case_disagreeing_stereo_keeps_googles_whole();
-    case_disagreeing_projection_keeps_googles_whole();
-    case_a_pack_box_keeps_its_packing();
-    case_googles_first_box_counts_as_googles();
+    if (linked_tree_carries(KC_INITIAL_VIEW_PATCH)) {
+        case_googles_first_box_turns_its_initial_view();
+    } else {
+        kc_note("the linked FFmpeg's tree does not list %s, so the cases of the initial view did not run",
+                KC_INITIAL_VIEW_PATCH);
+    }
 #else
-    kc_note("FFmpeg older than 7.1 reads no video extension box, so the cases of both descriptions did not run");
+    kc_note("FFmpeg older than 7.1 reads no video extension box, so the cases of both descriptions and of the "
+            "initial view did not run");
 #endif
 
     return kc_suite_end();
