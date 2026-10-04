@@ -178,6 +178,9 @@ public actual class Frame internal constructor(
         }
     }
 
+    public actual fun dolbyVisionRpu(): DolbyVisionRpu? =
+        throw FFmpegException(FFmpegError.Unsupported(0, "reading the whole Dolby Vision RPU is not wired yet"))
+
     public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? {
         val m = requireModule()
         val p = alive()

@@ -95,6 +95,10 @@ public actual class Frame internal constructor(
     public actual fun dolbyVision(): DolbyVisionMetadata? = locked { Internals.frameDolbyVision(it) }
 
     @Throws(FFmpegException::class)
+    public actual fun dolbyVisionRpu(): DolbyVisionRpu? =
+        throw FFmpegException(FFmpegError.Unsupported(0, "reading the whole Dolby Vision RPU is not wired yet"))
+
+    @Throws(FFmpegException::class)
     public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = locked { source ->
         if (Internals.frameIsHardware(source)) throw dolbyVisionHardwareRefusal()
         val composed = Internals.frameAlloc()

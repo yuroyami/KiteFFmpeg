@@ -85,6 +85,17 @@ public expect class Frame : AutoCloseable {
     public fun dolbyVision(): DolbyVisionMetadata?
 
     /**
+     * The whole Dolby Vision RPU of this video frame as FFmpeg's decoder parsed it: the reshaping
+     * curves, the inverse quantization and the colour matrices, which [dolbyVision] leaves out.
+     * See [DolbyVisionRpu].
+     *
+     * @return the RPU, or null when the frame carries none
+     * @throws FFmpegException if the RPU cannot be read
+     */
+    @Throws(FFmpegException::class)
+    public fun dolbyVisionRpu(): DolbyVisionRpu?
+
+    /**
      * Starts the Dolby Vision composition of this video frame, which turns its base layer and RPU
      * into an HDR10 picture. See [DolbyVisionComposition] for what the picture is and how to
      * spread the work over several threads.

@@ -22,6 +22,9 @@ public actual class Frame private constructor() : AutoCloseable {
     public actual fun dolbyVision(): DolbyVisionMetadata? = placeholderBackendUnavailable("Reading Dolby Vision metadata")
 
     @Throws(FFmpegException::class)
+    public actual fun dolbyVisionRpu(): DolbyVisionRpu? = placeholderBackendUnavailable("Reading the Dolby Vision RPU")
+
+    @Throws(FFmpegException::class)
     public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? =
         placeholderBackendUnavailable("Composing Dolby Vision")
 

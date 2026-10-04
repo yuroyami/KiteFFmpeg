@@ -98,6 +98,200 @@ public data class DolbyVisionBrightness(
 )
 
 /**
+ * Everything the RPU of one decoded frame says about turning its base layer into the graded
+ * picture, as FFmpeg's decoder parsed it into `AVDOVIMetadata`: the [header], the reshaping and
+ * inverse quantization in [mapping], and the matrices and levels of the signal in [color].
+ *
+ * [Frame.composeDolbyVision] applies the reshaping and the matrices on the CPU. This is for a caller
+ * that composes somewhere else, such as in a shader, or inspects the RPU. [Frame.dolbyVision] is
+ * the cheaper read when only the levels matter.
+ *
+ * Every number is the one FFmpeg holds, exactly, so each can be checked against what
+ * `ffprobe -show_frames` prints. Pivots are code values of the base layer, of
+ * [DolbyVisionRpuHeader.baseLayerBitDepth] bits. Coefficients are fixed-point numbers over
+ * 2^[DolbyVisionRpuHeader.coefficientLog2Denominator], because FFmpeg turns an RPU that codes
+ * them as floating point into that form too; [coefficientValue] gives one as a [Double]. Matrix
+ * entries and offsets are [Rational]s.
+ */
+public data class DolbyVisionRpu(
+    val header: DolbyVisionRpuHeader,
+    val mapping: DolbyVisionMapping,
+    val color: DolbyVisionColor,
+) {
+    /** The number a fixed-point [coefficient] of this RPU stands for. */
+    public fun coefficientValue(coefficient: Long): Double =
+        coefficient.toDouble() / 2.0.pow(header.coefficientLog2Denominator)
+}
+
+/**
+ * The header of an RPU, FFmpeg's `AVDOVIRpuDataHeader`, each field under its name there. Its two
+ * `ext_mapping_idc` fields are left out, because nothing in FFmpeg but its RPU encoder reads them.
+ */
+public data class DolbyVisionRpuHeader(
+    /** `rpu_type`, which is 2 for every RPU FFmpeg reads. */
+    val rpuType: Int,
+    /** `rpu_format`, whose bits say how the rest of the RPU is laid out. */
+    val rpuFormat: Int,
+    /** `vdr_rpu_profile`. */
+    val vdrRpuProfile: Int,
+    /** `vdr_rpu_level`. */
+    val vdrRpuLevel: Int,
+    /** `chroma_resampling_explicit_filter_flag`. */
+    val chromaResamplingExplicitFilter: Boolean,
+    /** `coef_data_type`: 0 when the RPU codes its coefficients in fixed point, 1 in floating point. */
+    val coefficientDataType: Int,
+    /** `coef_log2_denom`: every coefficient of the RPU is a fixed-point number over 2 to this power. */
+    val coefficientLog2Denominator: Int,
+    /** `vdr_rpu_normalized_idc`. */
+    val vdrRpuNormalizedIdc: Int,
+    /** `bl_video_full_range_flag`: whether the base layer uses the full range of its codes. */
+    val baseLayerFullRange: Boolean,
+    /** `bl_bit_depth`: the bit depth of the base layer, which is the scale of every pivot. */
+    val baseLayerBitDepth: Int,
+    /** `el_bit_depth`: the bit depth of the enhancement layer. */
+    val enhancementLayerBitDepth: Int,
+    /** `vdr_bit_depth`: the bit depth of the reshaped picture. */
+    val vdrBitDepth: Int,
+    /** `spatial_resampling_filter_flag`. */
+    val spatialResamplingFilter: Boolean,
+    /** `el_spatial_resampling_filter_flag`. */
+    val enhancementLayerSpatialResamplingFilter: Boolean,
+    /** `disable_residual_flag`: true when the composition adds nothing from an enhancement layer. */
+    val disableResidual: Boolean,
+)
+
+/**
+ * How an RPU maps each component of the base layer, FFmpeg's `AVDOVIDataMapping`.
+ *
+ * The three [curves] are the components in the base layer's order, luma first.
+ */
+public data class DolbyVisionMapping(
+    /** `vdr_rpu_id`. */
+    val vdrRpuId: Int,
+    /** `mapping_color_space`. */
+    val mappingColorSpace: Int,
+    /** `mapping_chroma_format_idc`. */
+    val mappingChromaFormat: Int,
+    /** The reshaping of each of the three components. */
+    val curves: List<DolbyVisionCurve>,
+    /**
+     * How the residual of an enhancement layer is restored before it is added, or null when the
+     * RPU carries none, which it never does when [DolbyVisionRpuHeader.disableResidual] is set.
+     * FFmpeg does not decode that layer, so this matters only to a caller that decodes it on its
+     * own.
+     */
+    val nonlinearQuantization: DolbyVisionNonlinearQuantization?,
+    /** `num_x_partitions`. */
+    val xPartitions: Int,
+    /** `num_y_partitions`. */
+    val yPartitions: Int,
+)
+
+/**
+ * The reshaping of one component: a curve in pieces between [pivots], each piece a polynomial or
+ * an MMR mapping, FFmpeg's `AVDOVIReshapingCurve`.
+ *
+ * A code from `pivots[i]` up to `pivots[i + 1]` goes through `pieces[i]`, so there is one piece
+ * fewer than there are pivots. A piece is evaluated on the code divided by the largest code of
+ * the base layer, so on a value from 0 to 1.
+ */
+public data class DolbyVisionCurve(
+    /** From two to nine pivots, in ascending order, as code values of the base layer. */
+    val pivots: List<Int>,
+    /** The mapping of each span between two pivots. */
+    val pieces: List<DolbyVisionPiece>,
+)
+
+/** The mapping of one span of a [DolbyVisionCurve]. */
+public sealed class DolbyVisionPiece {
+
+    /**
+     * A polynomial of the component's own value x: `coefficients[0] + coefficients[1] * x`, plus
+     * `coefficients[2] * x * x` when there are three. Each coefficient is fixed point, as
+     * [DolbyVisionRpu] describes.
+     */
+    public data class Polynomial(val coefficients: List<Long>) : DolbyVisionPiece()
+
+    /**
+     * A multivariate multiple regression of all three components at the same place: [constant]
+     * plus, for each order from 1 to `coefficients.size`, seven coefficients times seven terms
+     * raised to that order. The terms are the three components, their products in pairs (first
+     * and second, first and third, second and third) and the product of all three. Each
+     * coefficient is fixed point, as [DolbyVisionRpu] describes.
+     */
+    public data class Mmr(val constant: Long, val coefficients: List<List<Long>>) : DolbyVisionPiece()
+}
+
+/**
+ * The linear dead-zone inverse quantization that restores an enhancement layer's residual, the
+ * one method FFmpeg reads, from FFmpeg's `AVDOVIDataMapping`.
+ */
+public data class DolbyVisionNonlinearQuantization(
+    /**
+     * `nlq_pivots`, two pivots as code values of the base layer, or null when built against an
+     * FFmpeg older than 7.0, which does not export them.
+     */
+    val pivots: List<Int>?,
+    /** The parameters of each of the three components. */
+    val components: List<DolbyVisionNlqComponent>,
+)
+
+/** The inverse quantization of one component, FFmpeg's `AVDOVINLQParams`. */
+public data class DolbyVisionNlqComponent(
+    /** `nlq_offset`, a code value of the enhancement layer. */
+    val offset: Int,
+    /** `vdr_in_max`, a fixed-point coefficient. */
+    val vdrInMax: Long,
+    /** `linear_deadzone_slope`, a fixed-point coefficient. */
+    val deadZoneSlope: Long,
+    /** `linear_deadzone_threshold`, a fixed-point coefficient. */
+    val deadZoneThreshold: Long,
+)
+
+/**
+ * The colour of the reshaped signal, FFmpeg's `AVDOVIColorMetadata`, which FFmpeg fills with its
+ * defaults when the RPU carries none of its own.
+ *
+ * A composition takes [yccToRgbOffset] off the reshaped components and turns them into L'M'S'
+ * with [yccToRgbMatrix], makes them linear with the PQ curve, and applies [rgbToLmsMatrix]. Each
+ * matrix is nine entries, row by row.
+ */
+public data class DolbyVisionColor(
+    /** `dm_metadata_id`. */
+    val dmMetadataId: Int,
+    /** `scene_refresh_flag`. */
+    val sceneRefresh: Int,
+    /** `ycc_to_rgb_matrix`, applied before PQ linearisation. */
+    val yccToRgbMatrix: List<Rational>,
+    /** `ycc_to_rgb_offset`, taken off each component before [yccToRgbMatrix]. */
+    val yccToRgbOffset: List<Rational>,
+    /** `rgb_to_lms_matrix`, applied after PQ linearisation. */
+    val rgbToLmsMatrix: List<Rational>,
+    /** `signal_eotf`. */
+    val signalEotf: Int,
+    /** `signal_eotf_param0`. */
+    val signalEotfParam0: Int,
+    /** `signal_eotf_param1`. */
+    val signalEotfParam1: Int,
+    /** `signal_eotf_param2`. */
+    val signalEotfParam2: Long,
+    /** `signal_bit_depth`. */
+    val signalBitDepth: Int,
+    /** `signal_color_space`. */
+    val signalColorSpace: Int,
+    /** `signal_chroma_format`. */
+    val signalChromaFormat: Int,
+    /** `signal_full_range_flag`, from 0 to 3. */
+    val signalFullRange: Int,
+    /** The darkest level the content was graded for, as a 12-bit PQ code. */
+    val sourceMinPq: Int,
+    /** The brightest level the content was graded for, as a 12-bit PQ code. */
+    val sourceMaxPq: Int,
+    /** `source_diagonal`. */
+    val sourceDiagonal: Int,
+)
+
+/**
  * The Dolby Vision composition of one frame, which turns the base layer and its RPU into an
  * ordinary HDR10 picture: 10-bit 4:2:0 in BT.2020 with the PQ curve, limited range, the source's
  * range as its mastering display, and no Dolby Vision metadata left on it. Every renderer that can

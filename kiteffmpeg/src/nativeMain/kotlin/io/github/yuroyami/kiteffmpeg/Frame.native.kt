@@ -225,6 +225,10 @@ public actual class Frame internal constructor(
     }
 
     @Throws(FFmpegException::class)
+    public actual fun dolbyVisionRpu(): DolbyVisionRpu? =
+        throw FFmpegException(FFmpegError.Unsupported(0, "reading the whole Dolby Vision RPU is not wired yet"))
+
+    @Throws(FFmpegException::class)
     public actual fun beginDolbyVisionComposition(): DolbyVisionComposition? = withNative { source ->
         if (ffkmp_frame_is_hardware(source) != 0) throw dolbyVisionHardwareRefusal()
         val composed = ffkmp_frame_alloc()
