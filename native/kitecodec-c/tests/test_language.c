@@ -1,0 +1,285 @@
+/* A stream's language, through the writers whose field holds a three-letter ISO 639-2 code (#156).
+ *
+ * FFmpeg's "language" tag holds a BCP 47 tag whenever the source gave one: the HLS and DASH
+ * demuxers copy a rendition's tag, and Matroska's LanguageBCP47 says "en" or "pt-BR". MP4, MOV,
+ * MPEG-TS and Matroska took such a tag as if it were a three-letter code, so MP4, MOV and MPEG-TS
+ * dropped it and Matroska wrote it into an element that holds a code. The patch
+ * 0005-write-a-bcp47-language-as-its-iso639-code makes each of them write the code of the language
+ * the tag's first subtag names, and Matroska also write the whole tag as LanguageBCP47.
+ *
+ * Each case writes one audio stream of packets that are not real audio, since a writer copies them,
+ * and reads the language back with FFmpeg, or for Matroska reads the elements themselves. A linked
+ * FFmpeg whose tree does not list the patch in lib/kiteffmpeg/ffmpeg-patches.txt, such as a
+ * distribution's, runs only the case that holds without it.
+ */
+
+#include "harness.h"
+
+#include "kitecodec_helpers.h"
+
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/mem.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#ifndef KC_BUILD_FFMPEG_DIR
+#define KC_BUILD_FFMPEG_DIR "unknown"
+#endif
+
+#define WRITER_PATCH "0005-write-a-bcp47-language-as-its-iso639-code.patch"
+
+#define MATROSKA_ID_LANGUAGE 0x22B59C
+#define MATROSKA_ID_LANGUAGE_BCP47 0x22B59D
+
+static const char *const extensions[] = { "mp4", "mov", "ts", "mkv", "webm" };
+static char base[480];
+static char path[512];
+
+static void remove_fixtures(void)
+{
+    for (size_t i = 0; i < sizeof(extensions) / sizeof(extensions[0]); i++) {
+        snprintf(path, sizeof(path), "%s.%s", base, extensions[i]);
+        remove(path);
+    }
+}
+
+/* 1 when the tree of the linked FFmpeg lists patch among the patches it was built with. */
+static int linked_tree_carries(const char *patch)
+{
+    char evidence[1024], line[512];
+    int found = 0;
+    snprintf(evidence, sizeof(evidence), "%s/kiteffmpeg/ffmpeg-patches.txt", KC_BUILD_FFMPEG_DIR);
+    FILE *f = fopen(evidence, "r");
+    if (!f) return 0;
+    while (!found && fgets(line, sizeof(line), f))
+        found = strncmp(line, patch, strlen(patch)) == 0;
+    fclose(f);
+    return found;
+}
+
+static int put_packet(AVFormatContext *oc, AVStream *st, int index, int ts)
+{
+    /* An ADTS header for AAC LC at 48 kHz in stereo, which MPEG-TS needs to carry AAC with no
+     * extradata, then a payload no decoder is ever asked to read. */
+    static const uint8_t payload[9] = { 0x21, 0x10, 0x04, 0x60, 0x8c, 0x1c, 0x01, 0x02, 0x03 };
+    const int opus = st->codecpar->codec_id == AV_CODEC_ID_OPUS;
+    const int size = (ts ? 7 : 0) + (int)sizeof(payload);
+    AVPacket *pkt = av_packet_alloc();
+    int rc;
+    if (!pkt || av_new_packet(pkt, size) < 0) {
+        av_packet_free(&pkt);
+        return -1;
+    }
+    if (ts) {
+        const uint8_t adts[7] = { 0xff, 0xf1, 0x4c, (uint8_t)(0x80 | ((size >> 11) & 3)),
+                                  (uint8_t)(size >> 3), (uint8_t)(((size & 7) << 5) | 0x1f), 0xfc };
+        memcpy(pkt->data, adts, sizeof(adts));
+    }
+    memcpy(pkt->data + (ts ? 7 : 0), payload, sizeof(payload));
+    if (opus) pkt->data[0] = 0xfc; /* one 20 ms CELT frame */
+    pkt->duration = opus ? 960 : 1024;
+    pkt->pts = pkt->dts = (int64_t)index * pkt->duration;
+    pkt->stream_index = st->index;
+    av_packet_rescale_ts(pkt, (AVRational){ 1, 48000 }, st->time_base);
+    pkt->flags |= AV_PKT_FLAG_KEY;
+    rc = av_interleaved_write_frame(oc, pkt);
+    av_packet_free(&pkt);
+    return rc;
+}
+
+/* Writes one audio stream tagged lang through the muxer named format into path, which gets the
+ * format's extension, since a probe takes a tiny MPEG-TS file without one for MPEG-PS: Opus for
+ * WebM, AAC otherwise. Returns 0, or -1 when this FFmpeg cannot write it. */
+static int write_tagged(const char *format, const char *lang)
+{
+    static const uint8_t opus_head[19] = { 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd', 1, 2,
+                                           0x38, 0x01, 0x80, 0xbb, 0, 0, 0, 0, 0 };
+    static const uint8_t aac_config[2] = { 0x11, 0x90 };
+    const int webm = strcmp(format, "webm") == 0;
+    const int ts = strcmp(format, "mpegts") == 0;
+    AVFormatContext *oc = NULL;
+    int ok = -1;
+    snprintf(path, sizeof(path), "%s.%s", base,
+             ts ? "ts" : strcmp(format, "matroska") == 0 ? "mkv" : format);
+    if (avformat_alloc_output_context2(&oc, NULL, format, path) < 0) return -1;
+    AVStream *st = avformat_new_stream(oc, NULL);
+    if (!st) goto done;
+    AVCodecParameters *par = st->codecpar;
+    par->codec_type = AVMEDIA_TYPE_AUDIO;
+    par->codec_id = webm ? AV_CODEC_ID_OPUS : AV_CODEC_ID_AAC;
+    par->sample_rate = 48000;
+    av_channel_layout_default(&par->ch_layout, 2);
+    if (!ts) {
+        const uint8_t *config = webm ? opus_head : aac_config;
+        const int size = webm ? (int)sizeof(opus_head) : (int)sizeof(aac_config);
+        par->extradata = av_mallocz(size + AV_INPUT_BUFFER_PADDING_SIZE);
+        if (!par->extradata) goto done;
+        memcpy(par->extradata, config, (size_t)size);
+        par->extradata_size = size;
+    }
+    st->time_base = (AVRational){ 1, 48000 };
+    if (lang && av_dict_set(&st->metadata, "language", lang, 0) < 0) goto done;
+    if (avio_open(&oc->pb, path, AVIO_FLAG_WRITE) < 0) goto done;
+    if (avformat_write_header(oc, NULL) < 0) goto done;
+    /* Enough packets for a probe to tell MPEG-TS from MPEG-PS. */
+    for (int i = 0; i < 40; i++)
+        if (put_packet(oc, st, i, ts) < 0) goto done;
+    if (av_write_trailer(oc) < 0) goto done;
+    ok = 0;
+done:
+    if (oc && oc->pb) avio_closep(&oc->pb);
+    avformat_free_context(oc);
+    return ok;
+}
+
+/* The language FFmpeg reads back for the first stream of path, copied into out, or "" when the
+ * stream has none. */
+static void read_language(char *out, size_t size)
+{
+    kc_fmt_ctx *ctx = NULL;
+    KC_EQ_INT(ffkmp_fmt_open_input(&ctx, path), 0);
+    /* MPEG-TS adds its streams as it reads, so the read goes on until each one is found. */
+    KC_CHECK(ffkmp_fmt_find_stream_info(ctx) >= 0);
+    AVFormatContext *c = (AVFormatContext *)ctx;
+    KC_CHECK(c->nb_streams >= 1);
+    const AVDictionaryEntry *tag = av_dict_get(c->streams[0]->metadata, "language", NULL, 0);
+    snprintf(out, size, "%s", tag ? tag->value : "");
+    ffkmp_fmt_close_input(&ctx);
+}
+
+/* Writes lang into format and reads it back. expected "" means no language at all. */
+static void check_round_trip(const char *format, const char *lang, const char *expected)
+{
+    char read[64];
+    KC_EQ_INT(write_tagged(format, lang), 0);
+    read_language(read, sizeof(read));
+    kc_detail("%s %s->%s", format, lang, read[0] ? read : "(none)");
+    KC_EQ_STR(read, expected);
+}
+
+/* The value of the first element id in the file at path, a string whose size fits one byte, copied
+ * into out, or "" when the file has no such element. */
+static void matroska_element(unsigned id, char *out, size_t size)
+{
+    uint8_t buf[4096];
+    out[0] = '\0';
+    FILE *f = fopen(path, "rb");
+    KC_NOT_NULL(f);
+    size_t n = fread(buf, 1, sizeof(buf), f);
+    fclose(f);
+    for (size_t i = 0; i + 4 <= n; i++) {
+        if (buf[i] != (uint8_t)(id >> 16) || buf[i + 1] != (uint8_t)(id >> 8) || buf[i + 2] != (uint8_t)id)
+            continue;
+        KC_CHECKF(buf[i + 3] & 0x80, "element %06X has a size wider than one byte", id);
+        size_t len = buf[i + 3] & 0x7f;
+        KC_CHECK(i + 4 + len <= n && len < size);
+        memcpy(out, buf + i + 4, len);
+        out[len] = '\0';
+        return;
+    }
+}
+
+/* Writes lang into format and checks the Language and LanguageBCP47 elements it wrote. bcp47 ""
+ * means no LanguageBCP47 element. */
+static void check_elements(const char *format, const char *lang, const char *language, const char *bcp47)
+{
+    char got_language[64], got_bcp47[64];
+    KC_EQ_INT(write_tagged(format, lang), 0);
+    matroska_element(MATROSKA_ID_LANGUAGE, got_language, sizeof(got_language));
+    matroska_element(MATROSKA_ID_LANGUAGE_BCP47, got_bcp47, sizeof(got_bcp47));
+    kc_detail("%s %s->%s/%s", format, lang, got_language, got_bcp47[0] ? got_bcp47 : "(none)");
+    KC_EQ_STR(got_language, language);
+    KC_EQ_STR(got_bcp47, bcp47);
+}
+
+static void case_a_three_letter_code_is_written_as_it_is(void)
+{
+    kc_case("a three-letter code reaches every writer as it is");
+    check_round_trip("mp4", "eng", "eng");
+    check_round_trip("mp4", "ger", "ger");
+    check_round_trip("mov", "eng", "eng");
+    check_round_trip("mpegts", "eng", "eng");
+    check_round_trip("mpegts", "eng,fre", "eng,fre");
+    check_round_trip("matroska", "eng", "eng");
+}
+
+static void case_mp4_takes_the_terminological_code(void)
+{
+    kc_case("MP4 writes the terminological code of a BCP 47 tag's language");
+    check_round_trip("mp4", "en", "eng");
+    check_round_trip("mp4", "EN-gb", "eng");
+    check_round_trip("mp4", "pt-BR", "por");
+    check_round_trip("mp4", "zh-Hant", "zho");
+    check_round_trip("mp4", "de-CH", "deu");
+    check_round_trip("mp4", "yue-HK", "yue");
+    check_round_trip("mp4", "x-klingon", "");
+}
+
+static void case_mov_finds_the_language_in_its_table(void)
+{
+    kc_case("MOV finds a BCP 47 tag's language in its Macintosh table under either code");
+    check_round_trip("mov", "en", "eng");
+    check_round_trip("mov", "fr-CA", "fra");
+    check_round_trip("mov", "de", "ger");
+    check_round_trip("mov", "pt-BR", "por");
+}
+
+static void case_mpegts_takes_the_bibliographic_code(void)
+{
+    kc_case("MPEG-TS writes the bibliographic code of each BCP 47 tag's language");
+    check_round_trip("mpegts", "en", "eng");
+    check_round_trip("mpegts", "pt-BR", "por");
+    check_round_trip("mpegts", "zh-Hant", "chi");
+    check_round_trip("mpegts", "de-CH", "ger");
+    check_round_trip("mpegts", "pt-BR,en", "por,eng");
+    check_round_trip("mpegts", "x-klingon", "");
+}
+
+static void case_matroska_writes_the_code_and_the_tag(void)
+{
+    kc_case("Matroska writes a BCP 47 tag as LanguageBCP47 and its language's code as Language");
+    check_elements("matroska", "en", "eng", "en");
+    check_elements("matroska", "zh-Hant", "chi", "zh-Hant");
+    check_elements("matroska", "pt-BR", "por", "pt-BR");
+    check_elements("matroska", "yue-HK", "yue", "yue-HK");
+    check_elements("matroska", "eng", "eng", "");
+    check_elements("matroska", "fre-ca", "fre-ca", "");
+    check_elements("matroska", "eng,fre", "eng,fre", "");
+}
+
+static void case_webm_writes_only_the_code(void)
+{
+    kc_case("WebM, which has no LanguageBCP47, writes only the code");
+    check_elements("webm", "pt-BR", "por", "");
+    check_elements("webm", "en", "eng", "");
+}
+
+int main(void)
+{
+    const char *tmp = getenv("TMPDIR");
+    kc_suite_begin("test_language");
+    if (tmp == NULL || tmp[0] == '\0') tmp = "/tmp";
+    const char *slash = tmp[strlen(tmp) - 1] == '/' ? "" : "/";
+    snprintf(base, sizeof(base), "%s%skc_language_%ld", tmp, slash, (long)getpid());
+    atexit(remove_fixtures);
+
+    case_a_three_letter_code_is_written_as_it_is();
+
+    if (!linked_tree_carries(WRITER_PATCH)) {
+        kc_note("the linked FFmpeg's tree does not list %s, so the BCP 47 cases did not run", WRITER_PATCH);
+        return kc_suite_end();
+    }
+
+    case_mp4_takes_the_terminological_code();
+    case_mov_finds_the_language_in_its_table();
+    case_mpegts_takes_the_bibliographic_code();
+    case_matroska_writes_the_code_and_the_tag();
+    case_webm_writes_only_the_code();
+
+    return kc_suite_end();
+}

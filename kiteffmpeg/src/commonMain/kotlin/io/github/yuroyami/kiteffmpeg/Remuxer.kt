@@ -29,7 +29,9 @@ public expect object Remuxer {
      * its display matrix, and the output gets the input's chapters that overlap what it copies,
      * from the keyframe it starts on to [endMicros], moved by as much as the media so each still
      * starts on its own frame. What the target container cannot store is dropped by its muxer:
-     * MP4 has no stream titles, and Matroska has no display matrix.
+     * MP4 has no stream titles, and Matroska has no display matrix. A language named by a BCP 47
+     * tag such as `pt-BR` goes into MP4, MOV and MPEG-TS as the three-letter code of its language,
+     * because their field holds only such a code; Matroska keeps the whole tag as well.
      *
      * A container pair that needs a bitstream filter, such as H.264 in MP4 to MPEG-TS, gets it
      * automatically: libavformat inserts the filter when the packets are written.

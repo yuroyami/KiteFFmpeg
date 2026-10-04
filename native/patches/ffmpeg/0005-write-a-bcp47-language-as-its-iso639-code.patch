@@ -1,0 +1,329 @@
+Write a BCP 47 stream language into an ISO 639-2 field as the code of its language.
+
+FFmpeg's "language" tag holds a BCP 47 tag whenever the source gave one: the HLS demuxer copies a
+rendition's LANGUAGE, which RFC 8216 defines as an RFC 5646 tag, the DASH demuxer copies lang, and
+the Matroska demuxer reads LanguageBCP47 once 0006 is applied. MKVToolNix writes an English track
+there as "en" alone. Three writers whose field holds a three-letter ISO 639-2 code took such a tag
+as if it were one. movenc packed its first three characters, refused "en" and "pt-BR" and wrote the
+unspecified code, so the track read back with no language. mpegtsenc left an audio stream's
+language descriptor out, and wrote "zh-Hant" as the two codes "zh-" and "ant" for DVB subtitles
+and teletext. matroskaenc wrote the tag into Language, which holds a code, and never wrote
+LanguageBCP47.
+
+ff_lang_tag_to_iso639_2 finds the code of the language a tag's first subtag names, through the
+table ff_convert_lang_to already uses, and says whether the tag is a BCP 47 tag or a code with
+subtags such as Matroska's "fre-ca". MP4 writes the terminological code, as ISO/IEC 14496-12 asks,
+MOV looks for either code in its Macintosh table, and MPEG-TS and Matroska write the bibliographic
+code, as MKVToolNix does. Matroska also writes the whole tag as LanguageBCP47, which a reader
+prefers, except in WebM, whose element list has no such element. A three-letter tag, a comma list
+of them, and a code with subtags are written exactly as before.
+
+ff_convert_lang_to now scans its table instead of bisecting it. The ISO 639-1 part ends with six
+deprecated codes appended out of order after "zu", so the binary search never found "yo", "za",
+"zh" or "zu": a Chinese track could not be mapped here, and the ASF and MXF demuxers, which map
+a stream's 2-letter tag through it, gave such a stream no language at all.
+
+Applied by BuildFFmpegTask before configure, after 0004. Fixes yuroyami/KiteFFmpeg#156.
+
+diff --git a/libavformat/Makefile b/libavformat/Makefile
+index 0d2e757..00eae51 100644
+--- a/libavformat/Makefile
++++ b/libavformat/Makefile
+@@ -393,7 +393,7 @@ OBJS-$(CONFIG_MOV_DEMUXER)               += mov.o mov_chan.o mov_esds.o \
+ OBJS-$(CONFIG_MOV_MUXER)                 += movenc.o \
+                                             movenchint.o mov_chan.o rtp.o \
+                                             movenccenc.o movenc_ttml.o rawutils.o \
+-                                            apv.o dovi_isom.o evc.o
++                                            apv.o dovi_isom.o evc.o avlanguage.o
+ OBJS-$(CONFIG_MP2_MUXER)                 += rawenc.o
+ OBJS-$(CONFIG_MP3_DEMUXER)               += mp3dec.o replaygain.o
+ OBJS-$(CONFIG_MP3_MUXER)                 += mp3enc.o rawenc.o id3v2enc.o
+@@ -408,7 +408,7 @@ OBJS-$(CONFIG_MPEG2VIDEO_MUXER)          += rawenc.o
+ OBJS-$(CONFIG_MPEG2VOB_MUXER)            += mpegenc.o
+ OBJS-$(CONFIG_MPEGPS_DEMUXER)            += mpeg.o
+ OBJS-$(CONFIG_MPEGTS_DEMUXER)            += mpegts.o
+-OBJS-$(CONFIG_MPEGTS_MUXER)              += mpegtsenc.o
++OBJS-$(CONFIG_MPEGTS_MUXER)              += mpegtsenc.o avlanguage.o
+ OBJS-$(CONFIG_MPEGVIDEO_DEMUXER)         += mpegvideodec.o rawdec.o
+ OBJS-$(CONFIG_MPJPEG_DEMUXER)            += mpjpegdec.o
+ OBJS-$(CONFIG_MPJPEG_MUXER)              += mpjpeg.o
+diff --git a/libavformat/avlanguage.c b/libavformat/avlanguage.c
+index 202d9aa..8032cf3 100644
+--- a/libavformat/avlanguage.c
++++ b/libavformat/avlanguage.c
+@@ -19,8 +19,9 @@
+  */
+ 
+ #include "avlanguage.h"
++#include "libavutil/avstring.h"
++#include "libavutil/error.h"
+ #include "libavutil/macros.h"
+-#include <stdlib.h>
+ #include <stdint.h>
+ #include <string.h>
+ 
+@@ -733,9 +734,16 @@ static const LangEntry lang_table[] = {
+     { "", 0 }
+ };
+ 
+-static int lang_table_compare(const void *lhs, const void *rhs)
++/* A scan rather than a binary search: the ISO 639-1 part ends with its deprecated codes out of
++ * order after "zu", so a binary search missed "yo", "za", "zh", "zu" and those six codes. */
++static const LangEntry *lang_table_find(const char *lang, int codespace)
+ {
+-    return strcmp(lhs, ((const LangEntry *)rhs)->str);
++    const LangEntry *first = lang_table + lang_table_offsets[codespace];
++
++    for (int i = 0; i < lang_table_counts[codespace]; i++)
++        if (!strcmp(lang, first[i].str))
++            return first + i;
++    return NULL;
+ }
+ 
+ const char *ff_convert_lang_to(const char *lang, enum AVLangCodespace target_codespace)
+@@ -748,11 +756,7 @@ const char *ff_convert_lang_to(const char *lang, enum AVLangCodespace target_cod
+         return NULL;
+ 
+     for (i=0; !entry && i<NB_CODESPACES; i++)
+-        entry = bsearch(lang,
+-                        lang_table + lang_table_offsets[i],
+-                        lang_table_counts[i],
+-                        sizeof(LangEntry),
+-                        lang_table_compare);
++        entry = lang_table_find(lang, i);
+     if (!entry)
+         return NULL;
+ 
+@@ -768,3 +772,41 @@ const char *ff_convert_lang_to(const char *lang, enum AVLangCodespace target_cod
+ 
+     return NULL;
+ }
++
++static int is_ascii_letter(char c)
++{
++    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
++}
++
++int ff_lang_tag_to_iso639_2(const char *tag, enum AVLangCodespace target_codespace, char code[4])
++{
++    char primary[4];
++    const char *found;
++    size_t len = 0, i;
++
++    if (!tag || target_codespace == AV_LANG_ISO639_1)
++        return AVERROR(EINVAL);
++    while (len < 4 && is_ascii_letter(tag[len]))
++        len++;
++    if (len < 2 || len > 3 || (tag[len] && tag[len] != '-'))
++        return AVERROR(EINVAL);
++    for (i = len; tag[i]; i++)
++        if (!(is_ascii_letter(tag[i]) || av_isdigit(tag[i]) ||
++              (tag[i] == '-' && tag[i + 1] && tag[i + 1] != '-')))
++            return AVERROR(EINVAL);
++
++    for (i = 0; i < len; i++)
++        primary[i] = av_tolower(tag[i]);
++    primary[len] = '\0';
++
++    found = ff_convert_lang_to(primary, target_codespace);
++    if (len == 2) {
++        if (!found)
++            return AVERROR(EINVAL);
++        av_strlcpy(code, found, 4);
++        return 1;
++    }
++    av_strlcpy(code, found ? found : primary, 4);
++    /* BCP 47 spells a language that has a 2-letter code with that code only. */
++    return !ff_convert_lang_to(primary, AV_LANG_ISO639_1);
++}
+diff --git a/libavformat/avlanguage.h b/libavformat/avlanguage.h
+index 1901e78..8152439 100644
+--- a/libavformat/avlanguage.h
++++ b/libavformat/avlanguage.h
+@@ -36,4 +36,21 @@ enum AVLangCodespace {
+  */
+ const char *ff_convert_lang_to(const char *lang, enum AVLangCodespace target_codespace);
+ 
++/**
++ * Find the 3-letter ISO 639-2 code of the language that a language tag names.
++ *
++ * The tag's first subtag, two or three letters in any case, names the language. The tag is
++ * either a BCP 47 (RFC 5646) tag such as "en", "pt-BR" or "zh-Hant", or an ISO 639-2 code,
++ * possibly followed by subtags as in the Matroska form "fre-ca". The subtags after the first
++ * are letters and digits, each one after a single hyphen.
++ *
++ * @param code receives the code, NUL terminated: the one in target_codespace, which is
++ *             AV_LANG_ISO639_2_BIBL or AV_LANG_ISO639_2_TERM, when the language has one, else
++ *             the first subtag itself
++ * @return 1 when tag is a BCP 47 tag, 0 when it starts with a 3-letter code that BCP 47 would
++ *         spell with two letters, AVERROR(EINVAL) when tag has another shape or names a
++ *         2-letter language with no ISO 639-2 code
++ */
++int ff_lang_tag_to_iso639_2(const char *tag, enum AVLangCodespace target_codespace, char code[4]);
++
+ #endif /* AVFORMAT_AVLANGUAGE_H */
+diff --git a/libavformat/matroska.h b/libavformat/matroska.h
+index c6986cf..f5de386 100644
+--- a/libavformat/matroska.h
++++ b/libavformat/matroska.h
+@@ -94,6 +94,7 @@
+ #define MATROSKA_ID_SEEKPREROLL 0x56BB
+ #define MATROSKA_ID_TRACKNAME  0x536E
+ #define MATROSKA_ID_TRACKLANGUAGE 0x22B59C
++#define MATROSKA_ID_TRACKLANGUAGEBCP47 0x22B59D
+ #define MATROSKA_ID_TRACKFLAGENABLED 0xB9
+ #define MATROSKA_ID_TRACKFLAGDEFAULT 0x88
+ #define MATROSKA_ID_TRACKFLAGFORCED 0x55AA
+diff --git a/libavformat/matroskaenc.c b/libavformat/matroskaenc.c
+index f278271..dbb6a95 100644
+--- a/libavformat/matroskaenc.c
++++ b/libavformat/matroskaenc.c
+@@ -1952,6 +1952,7 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
+     int output_sample_rate = 0;
+     int j, ret;
+     const AVDictionaryEntry *tag;
++    char code[4];
+ 
+     if (par->codec_type == AVMEDIA_TYPE_ATTACHMENT)
+         return 0;
+@@ -1964,8 +1965,17 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
+     if ((tag = av_dict_get(st->metadata, "title", NULL, 0)))
+         put_ebml_string(pb, MATROSKA_ID_TRACKNAME, tag->value);
+     tag = av_dict_get(st->metadata, "language", NULL, 0);
+-    put_ebml_string(pb, MATROSKA_ID_TRACKLANGUAGE,
+-                    tag && tag->value[0] ? tag->value : "und");
++    if (tag && strlen(tag->value) != 3 &&
++        ff_lang_tag_to_iso639_2(tag->value, AV_LANG_ISO639_2_BIBL, code) == 1) {
++        /* A BCP 47 tag, such as "en" or "pt-BR" as the HLS, DASH and Matroska demuxers report:
++         * Language holds the ISO 639-2 code of its language, and LanguageBCP47, which a reader
++         * prefers, the whole tag. WebM has no LanguageBCP47. */
++        put_ebml_string(pb, MATROSKA_ID_TRACKLANGUAGE, code);
++        if (!IS_WEBM(mkv))
++            put_ebml_string(pb, MATROSKA_ID_TRACKLANGUAGEBCP47, tag->value);
++    } else
++        put_ebml_string(pb, MATROSKA_ID_TRACKLANGUAGE,
++                        tag && tag->value[0] ? tag->value : "und");
+ 
+     // The default value for TRACKFLAGDEFAULT is 1, so add element
+     // if we need to clear it.
+diff --git a/libavformat/movenc.c b/libavformat/movenc.c
+index 6f93eb3..847f395 100644
+--- a/libavformat/movenc.c
++++ b/libavformat/movenc.c
+@@ -36,6 +36,7 @@
+ #include "isom.h"
+ #include "av1.h"
+ #include "avc.h"
++#include "avlanguage.h"
+ #include "evc.h"
+ #include "apv.h"
+ #include "lcevc.h"
+@@ -8128,6 +8129,24 @@ static int mov_init_iamf_track(AVFormatContext *s)
+ }
+ #endif
+ 
++/**
++ * The language field of a track for a language tag: an ISO 639-2 code packed for MP4, or an
++ * index in the Macintosh table for MOV. A BCP 47 tag such as "en" or "pt-BR", as the HLS, DASH
++ * and Matroska demuxers report, gives the code of the language its first subtag names: the
++ * terminological one for MP4, as ISO/IEC 14496-12 asks, and either one for the MOV table.
++ */
++static int mov_language_code(const char *lang, int mp4)
++{
++    static const enum AVLangCodespace codespaces[] = { AV_LANG_ISO639_2_TERM, AV_LANG_ISO639_2_BIBL };
++    char code[4];
++    int ret = ff_mov_iso639_to_lang(lang, mp4);
++
++    for (int i = 0; ret < 0 && i < (mp4 ? 1 : 2); i++)
++        if (ff_lang_tag_to_iso639_2(lang, codespaces[i], code) >= 0)
++            ret = ff_mov_iso639_to_lang(code, mp4);
++    return ret < 0 ? 32767 : ret; // Unspecified Macintosh language code
++}
++
+ static int mov_init(AVFormatContext *s)
+ {
+     MOVMuxContext *mov = s->priv_data;
+@@ -8455,9 +8474,7 @@ static int mov_init(AVFormatContext *s)
+         if (!track)
+             continue;
+ 
+-        track->language = ff_mov_iso639_to_lang(lang?lang->value:"und", mov->mode!=MODE_MOV);
+-        if (track->language < 0)
+-            track->language = 32767;  // Unspecified Macintosh language code
++        track->language = mov_language_code(lang ? lang->value : "und", mov->mode != MODE_MOV);
+         track->mode = mov->mode;
+         if (!track->tag)
+             track->tag  = mov_find_codec_tag(s, track);
+diff --git a/libavformat/mpegtsenc.c b/libavformat/mpegtsenc.c
+index 7f76883..1abaaf9 100644
+--- a/libavformat/mpegtsenc.c
++++ b/libavformat/mpegtsenc.c
+@@ -38,6 +38,7 @@
+ 
+ #include "avformat.h"
+ #include "avio_internal.h"
++#include "avlanguage.h"
+ #include "internal.h"
+ #include "mpegts.h"
+ #include "mux.h"
+@@ -509,6 +510,44 @@ static int get_m2ts_stream_type(AVFormatContext *s, AVStream *st)
+     return stream_type;
+ }
+ 
++/**
++ * Write into buf the comma separated 3-letter codes that the language descriptors carry for a
++ * language tag, and return buf, or NULL when the tag gives none. A 3-letter entry stays as it
++ * is. A BCP 47 tag such as "en" or "pt-BR", as the HLS, DASH and Matroska demuxers report,
++ * gives the bibliographic ISO 639-2 code of the language its first subtag names. An entry of
++ * any other shape is left out.
++ */
++static const char *ts_language_codes(const char *tag, char *buf, size_t size)
++{
++    char item[64], code[4];
++    size_t len = 0;
++
++    for (const char *p = tag, *next; p; p = next ? next + 1 : NULL) {
++        size_t n;
++
++        next = strchr(p, ',');
++        n = next ? next - p : strlen(p);
++        if (n == 3) {
++            memcpy(code, p, 3);
++            code[3] = '\0';
++        } else if (n < sizeof(item)) {
++            memcpy(item, p, n);
++            item[n] = '\0';
++            if (ff_lang_tag_to_iso639_2(item, AV_LANG_ISO639_2_BIBL, code) < 0)
++                continue;
++        } else {
++            continue;
++        }
++        if (len + 5 > size)
++            break;
++        if (len)
++            buf[len++] = ',';
++        memcpy(buf + len, code, 4);
++        len += 3;
++    }
++    return len ? buf : NULL;
++}
++
+ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
+ {
+     MpegTSWrite *ts = s->priv_data;
+@@ -540,9 +579,14 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
+         MpegTSWriteStream *ts_st = st->priv_data;
+         AVDictionaryEntry *lang = av_dict_get(st->metadata, "language", NULL, 0);
+         const char default_language[] = "und";
+-        const char *language = lang && strlen(lang->value) >= 3 ? lang->value : default_language;
++        char language_codes[256];
++        const char *language = lang ? ts_language_codes(lang->value, language_codes,
++                                                        sizeof(language_codes)) : NULL;
+         enum AVCodecID codec_id = st->codecpar->codec_id;
+ 
++        if (!language)
++            language = default_language;
++
+         if (s->nb_programs) {
+             int k, found = 0;
+             AVProgram *program = service->program;

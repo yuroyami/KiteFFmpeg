@@ -75,6 +75,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A remux keeps a language that a BCP 47 tag names (#156). An HLS rendition, a DASH representation
+  and a Matroska track written by MKVToolNix name a stream's language with a tag such as `pt-BR`,
+  or `en` alone for English, and FFmpeg's MP4, MOV and MPEG-TS writers, whose field holds a
+  three-letter ISO 639-2 code, left such a stream with no language at all, while Matroska wrote the
+  tag where a code belongs. Each now writes the code of the language the tag names: the
+  terminological one into MP4, as its specification asks, the bibliographic one into MPEG-TS and
+  Matroska, and either one MOV's table holds. Matroska also writes the whole tag as
+  `LanguageBCP47`, except WebM, which has no such element. A three-letter code is written as
+  before. FFmpeg's language table could not map `zh`, `zu`, `yo` or `za` at all, because six
+  deprecated codes sit out of order at the end of the part it searched by halves; it now reads
+  every entry. The fix is the FFmpeg patch `0005-write-a-bcp47-language-as-its-iso639-code.patch`,
+  so it reaches a platform only with an FFmpeg tree built from it, and the trees of 0.4.0 do not
+  carry it.
 - A backward keyframe seek lands on the last keyframe that shows at or before its target (#155).
   FFmpeg finds a keyframe by when it decodes, and with B-frames a keyframe decodes before it shows.
   MP4's reader, which turns the target into a decode time by one constant, took a keyframe that
