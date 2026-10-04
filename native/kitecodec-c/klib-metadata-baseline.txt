@@ -1029,6 +1029,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_program_metadata(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?, index: kotlin/Int): kotlinx/cinterop/CPointer<cnames/structs/AVDictionary /* = ffmpeg/kc_dict^ */>?
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_layout_stamp")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_fmt_layout_stamp(ctx: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Long /* = platform/posix/int64_t^ */
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_find_stream_info")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_fmt_find_stream_info(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVFormatContext /* = ffmpeg/kc_fmt_ctx^ */>?): kotlin/Int
@@ -1313,10 +1317,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_visual_impaired")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_disposition_visual_impaired(): kotlin/Int
-
-      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_attached_pic")
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_disposition_attached_pic(): kotlin/Int
     }
   }
 
@@ -1324,6 +1324,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_attached_pic")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_disposition_attached_pic(): kotlin/Int
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_disposition_descriptions")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1478,7 +1482,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 0 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 1 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

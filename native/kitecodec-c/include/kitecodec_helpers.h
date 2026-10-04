@@ -797,6 +797,14 @@ KC_API int      ffkmp_fmt_program_get(const kc_fmt_ctx *ctx, int index,
 KC_API int      ffkmp_fmt_program_stream(const kc_fmt_ctx *ctx, int index, int position);
 KC_API kc_dict* ffkmp_fmt_program_metadata(const kc_fmt_ctx *ctx, int index);
 
+/* A number that changes when the stream count or the programme table changes (#151): each
+ * programme's id, number, stream indexes or tags. A live transport stream changes them while it
+ * reads, and FFmpeg raises no flag for it, so a reader compares this after every read and reads the
+ * tables again only when it moved. It is a 64-bit FNV-1a fingerprint of those values, so two
+ * different tables answer the same number with a chance of one in 2^64. NULL answers 0.
+ */
+KC_API int64_t  ffkmp_fmt_layout_stamp(const kc_fmt_ctx *ctx);
+
 /* Ownership. Allocates per stream parsing state, and may probe and buffer packets. All of
  * it belongs to the context and is released when the context is closed. Nothing becomes
  * the caller's. A NULL context is refused with AVERROR(EINVAL).

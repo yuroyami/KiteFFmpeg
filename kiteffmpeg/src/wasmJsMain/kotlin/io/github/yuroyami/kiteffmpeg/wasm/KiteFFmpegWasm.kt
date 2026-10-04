@@ -573,6 +573,9 @@ internal external fun ffkmp_fmt_bit_rate(module: JsAny, a0: Int): Long
 @JsFun("(m, a0) => m._ffkmp_fmt_duration(a0)")
 internal external fun ffkmp_fmt_duration(module: JsAny, a0: Int): Long
 
+@JsFun("(m, a0) => m._ffkmp_fmt_layout_stamp(a0)")
+internal external fun ffkmp_fmt_layout_stamp(module: JsAny, a0: Int): Long
+
 @JsFun("(m, a0) => m._ffkmp_fmt_start_time(a0)")
 internal external fun ffkmp_fmt_start_time(module: JsAny, a0: Int): Long
 

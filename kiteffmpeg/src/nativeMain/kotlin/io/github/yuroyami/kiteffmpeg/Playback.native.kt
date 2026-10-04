@@ -226,6 +226,9 @@ public actual class PacketReader internal constructor(
         ?: throw FFmpegException(FFmpegError.Internal("av_packet_alloc returned NULL"))
     private var closed = false
 
+    /** The packets of the streams FFmpeg added while this reader read, until the caller chooses (#151). */
+    private val held = HeldPackets<CPointer<kc_packet>>(sizeOf = { ffkmp_packet_size(it) }, free = { ffkmp_packet_free(it) })
+
     /**
      * Reads the next packet from a selected stream.
      *
@@ -235,33 +238,68 @@ public actual class PacketReader internal constructor(
     @Throws(FFmpegException::class)
     public actual fun read(): Packet? {
         check(!closed) { "PacketReader is closed" }
+        settleWaiting(seeking = false)
+        held.next(timeBaseByStream.keys)?.let { (index, packet) -> return deliver(index, packet) }
         while (true) {
             val rc = ffkmp_fmt_read_frame(ctx, scratch)
             if (rc == FFErrors.EOF) return null
             if (rc < 0) throw source.demuxFailure(rc)
 
             val index = ffkmp_packet_stream_index(scratch)
-            val timeBase = timeBaseByStream[index]
-            if (timeBase == null) {
+            try {
+                held.added(source.table.afterRead(index))
+            } catch (failure: Throwable) {
+                ffkmp_packet_unref(scratch)
+                throw failure
+            }
+            val selected = index in timeBaseByStream
+            if (!selected && !held.isWaiting(index)) {
                 // A stream the caller did not select. AVDISCARD_ALL means libavformat usually skips
                 // these before they get here, but a container can still deliver one.
                 ffkmp_packet_unref(scratch)
                 continue
             }
 
-            val owned = ffkmp_packet_alloc()
-                ?: throw FFmpegException(FFmpegError.Internal("av_packet_alloc returned NULL"))
+            val owned = ffkmp_packet_alloc() ?: run {
+                ffkmp_packet_unref(scratch)
+                throw FFmpegException(FFmpegError.Internal("av_packet_alloc returned NULL"))
+            }
             // Moves the reference. The compressed payload is not copied, so queueing packets ahead
             // of the decoders costs a pointer swap per packet and nothing else.
             ffkmp_packet_move_ref(owned, scratch)
-            // A change a skipped packet's read made waits, raised, for the next packet handed out.
-            val changes = try {
-                source.takeTagChanges(index)
-            } catch (failure: Throwable) {
-                ffkmp_packet_free(owned)
-                throw failure
+            if (!selected) {
+                held.hold(index, owned)
+                continue
             }
-            return Packet(owned, timeBase, changes?.container, changes?.stream)
+            return deliver(index, owned)
+        }
+    }
+
+    /** Hands out [owned], with the changes it is the first packet after. */
+    private fun deliver(index: Int, owned: CPointer<kc_packet>): Packet {
+        // A change a skipped packet's read made waits, raised, for the next packet handed out.
+        val changes = try {
+            source.takeTagChanges(index)
+        } catch (failure: Throwable) {
+            ffkmp_packet_free(owned)
+            throw failure
+        }
+        val newStreams = source.table.takeStreamsChange()
+        if (newStreams != null) held.announce()
+        // The stream's entry as it stands, which an entry read again at its first packet updates.
+        val timeBase = source.table.streams.getOrNull(index)?.timeBase ?: timeBaseByStream.getValue(index)
+        return Packet(owned, timeBase, changes?.container, changes?.stream, newStreams, source.table.takeProgramsChange())
+    }
+
+    /**
+     * Settles the streams a packet announced, at a read or a seek: the ones the caller did not
+     * select are skipped from now on, and their held packets, and at a seek every held packet, go.
+     */
+    private fun settleWaiting(seeking: Boolean) {
+        if (!held.hasDecisions) return
+        val before = timeBaseByStream.keys + held.waitingStreams
+        if (held.decide(timeBaseByStream.keys, seeking)) {
+            source.applyPacketReaderSelection(timeBaseByStream.keys + held.waitingStreams, before)
         }
     }
 
@@ -287,6 +325,7 @@ public actual class PacketReader internal constructor(
         notEarlierThan: Long?,
     ) {
         check(!closed) { "PacketReader is closed" }
+        settleWaiting(seeking = true)
         val target = source.toAbsoluteMicros(micros)
         val (min, max) = seekWindow(target, direction, notEarlierThan?.let { source.toAbsoluteMicros(it) })
         val flags = when (direction) {
@@ -301,9 +340,11 @@ public actual class PacketReader internal constructor(
     @Throws(FFmpegException::class)
     public actual fun reselect(streams: List<StreamInfo>) {
         check(!closed) { "PacketReader is closed" }
-        val next = canonicalPacketSelection(source.streams, streams)
+        val next = canonicalPacketSelection(source.table, streams)
         val previous = timeBaseByStream
-        source.applyPacketReaderSelection(next.keys, previous.keys)
+        // A stream FFmpeg added keeps coming through until a read settles it, selected or not.
+        val waiting = held.waitingStreams
+        source.applyPacketReaderSelection(next.keys + waiting, previous.keys + waiting)
         // The Kotlin map is the exact delivery filter for demuxers that still surface packets from
         // streams marked AVDISCARD_ALL. Change it only after the native transaction succeeds.
         timeBaseByStream = next
@@ -312,6 +353,7 @@ public actual class PacketReader internal constructor(
     actual override fun close() {
         if (closed) return
         closed = true
+        held.clear()
         ffkmp_packet_free(scratch)
         // Before releasing the source's reader slot, undo this reader's stream selection. The
         // discard flags belong to the demuxer and outlive the reader, so leaving them set would

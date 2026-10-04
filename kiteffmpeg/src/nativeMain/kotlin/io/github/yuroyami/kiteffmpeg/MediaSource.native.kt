@@ -78,6 +78,7 @@ import ffmpeg.ffkmp_fmt_open_input
 import ffmpeg.ffkmp_fmt_interrupt
 import ffmpeg.ffkmp_fmt_read_frame
 import ffmpeg.ffkmp_fmt_take_tag_changes
+import ffmpeg.ffkmp_fmt_layout_stamp
 import ffmpeg.KC_TAGS_CONTAINER
 import ffmpeg.KC_TAGS_STREAM
 import ffmpeg.ffkmp_fmt_read_pause
@@ -152,7 +153,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSource internal constructor(
     private val ctx: CPointer<kc_fmt_ctx>,
-    public actual val streams: List<StreamInfo>,
+    openStreams: List<StreamInfo>,
     public actual val durationMicros: Long?,
     public actual val formatName: String,
     metadata: Map<String, String>,
@@ -165,7 +166,7 @@ public actual class MediaSource internal constructor(
      */
     public actual val startTimeMicros: Long,
     public actual val chapters: List<Chapter> = emptyList(),
-    public actual val programs: List<Program> = emptyList(),
+    openPrograms: List<Program> = emptyList(),
     public actual val unusedOpenOptions: List<String> = emptyList(),
     /**
      * Non-null exactly for custom-io opens: close then uses ffkmp_fmt_close_input_io,
@@ -177,6 +178,19 @@ public actual class MediaSource internal constructor(
     /** The path or address this source was opened from, or null for a byte source; a sink compares it (#146). */
     internal val inputPath: String? = null,
 ) : AutoCloseable {
+
+    /** The stream and programme lists as reads change them (#151). */
+    internal val table: StreamTable = StreamTable(
+        openStreams,
+        openPrograms,
+        readStamp = { ffkmp_fmt_layout_stamp(ctx) },
+        readCount = { ffkmp_fmt_nb_streams(ctx).toInt() },
+        readEntry = { index -> readStreamEntry(ctx, index) },
+        readPrograms = { streams -> readPrograms(ctx, streams) },
+    )
+
+    public actual val streams: List<StreamInfo> get() = table.streams
+    public actual val programs: List<Program> get() = table.programs
 
     /**
      * The exception for a read, seek or probe on this source that failed with [code]. When the
@@ -395,8 +409,16 @@ public actual class MediaSource internal constructor(
             val readRc = ffkmp_fmt_read_frame(ctx, packet)
             if (readRc == eof) break
             if (readRc < 0) throw demuxFailure(readRc)
-            takeTagChanges(-1)
             val index = ffkmp_packet_stream_index(packet)
+            try {
+                // A stream FFmpeg adds here joins the list and is not decoded; the first packet a
+                // reader hands out later carries the news.
+                table.afterRead(index)
+                takeTagChanges(-1)
+            } catch (failure: Throwable) {
+                ffkmp_packet_unref(packet)
+                throw failure
+            }
             val decoder = decoderByIndex[index]
             val copyInfo = if (decoder == null) copyByIndex[index] else null
             try {
@@ -610,7 +632,7 @@ public actual class MediaSource internal constructor(
      */
     @KiteFFmpegLowLevelApi
     public actual fun openPacketReader(streams: List<StreamInfo>): PacketReader {
-        val selection = canonicalPacketSelection(this.streams, streams)
+        val selection = canonicalPacketSelection(table, streams)
 
         synchronized(stateLock) {
             check(!closed) { "MediaSource is closed" }
@@ -670,16 +692,10 @@ public actual class MediaSource internal constructor(
      * Canonicalizes a caller-supplied [StreamInfo] against this source's own table. StreamInfo is
      * a public data class and therefore forgeable: stream zero of another source has a valid index
      * here but foreign timing and type metadata, and accepting it would interpret this source's
-     * packets with another file's time base. Structural equality against
-     * the entry this source itself published is the check.
+     * packets with another file's time base. Structural equality against an entry this source
+     * itself published is the check, the stream's entry now or one it replaced (#151).
      */
-    private fun requireOwnStream(supplied: StreamInfo) {
-        val own = streams.firstOrNull { it.index == supplied.index }
-        require(own == supplied) {
-            "StreamInfo(index=${supplied.index}) does not belong to this MediaSource. Pass entries " +
-                "from THIS source's streams list; stream identity is source-bound."
-        }
-    }
+    private fun requireOwnStream(supplied: StreamInfo) = table.requireOwn(supplied)
 
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
@@ -961,7 +977,7 @@ private fun assembleMediaSource(
     return MediaSource(
         ctx, streams, durationFromHeader, formatName, metadata, startTime,
         chapters = chapters,
-        programs = programs,
+        openPrograms = programs,
         unusedOpenOptions = unusedKeys,
         ioCleanup = ioCleanup,
         ioState = ioState,
@@ -1269,79 +1285,80 @@ private fun readPrograms(ctx: CPointer<kc_fmt_ctx>, streams: List<StreamInfo>): 
     }
 }
 
-private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> {
-    val nb = ffkmp_fmt_nb_streams(ctx).toInt()
-    val out = ArrayList<StreamInfo>(nb)
-    for (i in 0 until nb) {
-        val s = ffkmp_fmt_stream(ctx, i.toUInt()) ?: continue
-        val par = ffkmp_stream_codecpar(s) ?: continue
+private fun buildStreams(ctx: CPointer<kc_fmt_ctx>): List<StreamInfo> =
+    List(ffkmp_fmt_nb_streams(ctx).toInt()) { index -> readStreamEntry(ctx, index) }
 
-        val typeRaw = ffkmp_codecpar_codec_type(par)
-        val type = when (typeRaw) {
-            ffkmp_media_type_video() -> MediaType.Video
-            ffkmp_media_type_audio() -> MediaType.Audio
-            ffkmp_media_type_subtitle() -> MediaType.Subtitle
-            ffkmp_media_type_data() -> MediaType.Data
-            ffkmp_media_type_attachment() -> MediaType.Attachment
-            else -> MediaType.Unknown
-        }
+/** The entry of the stream at [i], as the open reads it and as a read reads a stream it added (#151). */
+private fun readStreamEntry(ctx: CPointer<kc_fmt_ctx>, i: Int): StreamInfo {
+    val s = ffkmp_fmt_stream(ctx, i.toUInt())
+        ?: throw FFmpegException(FFmpegError.Internal("FFmpeg lost stream index $i from this MediaSource"))
+    val par = ffkmp_stream_codecpar(s)
+        ?: throw FFmpegException(FFmpegError.Internal("Stream $i has no codec parameters"))
 
-        val codecId = ffkmp_codecpar_codec_id(par)
-        // The CODEC's canonical name, not whichever decoder this build registers for it: an AV1
-        // stream must read "av1" whether or not libdav1d is compiled in, and a subtitle or
-        // attachment stream with no decoder at all must still name its codec.
-        val codecName = ffkmp_codec_id_name(codecId)?.toKString() ?: "codec_$codecId"
-
-        val timeBase = readRational { num, den -> ffkmp_stream_time_base(s, num, den) }
-        val avgFr    = readRational { num, den -> ffkmp_stream_avg_frame_rate(s, num, den) }
-        val sar      = readRational { num, den -> ffkmp_codecpar_sample_aspect_ratio(par, num, den) }
-            .let { if (it.num == 0) Rational(1, 1) else it }
-
-        out += StreamInfo(
-            index = ffkmp_stream_index(s),
-            type = type,
-            codec = CodecId(codecName),
-            timeBase = timeBase,
-            durationMicros = ffkmp_stream_duration_micros(s).takeIf { it > 0L },
-            bitrateBps = ffkmp_codecpar_bit_rate(par).takeIf { it > 0L },
-            video = if (type == MediaType.Video) VideoStreamInfo(
-                width = ffkmp_codecpar_width(par),
-                height = ffkmp_codecpar_height(par),
-                pixelFormat = pixelFormatFromAv(ffkmp_codecpar_format(par)),
-                frameRate = avgFr,
-                sampleAspectRatio = sar,
-                color = readCodecParameterColor(par),
-                vp9 = if (codecName == "vp9") readVp9CodecInfo(par) else null,
-                fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(par)),
-                hdr = readHdr(
-                    display = { q, flags -> ffkmp_codecpar_mastering_display(par, q, flags) },
-                    light = { maxCll, maxFall -> ffkmp_codecpar_content_light(par, maxCll, maxFall) },
-                ),
-                dolbyVision = readDolbyVisionConfig(par),
-                crop = readVideoCrop(par),
-                spherical = readSphericalMapping(par),
-                stereo3d = readStereo3d(par),
-            ) else null,
-            audio = if (type == MediaType.Audio) AudioStreamInfo(
-                sampleRate = ffkmp_codecpar_sample_rate(par),
-                channels = ffkmp_codecpar_channels(par),
-                sampleFormat = sampleFormatFromAv(ffkmp_codecpar_format(par)),
-                // 0 from the helper means there is no mask to report, which is what null says here.
-                channelLayoutMask = ffkmp_codecpar_ch_layout_mask(par).takeIf { it != 0L },
-            ) else null,
-            metadata = readMetadata(ffkmp_stream_metadata(s)),
-            disposition = readDisposition(ffkmp_stream_disposition(s)),
-            rotationDegrees = ffkmp_stream_rotation_degrees(s),
-            startTimeMicros = ffkmp_stream_start_time(s)
-                .takeIf { it != Long.MIN_VALUE }
-                ?.let { ffkmp_rescale_q(it, timeBase.num, timeBase.den, 1, 1_000_000) }
-                ?: 0L,
-            codecExtradata = readCodecExtradata(par),
-            codecProfile = knownProfile(ffkmp_codecpar_profile(par)),
-            mirrored = ffkmp_stream_mirrored(s) != 0,
-        )
+    val typeRaw = ffkmp_codecpar_codec_type(par)
+    val type = when (typeRaw) {
+        ffkmp_media_type_video() -> MediaType.Video
+        ffkmp_media_type_audio() -> MediaType.Audio
+        ffkmp_media_type_subtitle() -> MediaType.Subtitle
+        ffkmp_media_type_data() -> MediaType.Data
+        ffkmp_media_type_attachment() -> MediaType.Attachment
+        else -> MediaType.Unknown
     }
-    return out
+
+    val codecId = ffkmp_codecpar_codec_id(par)
+    // The CODEC's canonical name, not whichever decoder this build registers for it: an AV1
+    // stream must read "av1" whether or not libdav1d is compiled in, and a subtitle or
+    // attachment stream with no decoder at all must still name its codec.
+    val codecName = ffkmp_codec_id_name(codecId)?.toKString() ?: "codec_$codecId"
+
+    val timeBase = readRational { num, den -> ffkmp_stream_time_base(s, num, den) }
+    val avgFr    = readRational { num, den -> ffkmp_stream_avg_frame_rate(s, num, den) }
+    val sar      = readRational { num, den -> ffkmp_codecpar_sample_aspect_ratio(par, num, den) }
+        .let { if (it.num == 0) Rational(1, 1) else it }
+
+    return StreamInfo(
+        index = ffkmp_stream_index(s),
+        type = type,
+        codec = CodecId(codecName),
+        timeBase = timeBase,
+        durationMicros = ffkmp_stream_duration_micros(s).takeIf { it > 0L },
+        bitrateBps = ffkmp_codecpar_bit_rate(par).takeIf { it > 0L },
+        video = if (type == MediaType.Video) VideoStreamInfo(
+            width = ffkmp_codecpar_width(par),
+            height = ffkmp_codecpar_height(par),
+            pixelFormat = pixelFormatFromAv(ffkmp_codecpar_format(par)),
+            frameRate = avgFr,
+            sampleAspectRatio = sar,
+            color = readCodecParameterColor(par),
+            vp9 = if (codecName == "vp9") readVp9CodecInfo(par) else null,
+            fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(par)),
+            hdr = readHdr(
+                display = { q, flags -> ffkmp_codecpar_mastering_display(par, q, flags) },
+                light = { maxCll, maxFall -> ffkmp_codecpar_content_light(par, maxCll, maxFall) },
+            ),
+            dolbyVision = readDolbyVisionConfig(par),
+            crop = readVideoCrop(par),
+            spherical = readSphericalMapping(par),
+            stereo3d = readStereo3d(par),
+        ) else null,
+        audio = if (type == MediaType.Audio) AudioStreamInfo(
+            sampleRate = ffkmp_codecpar_sample_rate(par),
+            channels = ffkmp_codecpar_channels(par),
+            sampleFormat = sampleFormatFromAv(ffkmp_codecpar_format(par)),
+            // 0 from the helper means there is no mask to report, which is what null says here.
+            channelLayoutMask = ffkmp_codecpar_ch_layout_mask(par).takeIf { it != 0L },
+        ) else null,
+        metadata = readMetadata(ffkmp_stream_metadata(s)),
+        disposition = readDisposition(ffkmp_stream_disposition(s)),
+        rotationDegrees = ffkmp_stream_rotation_degrees(s),
+        startTimeMicros = ffkmp_stream_start_time(s)
+            .takeIf { it != Long.MIN_VALUE }
+            ?.let { ffkmp_rescale_q(it, timeBase.num, timeBase.den, 1, 1_000_000) }
+            ?: 0L,
+        codecExtradata = readCodecExtradata(par),
+        codecProfile = knownProfile(ffkmp_codecpar_profile(par)),
+        mirrored = ffkmp_stream_mirrored(s) != 0,
+    )
 }
 
 private fun readCodecParameterColor(parameters: CPointer<kc_codec_par>): ColorInfo {

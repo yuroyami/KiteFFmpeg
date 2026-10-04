@@ -244,6 +244,43 @@ KC_API AVDictionary *ffkmp_fmt_program_metadata(const AVFormatContext *ctx, int 
     if (!ctx || index < 0 || (unsigned)index >= ctx->nb_programs) return NULL;
     return ctx->programs[index]->metadata;
 }
+/* What MediaSource.streams and MediaSource.programs list, as one number (#151). A live transport
+ * stream adds a stream, or moves one into or out of a programme, while it reads, and FFmpeg raises no
+ * flag for either, so a reader asks this after every read and reads the tables again only when it
+ * moved. FNV-1a, 64 bits wide, over the stream count and each programme's id, number, stream indexes
+ * and tags: a few dozen steps for a multiplex of a few channels. */
+#define KC_FNV_OFFSET 0xcbf29ce484222325ULL
+#define KC_FNV_PRIME 0x100000001b3ULL
+static uint64_t kc_fnv_bytes(uint64_t h, const void *bytes, size_t n) {
+    const unsigned char *b = bytes;
+    for (size_t i = 0; i < n; i++) h = (h ^ b[i]) * KC_FNV_PRIME;
+    return h;
+}
+static uint64_t kc_fnv_int(uint64_t h, int64_t v) {
+    return kc_fnv_bytes(h, &v, sizeof(v));
+}
+static uint64_t kc_fnv_text(uint64_t h, const char *text) {
+    /* The terminator goes in too, so that "ab" then "c" and "a" then "bc" differ. */
+    return kc_fnv_bytes(h, text, strlen(text) + 1);
+}
+KC_API int64_t ffkmp_fmt_layout_stamp(const AVFormatContext *ctx) {
+    if (!ctx) return 0;
+    uint64_t h = kc_fnv_int(KC_FNV_OFFSET, ctx->nb_streams);
+    h = kc_fnv_int(h, ctx->nb_programs);
+    for (unsigned i = 0; i < ctx->nb_programs; i++) {
+        const AVProgram *program = ctx->programs[i];
+        h = kc_fnv_int(h, program->id);
+        h = kc_fnv_int(h, program->program_num);
+        h = kc_fnv_int(h, program->nb_stream_indexes);
+        for (unsigned k = 0; k < program->nb_stream_indexes; k++) h = kc_fnv_int(h, program->stream_index[k]);
+        const AVDictionaryEntry *tag = NULL;
+        while ((tag = av_dict_get(program->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
+            h = kc_fnv_text(h, tag->key);
+            h = kc_fnv_text(h, tag->value);
+        }
+    }
+    return (int64_t)h;
+}
 KC_API int  ffkmp_fmt_find_stream_info(AVFormatContext *c) {
     return c ? avformat_find_stream_info(c, NULL) : AVERROR(EINVAL);
 }

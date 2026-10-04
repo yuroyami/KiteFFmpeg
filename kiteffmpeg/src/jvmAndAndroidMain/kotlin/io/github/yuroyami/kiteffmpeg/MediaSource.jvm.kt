@@ -9,13 +9,13 @@ import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSource internal constructor(
     private var formatToken: Long,
-    public actual val streams: List<StreamInfo>,
+    openStreams: List<StreamInfo>,
     public actual val durationMicros: Long?,
     public actual val formatName: String,
     metadata: Map<String, String>,
     public actual val startTimeMicros: Long,
     public actual val chapters: List<Chapter> = emptyList(),
-    public actual val programs: List<Program> = emptyList(),
+    openPrograms: List<Program> = emptyList(),
     public actual val unusedOpenOptions: List<String> = emptyList(),
     /** Non-null exactly for custom-io opens: close then routes through the io close. */
     private val jniIo: JniByteIo? = null,
@@ -23,6 +23,19 @@ public actual class MediaSource internal constructor(
     internal val inputPath: String? = null,
 ) : AutoCloseable {
     private val stateLock = Any()
+
+    /** The stream and programme lists as reads change them (#151). Read only while the source is open. */
+    internal val table: StreamTable = StreamTable(
+        openStreams,
+        openPrograms,
+        readStamp = { Internals.fmtLayoutStamp(formatToken) },
+        readCount = { Internals.fmtNbStreams(formatToken) },
+        readEntry = { index -> readStreamEntry(formatToken, index) },
+        readPrograms = { streams -> readPrograms(formatToken, streams) },
+    )
+
+    public actual val streams: List<StreamInfo> get() = table.streams
+    public actual val programs: List<Program> get() = table.programs
     private var demuxing = false
     private var readerActive = false
 
@@ -227,8 +240,16 @@ public actual class MediaSource internal constructor(
             val rc = Internals.fmtReadFrame(context, packet)
             if (rc == Internals.errorEof) break
             if (rc < 0) throw demuxFailure(rc)
-            takeTagChanges(context, -1)
             val index = Internals.packetStreamIndex(packet)
+            try {
+                // A stream FFmpeg adds here joins the list and is not decoded; the first packet a
+                // reader hands out later carries the news.
+                table.afterRead(index)
+                takeTagChanges(context, -1)
+            } catch (failure: Throwable) {
+                Internals.packetUnref(packet)
+                throw failure
+            }
             val decoder = decoderByIndex[index]
             val copyInfo = if (decoder == null) copyByIndex[index] else null
             try {
@@ -363,7 +384,7 @@ public actual class MediaSource internal constructor(
 
     @KiteFFmpegLowLevelApi
     public actual fun openPacketReader(streams: List<StreamInfo>): PacketReader {
-        val selection = canonicalPacketSelection(this.streams, streams)
+        val selection = canonicalPacketSelection(table, streams)
         val context = synchronized(stateLock) {
             check(formatToken != 0L) { "MediaSource is closed" }
             check(!demuxing) { "A decode flow is collecting on this MediaSource" }
@@ -413,15 +434,10 @@ public actual class MediaSource internal constructor(
 
     /**
      * Canonicalizes a caller-supplied [StreamInfo] against this source's own table; StreamInfo is
-     * a public data class and therefore forgeable. Same rule as native.
+     * a public data class and therefore forgeable. Same rule as native, including the entries a
+     * later reading replaced (#151).
      */
-    private fun requireOwnStream(supplied: StreamInfo) {
-        val own = streams.firstOrNull { it.index == supplied.index }
-        require(own == supplied) {
-            "StreamInfo(index=${supplied.index}) does not belong to this MediaSource. Pass entries " +
-                "from THIS source's streams list; stream identity is source-bound."
-        }
-    }
+    private fun requireOwnStream(supplied: StreamInfo) = table.requireOwn(supplied)
 
     /**
      * A converter from the text subtitle [stream] into [codec], which writes the output stream's
@@ -623,13 +639,13 @@ private fun openMediaSource(
         val streams = buildStreams(context)
         return MediaSource(
             formatToken = context,
-            streams = streams,
+            openStreams = streams,
             durationMicros = Internals.fmtDuration(context).takeIf { it > 0L },
             formatName = Internals.fmtInputName(context).ifEmpty { "unknown" },
             metadata = readMetadata(Internals.fmtMetadata(context)),
             startTimeMicros = Internals.fmtStartTime(context),
             chapters = readChapters(context),
-            programs = readPrograms(context, streams),
+            openPrograms = readPrograms(context, streams),
             unusedOpenOptions = unusedKeys,
             inputPath = path,
         )
@@ -683,13 +699,13 @@ private fun openMediaSourceIo(
         val streams = buildStreams(context)
         return MediaSource(
             formatToken = context,
-            streams = streams,
+            openStreams = streams,
             durationMicros = Internals.fmtDuration(context).takeIf { it > 0L },
             formatName = Internals.fmtInputName(context).ifEmpty { "unknown" },
             metadata = readMetadata(Internals.fmtMetadata(context)),
             startTimeMicros = Internals.fmtStartTime(context),
             chapters = readChapters(context),
-            programs = readPrograms(context, streams),
+            openPrograms = readPrograms(context, streams),
             unusedOpenOptions = unusedKeys,
             jniIo = adapter,
         )
@@ -730,71 +746,71 @@ private fun readPrograms(format: Long, streams: List<StreamInfo>): List<Program>
     }
 }
 
-private fun buildStreams(format: Long): List<StreamInfo> = buildList {
-    repeat(Internals.fmtNbStreams(format)) { index ->
-        val stream = Internals.fmtStream(format, index)
-        var parameters = 0L
-        try {
-            parameters = Internals.streamCodecPar(stream)
-            val type = when (Internals.codecParType(parameters)) {
-                Internals.mediaTypeVideo -> MediaType.Video
-                Internals.mediaTypeAudio -> MediaType.Audio
-                Internals.mediaTypeSubtitle -> MediaType.Subtitle
-                Internals.mediaTypeData -> MediaType.Data
-                Internals.mediaTypeAttachment -> MediaType.Attachment
-                else -> MediaType.Unknown
-            }
-            val timeBase = Internals.streamTimeBase(stream)
-            val codecId = Internals.codecParId(parameters)
-            val codecName = Internals.codecIdName(codecId)
-            val sar = Internals.codecParSar(parameters).let { if (it.num == 0) Rational(1, 1) else it }
-            add(
-                StreamInfo(
-                    index = Internals.streamIndex(stream),
-                    type = type,
-                    codec = CodecId(codecName),
-                    timeBase = timeBase,
-                    durationMicros = Internals.streamDuration(stream).takeIf { it > 0L },
-                    bitrateBps = Internals.codecParBitrate(parameters).takeIf { it > 0L },
-                    video = if (type == MediaType.Video) VideoStreamInfo(
-                        width = Internals.codecParWidth(parameters),
-                        height = Internals.codecParHeight(parameters),
-                        pixelFormat = pixelFormatFromAv(Internals.codecParFormat(parameters)),
-                        frameRate = Internals.streamFrameRate(stream),
-                        sampleAspectRatio = sar,
-                        color = readCodecParameterColor(parameters),
-                        vp9 = if (codecName == "vp9") {
-                            readVp9CodecInfo(parameters)
-                        } else null,
-                        fieldOrder = FieldOrder.ofCode(Internals.codecParFieldOrder(parameters)),
-                        hdr = Internals.codecParHdr(parameters),
-                        dolbyVision = Internals.codecParDolbyVision(parameters),
-                        crop = Internals.codecParCrop(parameters),
-                        spherical = Internals.codecParSpherical(parameters),
-                        stereo3d = Internals.codecParStereo3d(parameters),
-                    ) else null,
-                    audio = if (type == MediaType.Audio) AudioStreamInfo(
-                        sampleRate = Internals.codecParSampleRate(parameters),
-                        channels = Internals.codecParChannels(parameters),
-                        sampleFormat = sampleFormatFromAv(Internals.codecParFormat(parameters)),
-                        channelLayoutMask = Internals.codecParChannelLayout(parameters).takeIf { it != 0L },
-                    ) else null,
-                    metadata = readMetadata(Internals.streamMetadata(stream)),
-                    disposition = readDisposition(Internals.streamDisposition(stream)),
-                    rotationDegrees = Internals.streamRotation(stream),
-                    startTimeMicros = Internals.streamStartTime(stream)
-                        .takeIf { it != Long.MIN_VALUE }
-                        ?.let { Internals.rescaleQ(it, timeBase, Rational.Tb_us) }
-                        ?: 0L,
-                    codecExtradata = Internals.codecParExtradata(parameters),
-                    codecProfile = knownProfile(Internals.codecParProfile(parameters)),
-                    mirrored = Internals.streamMirrored(stream),
-                ),
-            )
-        } finally {
-            if (parameters != 0L) Internals.borrowedRelease(parameters, Internals.KIND_CODEC_PAR)
-            Internals.borrowedRelease(stream, Internals.KIND_STREAM)
+private fun buildStreams(format: Long): List<StreamInfo> =
+    List(Internals.fmtNbStreams(format)) { index -> readStreamEntry(format, index) }
+
+/** The entry of the stream at [index], as the open reads it and as a read reads a stream it added (#151). */
+private fun readStreamEntry(format: Long, index: Int): StreamInfo {
+    val stream = Internals.fmtStream(format, index)
+    var parameters = 0L
+    try {
+        parameters = Internals.streamCodecPar(stream)
+        val type = when (Internals.codecParType(parameters)) {
+            Internals.mediaTypeVideo -> MediaType.Video
+            Internals.mediaTypeAudio -> MediaType.Audio
+            Internals.mediaTypeSubtitle -> MediaType.Subtitle
+            Internals.mediaTypeData -> MediaType.Data
+            Internals.mediaTypeAttachment -> MediaType.Attachment
+            else -> MediaType.Unknown
         }
+        val timeBase = Internals.streamTimeBase(stream)
+        val codecId = Internals.codecParId(parameters)
+        val codecName = Internals.codecIdName(codecId)
+        val sar = Internals.codecParSar(parameters).let { if (it.num == 0) Rational(1, 1) else it }
+        return StreamInfo(
+            index = Internals.streamIndex(stream),
+            type = type,
+            codec = CodecId(codecName),
+            timeBase = timeBase,
+            durationMicros = Internals.streamDuration(stream).takeIf { it > 0L },
+            bitrateBps = Internals.codecParBitrate(parameters).takeIf { it > 0L },
+            video = if (type == MediaType.Video) VideoStreamInfo(
+                width = Internals.codecParWidth(parameters),
+                height = Internals.codecParHeight(parameters),
+                pixelFormat = pixelFormatFromAv(Internals.codecParFormat(parameters)),
+                frameRate = Internals.streamFrameRate(stream),
+                sampleAspectRatio = sar,
+                color = readCodecParameterColor(parameters),
+                vp9 = if (codecName == "vp9") {
+                    readVp9CodecInfo(parameters)
+                } else null,
+                fieldOrder = FieldOrder.ofCode(Internals.codecParFieldOrder(parameters)),
+                hdr = Internals.codecParHdr(parameters),
+                dolbyVision = Internals.codecParDolbyVision(parameters),
+                crop = Internals.codecParCrop(parameters),
+                spherical = Internals.codecParSpherical(parameters),
+                stereo3d = Internals.codecParStereo3d(parameters),
+            ) else null,
+            audio = if (type == MediaType.Audio) AudioStreamInfo(
+                sampleRate = Internals.codecParSampleRate(parameters),
+                channels = Internals.codecParChannels(parameters),
+                sampleFormat = sampleFormatFromAv(Internals.codecParFormat(parameters)),
+                channelLayoutMask = Internals.codecParChannelLayout(parameters).takeIf { it != 0L },
+            ) else null,
+            metadata = readMetadata(Internals.streamMetadata(stream)),
+            disposition = readDisposition(Internals.streamDisposition(stream)),
+            rotationDegrees = Internals.streamRotation(stream),
+            startTimeMicros = Internals.streamStartTime(stream)
+                .takeIf { it != Long.MIN_VALUE }
+                ?.let { Internals.rescaleQ(it, timeBase, Rational.Tb_us) }
+                ?: 0L,
+            codecExtradata = Internals.codecParExtradata(parameters),
+            codecProfile = knownProfile(Internals.codecParProfile(parameters)),
+            mirrored = Internals.streamMirrored(stream),
+        )
+    } finally {
+        if (parameters != 0L) Internals.borrowedRelease(parameters, Internals.KIND_CODEC_PAR)
+        Internals.borrowedRelease(stream, Internals.KIND_STREAM)
     }
 }
 

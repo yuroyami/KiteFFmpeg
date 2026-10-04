@@ -66,37 +66,79 @@ public actual class PacketReader internal constructor(
     // blocks until the read returns instead of freeing the scratch packet under it.
     private val lock = Any()
 
+    /** The packets of the streams FFmpeg added while this reader read, until the caller chooses (#151). */
+    private val held = HeldPackets<Long>(sizeOf = Internals::packetSize, free = Internals::packetFree)
+
     @Throws(FFmpegException::class)
     public actual fun read(): Packet? {
         synchronized(lock) {
             check(scratch != 0L) { "PacketReader is closed" }
+            settleWaiting(seeking = false)
+            held.next(timeBaseByStream.keys)?.let { (index, packet) -> return deliver(index, packet) }
             while (true) {
                 val rc = Internals.fmtReadFrame(formatToken, scratch)
                 if (rc == Internals.errorEof) return null
                 if (rc < 0) throw source.demuxFailure(rc)
                 val index = Internals.packetStreamIndex(scratch)
-                val timeBase = timeBaseByStream[index]
-                if (timeBase == null) {
+                try {
+                    held.added(source.table.afterRead(index))
+                } catch (error: Throwable) {
+                    Internals.packetUnref(scratch)
+                    throw error
+                }
+                val selected = index in timeBaseByStream
+                if (!selected && !held.isWaiting(index)) {
                     Internals.packetUnref(scratch)
                     continue
                 }
-                val owned = Internals.packetAlloc()
-                try {
-                    Internals.packetMoveRef(owned, scratch)
-                    // A change a skipped packet's read made waits, raised, for the next packet handed out.
-                    val changes = source.takeTagChanges(formatToken, index)
-                    return Packet(owned, timeBase, changes?.container, changes?.stream)
+                val owned = try {
+                    Internals.packetAlloc()
                 } catch (error: Throwable) {
-                    Internals.packetFree(owned)
+                    Internals.packetUnref(scratch)
                     throw error
                 }
+                Internals.packetMoveRef(owned, scratch)
+                if (!selected) {
+                    held.hold(index, owned)
+                    continue
+                }
+                return deliver(index, owned)
             }
+        }
+    }
+
+    /** Hands out [owned], with the changes it is the first packet after. */
+    private fun deliver(index: Int, owned: Long): Packet {
+        // A change a skipped packet's read made waits, raised, for the next packet handed out.
+        val changes = try {
+            source.takeTagChanges(formatToken, index)
+        } catch (error: Throwable) {
+            Internals.packetFree(owned)
+            throw error
+        }
+        val newStreams = source.table.takeStreamsChange()
+        if (newStreams != null) held.announce()
+        // The stream's entry as it stands, which an entry read again at its first packet updates.
+        val timeBase = source.table.streams.getOrNull(index)?.timeBase ?: timeBaseByStream.getValue(index)
+        return Packet(owned, timeBase, changes?.container, changes?.stream, newStreams, source.table.takeProgramsChange())
+    }
+
+    /**
+     * Settles the streams a packet announced, at a read or a seek: the ones the caller did not
+     * select are skipped from now on, and their held packets, and at a seek every held packet, go.
+     */
+    private fun settleWaiting(seeking: Boolean) {
+        if (!held.hasDecisions) return
+        val before = timeBaseByStream.keys + held.waitingStreams
+        if (held.decide(timeBaseByStream.keys, seeking)) {
+            source.applyPacketReaderSelection(timeBaseByStream.keys + held.waitingStreams, before)
         }
     }
 
     @Throws(FFmpegException::class)
     public actual fun seek(micros: Long, direction: SeekDirection, notEarlierThan: Long?): Unit = synchronized(lock) {
         check(scratch != 0L) { "PacketReader is closed" }
+        settleWaiting(seeking = true)
         val target = source.toAbsoluteMicros(micros)
         val (min, max) = seekWindow(target, direction, notEarlierThan?.let(source::toAbsoluteMicros))
         val flags = when (direction) {
@@ -111,9 +153,11 @@ public actual class PacketReader internal constructor(
     @Throws(FFmpegException::class)
     public actual fun reselect(streams: List<StreamInfo>): Unit = synchronized(lock) {
         check(scratch != 0L) { "PacketReader is closed" }
-        val next = canonicalPacketSelection(source.streams, streams)
+        val next = canonicalPacketSelection(source.table, streams)
         val previous = timeBaseByStream
-        source.applyPacketReaderSelection(next.keys, previous.keys)
+        // A stream FFmpeg added keeps coming through until a read settles it, selected or not.
+        val waiting = held.waitingStreams
+        source.applyPacketReaderSelection(next.keys + waiting, previous.keys + waiting)
         // Publish only after every backend flag was applied. read() uses this map as the exact
         // delivery gate even when a demuxer treats AVDISCARD_ALL as advisory.
         timeBaseByStream = next
@@ -125,6 +169,7 @@ public actual class PacketReader internal constructor(
             if (owned == 0L) return
             scratch = 0L
             try {
+                held.clear()
                 Internals.packetFree(owned)
             } finally {
                 try {

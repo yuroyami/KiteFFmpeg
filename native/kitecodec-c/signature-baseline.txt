@@ -1,6 +1,6 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 5.0
+# abi-version 5.1
 #
 # Exact scope: 265 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
@@ -198,6 +198,7 @@ KC_API int64_t ffkmp_codecpar_bit_rate(kc_codec_par *p);
 KC_API int64_t ffkmp_codecpar_ch_layout_mask(kc_codec_par *p);
 KC_API int64_t ffkmp_fmt_bit_rate(const kc_fmt_ctx *ctx);
 KC_API int64_t ffkmp_fmt_duration(kc_fmt_ctx *c);
+KC_API int64_t ffkmp_fmt_layout_stamp(const kc_fmt_ctx *ctx);
 KC_API int64_t ffkmp_fmt_start_time(kc_fmt_ctx *c);
 KC_API int64_t ffkmp_frame_ch_layout_mask(kc_frame *f);
 KC_API int64_t ffkmp_frame_duration(kc_frame *f);

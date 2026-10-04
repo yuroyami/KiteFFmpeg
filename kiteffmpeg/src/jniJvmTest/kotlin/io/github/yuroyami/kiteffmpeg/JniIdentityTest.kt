@@ -15,7 +15,7 @@ class JniIdentityTest {
         // _MINOR only.
         val identity = FFmpeg.identity
         assertTrue(identity.isAcceptable, identity.describe())
-        assertEquals("5.0", identity.cAbiVersion)
+        assertEquals("5.1", identity.cAbiVersion)
         assertEquals(
             listOf("libavutil", "libavcodec", "libavformat", "libavfilter", "libswscale", "libswresample"),
             identity.libraries.map { it.name },

@@ -98,7 +98,6 @@ public actual enum class SeekDirection {
 public actual class PacketReader internal constructor(
     private val source: MediaSource,
     private val context: Int,
-    private val timeBases: Map<Int, Rational>,
     private var wanted: Set<Int>,
     /** The container's own origin, so [seek] can convert the public timeline onto it. */
     private val startTimeMicros: Long,
@@ -109,10 +108,18 @@ public actual class PacketReader internal constructor(
 
     private var closed = false
 
+    /** The packets of the streams FFmpeg added while this reader read, until the caller chooses (#151). */
+    private val held = HeldPackets<Int>(
+        sizeOf = { ffkmp_packet_size(requireModule(), it) },
+        free = { packet -> requireModule().let { ffkmp_packet_unref(it, packet); ffkmp_packet_free(it, packet) } },
+    )
+
     public actual fun read(): Packet? {
         check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
         val m = requireModule()
+        settleWaiting(seeking = false)
+        held.next(wanted)?.let { (index, packet) -> return deliver(m, index, packet) }
         val eof = ffkmp_averror_eof(m)
         while (true) {
             val packet = ffkmp_packet_alloc(m)
@@ -124,16 +131,17 @@ public actual class PacketReader internal constructor(
                 throw source.demuxFailure(rc, "reading a packet")
             }
             val index = ffkmp_packet_stream_index(m, packet)
-            if (index in wanted) {
-                // A change a skipped packet's read made waits, raised, for the next packet handed out.
-                val changes = try {
-                    source.takeTagChanges(index)
-                } catch (failure: Throwable) {
-                    ffkmp_packet_unref(m, packet)
-                    ffkmp_packet_free(m, packet)
-                    throw failure
-                }
-                return Packet(packet, timeBases[index] ?: MICRO, changes?.container, changes?.stream)
+            try {
+                held.added(source.table.afterRead(index))
+            } catch (failure: Throwable) {
+                ffkmp_packet_unref(m, packet)
+                ffkmp_packet_free(m, packet)
+                throw failure
+            }
+            if (index in wanted) return deliver(m, index, packet)
+            if (held.isWaiting(index)) {
+                held.hold(index, packet)
+                continue
             }
             // Not a stream this reader was opened for: drop it and keep going rather than hand the
             // caller a packet it would have to filter itself.
@@ -142,10 +150,40 @@ public actual class PacketReader internal constructor(
         }
     }
 
+    /** Hands out [packet], with the changes it is the first packet after. */
+    private fun deliver(m: JsAny, index: Int, packet: Int): Packet {
+        // A change a skipped packet's read made waits, raised, for the next packet handed out.
+        val changes = try {
+            source.takeTagChanges(index)
+        } catch (failure: Throwable) {
+            ffkmp_packet_unref(m, packet)
+            ffkmp_packet_free(m, packet)
+            throw failure
+        }
+        val newStreams = source.table.takeStreamsChange()
+        if (newStreams != null) held.announce()
+        // The stream's entry as it stands, which an entry read again at its first packet updates.
+        val timeBase = source.table.streams.getOrNull(index)?.timeBase ?: MICRO
+        return Packet(packet, timeBase, changes?.container, changes?.stream, newStreams, source.table.takeProgramsChange())
+    }
+
+    /**
+     * Settles the streams a packet announced, at a read or a seek: the ones the caller did not
+     * select are skipped from now on, and their held packets, and at a seek every held packet, go.
+     */
+    private fun settleWaiting(seeking: Boolean) {
+        if (!held.hasDecisions) return
+        val before = wanted + held.waitingStreams
+        if (held.decide(wanted, seeking)) {
+            source.applyPacketReaderSelection(wanted + held.waitingStreams, before)
+        }
+    }
+
     public actual fun seek(micros: Long, direction: SeekDirection, notEarlierThan: Long?) {
         check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
         val m = requireModule()
+        settleWaiting(seeking = true)
         val flags = when (direction) {
             SeekDirection.Backward -> ffkmp_avseek_flag_backward(m)
             SeekDirection.Any -> ffkmp_avseek_flag_any(m)
@@ -163,9 +201,11 @@ public actual class PacketReader internal constructor(
     public actual fun reselect(streams: List<StreamInfo>) {
         check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
-        val next = canonicalPacketSelection(source.streams, streams)
+        val next = canonicalPacketSelection(source.table, streams)
         val previous = wanted
-        source.applyPacketReaderSelection(next.keys, previous)
+        // A stream FFmpeg added keeps coming through until a read settles it, selected or not.
+        val waiting = held.waitingStreams
+        source.applyPacketReaderSelection(next.keys + waiting, previous + waiting)
         // The set remains the exact delivery gate even for demuxers that ignore discard hints.
         wanted = next.keys
     }
@@ -175,7 +215,11 @@ public actual class PacketReader internal constructor(
         closed = true
         // Exactly once, and even if the source is already gone: the lease lives on the source
         // object, not in the container, so returning it is always safe and always owed.
-        onClosed()
+        try {
+            held.clear()
+        } finally {
+            onClosed()
+        }
     }
 }
 

@@ -130,6 +130,7 @@ internal object Internals {
     private external fun nativeFmtReadPause(token: Long): Int
     private external fun nativeFmtReadPlay(token: Long): Int
     private external fun nativeFmtTakeTagChanges(token: Long, streamIndex: Int): Int
+    private external fun nativeFmtLayoutStamp(token: Long): Long
     private external fun nativeFmtSetOpt(token: Long, key: String, value: String?): Int
     private external fun nativeFmtStartTime(token: Long): Long
     private external fun nativeFmtInputName(token: Long): String?
@@ -486,6 +487,7 @@ internal object Internals {
     internal fun fmtReadPause(token: Long) = checked { nativeFmtReadPause(token) }
     internal fun fmtReadPlay(token: Long) = checked { nativeFmtReadPlay(token) }
     internal fun fmtTakeTagChanges(token: Long, streamIndex: Int) = checked { nativeFmtTakeTagChanges(token, streamIndex) }
+    internal fun fmtLayoutStamp(token: Long) = checked { nativeFmtLayoutStamp(token) }
 
     /** The two answers of [fmtTakeTagChanges], `KC_TAGS_CONTAINER` and `KC_TAGS_STREAM` (#135). */
     internal const val TAGS_CONTAINER = 1

@@ -126,6 +126,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtSeekMicros",    "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtReadPause",     "(J)I",                   kj_fmt_read_pause)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtReadPlay",      "(J)I",                   kj_fmt_read_play)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtTakeTagChanges", "(JI)I",                 kj_fmt_take_tag_changes)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtLayoutStamp",   "(J)J",                   kj_fmt_layout_stamp)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtSetOpt",        "(JLjava/lang/String;Ljava/lang/String;)I", kj_fmt_set_opt)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtStartTime",      "(J)J",                   kj_fmt_start_time)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFmtInputName",      "(J)Ljava/lang/String;",  kj_fmt_input_name)

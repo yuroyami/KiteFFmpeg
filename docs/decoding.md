@@ -184,7 +184,7 @@ val video = source.primaryVideo   // StreamInfo?: the primary video track, or nu
 val audio = source.primaryAudio   // StreamInfo?: the primary audio track, or null
 ```
 
-`primaryVideo` and `primaryAudio` are nullable. An audio-only file has no `primaryVideo`, so guard for null before you decode. A file whose only picture is its cover art does have one: `primaryVideo` skips cover art when another video stream exists and returns the cover art otherwise. In a source with [programmes](#programmes), `primaryAudio` is the sound of `primaryVideo`'s own channel.
+`primaryVideo` and `primaryAudio` are nullable. An audio-only file has no `primaryVideo`, so guard for null before you decode. A file whose only picture is its cover art does have one: `primaryVideo` skips cover art when another video stream exists and returns the cover art otherwise. In a source with [programmes](#programmes), `primaryAudio` is the sound of `primaryVideo`'s own channel. A live transport stream can add to the list while it plays, as [Streams that start after the open](#streams-that-start-after-the-open) shows.
 
 ### What a stream tells you
 
@@ -356,6 +356,34 @@ val audio = selector.selectAudio(source.streams, source.programs, video)
 ```
 
 The picture fixes the channel, and the language preference chooses only among that channel's sound, so a preference for English never pairs one channel's picture with another channel's English sound. When the picture's programmes hold no sound, a sound in no programme is taken, and otherwise none. The `selectAudio` that takes the streams alone knows nothing of programmes.
+
+### Streams that start after the open
+
+A live transport stream can start its sound after its picture, add subtitles at a programme boundary or move a channel's sound to a new stream, and FFmpeg adds such a stream while it reads, long after the open. `source.streams` grows when it does, in index order and never shorter, and `source.programs` follows the programme tables, so a stream the container stopped carrying shows by leaving its programme. The first packet a reader hands out after a change carries the whole new list as `newStreams` or `newPrograms`:
+
+```kotlin
+source.openPacketReader(listOf(video)).use { reader ->
+    var known = source.streams
+    while (true) {
+        val packet = reader.read() ?: break
+        packet.newStreams?.let { streams ->
+            val sound = streams.drop(known.size).firstOrNull { it.type == MediaType.Audio }
+            if (sound != null && !playingSound) {
+                reader.reselect(listOf(video, sound))
+                playingSound = true
+            }
+            known = streams
+        }
+        route(packet)
+    }
+}
+```
+
+FFmpeg may hand out the new stream's first packets before the packet that announces it, so they are held: add the stream with `reselect` before the next `read`, and that read hands them out first, so the stream starts from its first packet. They come after the announcing packet although FFmpeg read them before it, which a player that queues each stream apart does not notice. Read on or seek without adding the stream and they are dropped, and the stream is skipped as any stream the reader does not select is. At most 16 MB of them are held, the oldest going first, which matters only when the selected streams fall silent for a long time and no packet can announce the new one.
+
+An entry read before FFmpeg had any packet of its stream says only what the programme table could say, so a late MP2 sound reads as MP3 with no sample rate and no channels. FFmpeg's parser corrects that at the stream's first packet, the entry is read again then, and the corrected list rides the next packet handed out as `newStreams` too, which is the stream's own first packet once you added it. So find a new stream by its index rather than by comparing entries, and open its decoder at its first packet, from the entry the latest list holds. The same goes for a seekable file whose open found a stream by reading ahead without parsing it. The entry a correction replaced still names its stream, so a selection or a decoder made from it stays valid.
+
+A decode flow keeps both lists current but hands out no packet, so the first packet a reader hands out after it carries what changed during it.
 
 ## Decoding one stream
 

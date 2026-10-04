@@ -25,12 +25,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `MediaSource.primaryAudio` of a source with programmes is now the sound of `primaryVideo`'s own
   programme (#165), so it can name another stream than before, and it is null when that
   programme has no sound and no stream sits outside every programme.
+- `MediaSource.streams` and `MediaSource.programs` can change after the open (#151): a live
+  transport stream adds streams and moves them between programmes as it plays, and an entry read
+  before its stream had a packet is replaced once it has one. Code that kept the list from the open
+  and finds a stream by comparing whole entries should find it by index, and read the lists again,
+  or follow `Packet.newStreams` and `Packet.newPrograms`, to see what was added.
 - The C ABI is 5.0 (#167, #168). `ffkmp_fmt_open_input_io2` takes a `tags_fn` after its `seek_fn`
   and the input's `location` after its `url`, and `kc_io_opener` gains `location_fn` after
   `close_fn`, so C code that calls the helper layer itself, or fills a `kc_io_opener`, has to be
   built again against the new header. The Kotlin API changes only by what the entries below add.
 
 ### Added
+
+- A stream FFmpeg adds after the open reaches a caller (#151). A live transport stream can start its
+  sound after its picture, add subtitles at a programme boundary or move a channel's sound to a new
+  stream, and FFmpeg adds such a stream while it reads, where `MediaSource.streams` used to stay as
+  the open found it and every reader dropped the new stream's packets. `MediaSource.streams` grows
+  now, in index order and never shorter, and `MediaSource.programs` follows the programme tables, as
+  of the last packet read, by a packet reader or a decode flow. The first packet a reader hands out
+  after a change carries the whole new list as `Packet.newStreams` or `Packet.newPrograms`, and a
+  change no packet carried yet rides the next reader's first packet. The packets of a new stream
+  that FFmpeg handed out before that packet are held, up to 16 MB, and the read after a `reselect`
+  that adds the stream hands them out first, so it starts from its first packet; a read or a seek
+  without it drops them. An entry read before FFmpeg had any packet of its stream, such as a late
+  MP2 sound the programme table names MP3 with no channels, is read again at the stream's first
+  packet, and the entry it replaced still names the stream to a reader or a decoder. A packet takes
+  its time base from its stream's entry as it stands. The web build's `openDecoder` now refuses an
+  entry from another source, as the other backends' did. The C ABI is 5.1 and adds
+  `ffkmp_fmt_layout_stamp`, a number that moves when the stream count or the programme table does.
 
 - A `MediaByteSource` hands FFmpeg the tags its bytes bring, through `takeTags` (#168). A player
   that reads an internet radio station through its own HTTP client takes the title blocks out of

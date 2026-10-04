@@ -68,14 +68,18 @@ public expect class Packet : AutoCloseable {
      * The source's [MediaSource.streams] as they stand from this packet on, present only on the first
      * packet a read hands out after FFmpeg added a stream or an entry was read again at its stream's
      * first packet, and null on every other packet (#151). It is the whole list, so a stream is new
-     * when its index is past the end of the list before, and corrected when its entry differs.
+     * when its index is past the end of the list before, and corrected when its entry differs. A
+     * change that a decode flow read, or that the reader before this one read and never handed a
+     * packet out after, rides this reader's first packet.
      *
      * The packets FFmpeg handed out, before this one, of a stream that is new in this list are held:
      * add the stream with [PacketReader.reselect] before the next [PacketReader.read], and that read
      * hands them out first, so the stream arrives from its first packet. They come after this packet,
      * although FFmpeg read them before it, which a player that queues each stream apart does not
      * notice. Read on or seek without the stream and they are dropped, and the stream is skipped as
-     * any stream the reader does not select is. A [copy] carries it too.
+     * any stream the reader does not select is. At most 16 MB of them are held, the oldest going
+     * first, which matters only when the selected streams fall silent for long enough that no packet
+     * announces the new one. A [copy] carries it too.
      */
     public val newStreams: List<StreamInfo>?
 
@@ -218,27 +222,23 @@ public expect class PacketReader : AutoCloseable {
 }
 
 /**
- * Canonicalizes a packet-reader selection against the immutable stream table published by its
- * source. StreamInfo is a public data class and can be forged, so an index alone is not enough:
- * accepting foreign timing metadata would stamp this source's packets with another source's time
- * base.
+ * Canonicalizes a packet-reader selection against the stream table of its source. StreamInfo is a
+ * public data class and can be forged, so an index alone is not enough: accepting foreign timing
+ * metadata would stamp this source's packets with another source's time base. An entry that a later
+ * reading of its stream replaced still names it (#151), and the time base is the stream's own as the
+ * table lists it now.
  */
 internal fun canonicalPacketSelection(
-    sourceStreams: List<StreamInfo>,
+    table: StreamTable,
     requestedStreams: List<StreamInfo>,
 ): Map<Int, Rational> {
     require(requestedStreams.isNotEmpty()) { "Need at least one stream to read" }
     require(requestedStreams.distinctBy { it.index }.size == requestedStreams.size) {
         "Duplicate stream indices"
     }
-    val sourceByIndex = sourceStreams.associateBy { it.index }
-    requestedStreams.forEach { supplied ->
-        require(sourceByIndex[supplied.index] == supplied) {
-            "StreamInfo(index=${supplied.index}) does not belong to this MediaSource. Pass entries " +
-                "from THIS source's streams list; stream identity is source-bound."
-        }
-    }
-    return requestedStreams.associate { it.index to it.timeBase }
+    requestedStreams.forEach(table::requireOwn)
+    val current = table.streams
+    return requestedStreams.associate { it.index to (current.getOrNull(it.index)?.timeBase ?: it.timeBase) }
 }
 
 /**

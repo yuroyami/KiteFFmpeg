@@ -84,6 +84,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_stream
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_take_tag_changes
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_layout_stamp
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_attachment
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_data
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_rescale_q
@@ -129,7 +130,24 @@ public actual class MediaSource internal constructor(
         return context
     }
 
-    public actual val streams: List<StreamInfo> by lazy { readStreams(requireModule(), alive()) }
+    /**
+     * The stream and programme lists as reads change them (#151), read at first use, as the lists
+     * always were here, and then by every read.
+     */
+    internal val table: StreamTable by lazy {
+        val m = requireModule()
+        val open = readStreams(m, alive())
+        StreamTable(
+            open,
+            readPrograms(m, context, open),
+            readStamp = { ffkmp_fmt_layout_stamp(requireModule(), context) },
+            readCount = { ffkmp_fmt_nb_streams(requireModule(), context) },
+            readEntry = { index -> readStreamEntry(requireModule(), context, index) },
+            readPrograms = { streams -> readPrograms(requireModule(), context, streams) },
+        )
+    }
+
+    public actual val streams: List<StreamInfo> get() = table.streams
 
     public actual val durationMicros: Long?
         get() = ffkmp_fmt_duration(requireModule(), alive()).takeIf { it > 0 }
@@ -190,36 +208,7 @@ public actual class MediaSource internal constructor(
             }
         }
 
-    public actual val programs: List<Program> by lazy {
-        val m = requireModule()
-        val context = alive()
-        val count = ffkmp_fmt_program_count(m, context)
-        if (count <= 0) return@lazy emptyList()
-        val known = streams.mapTo(HashSet()) { it.index }
-        // The id, the number and the stream count in one allocation, as the chapter table reads.
-        val slots = wasmAlloc(m, 12)
-        try {
-            buildList {
-                for (index in 0 until count) {
-                    if (ffkmp_fmt_program_get(m, context, index, slots, slots + 4, slots + 8) < 0) continue
-                    val indexes = (0 until readInt32(m, slots + 8))
-                        .map { ffkmp_fmt_program_stream(m, context, index, it) }
-                        .filter { it >= 0 }
-                    add(
-                        programOf(
-                            id = readInt32(m, slots),
-                            number = readInt32(m, slots + 4),
-                            streamIndexes = indexes,
-                            metadata = readMetadata(m, ffkmp_fmt_program_metadata(m, context, index)),
-                            known = known,
-                        ),
-                    )
-                }
-            }
-        } finally {
-            wasmFree(m, slots)
-        }
-    }
+    public actual val programs: List<Program> get() = table.programs
 
     /**
      * The keys FFmpeg did not consume, which is a real answer now.
@@ -330,7 +319,7 @@ public actual class MediaSource internal constructor(
     public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = flow {
         // Refused before any decoder exists. A duplicate index opened a second decoder over the
         // first one's map entry, and only the survivor was closed (#113).
-        canonicalPacketSelection(this@MediaSource.streams, streams)
+        canonicalPacketSelection(table, streams)
         // Staged, because `associate` built them all and dropped the ones it had already built if
         // a later open threw, leaking one codec context each.
         val decoders = LinkedHashMap<Int, StreamDecoder>()
@@ -472,7 +461,7 @@ public actual class MediaSource internal constructor(
 
     public actual fun openPacketReader(streams: List<StreamInfo>): PacketReader {
         val context = alive()
-        val selection = canonicalPacketSelection(this.streams, streams)
+        val selection = canonicalPacketSelection(table, streams)
         beginPacketReader()
         try {
             applyPacketReaderSelection(
@@ -482,7 +471,6 @@ public actual class MediaSource internal constructor(
             return PacketReader(
                 source = this,
                 context = context,
-                timeBases = this.streams.associate { it.index to it.timeBase },
                 wanted = selection.keys,
                 startTimeMicros = startTimeMicros,
                 lifetime = lifetime,
@@ -534,6 +522,9 @@ public actual class MediaSource internal constructor(
                 ),
             )
         }
+        // The identity rule the other backends apply: a StreamInfo can be forged, and a forged one
+        // with a valid index would decode this source's stream as another file's.
+        table.requireOwn(stream)
         val native = ffkmp_fmt_stream(m, alive(), stream.index)
         val par = ffkmp_stream_codecpar(m, native)
         val codecId = ffkmp_codecpar_codec_id(m, par)
@@ -595,7 +586,7 @@ public actual class MediaSource internal constructor(
         val m = requireModule()
         require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
         // The same identity rule the packet reader applies: a StreamInfo can be forged.
-        canonicalPacketSelection(streams, listOf(stream))
+        table.requireOwn(stream)
         val slot = wasmAlloc(m, 4)
         try {
             val rc = ffkmp_subtitle_decoder_open(m, alive(), stream.index, slot)
@@ -837,98 +828,122 @@ public actual class MediaSource internal constructor(
     }
 }
 
-private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> {
-    val video = ffkmp_media_type_video(m)
-    val audio = ffkmp_media_type_audio(m)
-    val subtitle = ffkmp_media_type_subtitle(m)
-    // Hoisted like the media-type constants: one call per open, not one per stream.
-    val dispositionDefault = ffkmp_disposition_default(m)
-    val dispositionForced = ffkmp_disposition_forced(m)
-    val dispositionHearingImpaired = ffkmp_disposition_hearing_impaired(m)
-    val dispositionVisualImpaired = ffkmp_disposition_visual_impaired(m)
-    val dispositionAttachedPic = ffkmp_disposition_attached_pic(m)
-    val dispositionDescriptions = ffkmp_disposition_descriptions(m)
-    val dispositionComment = ffkmp_disposition_comment(m)
-    return (0 until ffkmp_fmt_nb_streams(m, context)).map { i ->
-        val native = ffkmp_fmt_stream(m, context, i)
-        val par = ffkmp_stream_codecpar(m, native)
-        val kind = when (ffkmp_codecpar_codec_type(m, par)) {
-            video -> MediaType.Video
-            audio -> MediaType.Audio
-            subtitle -> MediaType.Subtitle
-            ffkmp_media_type_data(m) -> MediaType.Data
-            ffkmp_media_type_attachment(m) -> MediaType.Attachment
-            // Everything else is genuinely unknown. Calling it Data erased the difference between
-            // a timed-metadata stream, a font the container carries, and a type this build does
-            // not know, which are three different answers to "can you play this".
-            else -> MediaType.Unknown
-        }
-        val timeBase = readTimeBase(m, native)
-        val codecName = utf8OrNull(m, ffkmp_codec_id_name(m, ffkmp_codecpar_codec_id(m, par))).orEmpty()
-        StreamInfo(
-            index = ffkmp_stream_index(m, native),
-            type = kind,
-            codec = CodecId(codecName),
-            timeBase = timeBase,
-            durationMicros = ffkmp_stream_duration_micros(m, native).takeIf { it > 0 },
-            bitrateBps = ffkmp_codecpar_bit_rate(m, par).takeIf { it > 0 },
-            video = if (kind == MediaType.Video) {
-                VideoStreamInfo(
-                    width = ffkmp_codecpar_width(m, par),
-                    height = ffkmp_codecpar_height(m, par),
-                    pixelFormat = pixelFormatOf(m, ffkmp_codecpar_format(m, par)),
-                    frameRate = readRational(m) { n, d -> ffkmp_stream_avg_frame_rate(m, native, n, d) },
-                    sampleAspectRatio = readRational(m, fallbackNum = 1, fallbackDen = 1) { n, d ->
-                        ffkmp_codecpar_sample_aspect_ratio(m, par, n, d)
-                    },
-                    color = readParameterColor(m, par),
-                    vp9 = if (codecName == "vp9") readVp9CodecInfo(m, par) else null,
-                    fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(m, par)),
-                    hdr = readHdr(
-                        m,
-                        display = { q, flags -> ffkmp_codecpar_mastering_display(m, par, q, flags) },
-                        light = { maxCll, maxFall -> ffkmp_codecpar_content_light(m, par, maxCll, maxFall) },
+/** The programme table (#148), against the [streams] this source lists. */
+private fun readPrograms(m: kotlin.js.JsAny, context: Int, streams: List<StreamInfo>): List<Program> {
+    val count = ffkmp_fmt_program_count(m, context)
+    if (count <= 0) return emptyList()
+    val known = streams.mapTo(HashSet()) { it.index }
+    // The id, the number and the stream count in one allocation, as the chapter table reads.
+    val slots = wasmAlloc(m, 12)
+    try {
+        return buildList {
+            for (index in 0 until count) {
+                if (ffkmp_fmt_program_get(m, context, index, slots, slots + 4, slots + 8) < 0) continue
+                val indexes = (0 until readInt32(m, slots + 8))
+                    .map { ffkmp_fmt_program_stream(m, context, index, it) }
+                    .filter { it >= 0 }
+                add(
+                    programOf(
+                        id = readInt32(m, slots),
+                        number = readInt32(m, slots + 4),
+                        streamIndexes = indexes,
+                        metadata = readMetadata(m, ffkmp_fmt_program_metadata(m, context, index)),
+                        known = known,
                     ),
-                    dolbyVision = readDolbyVisionConfig(m, par),
-                    crop = readVideoCrop(m, par),
-                    spherical = readSphericalMapping(m, par),
-                    stereo3d = readStereo3d(m, par),
                 )
-            } else {
-                null
-            },
-            audio = if (kind == MediaType.Audio) {
-                AudioStreamInfo(
-                    sampleRate = ffkmp_codecpar_sample_rate(m, par),
-                    channels = ffkmp_codecpar_channels(m, par),
-                    sampleFormat = sampleFormatOf(m, ffkmp_codecpar_format(m, par)),
-                    channelLayoutMask = ffkmp_codecpar_ch_layout_mask(m, par).takeIf { it != 0L },
-                )
-            } else {
-                null
-            },
-            rotationDegrees = ffkmp_stream_rotation_degrees(m, native),
-            mirrored = ffkmp_stream_mirrored(m, native) != 0,
-            disposition = ffkmp_stream_disposition(m, native).let { flags ->
-                Disposition(
-                    default = flags and dispositionDefault != 0,
-                    forced = flags and dispositionForced != 0,
-                    hearingImpaired = flags and dispositionHearingImpaired != 0,
-                    visualImpaired = flags and dispositionVisualImpaired != 0,
-                    attachedPicture = flags and dispositionAttachedPic != 0,
-                    descriptions = flags and dispositionDescriptions != 0,
-                    comment = flags and dispositionComment != 0,
-                )
-            },
-            metadata = readMetadata(m, ffkmp_stream_metadata(m, native)),
-            startTimeMicros = ffkmp_stream_start_time(m, native)
-                .takeIf { it != Long.MIN_VALUE }
-                ?.let { ffkmp_rescale_q(m, it, timeBase.num, timeBase.den, 1, 1_000_000) }
-                ?: 0L,
-            codecExtradata = readCodecExtradata(m, par),
-            codecProfile = knownProfile(ffkmp_codecpar_profile(m, par)),
-        )
+            }
+        }
+    } finally {
+        wasmFree(m, slots)
     }
+}
+
+private fun readStreams(m: kotlin.js.JsAny, context: Int): List<StreamInfo> =
+    List(ffkmp_fmt_nb_streams(m, context)) { index -> readStreamEntry(m, context, index) }
+
+/** The entry of the stream at [i], as the open reads it and as a read reads a stream it added (#151). */
+private fun readStreamEntry(m: kotlin.js.JsAny, context: Int, i: Int): StreamInfo {
+    val native = ffkmp_fmt_stream(m, context, i)
+    if (native == 0) {
+        throw FFmpegException(FFmpegError.Internal("FFmpeg lost stream index $i from this MediaSource"))
+    }
+    val par = ffkmp_stream_codecpar(m, native)
+    val kind = when (ffkmp_codecpar_codec_type(m, par)) {
+        ffkmp_media_type_video(m) -> MediaType.Video
+        ffkmp_media_type_audio(m) -> MediaType.Audio
+        ffkmp_media_type_subtitle(m) -> MediaType.Subtitle
+        ffkmp_media_type_data(m) -> MediaType.Data
+        ffkmp_media_type_attachment(m) -> MediaType.Attachment
+        // Everything else is genuinely unknown. Calling it Data erased the difference between
+        // a timed-metadata stream, a font the container carries, and a type this build does
+        // not know, which are three different answers to "can you play this".
+        else -> MediaType.Unknown
+    }
+    val timeBase = readTimeBase(m, native)
+    val codecName = utf8OrNull(m, ffkmp_codec_id_name(m, ffkmp_codecpar_codec_id(m, par))).orEmpty()
+    return StreamInfo(
+        index = ffkmp_stream_index(m, native),
+        type = kind,
+        codec = CodecId(codecName),
+        timeBase = timeBase,
+        durationMicros = ffkmp_stream_duration_micros(m, native).takeIf { it > 0 },
+        bitrateBps = ffkmp_codecpar_bit_rate(m, par).takeIf { it > 0 },
+        video = if (kind == MediaType.Video) {
+            VideoStreamInfo(
+                width = ffkmp_codecpar_width(m, par),
+                height = ffkmp_codecpar_height(m, par),
+                pixelFormat = pixelFormatOf(m, ffkmp_codecpar_format(m, par)),
+                frameRate = readRational(m) { n, d -> ffkmp_stream_avg_frame_rate(m, native, n, d) },
+                sampleAspectRatio = readRational(m, fallbackNum = 1, fallbackDen = 1) { n, d ->
+                    ffkmp_codecpar_sample_aspect_ratio(m, par, n, d)
+                },
+                color = readParameterColor(m, par),
+                vp9 = if (codecName == "vp9") readVp9CodecInfo(m, par) else null,
+                fieldOrder = FieldOrder.ofCode(ffkmp_codecpar_field_order(m, par)),
+                hdr = readHdr(
+                    m,
+                    display = { q, flags -> ffkmp_codecpar_mastering_display(m, par, q, flags) },
+                    light = { maxCll, maxFall -> ffkmp_codecpar_content_light(m, par, maxCll, maxFall) },
+                ),
+                dolbyVision = readDolbyVisionConfig(m, par),
+                crop = readVideoCrop(m, par),
+                spherical = readSphericalMapping(m, par),
+                stereo3d = readStereo3d(m, par),
+            )
+        } else {
+            null
+        },
+        audio = if (kind == MediaType.Audio) {
+            AudioStreamInfo(
+                sampleRate = ffkmp_codecpar_sample_rate(m, par),
+                channels = ffkmp_codecpar_channels(m, par),
+                sampleFormat = sampleFormatOf(m, ffkmp_codecpar_format(m, par)),
+                channelLayoutMask = ffkmp_codecpar_ch_layout_mask(m, par).takeIf { it != 0L },
+            )
+        } else {
+            null
+        },
+        rotationDegrees = ffkmp_stream_rotation_degrees(m, native),
+        mirrored = ffkmp_stream_mirrored(m, native) != 0,
+        disposition = ffkmp_stream_disposition(m, native).let { flags ->
+            Disposition(
+                default = flags and ffkmp_disposition_default(m) != 0,
+                forced = flags and ffkmp_disposition_forced(m) != 0,
+                hearingImpaired = flags and ffkmp_disposition_hearing_impaired(m) != 0,
+                visualImpaired = flags and ffkmp_disposition_visual_impaired(m) != 0,
+                attachedPicture = flags and ffkmp_disposition_attached_pic(m) != 0,
+                descriptions = flags and ffkmp_disposition_descriptions(m) != 0,
+                comment = flags and ffkmp_disposition_comment(m) != 0,
+            )
+        },
+        metadata = readMetadata(m, ffkmp_stream_metadata(m, native)),
+        startTimeMicros = ffkmp_stream_start_time(m, native)
+            .takeIf { it != Long.MIN_VALUE }
+            ?.let { ffkmp_rescale_q(m, it, timeBase.num, timeBase.den, 1, 1_000_000) }
+            ?: 0L,
+        codecExtradata = readCodecExtradata(m, par),
+        codecProfile = knownProfile(ffkmp_codecpar_profile(m, par)),
+    )
 }
 
 private fun readTimeBase(m: kotlin.js.JsAny, stream: Int): Rational =

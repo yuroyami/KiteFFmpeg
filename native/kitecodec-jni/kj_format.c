@@ -350,6 +350,14 @@ JNIEXPORT jint JNICALL kj_fmt_take_tag_changes(JNIEnv *env, jclass cls, jlong to
     return ctx ? (jint)ffkmp_fmt_take_tag_changes(ctx, (int)stream_index) : 0;
 }
 
+/* The stream count and the programme table as one number, which moves when either changes (#151). */
+JNIEXPORT jlong JNICALL kj_fmt_layout_stamp(JNIEnv *env, jclass cls, jlong token)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    return ctx ? (jlong)ffkmp_fmt_layout_stamp(ctx) : 0;
+}
+
 JNIEXPORT jint JNICALL kj_fmt_set_opt(JNIEnv *env, jclass cls, jlong token, jstring key, jstring value)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
