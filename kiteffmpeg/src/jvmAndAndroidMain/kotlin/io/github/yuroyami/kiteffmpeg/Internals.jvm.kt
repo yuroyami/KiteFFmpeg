@@ -129,6 +129,7 @@ internal object Internals {
     private external fun nativeFmtSeekMicros(token: Long, stream: Int, micros: Long): Int
     private external fun nativeFmtReadPause(token: Long): Int
     private external fun nativeFmtReadPlay(token: Long): Int
+    private external fun nativeFmtTakeTagChanges(token: Long, streamIndex: Int): Int
     private external fun nativeFmtSetOpt(token: Long, key: String, value: String?): Int
     private external fun nativeFmtStartTime(token: Long): Long
     private external fun nativeFmtInputName(token: Long): String?
@@ -484,6 +485,11 @@ internal object Internals {
     internal fun fmtSeekMicros(token: Long, stream: Int, micros: Long) = checked { nativeFmtSeekMicros(token, stream, micros) }
     internal fun fmtReadPause(token: Long) = checked { nativeFmtReadPause(token) }
     internal fun fmtReadPlay(token: Long) = checked { nativeFmtReadPlay(token) }
+    internal fun fmtTakeTagChanges(token: Long, streamIndex: Int) = checked { nativeFmtTakeTagChanges(token, streamIndex) }
+
+    /** The two answers of [fmtTakeTagChanges], `KC_TAGS_CONTAINER` and `KC_TAGS_STREAM` (#135). */
+    internal const val TAGS_CONTAINER = 1
+    internal const val TAGS_STREAM = 2
     internal fun fmtSetOpt(token: Long, key: String, value: String?) = checked { nativeFmtSetOpt(token, key, value) }
     internal fun fmtStartTime(token: Long) = checked { nativeFmtStartTime(token) }
     internal fun fmtInputName(token: Long) = checked { nativeFmtInputName(token) ?: "" }

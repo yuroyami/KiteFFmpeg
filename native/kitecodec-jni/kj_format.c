@@ -342,6 +342,14 @@ JNIEXPORT jint JNICALL kj_fmt_read_play(JNIEnv *env, jclass cls, jlong token)
     return ctx ? (jint)ffkmp_fmt_read_play(ctx) : -1;
 }
 
+/* Which tag sets changed since the last call, as the helper's two bits, lowering those it answers (#135). */
+JNIEXPORT jint JNICALL kj_fmt_take_tag_changes(JNIEnv *env, jclass cls, jlong token, jint stream_index)
+{
+    kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);
+    (void)cls;
+    return ctx ? (jint)ffkmp_fmt_take_tag_changes(ctx, (int)stream_index) : 0;
+}
+
 JNIEXPORT jint JNICALL kj_fmt_set_opt(JNIEnv *env, jclass cls, jlong token, jstring key, jstring value)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, token, KJ_KIND_FMT_CTX);

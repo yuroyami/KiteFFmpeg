@@ -152,6 +152,10 @@ public expect class MediaSource : AutoCloseable {
      * audio together: two concurrent [decodedFrames] flows would race the underlying demuxer, so
      * that is rejected with [IllegalStateException].
      *
+     * Its reads keep [metadata] current as [PacketReader.read] does, for this flow and for
+     * [decodedFrames] alike. A stream's new tags have no packet to ride here and are dropped, so
+     * read packets through [openPacketReader] to receive [Packet.newStreamTags].
+     *
      * @see Frame for the ownership rule every collected frame is subject to
      */
     public fun decodeStreams(streams: List<StreamInfo>): Flow<Frame>

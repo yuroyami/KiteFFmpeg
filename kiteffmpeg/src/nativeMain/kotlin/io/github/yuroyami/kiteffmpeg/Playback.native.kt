@@ -76,6 +76,8 @@ public actual class Packet internal constructor(
     internal val native: CPointer<kc_packet>,
     /** The stream's time base, so the caller can convert [pts] without looking the stream up. */
     public actual val timeBase: Rational,
+    public actual val newContainerTags: Map<String, String>? = null,
+    public actual val newStreamTags: Map<String, String>? = null,
 ) : AutoCloseable {
 
     /**
@@ -159,16 +161,12 @@ public actual class Packet internal constructor(
             ffmpeg.ffkmp_rescale_q(duration, timeBase.num, timeBase.den, 1, 1_000_000)
         } else null
 
-    // The reads that fill these land with the next commit (#135).
-    public actual val newContainerTags: Map<String, String>? = null
-    public actual val newStreamTags: Map<String, String>? = null
-
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
     public actual fun copy(): Packet = locked { live ->
         val cloned = ffkmp_packet_clone(live)
             ?: throw FFmpegException(FFmpegError.Internal("packet clone failed"))
-        Packet(cloned, timeBase)
+        Packet(cloned, timeBase, newContainerTags, newStreamTags)
     }
 
     public actual fun copyBytes(): ByteArray = locked { live ->
@@ -254,7 +252,14 @@ public actual class PacketReader internal constructor(
             // Moves the reference. The compressed payload is not copied, so queueing packets ahead
             // of the decoders costs a pointer swap per packet and nothing else.
             ffkmp_packet_move_ref(owned, scratch)
-            return Packet(owned, timeBase)
+            // A change a skipped packet's read made waits, raised, for the next packet handed out.
+            val changes = try {
+                source.takeTagChanges(index)
+            } catch (failure: Throwable) {
+                ffkmp_packet_free(owned)
+                throw failure
+            }
+            return Packet(owned, timeBase, changes?.container, changes?.stream)
         }
     }
 

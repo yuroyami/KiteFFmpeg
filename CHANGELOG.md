@@ -32,6 +32,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Tags that change during playback reach a caller (#135). `Packet.newContainerTags` and
+  `Packet.newStreamTags` are each the whole new tag set, on the first packet a read hands out after
+  FFmpeg applied it and null on every other packet, so a player can show a new title when that
+  packet plays rather than when its demuxer read ahead. The container's tags change with a
+  station's ICY title through FFmpeg's own `http`, an ID3 tag between ADTS frames or an FLV
+  `onMetaData`, and a stream's with the next song of a chained Ogg, which replaces its comments, or
+  a timed ID3 packet of an MPEG-TS or HLS data stream, which adds to them. A stream's change rides
+  that stream's next packet, so a reader that did not select it never sees it. `MediaSource.metadata`
+  is the container's tags as of the last packet read on every backend now, updated by the decode
+  flows too, where the web read FFmpeg's live dictionary and the other backends kept the open's copy
+  for ever. `StreamInfo.metadata` keeps what the stream said at open. The C ABI is 4.2 and adds
+  `ffkmp_fmt_take_tag_changes`.
+
 - `MediaSource.pause` and `MediaSource.resume` tell a live source's server that playback paused or
   resumed (#136), through FFmpeg's `av_read_pause` and `av_read_play` on every backend. An `rtsp://`
   stream sends its server PAUSE and PLAY, so the camera stops sending while a viewer is paused, and

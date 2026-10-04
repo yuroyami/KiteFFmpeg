@@ -83,6 +83,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_get
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_program_stream
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_metadata
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_fmt_take_tag_changes
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_attachment
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_media_type_data
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_rescale_q
@@ -103,6 +104,7 @@ public actual class MediaSource internal constructor(
     private val context: Int,
     private val bridge: WebIoBridge,
     private val unused: List<String>,
+    metadata: Map<String, String>,
 ) : AutoCloseable {
 
     private var closed = false
@@ -124,8 +126,29 @@ public actual class MediaSource internal constructor(
     public actual val formatName: String
         get() = utf8OrNull(requireModule(), ffkmp_fmt_iformat_name(requireModule(), alive())).orEmpty()
 
-    public actual val metadata: Map<String, String>
-        get() = requireModule().let { m -> readMetadata(m, ffkmp_fmt_metadata(m, alive())) }
+    /** What the open read, replaced by each read that brings new container tags (#135). */
+    private var tags: Map<String, String> = metadata
+
+    public actual val metadata: Map<String, String> get() = tags
+
+    /**
+     * Lowers the tag changes the read just made raised, for the context and for stream
+     * [streamIndex], replaces [metadata] when the container's changed, and answers the new sets, or
+     * null when nothing changed (#135).
+     */
+    internal fun takeTagChanges(streamIndex: Int): TagChanges? {
+        val m = requireModule()
+        val changes = ffkmp_fmt_take_tag_changes(m, context, streamIndex)
+        if (changes == 0) return null
+        val container = if (changes and TAGS_CONTAINER != 0) {
+            readMetadata(m, ffkmp_fmt_metadata(m, context)).also { tags = it }
+        } else null
+        val stream = if (changes and TAGS_STREAM != 0 && streamIndex >= 0) {
+            val native = ffkmp_fmt_stream(m, context, streamIndex)
+            if (native == 0) null else readMetadata(m, ffkmp_stream_metadata(m, native))
+        } else null
+        return TagChanges(container, stream)
+    }
 
     public actual val chapters: List<Chapter>
         get() {
@@ -769,7 +792,18 @@ public actual class MediaSource internal constructor(
                     bridge.takeFailure() ?: nested?.takeFailure(),
                 )
             }
-            return MediaSource(slot, ctx, bridge, leftover).also { media -> nested?.let { media.releaseAtClose(it::release) } }
+            val tags = try {
+                // The streams' and the source's metadata already hold what the probe's reads
+                // applied, so only a change after the open reaches a packet (#135).
+                ffkmp_fmt_take_tag_changes(m, ctx, -1)
+                readMetadata(m, ffkmp_fmt_metadata(m, ctx))
+            } catch (failure: Throwable) {
+                ffkmp_fmt_close_input_io(m, slot)
+                wasmFree(m, slot)
+                releaseIo()
+                throw failure
+            }
+            return MediaSource(slot, ctx, bridge, leftover, tags).also { media -> nested?.let { media.releaseAtClose(it::release) } }
         }
 
         /**
@@ -1020,6 +1054,13 @@ private fun readCodecExtradata(m: kotlin.js.JsAny, par: Int): ByteArray? {
         wasmFree(m, buffer)
     }
 }
+
+/** The tag sets one read changed, either of them null when it did not change (#135). */
+internal class TagChanges(val container: Map<String, String>?, val stream: Map<String, String>?)
+
+/** The two answers of `ffkmp_fmt_take_tag_changes`, `KC_TAGS_CONTAINER` and `KC_TAGS_STREAM`. */
+private const val TAGS_CONTAINER = 1
+private const val TAGS_STREAM = 2
 
 /**
  * Walks an FFmpeg metadata dictionary into a map, in the order the container wrote it.

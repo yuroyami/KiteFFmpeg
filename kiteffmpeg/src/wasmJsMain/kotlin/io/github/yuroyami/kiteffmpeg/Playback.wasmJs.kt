@@ -37,6 +37,8 @@ private val MICRO = Rational.of(1L, 1_000_000L)
 public actual class Packet internal constructor(
     internal var pointer: Int,
     private val base: Rational,
+    public actual val newContainerTags: Map<String, String>? = null,
+    public actual val newStreamTags: Map<String, String>? = null,
 ) : AutoCloseable {
 
     /** A closed packet throws IllegalStateException, with the message the other backends use. */
@@ -60,14 +62,10 @@ public actual class Packet internal constructor(
     // negative duration from a broken container is no duration either.
     public actual val durationMicros: Long? get() = if (duration <= 0L) null else rescaleQ(duration, base, MICRO)
 
-    // The reads that fill these land with the next commit (#135).
-    public actual val newContainerTags: Map<String, String>? = null
-    public actual val newStreamTags: Map<String, String>? = null
-
     public actual fun copy(): Packet {
         val cloned = ffkmp_packet_clone(requireModule(), alive())
         if (cloned == 0) throw FFmpegException(FFmpegError.Internal("packet clone failed"))
-        return Packet(cloned, base)
+        return Packet(cloned, base, newContainerTags, newStreamTags)
     }
 
     public actual fun copyBytes(): ByteArray {
@@ -125,7 +123,15 @@ public actual class PacketReader internal constructor(
             }
             val index = ffkmp_packet_stream_index(m, packet)
             if (index in wanted) {
-                return Packet(packet, timeBases[index] ?: MICRO)
+                // A change a skipped packet's read made waits, raised, for the next packet handed out.
+                val changes = try {
+                    source.takeTagChanges(index)
+                } catch (failure: Throwable) {
+                    ffkmp_packet_unref(m, packet)
+                    ffkmp_packet_free(m, packet)
+                    throw failure
+                }
+                return Packet(packet, timeBases[index] ?: MICRO, changes?.container, changes?.stream)
             }
             // Not a stream this reader was opened for: drop it and keep going rather than hand the
             // caller a packet it would have to filter itself.

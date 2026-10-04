@@ -75,6 +75,9 @@ import ffmpeg.ffkmp_fmt_nb_streams
 import ffmpeg.ffkmp_fmt_open_input
 import ffmpeg.ffkmp_fmt_interrupt
 import ffmpeg.ffkmp_fmt_read_frame
+import ffmpeg.ffkmp_fmt_take_tag_changes
+import ffmpeg.KC_TAGS_CONTAINER
+import ffmpeg.KC_TAGS_STREAM
 import ffmpeg.ffkmp_fmt_read_pause
 import ffmpeg.ffkmp_fmt_read_play
 import ffmpeg.ffkmp_fmt_seek_micros
@@ -142,6 +145,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSource internal constructor(
@@ -149,7 +153,7 @@ public actual class MediaSource internal constructor(
     public actual val streams: List<StreamInfo>,
     public actual val durationMicros: Long?,
     public actual val formatName: String,
-    public actual val metadata: Map<String, String>,
+    metadata: Map<String, String>,
     /**
      * Where the container's timeline begins, in microseconds. This is the offset between the
      * absolute timeline libavformat uses and the content-relative timeline the public API uses.
@@ -199,6 +203,30 @@ public actual class MediaSource internal constructor(
 
     /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
     private var paused = false
+
+    /** What the open read, replaced by each read that brings new container tags (#135). */
+    @Volatile
+    private var tags: Map<String, String> = metadata
+
+    public actual val metadata: Map<String, String> get() = tags
+
+    /**
+     * Lowers the tag changes the read just made raised, for the context and for stream
+     * [streamIndex], replaces [metadata] when the container's changed, and answers the new sets, or
+     * null when nothing changed (#135). An index of -1 lowers every stream's change and answers
+     * none of them, which is how a decode flow, which hands out no packet to carry them, drops them.
+     */
+    internal fun takeTagChanges(streamIndex: Int): TagChanges? {
+        val changes = ffkmp_fmt_take_tag_changes(ctx, streamIndex)
+        if (changes == 0) return null
+        val container = if (changes and KC_TAGS_CONTAINER != 0) {
+            readMetadata(ffkmp_fmt_metadata(ctx)).also { tags = it }
+        } else null
+        val stream = if (changes and KC_TAGS_STREAM != 0 && streamIndex >= 0) {
+            readMetadata(ffkmp_fmt_stream(ctx, streamIndex.toUInt())?.let { ffkmp_stream_metadata(it) })
+        } else null
+        return TagChanges(container, stream)
+    }
 
     private fun beginDemux() = synchronized(stateLock) {
         check(!closed) { "MediaSource is closed" }
@@ -365,6 +393,7 @@ public actual class MediaSource internal constructor(
             val readRc = ffkmp_fmt_read_frame(ctx, packet)
             if (readRc == eof) break
             if (readRc < 0) throw demuxFailure(readRc)
+            takeTagChanges(-1)
             val index = ffkmp_packet_stream_index(packet)
             val decoder = decoderByIndex[index]
             val copyInfo = if (decoder == null) copyByIndex[index] else null
@@ -912,6 +941,9 @@ private fun assembleMediaSource(
     val chapters: List<Chapter>
     val programs: List<Program>
     try {
+        // The streams' and the source's metadata below already hold what the probe's reads applied,
+        // so only a change after the open reaches a packet (#135).
+        ffkmp_fmt_take_tag_changes(ctx, -1)
         streams = buildStreams(ctx)
         durationFromHeader = ffkmp_fmt_duration(ctx).takeIf { it > 0L }
         formatName = ffkmp_fmt_iformat_name(ctx)?.toKString() ?: "unknown"
@@ -1337,6 +1369,9 @@ private inline fun readRational(block: (CPointer<IntVar>, CPointer<IntVar>) -> U
     block(n.ptr, d.ptr)
     Rational(n.value, d.value.takeIf { it != 0 } ?: 1)
 }
+
+/** The tag sets one read changed, either of them null when it did not change (#135). */
+internal class TagChanges(val container: Map<String, String>?, val stream: Map<String, String>?)
 
 private fun readMetadata(dict: CPointer<kc_dict>?): Map<String, String> {
     if (dict == null) return emptyMap()

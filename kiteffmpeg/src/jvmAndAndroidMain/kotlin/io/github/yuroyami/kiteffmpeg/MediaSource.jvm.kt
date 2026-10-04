@@ -12,7 +12,7 @@ public actual class MediaSource internal constructor(
     public actual val streams: List<StreamInfo>,
     public actual val durationMicros: Long?,
     public actual val formatName: String,
-    public actual val metadata: Map<String, String>,
+    metadata: Map<String, String>,
     public actual val startTimeMicros: Long,
     public actual val chapters: List<Chapter> = emptyList(),
     public actual val programs: List<Program> = emptyList(),
@@ -28,6 +28,35 @@ public actual class MediaSource internal constructor(
 
     /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
     private var paused = false
+
+    /** What the open read, replaced by each read that brings new container tags (#135). */
+    @Volatile
+    private var tags: Map<String, String> = metadata
+
+    public actual val metadata: Map<String, String> get() = tags
+
+    /**
+     * Lowers the tag changes the read just made raised, for the context and for stream
+     * [streamIndex], replaces [metadata] when the container's changed, and answers the new sets, or
+     * null when nothing changed (#135). An index of -1 lowers every stream's change and answers
+     * none of them, which is how a decode flow, which hands out no packet to carry them, drops them.
+     */
+    internal fun takeTagChanges(context: Long, streamIndex: Int): TagChanges? {
+        val changes = Internals.fmtTakeTagChanges(context, streamIndex)
+        if (changes == 0) return null
+        val container = if (changes and Internals.TAGS_CONTAINER != 0) {
+            readMetadata(Internals.fmtMetadata(context)).also { tags = it }
+        } else null
+        val stream = if (changes and Internals.TAGS_STREAM != 0 && streamIndex >= 0) {
+            val token = Internals.fmtStream(context, streamIndex)
+            try {
+                readMetadata(Internals.streamMetadata(token))
+            } finally {
+                Internals.borrowedRelease(token, Internals.KIND_STREAM)
+            }
+        } else null
+        return TagChanges(container, stream)
+    }
 
     internal fun checkOpen(): Long = synchronized(stateLock) {
         check(formatToken != 0L) { "MediaSource is closed" }
@@ -198,6 +227,7 @@ public actual class MediaSource internal constructor(
             val rc = Internals.fmtReadFrame(context, packet)
             if (rc == Internals.errorEof) break
             if (rc < 0) throw demuxFailure(rc)
+            takeTagChanges(context, -1)
             val index = Internals.packetStreamIndex(packet)
             val decoder = decoderByIndex[index]
             val copyInfo = if (decoder == null) copyByIndex[index] else null
@@ -589,6 +619,7 @@ private fun openMediaSource(
     }
     try {
         check0(Internals.fmtFindStreamInfo(context), "avformat_find_stream_info")
+        forgetOpenTagChanges(context)
         val streams = buildStreams(context)
         return MediaSource(
             formatToken = context,
@@ -648,6 +679,7 @@ private fun openMediaSourceIo(
     unusedKeys = unusedSlot[0]?.takeIf { it.isNotEmpty() }?.split('\u001f') ?: emptyList()
     try {
         check0(Internals.fmtFindStreamInfo(context), "avformat_find_stream_info")
+        forgetOpenTagChanges(context)
         val streams = buildStreams(context)
         return MediaSource(
             formatToken = context,
@@ -795,6 +827,18 @@ private fun readDisposition(flags: Int): Disposition = Disposition(
     descriptions = flags and Internals.dispositionDescriptions != 0,
     comment = flags and Internals.dispositionComment != 0,
 )
+
+/**
+ * Lowers every tag change the open raised while it probed, because the source's and the streams'
+ * metadata already hold what those reads applied, so only a change after the open reaches a
+ * packet (#135).
+ */
+private fun forgetOpenTagChanges(context: Long) {
+    Internals.fmtTakeTagChanges(context, -1)
+}
+
+/** The tag sets one read changed, either of them null when it did not change (#135). */
+internal class TagChanges(val container: Map<String, String>?, val stream: Map<String, String>?)
 
 private fun readMetadata(dictionary: Long): Map<String, String> {
     if (dictionary == 0L) return emptyMap()

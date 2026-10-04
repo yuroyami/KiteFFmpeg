@@ -4,6 +4,8 @@ package io.github.yuroyami.kiteffmpeg
 public actual class Packet internal constructor(
     internal var token: Long,
     public actual val timeBase: Rational,
+    public actual val newContainerTags: Map<String, String>? = null,
+    public actual val newStreamTags: Map<String, String>? = null,
 ) : AutoCloseable {
     // Guards the token across each native call, excluding a concurrent close(): the JNI handle
     // table only guarantees a non-torn lookup, not object lifetime for the whole operation.
@@ -31,13 +33,9 @@ public actual class Packet internal constructor(
     public actual val durationMicros: Long?
         get() = duration.takeIf { it > 0L }?.let { Internals.rescaleQ(it, timeBase, Rational.Tb_us) }
 
-    // The reads that fill these land with the next commit (#135).
-    public actual val newContainerTags: Map<String, String>? = null
-    public actual val newStreamTags: Map<String, String>? = null
-
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
-    public actual fun copy(): Packet = locked { Packet(Internals.packetClone(it), timeBase) }
+    public actual fun copy(): Packet = locked { Packet(Internals.packetClone(it), timeBase, newContainerTags, newStreamTags) }
 
     public actual fun copyBytes(): ByteArray = locked { Internals.packetBytes(it) }
 
@@ -74,7 +72,8 @@ public actual class PacketReader internal constructor(
                 val rc = Internals.fmtReadFrame(formatToken, scratch)
                 if (rc == Internals.errorEof) return null
                 if (rc < 0) throw source.demuxFailure(rc)
-                val timeBase = timeBaseByStream[Internals.packetStreamIndex(scratch)]
+                val index = Internals.packetStreamIndex(scratch)
+                val timeBase = timeBaseByStream[index]
                 if (timeBase == null) {
                     Internals.packetUnref(scratch)
                     continue
@@ -82,7 +81,9 @@ public actual class PacketReader internal constructor(
                 val owned = Internals.packetAlloc()
                 try {
                     Internals.packetMoveRef(owned, scratch)
-                    return Packet(owned, timeBase)
+                    // A change a skipped packet's read made waits, raised, for the next packet handed out.
+                    val changes = source.takeTagChanges(formatToken, index)
+                    return Packet(owned, timeBase, changes?.container, changes?.stream)
                 } catch (error: Throwable) {
                     Internals.packetFree(owned)
                     throw error

@@ -257,6 +257,40 @@ val title = source.metadata["title"]
 val artist = source.metadata["artist"]
 ```
 
+### Tags that change during playback
+
+A radio station, a chained Ogg and a live HLS stream change their tags while they play. The read
+that brings a change hands it out on the first packet after it:
+
+```kotlin
+source.openPacketReader(listOf(audio)).use { reader ->
+    while (true) {
+        val packet = reader.read() ?: break
+        packet.newContainerTags?.let { tags -> nowPlaying.at(packet.ptsMicros, tags["title"]) }
+        packet.newStreamTags?.let { tags -> nowPlaying.at(packet.ptsMicros, tags["title"]) }
+        decoder.send(packet)
+    }
+}
+```
+
+`newContainerTags` is the container's whole new set, which a station's ICY title through FFmpeg's
+own `http`, an ID3 tag between ADTS frames and an FLV `onMetaData` change. `newStreamTags` is the
+whole new set of that packet's own stream: the next song of a chained Ogg replaces its comments, so
+a key the second song lacks is gone, and a timed ID3 packet of an MPEG-TS or HLS data stream adds to
+what came before, so read that data stream to receive it. Both are null on every other packet, and
+a stream's change waits for that stream's next packet, so a reader that did not select the stream
+never sees it. Showing a change when its packet plays, rather than when it was read, keeps a title
+from appearing seconds before its song.
+
+`source.metadata` holds the container's latest set from the same read on, whether the reads ran in
+a packet reader or a decode flow, and a decode flow drops a stream's changes because it hands out
+no packet to carry them. `StreamInfo.metadata` keeps what the stream said at open, so a stream you
+already hold still selects.
+
+The open of a seekable MPEG-TS file reads its end to measure the duration, which applies a timed ID3
+stream's last tag, so that stream's `StreamInfo.metadata` can already hold the last one. Reading then
+starts again from the beginning, and every timed ID3 packet brings its own set as it comes.
+
 ### Programmes
 
 A transport stream from a DVB tuner or an IPTV multiplex can carry several channels at once, each with its own picture, sound and subtitles, and the flat stream list cannot say which sound belongs to which picture. `source.programs` says it, as the container's programme tables state it:

@@ -333,6 +333,9 @@ internal external fun ffkmp_fmt_set_metadata(module: JsAny, a0: Int, a1: Int, a2
 @JsFun("(m, a0, a1, a2) => m._ffkmp_fmt_set_opt(a0, a1, a2)")
 internal external fun ffkmp_fmt_set_opt(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_fmt_take_tag_changes(a0, a1)")
+internal external fun ffkmp_fmt_take_tag_changes(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_fmt_write_frame(a0, a1)")
 internal external fun ffkmp_fmt_write_frame(module: JsAny, a0: Int, a1: Int): Int
 

@@ -217,6 +217,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
         // but not what these older tests are about.
         m._ffkmp_fmt_metadata = () => 0;
         m._ffkmp_stream_metadata = () => 0;
+        m._ffkmp_fmt_take_tag_changes = () => 0;
         m._ffkmp_fmt_chapter_count = () => 0;
         m._ffkmp_fmt_program_count = () => 0;
         m._ffkmp_stream_start_time = () => -9223372036854775808n;

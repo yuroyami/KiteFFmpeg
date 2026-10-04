@@ -618,6 +618,26 @@ KC_API int ffkmp_fmt_read_play(AVFormatContext *ctx) {
     return ctx ? kc_pause_answer(av_read_play(ctx)) : AVERROR(EINVAL);
 }
 
+/* FFmpeg keeps other event bits beside the metadata one, a stream's "new packets" among them, so
+   only the metadata bit is lowered (#135). */
+KC_API int ffkmp_fmt_take_tag_changes(AVFormatContext *ctx, int stream_index) {
+    int changes = 0;
+    if (!ctx) return 0;
+    if (ctx->event_flags & AVFMT_EVENT_FLAG_METADATA_UPDATED) {
+        ctx->event_flags &= ~AVFMT_EVENT_FLAG_METADATA_UPDATED;
+        changes |= KC_TAGS_CONTAINER;
+    }
+    for (unsigned i = 0; i < ctx->nb_streams; i++) {
+        AVStream *st = ctx->streams[i];
+        if (stream_index != -1 && (unsigned)stream_index != i) continue;
+        if (st->event_flags & AVSTREAM_EVENT_FLAG_METADATA_UPDATED) {
+            st->event_flags &= ~AVSTREAM_EVENT_FLAG_METADATA_UPDATED;
+            changes |= KC_TAGS_STREAM;
+        }
+    }
+    return changes;
+}
+
 /* avformat_seek_file, which av_seek_frame cannot express: a bounded window rather than a single
    target. A player uses it to say "land at or before here, but no earlier than there", which is
    what makes a retry ladder cheap instead of a fixed pessimistic backoff. A window that ends at its

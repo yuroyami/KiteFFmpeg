@@ -810,6 +810,20 @@ KC_API int  ffkmp_fmt_seek_micros(kc_fmt_ctx *ctx, int stream_index, int64_t mic
 KC_API int  ffkmp_fmt_read_pause(kc_fmt_ctx *ctx);
 KC_API int  ffkmp_fmt_read_play(kc_fmt_ctx *ctx);
 
+/*
+ * Tags that change during playback (#135). A read that applies new container tags raises a flag
+ * on the context, and one that applies new tags to a stream raises a flag on that stream, as a
+ * station's title, an ID3 tag between ADTS frames, a chained Ogg's next song or a timed ID3 packet
+ * do, and FFmpeg leaves lowering them to the caller. This answers which were up, KC_TAGS_CONTAINER
+ * for the context and KC_TAGS_STREAM for stream stream_index, and lowers exactly those, leaving
+ * every other event bit alone. A stream_index of -1 lowers every stream's flag and answers
+ * KC_TAGS_STREAM when any was up, which is how an open forgets the changes it already read. Any
+ * other index out of range answers for the context alone. NULL answers 0.
+ */
+#define KC_TAGS_CONTAINER 1
+#define KC_TAGS_STREAM 2
+KC_API int  ffkmp_fmt_take_tag_changes(kc_fmt_ctx *ctx, int stream_index);
+
 /* Ownership. On success the packet holds a new reference the caller owns. The packet must be
  * blank on entry, and must be unreferenced before it is filled again, or the reference
  * leaks. On failure the packet is left blank. A NULL context or packet is refused with
