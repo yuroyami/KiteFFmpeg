@@ -268,6 +268,13 @@ static jbyteArray env_unexpected_new_bytes(JNIEnv *env, jsize length)
     KC_FAIL("the bridge called NewByteArray, which no case here expects");
 }
 
+static void env_unexpected_set_ints(JNIEnv *env, jintArray array, jsize start, jsize length,
+                                    const jint *buf)
+{
+    (void)env; (void)array; (void)start; (void)length; (void)buf;
+    KC_FAIL("the bridge called SetIntArrayRegion, which no case here expects");
+}
+
 static void env_unexpected_set_longs(JNIEnv *env, jlongArray array, jsize start, jsize length,
                                      const jlong *buf)
 {
@@ -292,6 +299,7 @@ static const struct JNINativeInterface_ fake_env_functions = {
     .NewByteArray = env_unexpected_new_bytes,
     .GetByteArrayRegion = env_get_bytes,
     .SetByteArrayRegion = env_set_bytes,
+    .SetIntArrayRegion = env_unexpected_set_ints,
     .SetLongArrayRegion = env_unexpected_set_longs,
 };
 

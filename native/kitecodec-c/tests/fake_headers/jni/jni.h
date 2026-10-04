@@ -77,6 +77,8 @@ struct JNINativeInterface_ {
     void (*GetByteArrayRegion)(JNIEnv *env, jbyteArray array, jsize start, jsize length, jbyte *buf);
     void (*SetByteArrayRegion)(JNIEnv *env, jbyteArray array, jsize start, jsize length,
                                const jbyte *buf);
+    void (*SetIntArrayRegion)(JNIEnv *env, jintArray array, jsize start, jsize length,
+                              const jint *buf);
     void (*SetLongArrayRegion)(JNIEnv *env, jlongArray array, jsize start, jsize length,
                                const jlong *buf);
 };
