@@ -75,6 +75,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A transcode keeps the last frame of a stream whose frames each claim one unit of its time base
+  when they lie further apart. That is the duration FFmpeg makes up for a stream that states none,
+  and since #143 what a stream written at a fine constant rate to place frames at uneven times
+  states, and a transcode took it as it stood and dropped the last frame. A duration of one unit
+  after a gap more than twice as long now counts as made up and the gap stands in for it, as
+  FFmpeg 9's own command line does; FFmpeg 6.1's still took it as it stood.
 - An encoded video keeps its last frame (#143). FFmpeg's encoders hand back packets with no
   duration, and a `MediaSink` video stream declared no frame rate, so the muxer could not give the
   last packet one: an MP4 or MOV ended on a sample of length zero that players drop, 14 frames at

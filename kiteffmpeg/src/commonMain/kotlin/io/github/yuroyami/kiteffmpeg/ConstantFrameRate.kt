@@ -11,9 +11,14 @@ package io.github.yuroyami.kiteffmpeg
  * repeats until the tick where it ends.
  *
  * Where the last frame ends depends on [durationsHold]. A frame straight from a decoder ends where
- * its duration says, as in FFmpeg. After a filter the duration can be stale, because `setpts`
- * moves timestamps and leaves durations as they were, so a filtered frame is taken to last as
- * long as the gap before it. Either way, a frame with neither lasts one tick.
+ * its duration says, as in FFmpeg, unless that duration is one unit of its time base and the gap
+ * before it is more than twice as long. That is the duration FFmpeg's demuxers and muxers make up
+ * for a stream that states none, and what a stream written at a fine constant rate to place
+ * frames at uneven times says, so FFmpeg's command line takes the gap instead
+ * (`video_duration_estimate` in `fftools/ffmpeg_dec.c`), and so does this. After a filter the
+ * duration can be stale, because `setpts` moves timestamps and leaves durations as they were, so
+ * a filtered frame is taken to last as long as the gap before it. Either way, a frame with
+ * neither lasts one tick.
  *
  * The caller keeps every frame it pushes. This class holds its own copy of the latest one, and
  * hands that copy to `emit` once for every tick it fills; `emit` must not close it.
@@ -81,8 +86,9 @@ internal class ConstantFrameRate(rate: Rational, private val durationsHold: Bool
     private fun endTick(info: FrameInfo, tick: Long): Long {
         // A gap too wide for a Long wraps below zero, and then counts as no gap.
         val gap = if (previousTimeBase == info.timeBase && info.pts > previousPts) info.pts - previousPts else 0L
+        val madeUp = info.duration == 1L && gap > 2L
         val length = when {
-            durationsHold && info.duration > 0L -> info.duration
+            durationsHold && info.duration > 0L && !madeUp -> info.duration
             gap > 0L -> gap
             else -> info.duration
         }
