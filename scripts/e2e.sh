@@ -52,8 +52,11 @@ KC_AENCODER=$(printf '%s\n' "$KC_INFO" | sed -n 's/^KITECODEC_AUDIO_ENCODER=//p'
 echo "== kiteffmpeg will encode audio with $KC_AENCODER (ffprobe reports '$KC_ACODEC')"
 
 # The generator uses the system ffmpeg CLI, which is a separate install from the FFmpeg KiteFFmpeg
-# links, so pick a codec it actually has rather than assuming libx264 there either.
-if "$FFMPEG" -hide_banner -loglevel error -encoders 2>/dev/null | grep -qE '^ V[.A-Z]* +libx264 '; then
+# links, so pick a codec it actually has rather than assuming libx264 there either. The list is
+# read whole before it is searched: grep -q stops at the first match, ffmpeg can then die writing
+# the rest, and pipefail would turn that into "no libx264" (#159).
+GEN_ENCODERS=$("$FFMPEG" -hide_banner -loglevel error -encoders 2>/dev/null || true)
+if grep -qE '^ V[.A-Z]* +libx264 ' <<<"$GEN_ENCODERS"; then
   GEN_VENC=libx264; GEN_VCODEC=h264
 else
   GEN_VENC=mpeg4;   GEN_VCODEC=mpeg4
@@ -182,8 +185,13 @@ has_stream_type "$WORK/out_subs.mkv" subtitle || { echo "FAIL: subtitle stream l
 # "n seconds into the content". Getting that conversion wrong silently shifts the whole trim
 # window, and mp4 (start_time 0) can never catch it.
 echo "== kiteffmpeg trim on a nonzero-start container (mpegts, start_time≈5s)"
+# MPEG-4 Part 2 keeps its headers in the MP4's extradata, which MPEG-TS cannot carry, and the
+# ffmpeg CLI here is not built with KiteFFmpeg's patch that puts them in the stream, so it is asked
+# for that by name (#159).
+GEN_TS_BSF=""
+if [ "$GEN_VCODEC" = mpeg4 ]; then GEN_TS_BSF="-bsf:v dump_extra"; fi
 "$FFMPEG" -hide_banner -loglevel error -y -i "$WORK/in.mp4" \
-  -c copy -output_ts_offset 5 -f mpegts "$WORK/offset.ts"
+  -c copy $GEN_TS_BSF -output_ts_offset 5 -f mpegts "$WORK/offset.ts"
 ts_start=$("$FFPROBE" -v error -show_entries format=start_time -of csv=p=0 "$WORK/offset.ts")
 if ! awk -v s="$ts_start" 'BEGIN { exit !(s > 4.0) }'; then
   echo "SKIP: generated ts start_time '$ts_start' is not offset, cannot exercise the conversion"

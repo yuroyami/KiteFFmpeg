@@ -80,6 +80,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A remux of MPEG-4 Part 2 video into MPEG-TS can be decoded (#159). An encoder writing MPEG-4
+  Part 2 for MP4 or Matroska puts the headers that give the picture size and coding in the
+  extradata alone, MPEG-TS has nowhere to carry extradata, and FFmpeg's writer copied such a stream
+  as it came, so neither this library nor FFmpeg itself could decode a single picture of the
+  result. The writer now puts the headers in front of each keyframe, as it already did for H.264
+  and HEVC, and leaves alone a keyframe that already begins with them, so a copy out of MPEG-TS
+  and back into it comes through unchanged. The fix is the FFmpeg patch
+  `0007-mpegts-carry-the-mpeg4-headers-in-the-stream.patch`, so it reaches a platform only with an
+  FFmpeg tree built from it, and the trees of 0.4.0 do not carry it.
 - `TrackSelector` compares languages, not strings (#158). A stream's language arrives as a
   two-letter code or tag from HLS, DASH and Matroska, as the terminology code from MP4 and as the
   bibliographic one from MPEG-TS and older Matroska files, and a preference for `eng` missed an

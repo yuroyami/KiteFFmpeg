@@ -1,0 +1,49 @@
+Let the MPEG-TS muxer carry the MPEG-4 Part 2 headers in the stream.
+
+MPEG-4 Part 2 video begins with a Visual Object Sequence, a Visual Object and a Video Object Layer
+header, which give the picture size and how the pictures are coded. An encoder writing for MP4 or
+Matroska puts them in the extradata alone, because those containers carry it beside the stream.
+MPEG-TS has no such place, and the muxer copied the packets as they came, so a stream copy of such
+a track into MPEG-TS held no header at all, and FFmpeg's own decoder could not decode a single
+picture of it. The muxer already fixes the same gap for H.264, HEVC and VVC through its
+check_bitstream callback.
+
+The callback now adds the dump_extra filter to an MPEG-4 Part 2 stream that has extradata. With
+its default frequency the filter puts the extradata in front of each keyframe and leaves alone a
+keyframe that already begins with it, so a stream whose headers are in band, such as one read
+from MPEG-TS, comes through unchanged. The muxer now selects the filter, so a build that enables
+only the muxer still has it.
+
+Applied by BuildFFmpegTask before configure, after 0006, and independent of the patches before
+it. Fixes yuroyami/KiteFFmpeg#159.
+
+diff --git a/configure b/configure
+index 374bd5c..ff2890d 100755
+--- a/configure
++++ b/configure
+@@ -3970,7 +3970,7 @@ mp3_demuxer_select="mpegaudio_parser"
+ mp3_muxer_select="mpegaudioheader"
+ mp4_muxer_select="mov_muxer"
+ mpegts_demuxer_select="iso_media"
+-mpegts_muxer_select="ac3_parser adts_muxer latm_muxer h264_mp4toannexb_bsf hevc_mp4toannexb_bsf vvc_mp4toannexb_bsf"
++mpegts_muxer_select="ac3_parser adts_muxer latm_muxer dump_extradata_bsf h264_mp4toannexb_bsf hevc_mp4toannexb_bsf vvc_mp4toannexb_bsf"
+ mpegtsraw_demuxer_select="mpegts_demuxer"
+ mxf_muxer_select="iso_writer pcm_rechunk_bsf rangecoder"
+ mxf_muxer_suggest="eia608_to_smpte436m_bsf"
+diff --git a/libavformat/mpegtsenc.c b/libavformat/mpegtsenc.c
+index 1abaaf9..f1825f9 100644
+--- a/libavformat/mpegtsenc.c
++++ b/libavformat/mpegtsenc.c
+@@ -2374,6 +2374,12 @@ static int mpegts_check_bitstream(AVFormatContext *s, AVStream *st,
+                         ((st->codecpar->extradata[0] & e->mask) == e->value))))
+             return ff_stream_add_bitstream_filter(st, e->bsf_name, NULL);
+     }
++    /* MPEG-4 Part 2 keeps its VOS, VO and VOL headers in the extradata of an MP4 or Matroska
++     * track, and MPEG-TS has nowhere to carry them but in the stream, so a copy without them
++     * cannot be decoded. dump_extra puts them in front of each keyframe and leaves alone a
++     * packet that already begins with them. */
++    if (st->codecpar->codec_id == AV_CODEC_ID_MPEG4 && st->codecpar->extradata_size > 0)
++        return ff_stream_add_bitstream_filter(st, "dump_extra", NULL);
+     return 1;
+ }
+ 
