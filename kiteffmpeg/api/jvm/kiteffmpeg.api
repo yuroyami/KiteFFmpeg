@@ -1225,6 +1225,7 @@ public final class io/github/yuroyami/kiteffmpeg/StreamDecoder : java/lang/AutoC
 	public final fun isDrained ()Z
 	public final fun receive ()Lio/github/yuroyami/kiteffmpeg/Frame;
 	public final fun send (Lio/github/yuroyami/kiteffmpeg/Packet;)Z
+	public final fun setSkipFrame (Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;)V
 }
 
 public final class io/github/yuroyami/kiteffmpeg/StreamDivergence {

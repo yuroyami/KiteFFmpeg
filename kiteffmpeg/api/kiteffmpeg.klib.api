@@ -1844,6 +1844,7 @@ final class io.github.yuroyami.kiteffmpeg/StreamDecoder : kotlin/AutoCloseable {
     final fun flush() // io.github.yuroyami.kiteffmpeg/StreamDecoder.flush|flush(){}[0]
     final fun receive(): io.github.yuroyami.kiteffmpeg/Frame? // io.github.yuroyami.kiteffmpeg/StreamDecoder.receive|receive(){}[0]
     final fun send(io.github.yuroyami.kiteffmpeg/Packet?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/StreamDecoder.send|send(io.github.yuroyami.kiteffmpeg.Packet?){}[0]
+    final fun setSkipFrame(io.github.yuroyami.kiteffmpeg.dsl/DecoderSkip) // io.github.yuroyami.kiteffmpeg/StreamDecoder.setSkipFrame|setSkipFrame(io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/StreamDivergence { // io.github.yuroyami.kiteffmpeg/StreamDivergence|null[0]

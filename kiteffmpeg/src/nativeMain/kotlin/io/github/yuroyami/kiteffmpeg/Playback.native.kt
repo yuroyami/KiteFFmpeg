@@ -465,6 +465,10 @@ public actual class StreamDecoder internal constructor(
         isDrained = false
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip): Unit =
+        throw FFmpegException(FFmpegError.Unsupported(0, "setting a running decoder's frame skipping is not wired yet"))
+
     actual override fun close(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
         // Under the operation lock, so a close arriving during a send or receive waits for the
         // call to leave native code before freeing the context it is using.

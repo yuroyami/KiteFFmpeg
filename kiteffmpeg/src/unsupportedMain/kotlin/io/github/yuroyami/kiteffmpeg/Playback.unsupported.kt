@@ -74,5 +74,9 @@ public actual class StreamDecoder private constructor() : AutoCloseable {
 
     public actual fun flush(): Unit = placeholderBackendUnavailable("Flushing a decoder")
 
+    @Throws(FFmpegException::class)
+    public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip): Unit =
+        placeholderBackendUnavailable("Setting a decoder's frame skipping")
+
     actual override fun close(): Unit = Unit
 }

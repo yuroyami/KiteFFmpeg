@@ -212,6 +212,10 @@ public actual class StreamDecoder internal constructor(
         isDrained = false
     }
 
+    @Throws(FFmpegException::class)
+    public actual fun setSkipFrame(skip: io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip): Unit =
+        throw FFmpegException(FFmpegError.Unsupported(0, "setting a running decoder's frame skipping is not wired yet"))
+
     actual override fun close() {
         synchronized(lock) {
             val context = codecContext

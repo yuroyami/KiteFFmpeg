@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip
+
 /**
  * A demuxed packet the caller owns.
  *
@@ -253,6 +255,28 @@ public expect class StreamDecoder : AutoCloseable {
      * reset decoder. Clears [isDrained].
      */
     public fun flush()
+
+    /**
+     * Sets which frames this video decoder skips, from the next packet [send] offers.
+     *
+     * This is FFmpeg's `skip_frame`, the setting
+     * [DecoderOptions.skipFrame][io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions.skipFrame] gives
+     * a decoder when it opens. A decoder reads it as it decodes each packet, so a caller can raise
+     * it for a stretch of a stream and lower it again with no [flush], for example to skip the
+     * frames nothing will show on the way to a precise seek target. [DecoderSkip.None] decodes
+     * every frame, as a decoder opened without the setting does.
+     *
+     * Each decoder decides which frames a level covers, and a decoder that does not read the setting
+     * decodes every frame whatever it holds. [DecoderSkip.NonReference] skips frames no other frame
+     * predicts from, so an H.264 decode lowered from it at any packet goes on exactly as one that
+     * never skipped. A level that skips frames others predict from, such as [DecoderSkip.NonKey],
+     * leaves the frames decoded after it is lowered damaged until the next keyframe.
+     *
+     * @throws FFmpegException with [FFmpegError.InvalidArgument] when [stream] is not video,
+     *         because only video decoders read this setting
+     */
+    @Throws(FFmpegException::class)
+    public fun setSkipFrame(skip: DecoderSkip)
 
     override fun close()
 }
