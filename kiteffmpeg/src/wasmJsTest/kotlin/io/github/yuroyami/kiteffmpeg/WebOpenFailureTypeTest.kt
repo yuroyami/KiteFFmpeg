@@ -60,6 +60,10 @@ class WebOpenFailureTypeTest {
 
     @Test
     fun anOpenWhoseSourceThrewIsAnIoErrorWithTheSourcesException() {
+        // Read on demand, so the failure reaches FFmpeg through its read callback and comes back as
+        // its code, as on the other backends. A browser test would otherwise stage the source, whose
+        // own failure WebIoBridgeTest pins as an I/O error before FFmpeg sees anything.
+        WebIoBridge.readOnDemand = true
         val module = fakePacketReaderCodecModule()
         fakeOpenReads(module)
         useCodecModule(module)

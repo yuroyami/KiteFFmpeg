@@ -102,8 +102,8 @@ JNIEXPORT void JNICALL kj_abi_set_log_level(JNIEnv *env, jclass cls, jint level)
     ffkmp_log_set_sink(level >= 0 ? kj_log_forward : NULL, (int)level);
 }
 
-/* Begins a capture of the error lines FFmpeg logs on this thread (#170). 0, or a negative AVERROR when
- * none could begin, in which case nativeLogCaptureEnd must not be called for it. */
+/* Begins a capture of the error lines FFmpeg logs on this thread (#170). 0, or FFmpeg's negative error
+ * code when none could begin, in which case nativeLogCaptureEnd must not be called for it. */
 JNIEXPORT jint JNICALL kj_abi_log_capture_begin(JNIEnv *env, jclass cls)
 {
     (void)env; (void)cls;
