@@ -10,7 +10,31 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 public expect class MediaSource : AutoCloseable {
 
-    /** Every stream the container declares, including streams this build cannot decode. */
+    /**
+     * Every stream the container has declared so far, in index order, including streams this build
+     * cannot decode.
+     *
+     * The open lists what it found. A live source can declare more while it plays, as a transport
+     * stream does when a channel's sound starts after its picture or a subtitle stream starts with
+     * the next programme, and the read during which FFmpeg adds one replaces this list with a longer
+     * one (#151). A list once returned never changes, a stream keeps its index, which is also its
+     * place in the list, and no stream is ever taken out: FFmpeg keeps a stream the container stops
+     * carrying, and that stream simply sends no more packets, as a quiet one does. Where the
+     * container has [programs], such a stream leaves its programme, which is the only sign FFmpeg
+     * gives.
+     *
+     * An entry holds what FFmpeg knew when it was read. FFmpeg adds a transport stream's stream from
+     * its programme table, which names only the kind of codec, so an MP2 sound first reads as MP3 with
+     * no sample rate and no channels, and FFmpeg's parser corrects that from the stream's first
+     * packet. So an entry read before FFmpeg had any of its stream's packets is read again when the
+     * first one comes through, and replaced when it changed: every entry of a stream added after the
+     * open, and an entry from the open whose codec is unknown, whose sound has no sample rate or no
+     * channel count, or whose picture has no size. The entry it replaced still names that stream to
+     * [openPacketReader], [PacketReader.reselect], [openDecoder] and [openSubtitleDecoder].
+     *
+     * The packet reader's reads and the decode flows' reads keep this current, and the first packet a
+     * reader hands out after it changed carries the new list as [Packet.newStreams].
+     */
     public val streams: List<StreamInfo>
     /** The container's duration in microseconds, or null when it declares none, as for a live stream. */
     public val durationMicros: Long?
@@ -43,8 +67,14 @@ public expect class MediaSource : AutoCloseable {
     /**
      * The container's programmes, each a set of [streams] that play together, such as the channels
      * of a transport stream multiplex. Empty when the container declares none, as MP4 and Matroska
-     * do not. Read once, like [streams], and every stream index in it names one of [streams]. See
-     * [Program].
+     * do not. Every stream index in it names one of [streams]. See [Program].
+     *
+     * The open lists what it found, and a live transport stream can change them while it plays: a new
+     * programme table adds a stream to a channel or takes one out, as when a channel moves its sound
+     * to a new stream at a programme boundary, and a new service table renames a channel. The read
+     * during which FFmpeg applies such a change replaces this list, as reads replace [streams], and
+     * the first packet a reader hands out after it carries the new list as [Packet.newPrograms]
+     * (#151).
      */
     public val programs: List<Program>
 
@@ -92,13 +122,15 @@ public expect class MediaSource : AutoCloseable {
     /**
      * The first video stream that is not cover art ([Disposition.attachedPicture]). A file whose
      * only video is its cover art returns that picture rather than null. Picked by
-     * [TrackSelector.Default].
+     * [TrackSelector.Default] from [streams] as they stand.
      */
     public val primaryVideo: StreamInfo?
 
     /**
      * The audio stream [TrackSelector.Default] picks beside [primaryVideo], from that picture's own
      * programme when the source has [programs], or null when there is no audio stream to pick.
+     * Picked from [streams] and [programs] as they stand, so a sound that a live source starts after
+     * its picture becomes this once a read has added it.
      */
     public val primaryAudio: StreamInfo?
 
@@ -152,9 +184,10 @@ public expect class MediaSource : AutoCloseable {
      * audio together: two concurrent [decodedFrames] flows would race the underlying demuxer, so
      * that is rejected with [IllegalStateException].
      *
-     * Its reads keep [metadata] current as [PacketReader.read] does, for this flow and for
-     * [decodedFrames] alike. A stream's new tags have no packet to ride here and are dropped, so
-     * read packets through [openPacketReader] to receive [Packet.newStreamTags].
+     * Its reads keep [metadata], [streams] and [programs] current as [PacketReader.read] does, for
+     * this flow and for [decodedFrames] alike. A stream's new tags have no packet to ride here and
+     * are dropped, so read packets through [openPacketReader] to receive [Packet.newStreamTags]. A
+     * stream FFmpeg adds while the flow runs joins [streams] and is not decoded by it.
      *
      * @see Frame for the ownership rule every collected frame is subject to
      */

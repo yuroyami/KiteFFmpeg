@@ -6,6 +6,8 @@ public actual class Packet internal constructor(
     public actual val timeBase: Rational,
     public actual val newContainerTags: Map<String, String>? = null,
     public actual val newStreamTags: Map<String, String>? = null,
+    public actual val newStreams: List<StreamInfo>? = null,
+    public actual val newPrograms: List<Program>? = null,
 ) : AutoCloseable {
     // Guards the token across each native call, excluding a concurrent close(): the JNI handle
     // table only guarantees a non-torn lookup, not object lifetime for the whole operation.
@@ -35,7 +37,7 @@ public actual class Packet internal constructor(
 
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
-    public actual fun copy(): Packet = locked { Packet(Internals.packetClone(it), timeBase, newContainerTags, newStreamTags) }
+    public actual fun copy(): Packet = locked { Packet(Internals.packetClone(it), timeBase, newContainerTags, newStreamTags, newStreams, newPrograms) }
 
     public actual fun copyBytes(): ByteArray = locked { Internals.packetBytes(it) }
 

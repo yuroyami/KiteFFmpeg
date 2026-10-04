@@ -39,6 +39,8 @@ public actual class Packet internal constructor(
     private val base: Rational,
     public actual val newContainerTags: Map<String, String>? = null,
     public actual val newStreamTags: Map<String, String>? = null,
+    public actual val newStreams: List<StreamInfo>? = null,
+    public actual val newPrograms: List<Program>? = null,
 ) : AutoCloseable {
 
     /** A closed packet throws IllegalStateException, with the message the other backends use. */
@@ -65,7 +67,7 @@ public actual class Packet internal constructor(
     public actual fun copy(): Packet {
         val cloned = ffkmp_packet_clone(requireModule(), alive())
         if (cloned == 0) throw FFmpegException(FFmpegError.Internal("packet clone failed"))
-        return Packet(cloned, base, newContainerTags, newStreamTags)
+        return Packet(cloned, base, newContainerTags, newStreamTags, newStreams, newPrograms)
     }
 
     public actual fun copyBytes(): ByteArray {

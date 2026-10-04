@@ -65,6 +65,28 @@ public expect class Packet : AutoCloseable {
     public val newStreamTags: Map<String, String>?
 
     /**
+     * The source's [MediaSource.streams] as they stand from this packet on, present only on the first
+     * packet a read hands out after FFmpeg added a stream or an entry was read again at its stream's
+     * first packet, and null on every other packet (#151). It is the whole list, so a stream is new
+     * when its index is past the end of the list before, and corrected when its entry differs.
+     *
+     * The packets FFmpeg handed out, before this one, of a stream that is new in this list are held:
+     * add the stream with [PacketReader.reselect] before the next [PacketReader.read], and that read
+     * hands them out first, so the stream arrives from its first packet. They come after this packet,
+     * although FFmpeg read them before it, which a player that queues each stream apart does not
+     * notice. Read on or seek without the stream and they are dropped, and the stream is skipped as
+     * any stream the reader does not select is. A [copy] carries it too.
+     */
+    public val newStreams: List<StreamInfo>?
+
+    /**
+     * The source's [MediaSource.programs] as they stand from this packet on, present only on the
+     * first packet a read hands out after FFmpeg changed them, and null on every other packet (#151).
+     * A stream the container stopped carrying has left its programme here. A [copy] carries it too.
+     */
+    public val newPrograms: List<Program>?
+
+    /**
      * Returns a separately owned O(1) reference to this packet's compressed payload and metadata.
      * The two packets may be closed independently, in either order.
      */
@@ -130,6 +152,9 @@ public expect class PacketReader : AutoCloseable {
     /**
      * Returns the next selected-stream packet, or null at container EOF. The returned packet is
      * owned by the caller. Null is the signal to begin decoder drain by sending a null packet.
+     *
+     * After [reselect] added a stream that [Packet.newStreams] announced, the packets of it that
+     * were held for that come first.
      */
     @Throws(FFmpegException::class)
     public fun read(): Packet?
@@ -166,9 +191,11 @@ public expect class PacketReader : AutoCloseable {
      * Changes which streams [read] delivers without reopening this reader or moving its demuxer
      * cursor.
      *
-     * Every entry must come from the [MediaSource.streams] list of the source that opened this
-     * reader. The list must be non-empty and contain no duplicate indices. Invalid requests leave
-     * the previous selection unchanged.
+     * Every entry must name a stream of the source that opened this reader, by its entry in
+     * [MediaSource.streams] or by an entry that one replaced. The list must be non-empty and contain
+     * no duplicate indices. Invalid requests leave the previous selection unchanged. A stream FFmpeg
+     * added while reading can be selected as soon as it is listed; [Packet.newStreams] says which of
+     * its packets wait for that.
      *
      * This operation changes delivery from the demuxer's *current* cursor onward. It does not seek
      * backwards to recover packets from a newly selected stream, clear caller-owned queues or flush

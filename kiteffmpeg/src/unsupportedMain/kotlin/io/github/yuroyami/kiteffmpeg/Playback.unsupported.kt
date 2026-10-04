@@ -29,6 +29,10 @@ public actual class Packet private constructor() : AutoCloseable {
         get() = placeholderBackendUnavailable("Reading a packet's new container tags")
     public actual val newStreamTags: Map<String, String>?
         get() = placeholderBackendUnavailable("Reading a packet's new stream tags")
+    public actual val newStreams: List<StreamInfo>?
+        get() = placeholderBackendUnavailable("Reading a packet's new stream list")
+    public actual val newPrograms: List<Program>?
+        get() = placeholderBackendUnavailable("Reading a packet's new programme list")
 
     @Throws(FFmpegException::class)
     public actual fun copy(): Packet = placeholderBackendUnavailable("Copying a packet")

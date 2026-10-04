@@ -78,6 +78,8 @@ public actual class Packet internal constructor(
     public actual val timeBase: Rational,
     public actual val newContainerTags: Map<String, String>? = null,
     public actual val newStreamTags: Map<String, String>? = null,
+    public actual val newStreams: List<StreamInfo>? = null,
+    public actual val newPrograms: List<Program>? = null,
 ) : AutoCloseable {
 
     /**
@@ -166,7 +168,7 @@ public actual class Packet internal constructor(
     public actual fun copy(): Packet = locked { live ->
         val cloned = ffkmp_packet_clone(live)
             ?: throw FFmpegException(FFmpegError.Internal("packet clone failed"))
-        Packet(cloned, timeBase, newContainerTags, newStreamTags)
+        Packet(cloned, timeBase, newContainerTags, newStreamTags, newStreams, newPrograms)
     }
 
     public actual fun copyBytes(): ByteArray = locked { live ->
