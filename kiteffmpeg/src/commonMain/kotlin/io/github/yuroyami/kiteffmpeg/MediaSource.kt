@@ -286,7 +286,8 @@ public expect class MediaSource : AutoCloseable {
          *
          * - [url] is the address that [io] reads. The bytes still come from [io]. FFmpeg uses the
          *   address to recognise the format, as it uses a file name, and to resolve the relative
-         *   addresses inside the media.
+         *   addresses inside the media, unless [io] names its [MediaByteSource.location], which
+         *   they then resolve against, as after a redirect.
          * - [mimeType] is the type the bytes arrived with, such as a server's `Content-Type`. The
          *   probe uses it. An HLS playlist whose [url] does not end in `.m3u8` or `.m3u` opens only
          *   with an HLS type, such as `application/vnd.apple.mpegurl`.

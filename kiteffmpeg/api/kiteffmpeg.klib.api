@@ -493,6 +493,8 @@ abstract interface io.github.yuroyami.kiteffmpeg/MediaByteSource : kotlin/AutoCl
         abstract fun <get-seekable>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/MediaByteSource.seekable.<get-seekable>|<get-seekable>(){}[0]
     abstract val size // io.github.yuroyami.kiteffmpeg/MediaByteSource.size|{}size[0]
         abstract fun <get-size>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/MediaByteSource.size.<get-size>|<get-size>(){}[0]
+    open val location // io.github.yuroyami.kiteffmpeg/MediaByteSource.location|{}location[0]
+        open fun <get-location>(): kotlin/String? // io.github.yuroyami.kiteffmpeg/MediaByteSource.location.<get-location>|<get-location>(){}[0]
 
     abstract fun read(kotlin/ByteArray, kotlin/Int, kotlin/Int): kotlin/Int // io.github.yuroyami.kiteffmpeg/MediaByteSource.read|read(kotlin.ByteArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun seek(kotlin/Long) // io.github.yuroyami.kiteffmpeg/MediaByteSource.seek|seek(kotlin.Long){}[0]

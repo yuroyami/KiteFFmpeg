@@ -1123,10 +1123,15 @@ public final class io/github/yuroyami/kiteffmpeg/MediaByteSink$DefaultImpls {
 }
 
 public abstract interface class io/github/yuroyami/kiteffmpeg/MediaByteSource : java/lang/AutoCloseable {
+	public fun getLocation ()Ljava/lang/String;
 	public abstract fun getSeekable ()Z
 	public abstract fun getSize ()Ljava/lang/Long;
 	public abstract fun read ([BII)I
 	public abstract fun seek (J)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/MediaByteSource$DefaultImpls {
+	public static fun getLocation (Lio/github/yuroyami/kiteffmpeg/MediaByteSource;)Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/MediaInfo {

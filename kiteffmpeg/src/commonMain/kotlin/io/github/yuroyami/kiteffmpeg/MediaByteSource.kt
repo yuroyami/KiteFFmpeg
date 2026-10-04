@@ -32,6 +32,19 @@ public interface MediaByteSource : AutoCloseable {
 
     /** Moves the cursor to [position] bytes from the start. Only called when [seekable]. */
     public fun seek(position: Long)
+
+    /**
+     * The address these bytes came from when that is not the address they were asked for, as
+     * after an HTTP redirect, or null, the default, when they came from that address (#167).
+     *
+     * FFmpeg's HLS reader resolves the relative addresses inside a playlist against it, as it does
+     * after a redirect that FFmpeg's own `http` follows, so the segments, keys and variants of a
+     * redirected playlist are asked for beside the place it really is. It is read once, when the
+     * source is opened: by [MediaSource.open] for the source it is given, and as soon as a
+     * [MediaByteOpener] returns it for every other one. A source that follows its redirects only as
+     * it reads must have followed them by then. An empty address is the same as null.
+     */
+    public val location: String? get() = null
 }
 
 /** What a bridge records when [MediaByteSource.read] answered with more bytes than it was asked for. */

@@ -13,6 +13,8 @@ package io.github.yuroyami.kiteffmpeg
  *   this opener too, and KiteFFmpeg decrypts the segment itself.
  * - A live playlist asks for its own address again each time it reloads.
  * - A `data:` address never arrives. FFmpeg reads the bytes inside it itself.
+ * - A byte source that came through a redirect says where it came from in
+ *   [MediaByteSource.location], and the addresses inside it resolve against that.
  *
  * The addresses come from the media, and the media is untrusted input. FFmpeg does not check the
  * scheme of an address when a source has an opener, so the opener decides which addresses open.
