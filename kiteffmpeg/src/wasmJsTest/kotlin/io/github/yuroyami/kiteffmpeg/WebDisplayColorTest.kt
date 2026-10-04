@@ -19,10 +19,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * [WebRgbaConverter] against the linked codec module: an SDR clip draws as the plain conversion, a
- * YCgCo clip with the YCgCo matrix, and a PQ clip tone mapped. The YCgCo and PQ clips are 16x16
- * H.264 made with ffmpeg, a flat colour and testsrc2, with the colour tags written into the
- * bitstream by h264_metadata.
+ * [WebRgbaConverter] against the linked codec module: an SDR clip draws within 3 of the plain
+ * conversion, a YCgCo clip with the YCgCo matrix, and a PQ clip tone mapped. The canvas takes
+ * swscale's fast conversion and the plain one is exact, so the two differ by up to 3, and by more
+ * where chroma changes between two pixels of a pair (#164). The YCgCo and PQ clips are 16x16 H.264
+ * made with ffmpeg, a flat colour and testsrc2, with the colour tags written into the bitstream by
+ * h264_metadata.
  */
 class WebDisplayColorTest {
 
@@ -69,7 +71,7 @@ class WebDisplayColorTest {
         return IntArray(size) { byteAt(canvas, it) }
     }
 
-    /** The plain conversion to rgba, which changes the encoding and nothing else. */
+    /** The plain conversion to rgba, which changes the encoding and nothing else, exactly. */
     private fun plain(frame: Frame): IntArray {
         val module = requireModule()
         val size = frame.info.width * frame.info.height * 4
@@ -86,11 +88,15 @@ class WebDisplayColorTest {
         }
     }
 
+    /** Measured 2 at most on this clip with swscale's plain C code, which is what the web runs. */
     @Test
-    fun anSdrClipDrawsAsThePlainConversion() = runTest {
+    fun anSdrClipDrawsWithinThreeOfThePlainConversion() = runTest {
         if (!useLinkedCodecModule()) return@runTest
         withFirstFrame(RealCodecModuleTest.CLIP) { frame ->
-            assertTrue(drawn(frame).contentEquals(plain(frame)), "the canvas bytes differ from the plain conversion")
+            val canvas = drawn(frame)
+            val exact = plain(frame)
+            val worst = canvas.indices.maxOf { abs(canvas[it] - exact[it]) }
+            assertTrue(worst <= 3, "the canvas is $worst off the plain conversion")
         }
     }
 
@@ -118,12 +124,21 @@ class WebDisplayColorTest {
         }
     }
 
+    /**
+     * The tone map runs on the bytes the canvas would get without it, which are what the same
+     * pictures tagged SDR draw as. testsrc2's chroma changes inside pairs of pixels, where the plain
+     * conversion lands far from the canvas's, so it cannot stand in for them.
+     */
     @Test
     fun aPqClipIsToneMappedOnTheCanvas() = runTest {
         if (!useLinkedCodecModule()) return@runTest
+        var before = IntArray(0)
+        withFirstFrame(PQ_CLIP_AS_SDR) { frame ->
+            assertEquals(ColorTransfer.Bt709, frame.info.color.transfer)
+            before = drawn(frame)
+        }
         withFirstFrame(PQ_CLIP) { frame ->
             assertEquals(ColorTransfer.SmpteSt2084, frame.info.color.transfer)
-            val before = plain(frame)
             val canvas = drawn(frame)
             var changed = 0
             for (pixel in 0 until 16 * 16) {
@@ -281,6 +296,51 @@ class WebDisplayColorTest {
             "3020e24dc34edbdc12c853ab1394f3281161c9f7fe324266283317d82ef19168a5dcb9f53a9d036a7c82bc109854ebd2" +
             "1fd3ac5a752089dfa5f502debc20796dc260e495436ffef9f50458050dca038c701fda3684a5f231f55c92638b15cfd9" +
             "806e2f6ad268edef1982545e003100000008419a25b10b7fcc80"
+            ).chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+
+        /**
+         * [PQ_CLIP] with only the transfer rewritten, to BT.709, by `ffmpeg -c copy -bsf:v
+         * h264_metadata=transfer_characteristics=1`. The coded pictures are the same, so the two
+         * decode to the same bytes, and this one draws without the tone map.
+         */
+        val PQ_CLIP_AS_SDR: ByteArray = (
+            "000000206674797069736f6d0000020069736f6d69736f32617663316d70343100000008667265650000035a6d646174" +
+            "000002aa0605ffffa6dc45e9bde6d948b7962cd820d923eeef78323634202d20636f7265203136352072333232322062" +
+            "333536303561202d20482e3236342f4d5045472d342041564320636f646563202d20436f70796c65667420323030332d" +
+            "32303235202d20687474703a2f2f7777772e766964656f6c616e2e6f72672f783236342e68746d6c202d206f7074696f" +
+            "6e733a2063616261633d31207265663d33206465626c6f636b3d313a303a3020616e616c7973653d3078333a30783131" +
+            "33206d653d686578207375626d653d37207073793d31207073795f72643d312e30303a302e3030206d697865645f7265" +
+            "663d31206d655f72616e67653d3136206368726f6d615f6d653d31207472656c6c69733d31203878386463743d312063" +
+            "716d3d3020646561647a6f6e653d32312c313120666173745f70736b69703d31206368726f6d615f71705f6f66667365" +
+            "743d2d3220746872656164733d31206c6f6f6b61686561645f746872656164733d3120736c696365645f746872656164" +
+            "733d30206e723d3020646563696d6174653d3120696e7465726c616365643d3020626c757261795f636f6d7061743d30" +
+            "20636f6e73747261696e65645f696e7472613d3020626672616d65733d3120625f707972616d69643d3020625f616461" +
+            "70743d3120625f626961733d30206469726563743d3120776569676874623d31206f70656e5f676f703d302077656967" +
+            "6874703d32206b6579696e743d32206b6579696e745f6d696e3d31207363656e656375743d343020696e7472615f7265" +
+            "66726573683d302072635f6c6f6f6b61686561643d322072633d637266206d62747265653d31206372663d32332e3020" +
+            "71636f6d703d302e36302071706d696e3d302071706d61783d3831207170737465703d342069705f726174696f3d312e" +
+            "34302061713d313a312e30300080000000946588840097d743bc4fd9fe7546777a6663ef1d382317fafab1b923f6ec14" +
+            "6b9bcf0f9bc486a83020e24dc34edbdc12c853ab1394f3281161c9f7fe324266283317d82ef19168a5dcb9f53a9d036a" +
+            "7c82bc109854ebd21fd3ac5a752089dfa5f502debc20796dc260e495436ffef9f50458050dca038c701fda3684a5f231" +
+            "f55c92638b15cfd9806e2f6ad268edef1982545e003100000008419a25b10b7fcc80000003606d6f6f760000006c6d76" +
+            "6864000000000000000000000000000003e8000000500001000001000000000000000000000000010000000000000000" +
+            "000000000000000100000000000000000000000000004000000000000000000000000000000000000000000000000000" +
+            "0000000000020000028a7472616b0000005c746b68640000000300000000000000000000000100000000000000500000" +
+            "000000000000000000000000000000010000000000000000000000000000000100000000000000000000000000004000" +
+            "0000001000000010000000000024656474730000001c656c737400000000000000010000005000000200000100000000" +
+            "02026d646961000000206d646864000000000000000000000000000032000000040055c400000000002d68646c720000" +
+            "00000000000076696465000000000000000000000000566964656f48616e646c657200000001ad6d696e660000001476" +
+            "6d68640000000100000000000000000000002464696e660000001c6472656600000000000000010000000c75726c2000" +
+            "0000010000016d7374626c000000d5737473640000000000000001000000c56176633100000000000000010000000000" +
+            "000000000000000000000000100010004800000048000000000000000100000000000000000000000000000000000000" +
+            "000000000000000000000000000018ffff0000003861766343016e000affe1001b676e000aa6ce47b016a12021280000" +
+            "03000800000301907891289001000668ebe3cb22c0fdfafa0000000013636f6c726e636c780009001000090000000010" +
+            "70617370000000010000000100000014627472740000000000014c0800014c0800000018737474730000000000000001" +
+            "000000020000020000000014737473730000000000000001000000010000001863747473000000000000000100000002" +
+            "000002000000001c7374736300000000000000010000000100000002000000010000001c7374737a0000000000000000" +
+            "00000002000003460000000c000000147374636f00000000000000010000003000000062756474610000005a6d657461" +
+            "000000000000002168646c7200000000000000006d6469726170706c0000000000000000000000002d696c7374000000" +
+            "25a9746f6f0000001d6461746100000001000000004c61766636302e31362e313030"
             ).chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     }
 }

@@ -197,13 +197,17 @@ abi_is_newer_than() {
 # rather than exempted by a rule, because the rule this check enforces is "the helper layer takes no
 # dependency nobody wrote down", and this one is written down here.
 # _pthread_key_create, _pthread_getspecific and _pthread_setspecific joined 2026-09-26 with the
-# per-thread scaler cache in src/helpers_frame.c. The key's destructor frees a thread's cached
-# SwsContext when that thread ends, which a `static __thread` pointer cannot do (#105).
+# per-thread scaler cache in src/helpers_frame.c, now in src/kc_convert.h. The key's destructor
+# frees a thread's cached SwsContext when that thread ends, which a `static __thread` pointer
+# cannot do (#105).
 # _pow and _exp joined 2026-09-27 with the tone map in src/helpers_display.c. They fill its lookup
 # tables once per process (the PQ and HLG curves, the EETF and the gamma 2.2 encode) and are not
 # called per pixel. sqrt is called per pixel and compiles to one instruction, so it has no entry.
 # _ffkmp_frame_convert_pixfmt joined the same day. It is this library's OWN symbol, which
-# src/helpers_display.c calls across units for the conversion it builds on, as with _kc_init.
+# src/helpers_display.c called across units for the conversion it builds on, as with _kc_init.
+# Since #164 the display conversion takes swscale's fast flags and the frame conversion its exact
+# ones, so the two share the swscale step through src/kc_convert.h, whose static functions each
+# unit compiles for itself, and the call is gone. The entry stays by the rule _strstr stayed by.
 # _memmove joined 2026-09-29 with the AES-128 reader of the nested opener in src/helpers_format.c.
 # After each decrypt step the ciphertext not yet decrypted, at most 31 bytes, moves to the front of
 # its buffer, and the two ranges can overlap, so memcpy would be wrong there.

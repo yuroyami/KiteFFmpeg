@@ -20,6 +20,7 @@
 
 #include <libavutil/frame.h>
 #include <libavutil/pixfmt.h>
+#include <libswscale/swscale.h>
 
 /* ---- Fixtures ---- */
 
@@ -75,6 +76,20 @@ static AVFrame *flat_yuv(int format, int width, int height, int y, int u, int v,
     f->color_trc = AVCOL_TRC_BT709;
     f->color_primaries = AVCOL_PRI_BT709;
     return f;
+}
+
+/* Every pixel different from its neighbour, the worst case for the repeated-pixel shortcut. */
+static void fill_varied(AVFrame *f)
+{
+    int x, y;
+    for (y = 0; y < f->height; y++)
+        for (x = 0; x < f->width; x++)
+            f->data[0][(ptrdiff_t)y * f->linesize[0] + x] = (uint8_t)(16 + (x * 7 + y * 3) % 219);
+    for (y = 0; y < (f->height + 1) / 2; y++)
+        for (x = 0; x < (f->width + 1) / 2; x++) {
+            f->data[1][(ptrdiff_t)y * f->linesize[1] + x] = (uint8_t)(16 + (x * 5 + y) % 224);
+            f->data[2][(ptrdiff_t)y * f->linesize[2] + x] = (uint8_t)(16 + (x + y * 5) % 224);
+        }
 }
 
 static void expect_near(int actual, double expected, const char *what)
@@ -153,11 +168,52 @@ static void case_other_byte_orders(void)
     ffkmp_frame_free(src);
 }
 
-static void case_sdr_is_the_plain_conversion(void)
+/* swscale's fast conversion of a BT.709 limited range picture to rgba, called directly. */
+static AVFrame *fast_rgba(const AVFrame *src)
 {
-    AVFrame *src, *plain, *display;
-    int row;
-    kc_case("an SDR picture gives the bytes and tags of ffkmp_frame_convert_pixfmt");
+    struct SwsContext *sws;
+    const int *coeffs = sws_getCoefficients(SWS_CS_ITU709);
+    AVFrame *dst = av_frame_alloc();
+    if (dst == NULL) return NULL;
+    dst->width = src->width;
+    dst->height = src->height;
+    dst->format = AV_PIX_FMT_RGBA;
+    sws = sws_getContext(src->width, src->height, (enum AVPixelFormat)src->format,
+                         src->width, src->height, AV_PIX_FMT_RGBA, SWS_BILINEAR, NULL, NULL, NULL);
+    if (sws == NULL || av_frame_get_buffer(dst, 0) < 0 ||
+        sws_setColorspaceDetails(sws, coeffs, 0, coeffs, 1, 0, 1 << 16, 1 << 16) < 0 ||
+        sws_scale(sws, (const uint8_t * const *)src->data, src->linesize, 0, src->height,
+                  dst->data, dst->linesize) < 0)
+        av_frame_free(&dst);
+    sws_freeContext(sws);
+    return dst;
+}
+
+/* A screen takes swscale's fast conversion, which ffkmp_frame_convert_pixfmt made too until #164.
+ * The exact one lands within 1 of the matrix and interpolates chroma; the fast one lands up to 3
+ * off and repeats each chroma sample across a pair of pixels, for about a seventh of the time on
+ * a 1080p frame, as the cost case prints. A
+ * picture whose every pixel differs from its neighbour pins the bytes to swscale's, and a flat one,
+ * where repeating chroma changes nothing, holds the two conversions within 3 of each other. */
+static void case_sdr_is_the_fast_conversion(void)
+{
+    AVFrame *src, *plain, *display, *direct;
+    int row, i, worst = 0;
+    kc_case("an SDR picture gives swscale's fast conversion, with the tags of ffkmp_frame_convert_pixfmt");
+    src = flat_yuv(AV_PIX_FMT_YUV420P, 64, 48, 120, 90, 180, AVCOL_SPC_BT709, AVCOL_RANGE_MPEG);
+    KC_NOT_NULL(src);
+    fill_varied(src);
+    display = ffkmp_frame_convert_display(src, AV_PIX_FMT_RGBA);
+    direct = fast_rgba(src);
+    KC_NOT_NULL(display);
+    KC_NOT_NULL(direct);
+    for (row = 0; row < 48; row++)
+        KC_EQ_MEM(display->data[0] + (ptrdiff_t)row * display->linesize[0],
+                  direct->data[0] + (ptrdiff_t)row * direct->linesize[0], 64 * 4);
+    ffkmp_frame_free(direct);
+    ffkmp_frame_free(display);
+    ffkmp_frame_free(src);
+
     src = flat_yuv(AV_PIX_FMT_YUV420P, 64, 48, 120, 90, 180, AVCOL_SPC_BT709, AVCOL_RANGE_MPEG);
     KC_NOT_NULL(src);
     plain = ffkmp_frame_convert_pixfmt(src, AV_PIX_FMT_RGBA);
@@ -165,10 +221,19 @@ static void case_sdr_is_the_plain_conversion(void)
     KC_NOT_NULL(plain);
     KC_NOT_NULL(display);
     for (row = 0; row < 48; row++)
-        KC_EQ_MEM(display->data[0] + (ptrdiff_t)row * display->linesize[0],
-                  plain->data[0] + (ptrdiff_t)row * plain->linesize[0], 64 * 4);
-    KC_EQ_INT(display->color_trc, AVCOL_TRC_BT709);
+        for (i = 0; i < 64 * 4; i++) {
+            int d = abs(display->data[0][(ptrdiff_t)row * display->linesize[0] + i] -
+                        plain->data[0][(ptrdiff_t)row * plain->linesize[0] + i]);
+            if (d > worst) worst = d;
+        }
+    if (worst > 3) KC_FAIL("the fast conversion is %d off the exact one, more than 3", worst);
+    KC_EQ_INT(display->color_trc, plain->color_trc);
+    KC_EQ_INT(display->color_primaries, plain->color_primaries);
     KC_EQ_INT(display->colorspace, AVCOL_SPC_RGB);
+    KC_EQ_INT(display->color_range, AVCOL_RANGE_JPEG);
+    kc_detail("flat colour fast (%d, %d, %d), exact (%d, %d, %d)",
+              display->data[0][0], display->data[0][1], display->data[0][2],
+              plain->data[0][0], plain->data[0][1], plain->data[0][2]);
     ffkmp_frame_free(display);
     ffkmp_frame_free(plain);
     ffkmp_frame_free(src);
@@ -252,28 +317,14 @@ static double now_ms(void)
     return t.tv_sec * 1000.0 + t.tv_nsec / 1e6;
 }
 
-/* Every pixel different from its neighbour, the worst case for the repeated-pixel shortcut. */
-static void fill_varied(AVFrame *f)
-{
-    int x, y;
-    for (y = 0; y < f->height; y++)
-        for (x = 0; x < f->width; x++)
-            f->data[0][(ptrdiff_t)y * f->linesize[0] + x] = (uint8_t)(16 + (x * 7 + y * 3) % 219);
-    for (y = 0; y < (f->height + 1) / 2; y++)
-        for (x = 0; x < (f->width + 1) / 2; x++) {
-            f->data[1][(ptrdiff_t)y * f->linesize[1] + x] = (uint8_t)(16 + (x * 5 + y) % 224);
-            f->data[2][(ptrdiff_t)y * f->linesize[2] + x] = (uint8_t)(16 + (x + y * 5) % 224);
-        }
-}
-
-static double per_frame_ms(const AVFrame *src)
+static double per_frame_ms(const AVFrame *src, AVFrame *(*convert)(const AVFrame *, int))
 {
     double start;
     int i;
-    ffkmp_frame_free(ffkmp_frame_convert_display(src, AV_PIX_FMT_RGBA));
+    ffkmp_frame_free(convert(src, AV_PIX_FMT_RGBA));
     start = now_ms();
     for (i = 0; i < 5; i++) {
-        AVFrame *dst = ffkmp_frame_convert_display(src, AV_PIX_FMT_RGBA);
+        AVFrame *dst = convert(src, AV_PIX_FMT_RGBA);
         KC_NOT_NULL(dst);
         ffkmp_frame_free(dst);
     }
@@ -283,22 +334,23 @@ static double per_frame_ms(const AVFrame *src)
 static void case_cost(void)
 {
     AVFrame *frame;
-    double sdr, pq_varied, pq_flat;
-    kc_case("the tone map's cost on a 1080p frame, beside the plain conversion");
+    double sdr, exact, pq_varied, pq_flat;
+    kc_case("the tone map's cost on a 1080p frame, beside the plain conversion and the exact one");
     frame = flat_yuv(AV_PIX_FMT_YUV420P, 1920, 1080, 120, 90, 180, AVCOL_SPC_BT2020_NCL, AVCOL_RANGE_MPEG);
     KC_NOT_NULL(frame);
     fill_varied(frame);
-    sdr = per_frame_ms(frame);
+    sdr = per_frame_ms(frame, ffkmp_frame_convert_display);
+    exact = per_frame_ms(frame, ffkmp_frame_convert_pixfmt);
     frame->color_trc = AVCOL_TRC_SMPTE2084;
     frame->color_primaries = AVCOL_PRI_BT2020;
-    pq_varied = per_frame_ms(frame);
+    pq_varied = per_frame_ms(frame, ffkmp_frame_convert_display);
     ffkmp_frame_free(frame);
     frame = flat_yuv(AV_PIX_FMT_YUV420P, 1920, 1080, 120, 90, 180, AVCOL_SPC_BT2020_NCL, AVCOL_RANGE_MPEG);
     KC_NOT_NULL(frame);
     frame->color_trc = AVCOL_TRC_SMPTE2084;
     frame->color_primaries = AVCOL_PRI_BT2020;
-    pq_flat = per_frame_ms(frame);
-    kc_detail("SDR %.2f ms, PQ %.2f ms varied and %.2f ms flat, per frame", sdr, pq_varied, pq_flat);
+    pq_flat = per_frame_ms(frame, ffkmp_frame_convert_display);
+    kc_detail("SDR %.2f ms, exact %.2f ms, PQ %.2f ms varied and %.2f ms flat, per frame", sdr, exact, pq_varied, pq_flat);
     ffkmp_frame_free(frame);
 }
 
@@ -352,7 +404,7 @@ int main(void)
     case_tone_map("PQ with BT.709 primaries", PQ_709, 12, AVCOL_TRC_SMPTE2084, AVCOL_PRI_BT709);
     case_tone_map("HLG with BT.2020 primaries", HLG_2020, 12, AVCOL_TRC_ARIB_STD_B67, AVCOL_PRI_BT2020);
     case_other_byte_orders();
-    case_sdr_is_the_plain_conversion();
+    case_sdr_is_the_fast_conversion();
     case_ycgco();
     case_fcc();
     case_refusals();

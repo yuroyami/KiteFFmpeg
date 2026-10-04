@@ -2,6 +2,7 @@
  * dictionary iteration. */
 
 #include "kitecodec_helpers.h"
+#include "kc_convert.h"
 
 #include <libavutil/channel_layout.h>
 #include <libavutil/dict.h>
@@ -10,9 +11,6 @@
 #include <libavutil/imgutils.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/samplefmt.h>
-#include <libswscale/swscale.h>
-
-#include <pthread.h>
 
 /* ════════════ AVFrame ════════════ */
 
@@ -64,125 +62,11 @@ KC_API int ffkmp_frame_a53_cc(AVFrame *f, uint8_t *dst, int dst_size) {
     return (int)sd->size;
 }
 
-/* Maps an AVColorSpace onto the SWS_CS_* table sws_getCoefficients understands. */
-static int kc_sws_cs_for(enum AVColorSpace spc, int height) {
-    switch (spc) {
-        case AVCOL_SPC_BT709:            return SWS_CS_ITU709;
-        case AVCOL_SPC_SMPTE170M:
-        case AVCOL_SPC_BT470BG:          return SWS_CS_ITU601;
-        case AVCOL_SPC_SMPTE240M:        return SWS_CS_SMPTE240M;
-        case AVCOL_SPC_FCC:              return SWS_CS_FCC;
-        case AVCOL_SPC_BT2020_NCL:
-        case AVCOL_SPC_BT2020_CL:        return SWS_CS_BT2020;
-        default:
-            /* Undeclared colour is normal; guess by the rule every player uses: SD is 601,
-               HD and above is 709. */
-            return height >= 720 ? SWS_CS_ITU709 : SWS_CS_ITU601;
-    }
-}
-
-/* Is this format one swscale can actually take on the named side?
-
-   libswscale ASSERTS on a format outside the enum rather than returning an error, so an arbitrary
-   integer arriving through the exported C ABI took the whole process down. Three
-   gates, in this order: av_pix_fmt_desc_get answers NULL for anything outside the enum, the
-   HWACCEL flag marks a format whose planes are opaque handles rather than pixels, and the
-   sws_isSupported pair is swscale's own verdict on everything that survives. The order matters:
-   the sws predicates take an enum, so nothing reaches them until the descriptor proves the value
-   names a real one. */
-static int kc_pixfmt_convertible(int fmt, int as_output) {
-    const AVPixFmtDescriptor *desc;
-    if (fmt == AV_PIX_FMT_NONE) return 0;
-    desc = av_pix_fmt_desc_get((enum AVPixelFormat)fmt);
-    if (!desc) return 0;
-    if (desc->flags & AV_PIX_FMT_FLAG_HWACCEL) return 0;
-    return as_output ? sws_isSupportedOutput((enum AVPixelFormat)fmt)
-                     : sws_isSupportedInput((enum AVPixelFormat)fmt);
-}
-
-/* Pixel format conversion (e.g. yuv420p → rgb24). Returns a freshly allocated frame the caller
-   must av_frame_free, or NULL on failure.
-
-   The converter is CACHED per thread through sws_getCachedContext, which reuses the existing
-   context while the geometry and formats match and rebuilds it when they change: the repository's
-   own allocation baseline measured 9 to 61 allocations per call for the create-and-free shape
-   this replaces. One context per calling thread is deliberate: swscale
-   contexts are not thread-safe, and decode/encode paths are thread-confined already.
-
-   Colour is configured, not assumed: the source's matrix and range feed sws_setColorspaceDetails
-   (swscale otherwise assumes 601/limited for everything, visibly wrong for HD), and RGB output is
-   produced full-range, which is what every RGB consumer expects. Frame properties (SAR, colour
-   tags, timestamps, duration) are carried over with av_frame_copy_props instead of losing
-   everything but pts. Hardware frames are refused: their data pointers are opaque handles, not
-   planes; download first. */
-/* Each thread's cached converter lives in a thread key whose destructor frees it when the thread
-   ends. A _Thread_local pointer had no such hook, so every thread that converted and then ended
-   took the only pointer to its context with it (#105). The key is created once per process. */
-static pthread_key_t kc_sws_key;
-static pthread_once_t kc_sws_key_once = PTHREAD_ONCE_INIT;
-static int kc_sws_key_ready = 0;
-
-static void kc_sws_free(void *context) {
-    sws_freeContext((struct SwsContext *)context);
-}
-
-static void kc_sws_key_create(void) {
-    kc_sws_key_ready = pthread_key_create(&kc_sws_key, kc_sws_free) == 0;
-}
-
+/* Exact on every target (#164). Every caller in this library keeps what this returns, as an image
+   or as an encoder's input, so the bytes matter more than the time. A picture drawn once per frame
+   takes ffkmp_frame_convert_display instead. */
 KC_API AVFrame* ffkmp_frame_convert_pixfmt(const AVFrame *src, int dst_fmt) {
-    struct SwsContext *kc_sws_cache;
-    if (!src || src->width <= 0 || src->height <= 0) return NULL;
-    if (src->hw_frames_ctx) return NULL;
-    /* Both sides, before anything allocates: an unusable source format asserts inside swscale
-       exactly as an unusable destination one does. */
-    if (!kc_pixfmt_convertible(src->format, 0)) return NULL;
-    if (!kc_pixfmt_convertible(dst_fmt, 1)) return NULL;
-    const AVPixFmtDescriptor *dst_desc = av_pix_fmt_desc_get((enum AVPixelFormat)dst_fmt);
-    int src_full = src->color_range == AVCOL_RANGE_JPEG;
-    int dst_rgb = (dst_desc->flags & AV_PIX_FMT_FLAG_RGB) != 0;
-    int dst_full = dst_rgb ? 1 : src_full;
-    (void)pthread_once(&kc_sws_key_once, kc_sws_key_create);
-    {
-        /* Without a key there is nowhere to keep a context, so this call builds its own and the
-           end of the function frees it. */
-        struct SwsContext *cached = kc_sws_key_ready ? (struct SwsContext *)pthread_getspecific(kc_sws_key) : NULL;
-        kc_sws_cache = sws_getCachedContext(cached,
-            src->width, src->height, (enum AVPixelFormat)src->format,
-            src->width, src->height, (enum AVPixelFormat)dst_fmt,
-            SWS_BILINEAR, NULL, NULL, NULL);
-        /* sws_getCachedContext frees `cached` when it builds another, and on failure too. */
-        if (kc_sws_key_ready && kc_sws_cache != cached) (void)pthread_setspecific(kc_sws_key, kc_sws_cache);
-    }
-    if (!kc_sws_cache) return NULL;
-    {
-        const int *coeffs = sws_getCoefficients(kc_sws_cs_for(src->colorspace, src->height));
-        /* Refuses (-1) for pure RGB<->RGB conversions, where there is nothing to configure. */
-        (void)sws_setColorspaceDetails(kc_sws_cache, coeffs, src_full, coeffs, dst_full,
-                                       0, 1 << 16, 1 << 16);
-    }
-    AVFrame *dst = av_frame_alloc();
-    if (!dst) goto done;
-    dst->width = src->width; dst->height = src->height; dst->format = dst_fmt;
-    if (av_frame_get_buffer(dst, 0) < 0 ||
-        sws_scale(kc_sws_cache, (const uint8_t * const *)src->data, src->linesize,
-                  0, src->height, dst->data, dst->linesize) < 0) {
-        av_frame_free(&dst);
-        goto done;
-    }
-    /* SAR, colour tags, pts, duration and the rest travel with the picture. copy_props does not
-       touch width/height/format/data, so the conversion's own fields stand. */
-    if (av_frame_copy_props(dst, src) < 0) { av_frame_free(&dst); goto done; }
-    /* Then the two tags copy_props gets WRONG for a converted frame, because they describe the
-       source's encoding rather than this output's. The pixels above were produced
-       full range for an RGB destination, and their matrix is RGB, not the source's YUV one; a
-       consumer trusting the copied tags would convert a second time and crush the range.
-       Primaries and transfer describe the light itself, not the encoding, so they stay. */
-    dst->color_range = dst_full ? AVCOL_RANGE_JPEG : src->color_range;
-    if (dst_rgb) dst->colorspace = AVCOL_SPC_RGB;
-done:
-    if (!kc_sws_key_ready) sws_freeContext(kc_sws_cache);
-    return dst;
+    return kc_sws_convert(src, dst_fmt, KC_SWS_EXACT);
 }
 
 KC_API int ffkmp_image_get_buffer_size(int fmt, int w, int h, int align) {

@@ -106,6 +106,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A frame converted to another pixel format, to be saved as an image or fed to an encoder, is
+  exact on every platform (#164). The conversion took swscale's fast path, which lands up to 3 off
+  the colour matrix from YUV to RGB, repeats each chroma sample across a pair of pixels in a row,
+  and gave one colour different bytes on each architecture, and in a frame with an odd number of
+  rows from one with an even number. Every 8-bit result is now within 1 of the matrix, with chroma
+  interpolated, and the same on every architecture, with the swscale flags mpv uses by default.
+  From YUV to RGB a 1080p frame takes about 11 ms on x86-64 where it took under 1, from RGB to YUV
+  about an eighth longer, and between YUV formats about the same. `WebRgbaConverter`, which
+  converts a frame for every picture it draws, keeps the fast conversion.
 - An MP4 or MOV that carries both Google's and Apple's 360 degree and stereo boxes reads as one
   description, whichever order the boxes come in (#160). FFmpeg's own writer puts both sets into
   an MP4 under `-strict unofficial`, and its reader read both into the same mapping and stereo

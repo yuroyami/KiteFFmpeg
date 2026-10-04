@@ -1,6 +1,9 @@
 /* The display part of the FFmpeg helper layer: a decoded picture converted to 8-bit RGB for a
- * screen. ffkmp_frame_convert_pixfmt changes only the encoding. This file adds the two steps a
- * screen needs on top of it and swscale cannot do in that call:
+ * screen. The conversion is swscale's fast one, KC_SWS_FAST, rather than the exact one
+ * ffkmp_frame_convert_pixfmt makes, because a player calls this for every frame it draws, and on
+ * x86-64 the exact one takes about 11 ms of a 1080p frame where the fast one takes about 1.5, for
+ * a difference of 3 levels at most (#164). Like that one, it changes only the encoding. This file
+ * adds the two steps a screen needs on top of it and swscale cannot do in that call:
  *
  *   YCgCo, whose inverse matrix feeds both chroma planes into red and blue. swscale's coefficient
  *   table holds four numbers, one chroma plane per colour, so it cannot express it.
@@ -10,6 +13,7 @@
  *   the 8-bit RGB bytes, as the Kotlin one does, so the two paths give the same picture. */
 
 #include "kitecodec_helpers.h"
+#include "kc_convert.h"
 
 #include <libavutil/frame.h>
 #include <libavutil/pixdesc.h>
@@ -60,7 +64,7 @@ static AVFrame *kc_convert_ycgco(const AVFrame *src, int dst_fmt, const kc_rgb8 
     AVFrame *yuv, *dst;
     int full = src->color_range == AVCOL_RANGE_JPEG;
     int x, y;
-    yuv = ffkmp_frame_convert_pixfmt(src, AV_PIX_FMT_YUV444P);
+    yuv = kc_sws_convert(src, AV_PIX_FMT_YUV444P, KC_SWS_FAST);
     if (!yuv) return NULL;
     dst = av_frame_alloc();
     if (!dst) goto fail;
@@ -295,7 +299,7 @@ KC_API AVFrame* ffkmp_frame_convert_display(const AVFrame *src, int dst_fmt) {
     kc_rgb8 lay;
     AVFrame *dst;
     if (!src || !kc_rgb8_layout(dst_fmt, &lay)) return NULL;
-    dst = kc_is_ycgco(src) ? kc_convert_ycgco(src, dst_fmt, &lay) : ffkmp_frame_convert_pixfmt(src, dst_fmt);
+    dst = kc_is_ycgco(src) ? kc_convert_ycgco(src, dst_fmt, &lay) : kc_sws_convert(src, dst_fmt, KC_SWS_FAST);
     if (!dst) return NULL;
     if (src->color_trc == AVCOL_TRC_SMPTE2084 || src->color_trc == AVCOL_TRC_ARIB_STD_B67) {
         int gamut2020 = src->color_primaries == AVCOL_PRI_BT2020;

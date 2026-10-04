@@ -118,16 +118,22 @@ KC_API kc_frame* ffkmp_frame_clone(const kc_frame *f);
  * either way. The cache is freed when its thread ends. Both pixel formats are validated before swscale sees them: a value outside the
  * enum, a hardware format, or one swscale cannot read or write returns NULL rather than
  * asserting inside libswscale. The colour tags on the result describe the OUTPUT,
- * not the source: an RGB destination is full range with an RGB matrix.
+ * not the source: an RGB destination is full range with an RGB matrix. The conversion is exact:
+ * every 8-bit result is within 1 of what the source's colour matrix gives, chroma is interpolated
+ * rather than repeated, and the bytes are the same on every architecture (#164).
  */
 KC_API kc_frame* ffkmp_frame_convert_pixfmt(const kc_frame *src, int dst_fmt);
 
-/* Ownership as ffkmp_frame_convert_pixfmt. The same conversion for a picture on a screen, into
- * dst_fmt, which must be a packed 8-bit RGB format of 3 or 4 bytes per pixel, rgba among them;
- * any other format returns NULL. Two steps differ. A YCgCo picture uses the YCgCo matrix. A PQ or
- * HLG picture is tone mapped to SDR: BT.2020 primaries fold to BT.709, and luminance rolls off
- * from a 1000 nit peak to 203 nit reference white, encoded as gamma 2.2. The result's tags say
- * so. Every other picture gives the bytes of ffkmp_frame_convert_pixfmt.
+/* Ownership, caching and refusals as ffkmp_frame_convert_pixfmt, with a cache of its own. A
+ * picture for a screen, converted once per frame drawn, into dst_fmt, which must be a packed 8-bit
+ * RGB format of 3 or 4 bytes per pixel, rgba among them; any other format returns NULL. The
+ * conversion is swscale's fast one rather than the exact one: up to 3 off the colour matrix, with
+ * each chroma sample repeated across a pair of pixels in a row rather than interpolated, for
+ * about a seventh of the time on a 1080p frame (#164). Two steps are added. A YCgCo picture uses
+ * the YCgCo matrix. A PQ or HLG picture is tone mapped to SDR: BT.2020 primaries fold to BT.709,
+ * and luminance rolls off from a 1000 nit peak to 203 nit reference white, encoded as gamma 2.2.
+ * The result's tags say so. Every other picture gives the fast conversion's bytes, with the tags
+ * ffkmp_frame_convert_pixfmt gives.
  */
 KC_API kc_frame* ffkmp_frame_convert_display(const kc_frame *src, int dst_fmt);
 KC_API int ffkmp_image_get_buffer_size(int fmt, int w, int h, int align);

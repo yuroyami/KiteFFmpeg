@@ -1,4 +1,4 @@
-/* ffkmp_frame_convert_pixfmt, the only swscale use in the whole helper layer.
+/* ffkmp_frame_convert_pixfmt, and the swscale step it shares with ffkmp_frame_convert_display.
  *
  * The helper keeps one SwsContext per thread and rebuilds it only when the geometry or the formats
  * change. Every case here asserts the behaviour as it is, and the numbers are measured rather than
@@ -10,8 +10,10 @@
  *   frame is computed here from the BT.601 limited-range matrix, in floating point, and compared
  *   with what the helper produced. Measured on this machine, the two agree exactly on all six
  *   colours tried, so the tolerance is stated as 1 rather than as whatever the first run happened
- *   to print. A flat colour is the right fixture: source and destination are the same size, so
- *   SWS_BILINEAR does no filtering and the case measures colour conversion alone.
+ *   to print. Six colours hid that swscale's fast path, which the helper used until #164, lands up
+ *   to 3 off, so a grid of 26,912 colours at an even and an odd height holds the conversion to
+ *   the same tolerance. A flat colour is the right fixture: source and destination are the same
+ *   size, so the scaler does no filtering and the case measures colour conversion alone.
  *
  *   The metadata the helper carries, and the two tags it deliberately overwrites. Width, height,
  *   format and pts are its own; sample aspect ratio, duration, primaries and transfer travel from
@@ -21,12 +23,13 @@
  *   dst->color_range gets what the pixels are, which is the only reading worth trusting.
  *
  *   Allocation cost per call, which is the actual subject here. Measured under the interposer
- *   in the plain variant: an even-height frame costs 9 allocating calls per conversion and an
- *   odd-height frame costs 61, deterministic and repeatable, with the difference coming from
- *   swscale needing full filter tables when the last chroma row is half populated. Every call
- *   frees 5 of those and hands 4 live blocks to the caller, and ffkmp_frame_free brings the window
- *   to exactly zero. A cached context is what makes those numbers fall; this file is what says
- *   what they were.
+ *   in the plain variant: a conversion that builds its context costs 61 allocating calls, 57 of them
+ *   the context, and one that finds its context cached costs 4, deterministic and repeatable. A
+ *   rebuild frees the 57 blocks of the context it replaces and hands 4 live blocks to the caller,
+ *   and ffkmp_frame_free brings the window to exactly zero. Until #164 an even height cost 9 and
+ *   an odd height 61, because swscale built a fast path with no filters only for an even height;
+ *   the exact conversion takes its general path at every height. A cached context is what makes
+ *   those numbers fall; this file is what says what they were.
  *
  *   Leak freedom on the failure paths, which is the half a caching change is most likely to
  *   break. Every refusal returns NULL and leaves no block behind. One fails late: a source frame
@@ -63,7 +66,7 @@
 /* ---- The measured baselines, and the only ratcheting numbers in this file ----
  *
  * Everything else here is CONTRACT: a property that must hold whatever the allocator, the FFmpeg
- * build or the machine happens to do. These four are the opposite. They are counts measured on one
+ * build or the machine happens to do. These three are the opposite. They are counts measured on one
  * machine against one FFmpeg, and a change in any of them is a ratchet move, not a bug by itself:
  * it moves in the same commit as the change that caused it, with the old and new numbers in the
  * commit message, exactly like every other baseline in this project. Naming them here rather than
@@ -76,16 +79,15 @@
  *
  * What they mean, in the order the case exercises them:
  *   HELD_LIVE          blocks the caller still owns after one conversion: the frame and its buffer
- *   PER_CALL_REBUILD   allocating calls when the shape changed and swscale rebuilt its context
+ *   PER_CALL_REBUILD   allocating calls when the shape changed and swscale rebuilt its context,
+ *                      at an even height and at an odd one alike since #164, which moved it from
+ *                      9 and folded in PER_CALL_ODD, 61, the odd height's cost before
  *   PER_CALL_STEADY    allocating calls once the thread-local context already matches
- *   PER_CALL_ODD       allocating calls for a 64x63 conversion, which pays a rebuild AND swscale's
- *                      slow path for the odd height
  */
 enum {
     KC_BASELINE_HELD_LIVE = 4,
-    KC_BASELINE_PER_CALL_REBUILD = 9,
-    KC_BASELINE_PER_CALL_STEADY = 4,
-    KC_BASELINE_PER_CALL_ODD = 61
+    KC_BASELINE_PER_CALL_REBUILD = 61,
+    KC_BASELINE_PER_CALL_STEADY = 4
 };
 
 /* argv[0] of this process, so the invalid-format case can re-run itself in a child. */
@@ -207,9 +209,10 @@ static void case_flat_colours(void)
         { "601 blue",       41, 240, 110 },
         { "mid grey",      126, 128, 128 }
     };
-    /* Measured deviation from the oracle on this machine: 0 on every one of the six. The tolerance
-     * is 1 so that a future FFmpeg rounding its last bit differently does not fail the gate, and
-     * the measured deviation is reported on each case line so a drift is still visible. */
+    /* Measured deviation from the oracle on this machine: 0 on every one of the six, on Apple
+     * silicon before #164 and on x86-64 after it. The tolerance is 1 so that a future FFmpeg
+     * rounding its last bit differently does not fail the gate, and the measured deviation is
+     * reported on each case line so a drift is still visible. */
     const int tolerance = 1;
     size_t i;
     int worst_overall = 0;
@@ -244,6 +247,66 @@ static void case_flat_colours(void)
     kc_case("the worst deviation across all six colours");
     KC_CHECKF(worst_overall <= tolerance, "worst overall deviation %d", worst_overall);
     kc_detail("worst=%d, measured 0 when this baseline was written", worst_overall);
+}
+
+/* Every flat limited-range colour on a grid, in a frame of even height and in one of odd height
+ * (#164). swscale's fast path, which the helper took until then and which swscale takes only for
+ * an even height, put 11,027 of these 26,912 colours more than 1 off the oracle and 445 of them 3
+ * off, measured on x86-64 against FFmpeg 6.1 and 9.0.2. Its other path put 18,369 off at the odd
+ * height. The six colours above happened to land within 1 on Apple silicon, where they were
+ * measured, so they never showed it. */
+static void case_colour_grid(void)
+{
+    static const int heights[] = { 16, 15 };
+    size_t i;
+
+    for (i = 0; i < sizeof(heights) / sizeof(heights[0]); i++) {
+        int y;
+        int u;
+        int v;
+        int colours = 0;
+        int off = 0;
+        int worst = 0;
+        int worst_y = 0;
+        int worst_u = 0;
+        int worst_v = 0;
+
+        kc_case("every flat colour on a grid converts within 1 of the oracle in a 16x%d frame",
+                heights[i]);
+        for (y = 16; y <= 235; y += 7) {
+            for (u = 16; u <= 240; u += 8) {
+                for (v = 16; v <= 240; v += 8) {
+                    AVFrame *src = flat_yuv420p(16, heights[i], y, u, v, 0);
+                    AVFrame *dst;
+                    int r;
+                    int g;
+                    int b;
+                    int deviation;
+
+                    KC_NOT_NULL(src);
+                    dst = ffkmp_frame_convert_pixfmt(src, AV_PIX_FMT_RGBA);
+                    KC_NOT_NULL(dst);
+                    bt601_limited_to_rgb(y, u, v, &r, &g, &b);
+                    deviation = max_rgba_deviation(dst, r, g, b, 255);
+                    colours++;
+                    if (deviation > 1)
+                        off++;
+                    if (deviation > worst) {
+                        worst = deviation;
+                        worst_y = y;
+                        worst_u = u;
+                        worst_v = v;
+                    }
+                    ffkmp_frame_free(dst);
+                    ffkmp_frame_free(src);
+                }
+            }
+        }
+        KC_CHECKF(off == 0,
+                  "%d of %d colours converted more than 1 off the oracle, the worst by %d at "
+                  "y=%d u=%d v=%d", off, colours, worst, worst_y, worst_u, worst_v);
+        kc_detail("%d colours, worst deviation %d", colours, worst);
+    }
 }
 
 static void case_metadata_carried_and_dropped(void)
@@ -387,7 +450,8 @@ static void case_round_trip(void)
     KC_NOT_NULL(back);
     /* Chroma subsampling loses information, but a flat colour has nothing to lose: every chroma
      * sample averages identical neighbours. So the round trip is exact up to the two rounding
-     * steps, which measured 1 on the green and blue channels. */
+     * steps: yuv (88, 116, 201) comes back as (200, 29, 60), the BT.601 answer for it, 1 off on
+     * green. swscale's fast path brought it back as (199, 27, 58) on x86-64, 3 off (#164). */
     KC_CHECKF(max_rgba_deviation(back, 200, 30, 60, 255) <= 1,
               "round trip deviation %d exceeds 1", max_rgba_deviation(back, 200, 30, 60, 255));
     kc_detail("yuv (%u,%u,%u), back deviation %d", yuv->data[0][0], yuv->data[1][0],
@@ -472,24 +536,32 @@ static void case_allocation_baseline(void)
         kc_partial("allocation pairing not observable in this variant");
     }
 
-    kc_case("an odd height changes the shape, so it pays a rebuild AND swscale's slow path");
+    kc_case("an odd height changes the shape, so it pays a rebuild, and no more than an even one");
     if (kc_alloc_active()) {
-        long long held_by_cache;
+        kc_alloc_counts again;
+        long long odd_again;
         kc_alloc_snapshot(&before);
         dst = ffkmp_frame_convert_pixfmt(odd, AV_PIX_FMT_RGBA);
         KC_NOT_NULL(dst);
         ffkmp_frame_free(dst);
         per_call_odd = kc_alloc_new_delta(&before);
-        held_by_cache = kc_alloc_live_delta(&before);
-        KC_CHECKF(per_call_odd == KC_BASELINE_PER_CALL_ODD,
-                  "a 64x63 conversion cost %lld allocating calls, the recorded baseline is %d",
-                  per_call_odd, KC_BASELINE_PER_CALL_ODD);
-        KC_CHECKF(per_call_odd > per_call_even, "the odd case did not cost more");
-        /* The frame is gone but the NEW context is not: the cache holds exactly one, so what
-         * stays live here is the odd context minus the even one it replaced. */
-        KC_CHECKF(held_by_cache > 0, "the odd rebuild left nothing cached, so nothing was cached");
-        kc_detail("cache hit=%lld odd rebuild=%lld, cached blocks held=%lld", per_call_even,
-                  per_call_odd, held_by_cache);
+        /* The exact conversion takes swscale's general path at every height (#164). Before it, an
+         * even height took a fast path whose context cost 9 calls to build, and an odd one 61. */
+        KC_CHECKF(per_call_odd == KC_BASELINE_PER_CALL_REBUILD,
+                  "a 64x63 conversion cost %lld allocating calls, the recorded baseline for a "
+                  "rebuild is %d", per_call_odd, KC_BASELINE_PER_CALL_REBUILD);
+        KC_CHECKF(per_call_odd > per_call_even, "the odd rebuild cost no more than a cache hit");
+        /* The odd context is now the cached one, so the same shape again is a cache hit. */
+        kc_alloc_snapshot(&again);
+        dst = ffkmp_frame_convert_pixfmt(odd, AV_PIX_FMT_RGBA);
+        KC_NOT_NULL(dst);
+        ffkmp_frame_free(dst);
+        odd_again = kc_alloc_new_delta(&again);
+        KC_CHECKF(odd_again == KC_BASELINE_PER_CALL_STEADY,
+                  "the odd shape again cost %lld allocating calls and a cache hit costs %d, so the "
+                  "odd context was not cached", odd_again, KC_BASELINE_PER_CALL_STEADY);
+        kc_detail("cache hit=%lld odd rebuild=%lld, the odd shape again=%lld", per_call_even,
+                  per_call_odd, odd_again);
         kc_note("the odd number is a rebuild, not a steady-state cost: alternating two shapes on");
         kc_note("one thread defeats the cache by construction, which is why decode paths convert");
         kc_note("one shape at a time.");
@@ -654,6 +726,7 @@ int main(int argc, char **argv)
     kc_suite_begin("test_convert");
 
     case_flat_colours();
+    case_colour_grid();
     case_metadata_carried_and_dropped();
     case_destination_is_a_new_frame();
     case_ten_bit_destination();

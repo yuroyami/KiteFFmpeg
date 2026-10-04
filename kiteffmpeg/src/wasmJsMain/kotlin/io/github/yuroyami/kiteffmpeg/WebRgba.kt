@@ -32,7 +32,10 @@ import kotlin.js.JsAny
  * picture uses the YCgCo matrix. A PQ or HLG picture is tone mapped to SDR in C beside the decoder:
  * BT.2020 primaries fold to BT.709, and luminance rolls off from a 1000 nit peak to 203 nit
  * reference white, encoded as gamma 2.2. That is the law KitePlayer's other software paths use, so
- * the canvas shows the same picture they do.
+ * the canvas shows the same picture they do. Because it runs for every frame drawn, the conversion
+ * is swscale's fast one, up to 3 off the colour matrix with each chroma sample repeated across a
+ * pair of pixels in a row, where a frame saved as an image or fed to an encoder converts exactly
+ * (#164).
  *
  * ### Owning one of these
  *
