@@ -17,6 +17,10 @@ package io.github.yuroyami.kiteffmpeg
  *   streams left, the best-ranked [preferredAudioLanguages] match wins, then among the streams of
  *   that language the closest one, then the stream the container marks [Disposition.default],
  *   then container order.
+ * - Audio beside a picture: in a source with programmes, such as a transport stream carrying
+ *   several channels, the audio rules choose only among the sound of the picture's own programme,
+ *   so the picture fixes the channel and a language preference never moves the sound to another
+ *   one. Pass the picture and [MediaSource.programs] to the [selectAudio] that takes them.
  */
 public data class TrackSelector(
     /**
@@ -38,7 +42,25 @@ public data class TrackSelector(
         streams.firstOrNull { it.type == MediaType.Video && !it.disposition.attachedPicture }
             ?: streams.firstOrNull { it.type == MediaType.Video }
 
-    /** The audio stream to play from [streams], or null when there is none. */
+    /**
+     * The audio stream to play beside [video], or null when there is none (#165).
+     *
+     * [programs] are the source's [MediaSource.programs]. When [video] sits in a programme, the
+     * candidates are the audio streams of [streams] that share one of its programmes or, when
+     * those programmes hold no audio, the ones that sit in no programme. Audio that only other
+     * programmes hold is never a candidate, so a multiplex never plays one channel's picture with
+     * another channel's sound. With no programmes, a null [video] or a video in no programme,
+     * every audio stream is a candidate, as in the [selectAudio] that takes the streams alone. The
+     * audio rules of [TrackSelector] then pick among the candidates.
+     */
+    public fun selectAudio(streams: List<StreamInfo>, programs: List<Program>, video: StreamInfo?): StreamInfo? =
+        selectAudio(streams)
+
+    /**
+     * The audio stream to play from [streams], or null when there is none. It knows nothing of
+     * programmes, so for a source that has them use the [selectAudio] that takes the picture and
+     * the programmes.
+     */
     public fun selectAudio(streams: List<StreamInfo>): StreamInfo? {
         val audio = streams.filter { it.type == MediaType.Audio }
         val candidates = audio.filter { !it.disposition.isForSpecialAudience }.ifEmpty { audio }

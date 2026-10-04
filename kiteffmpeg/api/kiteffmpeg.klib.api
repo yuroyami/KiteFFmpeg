@@ -2345,6 +2345,7 @@ final class io.github.yuroyami.kiteffmpeg/TrackSelector { // io.github.yuroyami.
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/TrackSelector.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg/TrackSelector.hashCode|hashCode(){}[0]
     final fun selectAudio(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/TrackSelector.selectAudio|selectAudio(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
+    final fun selectAudio(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>, kotlin.collections/List<io.github.yuroyami.kiteffmpeg/Program>, io.github.yuroyami.kiteffmpeg/StreamInfo?): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/TrackSelector.selectAudio|selectAudio(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>;kotlin.collections.List<io.github.yuroyami.kiteffmpeg.Program>;io.github.yuroyami.kiteffmpeg.StreamInfo?){}[0]
     final fun selectVideo(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/TrackSelector.selectVideo|selectVideo(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/TrackSelector.toString|toString(){}[0]
 

@@ -88,7 +88,10 @@ public expect class MediaSource : AutoCloseable {
      */
     public val primaryVideo: StreamInfo?
 
-    /** The audio stream [TrackSelector.Default] picks, or null when there is no audio stream. */
+    /**
+     * The audio stream [TrackSelector.Default] picks beside [primaryVideo], from that picture's own
+     * programme when the source has [programs], or null when there is no audio stream to pick.
+     */
     public val primaryAudio: StreamInfo?
 
     /**

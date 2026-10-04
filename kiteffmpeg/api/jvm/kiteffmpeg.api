@@ -1695,6 +1695,7 @@ public final class io/github/yuroyami/kiteffmpeg/TrackSelector {
 	public final fun getPreferredAudioLanguages ()Ljava/util/List;
 	public fun hashCode ()I
 	public final fun selectAudio (Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun selectAudio (Ljava/util/List;Ljava/util/List;Lio/github/yuroyami/kiteffmpeg/StreamInfo;)Lio/github/yuroyami/kiteffmpeg/StreamInfo;
 	public final fun selectVideo (Ljava/util/List;)Lio/github/yuroyami/kiteffmpeg/StreamInfo;
 	public fun toString ()Ljava/lang/String;
 }
