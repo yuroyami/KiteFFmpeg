@@ -56,6 +56,21 @@ internal object MediaOracle {
     )?.trim()?.toDouble()?.let { seconds -> (seconds * 1_000_000.0).toLong() }
 
     /**
+     * True when the host's `ffmpeg` is release [major].[minor] or later, read from the first line
+     * of `ffmpeg -version`, which names the release first, as in `6.1.1-3ubuntu5`, `7.1.1` or
+     * `n7.1`. A build of FFmpeg's main branch, which names a commit count as `N-` and a number,
+     * counts as later than every release. False without an oracle, and for a line that names
+     * neither, so a test compares against an `ffmpeg` only when it knows the release.
+     */
+    fun ffmpegAtLeast(major: Int, minor: Int): Boolean {
+        val line = runMediaOracle("ffmpeg", listOf("-version"))?.lineSequence()?.firstOrNull() ?: return false
+        if (Regex("^ffmpeg version N-\\d").containsMatchIn(line)) return true
+        val release = Regex("^ffmpeg version n?(\\d+)\\.(\\d+)").find(line) ?: return false
+        val (foundMajor, foundMinor) = release.destructured
+        return foundMajor.toInt() > major || (foundMajor.toInt() == major && foundMinor.toInt() >= minor)
+    }
+
+    /**
      * Runs `ffmpeg -i input <arguments> output` to make a reference file. False where there is
      * no oracle, so the caller skips the comparison instead of reading a file that was never made.
      */

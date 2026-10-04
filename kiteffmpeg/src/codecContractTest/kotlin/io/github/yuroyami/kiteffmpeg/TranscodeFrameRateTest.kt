@@ -94,6 +94,11 @@ internal class TranscodeFrameRateTest {
     /**
      * Frames at uneven times: bursts lose frames and gaps repeat the frame before them. The input
      * is written with a one-millisecond time base, so every timestamp keeps its own tick.
+     *
+     * Each frame says it lasts that one millisecond, so the last one, 300 ms after the frame before
+     * it, holds for the gap rather than for its stated duration. FFmpeg's command line does that
+     * from 7.1 on; 6.1 and 7.0 end the stream where the last frame starts, 8 ticks sooner, so only
+     * a 7.1 or later `ffmpeg` is the oracle here (#163).
      */
     @Test
     fun variableRateInputBecomesConstantRate() {
@@ -106,12 +111,17 @@ internal class TranscodeFrameRateTest {
         }
         val shown = TranscodeFixtures.decodedFrameIndices(output)
         val reference = path("mkv")
-        if (MediaOracle.reference(input, listOf("-vf", "fps=25", "-c:v", "mpeg4", "-q:v", "2"), reference)) {
+        if (
+            MediaOracle.ffmpegAtLeast(7, 1) &&
+            MediaOracle.reference(input, listOf("-vf", "fps=25", "-c:v", "mpeg4", "-q:v", "2"), reference)
+        ) {
             assertEquals(TranscodeFixtures.decodedFrameIndices(reference), shown, "the input frames ffmpeg's fps filter shows")
         }
         // Tick 0 is 0 to 40 ms: the frame at 10 ms replaces the one at 0 ms. The gap after 70 ms
         // repeats that frame until the frame at 210 ms, which replaced the one at 200 ms.
         assertEquals(listOf(1, 2, 4, 4, 4, 6, 6, 6, 6, 6), shown.take(10), "the first ten ticks")
+        // The last frame starts at tick 25, 1 s, and holds for the 300 ms gap before it, to tick 32.
+        assertEquals(List(8) { 11 }, shown.drop(25), "the ticks from the last frame's start")
     }
 
     /**
