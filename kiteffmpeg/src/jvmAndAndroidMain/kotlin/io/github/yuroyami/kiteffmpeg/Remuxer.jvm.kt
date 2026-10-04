@@ -108,15 +108,9 @@ public actual object Remuxer {
 
             output.open().use { sink ->
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
-                sink.setChapters(
-                    chaptersForOutput(
-                        source.chapters,
-                        originMicros = source.startTimeMicros + startMicros,
-                        lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
-                    ),
-                )
+                // Placed when the header is written, against the origin the copied media takes.
+                sink.setSourceChapters(SourceChapters.of(source, startMicros, endMicros))
                 val copies = selected.associate { it.index to sink.addCopyStream(source, it) }
-                sink.ensureHeaderWritten()
                 var written = 0L
                 source.demuxRouted(
                     decode = emptyList(),
@@ -137,6 +131,9 @@ public actual object Remuxer {
                         }
                     },
                 )
+                // The first packet wrote the header. A source with none still gets a valid,
+                // empty container rather than no file at all.
+                sink.ensureHeaderWritten()
                 publish?.invoke(written)
             }
         }

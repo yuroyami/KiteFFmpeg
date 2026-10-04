@@ -19,6 +19,9 @@ public actual class MediaSink internal constructor(
     private var headerState = HeaderState.NotWritten
     private var sharedBaseMicros = Long.MIN_VALUE
 
+    /** A source's chapters, placed when the header is written: see [setSourceChapters]. */
+    private var sourceChapters: SourceChapters? = null
+
     /**
      * True from the moment a close begins until the sink dies, read and written under [muxLock].
      *
@@ -313,7 +316,22 @@ public actual class MediaSink internal constructor(
     @Throws(FFmpegException::class)
     public actual fun setChapters(chapters: List<Chapter>): Unit = synchronized(muxLock) {
         check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
-        val format = checkOpen()
+        addChapters(checkOpen(), chapters)
+    }
+
+    /**
+     * A source's chapters for an output cut from it, placed on the output's timeline when the
+     * header is written, against the origin the output's media claimed by then (#144). Placed
+     * any earlier, they would have to guess that origin, and a copy cut between keyframes starts
+     * at the keyframe before the cut rather than at the cut.
+     */
+    internal fun setSourceChapters(chapters: SourceChapters): Unit = synchronized(muxLock) {
+        check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
+        checkOpen()
+        sourceChapters = chapters
+    }
+
+    private fun addChapters(format: Long, chapters: List<Chapter>) {
         chapters.forEach { chapter ->
             val tags = chapter.metadata.entries.toList()
             check0(
@@ -352,6 +370,13 @@ public actual class MediaSink internal constructor(
         }
         headerState = HeaderState.Failed
         val format = formatToken
+        // The output's origin is claimed by now when anything was written, because every write
+        // claims before it asks for the header. With nothing written the requested start is
+        // claimed, so whatever the output writes later shares the chapters' origin.
+        sourceChapters?.let { pending ->
+            sourceChapters = null
+            addChapters(format, pending.placedAt(claimBaseMicros(pending.requestedOriginMicros)))
+        }
         // A byte sink's output is already open: its bytes go to the caller, not to a path.
         outputPath?.let { path -> check0(Internals.fmtIoOpen(format, path), "avio_open") }
         val rc = Internals.fmtWriteHeader(format)
@@ -757,10 +782,10 @@ public actual class CopyStream internal constructor(
     internal fun writeCopyPacket(packet: Long): Unit = sink.withMuxLock {
         check(streamToken != 0L) { "CopyStream is closed with its MediaSink" }
         sink.checkNotClosing()
-        sink.ensureHeaderWritten()
-        Internals.packetSetStreamIndex(packet, streamIndex)
         val pts = Internals.packetPts(packet)
         val dts = Internals.packetDts(packet)
+        // The origin is claimed before the header is written, because a source's chapters are
+        // placed against it there.
         if (baseTimestamp == FrameInfo.NOPTS) {
             val reference = when {
                 dts != FrameInfo.NOPTS -> dts
@@ -774,6 +799,9 @@ public actual class CopyStream internal constructor(
                 sourceTimeBase,
             )
         }
+        // Before the stream time base is read below, because writing the header can change it.
+        sink.ensureHeaderWritten()
+        Internals.packetSetStreamIndex(packet, streamIndex)
         if (pts != FrameInfo.NOPTS) Internals.packetSetPts(packet, pts - baseTimestamp)
         if (dts != FrameInfo.NOPTS) Internals.packetSetDts(packet, dts - baseTimestamp)
         Internals.packetRescale(packet, sourceTimeBase, Internals.streamTimeBase(streamToken))

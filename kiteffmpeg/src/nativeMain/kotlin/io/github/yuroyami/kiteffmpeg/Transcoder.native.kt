@@ -205,13 +205,8 @@ public actual object Transcoder {
             output.open().use { sink ->
                 // All encoders + copy mappings + metadata must exist before the header.
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
-                sink.setChapters(
-                    chaptersForOutput(
-                        source.chapters,
-                        originMicros = source.startTimeMicros + startMicros,
-                        lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
-                    ),
-                )
+                // Placed when the header is written, against the origin the copied or encoded media takes.
+                sink.setSourceChapters(SourceChapters.of(source, startMicros, endMicros))
                 val venc = if (videoSpec != null) sink.addVideoEncoder(videoSpec) else null
                 val aenc = if (audioEncoderSpec != null && ainfo != null) sink.addAudioEncoder(audioEncoderSpec) else null
                 val vcopy = if (videoCopy && videoStream != null) sink.addCopyStream(source, videoStream) else null
@@ -250,12 +245,6 @@ public actual object Transcoder {
                         // encoder negotiated and chunks the output to the codec's frame size.
                         audioGraph = transcodeAudioGraph(audioFilter, audioStream, aenc)
                     }
-                    // Write the header eagerly, like Remuxer does. Without this a source that
-                    // yields no frames at all never reaches the drain loop that would trigger it,
-                    // so avio_open never runs and the call returns "successfully" having created
-                    // no file whatsoever. An empty but valid container is the honest result.
-                    sink.ensureHeaderWritten()
-
                     withPacket { videoPacket ->
                         withPacket { audioPacket ->
                             val progressEvery = if (venc != null) 30L else 100L
@@ -413,6 +402,13 @@ public actual object Transcoder {
                             videoRate?.finish(::encodeVideoTick)
                             venc?.core?.finish(videoPacket)
                             aenc?.core?.finish(audioPacket)
+                            // The first packet wrote the header, once it had claimed the output's
+                            // origin, which the chapters need. Without this a source that yields
+                            // no frames at all never reaches the drain loop that would trigger it,
+                            // so avio_open never runs and the call returns "successfully" having
+                            // created no file whatsoever. An empty but valid container is the
+                            // honest result.
+                            sink.ensureHeaderWritten()
                             reportMaybe(force = true)
                         }
                     }

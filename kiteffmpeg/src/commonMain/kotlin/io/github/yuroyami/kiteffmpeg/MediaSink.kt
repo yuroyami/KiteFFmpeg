@@ -52,9 +52,10 @@ public expect class MediaSink : AutoCloseable {
     /**
      * Chapters for the output, each with its title and its other tags. Call this before any frame
      * or packet is written. The bounds are on the output's own timeline, where the first written
-     * timestamp is zero, so a caller copying chapters from a [MediaSource] subtracts its
-     * [MediaSource.startTimeMicros] and the start of any trim. A chapter [Chapter.id] only has to
-     * be unique within the list.
+     * timestamp is zero, so a caller copying chapters from a [MediaSource] subtracts the source
+     * time of the first packet or frame it will write. For a copy cut between keyframes that is
+     * the keyframe before the cut, not the cut itself. A chapter [Chapter.id] only has to be
+     * unique within the list.
      */
     @Throws(FFmpegException::class)
     public fun setChapters(chapters: List<Chapter>)

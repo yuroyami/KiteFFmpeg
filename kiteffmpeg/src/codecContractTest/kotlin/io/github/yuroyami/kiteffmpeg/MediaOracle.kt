@@ -31,6 +31,24 @@ internal object MediaOracle {
         ),
     )?.lineSequence()?.map { it.trim().trimEnd(',') }?.filter { it.isNotEmpty() }?.sumOf { it.toLong() }
 
+    /**
+     * Each chapter's title and start as `ffprobe` reads them, the start in microseconds from the
+     * start of the content, which `ffprobe` also decides.
+     */
+    fun chapterStarts(path: String): Map<String, Long>? {
+        val origin = runMediaOracle(
+            "ffprobe",
+            listOf("-v", "error", "-show_entries", "format=start_time", "-of", "csv=p=0", path),
+        )?.trim()?.toDouble() ?: return null
+        return runMediaOracle(
+            "ffprobe",
+            listOf("-v", "error", "-show_entries", "chapter=start_time:chapter_tags=title", "-of", "csv=p=0", path),
+        )?.lineSequence()?.map { it.trim() }?.filter { it.isNotEmpty() }?.associate { line ->
+            val (start, title) = line.split(',', limit = 2)
+            title to ((start.toDouble() - origin) * 1_000_000.0).let { kotlin.math.round(it).toLong() }
+        }
+    }
+
     /** The container's duration as `ffprobe` reads it, in microseconds. */
     fun durationMicros(path: String): Long? = runMediaOracle(
         "ffprobe",

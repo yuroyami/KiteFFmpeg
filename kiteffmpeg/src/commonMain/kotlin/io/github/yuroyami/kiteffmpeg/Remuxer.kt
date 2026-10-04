@@ -20,9 +20,10 @@ public expect object Remuxer {
      * [endMicros]. Output timestamps are rebased to start at zero.
      *
      * Each copied stream keeps its tags (language, title and the rest), its disposition flags and
-     * its display matrix, and the output gets the input's chapters that overlap the trim window,
-     * moved onto the output's timeline. What the target container cannot store is dropped by its
-     * muxer: MP4 has no stream titles, and Matroska has no display matrix.
+     * its display matrix, and the output gets the input's chapters that overlap what it copies,
+     * from the keyframe it starts on to [endMicros], moved by as much as the media so each still
+     * starts on its own frame. What the target container cannot store is dropped by its muxer:
+     * MP4 has no stream titles, and Matroska has no display matrix.
      *
      * A container pair that needs a bitstream filter, such as H.264 in MP4 to MPEG-TS, gets it
      * automatically: libavformat inserts the filter when the packets are written.

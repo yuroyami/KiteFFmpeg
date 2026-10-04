@@ -168,6 +168,9 @@ public actual class MediaSink internal constructor(
         sharedBaseMicros
     }
 
+    /** A source's chapters, placed when the header is written: see [setSourceChapters]. */
+    private var sourceChapters: SourceChapters? = null
+
     private val headerWritten: Boolean get() = synchronized(muxLock) { headerState == HeaderState.Written }
 
     /** Refuses once a close began, so an encode never starts on a sink that is going away. */
@@ -424,6 +427,23 @@ public actual class MediaSink internal constructor(
         check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
         check(!closeBegun) { "MediaSink is closed" }
         checkUsable()
+        addChapters(chapters)
+    }
+
+    /**
+     * A source's chapters for an output cut from it, placed on the output's timeline when the
+     * header is written, against the origin the output's media claimed by then (#144). Placed
+     * any earlier, they would have to guess that origin, and a copy cut between keyframes starts
+     * at the keyframe before the cut rather than at the cut.
+     */
+    internal fun setSourceChapters(chapters: SourceChapters): Unit = synchronized(muxLock) {
+        check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
+        check(!closeBegun) { "MediaSink is closed" }
+        checkUsable()
+        sourceChapters = chapters
+    }
+
+    private fun addChapters(chapters: List<Chapter>) {
         chapters.forEach { chapter ->
             memScoped {
                 val tags = chapter.metadata.entries.toList()
@@ -474,6 +494,13 @@ public actual class MediaSink internal constructor(
         // NOT call av_write_trailer on a context whose header never landed (undefined
         // behavior in FFmpeg). Only a successful write_header reaches Written.
         headerState = HeaderState.Failed
+        // The output's origin is claimed by now when anything was written, because every write
+        // claims before it asks for the header. With nothing written the requested start is
+        // claimed, so whatever the output writes later shares the chapters' origin.
+        sourceChapters?.let { pending ->
+            sourceChapters = null
+            addChapters(pending.placedAt(claimBaseMicros(pending.requestedOriginMicros)))
+        }
         // A byte sink's output is already open: its bytes go to the caller, not to a path.
         outputPath?.let { path -> check0(ffkmp_fmt_io_open(ctx, path), "avio_open") }
         val rc = ffkmp_fmt_write_header(ctx)
@@ -966,13 +993,11 @@ public actual class CopyStream internal constructor(
 
     // Under the mux lock from start to end: the stream belongs to the muxer that close frees.
     internal fun writeCopyPacket(packet: CPointer<kc_packet>): Unit = sink.withMuxLockOpen {
-        // Header first, because avformat_write_header may rewrite the stream time-base we read below.
-        sink.ensureHeaderWritten()
-        ffkmp_packet_set_stream_index(packet, streamIndex)
-
         // Rebase on the sink's SHARED origin (first timestamp any stream produced) so the
         // relative offset between copied and encoded streams survives. Claim with dts when
         // available (it's ≤ pts, keeping both non-negative after shift for the first stream).
+        // Claimed before the header is written, because a source's chapters are placed against
+        // it there.
         val pts = ffkmp_packet_pts(packet)
         val dts = ffkmp_packet_dts(packet)
         if (baseTs == FrameInfo.NOPTS) {
@@ -985,6 +1010,9 @@ public actual class CopyStream internal constructor(
             val baseMicros = sink.claimBaseMicros(refMicros)
             baseTs = ffkmp_rescale_q(baseMicros, 1, 1_000_000, sourceTimeBase.num, sourceTimeBase.den)
         }
+        // Before the stream time base is read below, because avformat_write_header may rewrite it.
+        sink.ensureHeaderWritten()
+        ffkmp_packet_set_stream_index(packet, streamIndex)
         if (pts != FrameInfo.NOPTS) ffkmp_packet_set_pts(packet, pts - baseTs)
         if (dts != FrameInfo.NOPTS) ffkmp_packet_set_dts(packet, dts - baseTs)
 

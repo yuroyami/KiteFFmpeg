@@ -1,13 +1,16 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.coroutines.runBlocking
+import kotlin.math.abs
+import kotlin.math.roundToLong
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A remux carries what names each stream, and the chapters, not only the packets.
+ * A remux carries what names each stream, and the chapters, not only the packets. A chapter keeps
+ * its place against the video, which is what a viewer sees of it (#144).
  *
  * `ffmpeg` writes the fixtures and `ffprobe` compares input and output, so the test is skipped
  * where there is no command-line oracle, which is an Android device. MP4 keeps a display matrix,
@@ -32,11 +35,19 @@ internal class RemuxIdentityContractTest {
             ).encodeToByteArray()
         const val CHAPTERS_SHA256 = "f27ce2eedbf2febf2baaf24351cffbeabeb97c43f7cb6593f89d96a3606c5c35"
 
+        /** Where the trimmed remux cuts, which is where the Ending chapter starts in the source. */
+        const val CUT_MICROS = 1_000_000L
+
         /** The ffprobe keys this test compares, for the first two streams and every chapter. */
         val COMPARED = Regex(
             """streams\.stream\.[01]\.(tags\.(language|title)|disposition\.(default|comment)|side_data_list\.side_data\.0\.rotation)|""" +
-                """chapters\.chapter\.\d+\.(start_time|tags\.title)""",
+                """streams\.stream\.0\.start_time|chapters\.chapter\.\d+\.(start_time|tags\.title)""",
         )
+
+        /** Where a chapter starts, which is compared from the start of the video. */
+        val CHAPTER_START = Regex("""chapters\.chapter\.\d+\.start_time""")
+
+        const val VIDEO_START = "streams.stream.0.start_time"
     }
 
     /** ffprobe's flat description of [file], restricted to [COMPARED], or null without an oracle. */
@@ -44,7 +55,7 @@ internal class RemuxIdentityContractTest {
         "ffprobe",
         listOf(
             "-v", "error",
-            "-show_entries", "stream=index:stream_tags=language,title:stream_disposition=default,comment:stream_side_data=rotation",
+            "-show_entries", "stream=index,start_time:stream_tags=language,title:stream_disposition=default,comment:stream_side_data=rotation",
             "-show_chapters", "-of", "flat", file,
         ),
     )?.lineSequence()
@@ -77,9 +88,28 @@ internal class RemuxIdentityContractTest {
         val after = probe(output) ?: return
         for (key in expectedKeys) {
             assertTrue(key in before, "the fixture lacks $key, so the test proves nothing: $before")
-            assertEquals(before[key], after[key], "$key did not survive the remux")
+            if (CHAPTER_START.matches(key)) {
+                val was = fromVideoStart(before, key)
+                val now = fromVideoStart(after, key)
+                assertTrue(abs(was - now) <= 0.001, "$key was ${before[key]} with the video at ${before[VIDEO_START]} and is ${after[key]} with it at ${after[VIDEO_START]}")
+            } else {
+                assertEquals(before[key], after[key], "$key did not survive the remux")
+            }
         }
     }
+
+    private fun fromVideoStart(probed: Map<String, String>, key: String): Double =
+        checkNotNull(probed[key]).toDouble() - checkNotNull(probed[VIDEO_START]) { "no video start: $probed" }.toDouble()
+
+    /** The presentation time of each keyframe of [file]'s video, in microseconds, or null without an oracle. */
+    private fun videoKeyframesMicros(file: String): List<Long>? = runMediaOracle(
+        "ffprobe",
+        listOf("-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-of", "csv=p=0", file),
+    )?.lineSequence()
+        ?.map { it.trim().split(',') }
+        ?.filter { it.size >= 2 && it[1].startsWith("K") }
+        ?.map { (it[0].toDouble() * 1_000_000.0).roundToLong() }
+        ?.toList()
 
     @Test
     fun anMp4RemuxKeepsRotationLanguagesDispositionsAndChapters() {
@@ -130,15 +160,25 @@ internal class RemuxIdentityContractTest {
         )
     }
 
+    /**
+     * The copy starts at the keyframe at or before the cut, so the Ending chapter starts as far
+     * into the output as that keyframe is before it, and the Opening covers the frames in between.
+     */
     @Test
-    fun aTrimmedRemuxMovesTheChaptersOntoItsOwnTimeline() {
+    fun aTrimmedRemuxKeepsTheChaptersOnTheFramesItCopies() {
         val input = base("mkv") ?: return println("remux identity contract degraded: no ffmpeg")
+        val landing = videoKeyframesMicros(input)?.lastOrNull { it <= CUT_MICROS } ?: return
         val output = path("mkv")
-        runBlocking { Remuxer.remux(input = input, output = output, startMicros = 1_000_000L) }
+        runBlocking { Remuxer.remux(input = input, output = output, startMicros = CUT_MICROS) }
+        val videoStart = checkNotNull(probe(output)?.get(VIDEO_START)).toDouble().let { (it * 1_000_000.0).roundToLong() }
         MediaSource.open(output).use { trimmed ->
             val titles = trimmed.chapters.map { it.title }
-            assertEquals(listOf("Ending"), titles, "only the chapter inside the window survives")
-            assertEquals(0L, trimmed.chapters.single().startMicros - trimmed.startTimeMicros)
+            assertEquals(if (landing < CUT_MICROS) listOf("Opening", "Ending") else listOf("Ending"), titles, "the copy starts at $landing us")
+            val ending = trimmed.chapters.single { it.title == "Ending" }
+            assertTrue(
+                abs(ending.startMicros - videoStart - (CUT_MICROS - landing)) <= 1_000L,
+                "the Ending starts at ${ending.startMicros} us, the video at $videoStart us and the copy at the keyframe at $landing us",
+            )
         }
     }
 }

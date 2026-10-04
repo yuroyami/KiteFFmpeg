@@ -75,6 +75,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A remux or a transcode that copies video and is cut between keyframes keeps each chapter on its
+  own frame (#144). The copy starts at the keyframe before the cut and that keyframe becomes zero,
+  but the chapters were moved by the requested start, so each came out early by the distance from
+  the keyframe to the cut: a chapter on a frame three seconds into the output said one and a half.
+  The chapters are now placed when the header is written, against the origin the copied or encoded
+  media actually took, so the chapters that cover the frames before the cut are kept as well. The
+  header is therefore written by the first packet rather than before the first is read.
 - A filter graph hands each frame over as it comes out, before it asks the graph for the next one
   (#141). `feedInput`, `flushInput` and `process` took every frame the graph had ready first, so a
   filter that expands a short input held all of its frames before the first was seen, and one that

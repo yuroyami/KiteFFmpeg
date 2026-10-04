@@ -181,13 +181,8 @@ public actual object Transcoder {
 
             output.open().use { sink ->
                 if (metadata.isNotEmpty()) sink.setMetadata(metadata)
-                sink.setChapters(
-                    chaptersForOutput(
-                        source.chapters,
-                        originMicros = source.startTimeMicros + startMicros,
-                        lengthMicros = if (endMicros == Long.MAX_VALUE) Long.MAX_VALUE else endMicros - startMicros,
-                    ),
-                )
+                // Placed when the header is written, against the origin the copied or encoded media takes.
+                sink.setSourceChapters(SourceChapters.of(source, startMicros, endMicros))
                 val videoEncoder = videoSpec?.let(sink::addVideoEncoder)
                 val audioEncoder = if (audioEncoderSpec != null && audioStream != null) {
                     sink.addAudioEncoder(audioEncoderSpec)
@@ -233,7 +228,6 @@ public actual object Transcoder {
                         audioGraph = transcodeAudioGraph(audioFilter, audioStream, audioEncoder)
                     }
 
-                    sink.ensureHeaderWritten()
                     withPacket { videoPacket ->
                         withPacket { audioPacket ->
                             val progressEvery = if (videoEncoder != null) 30L else 100L
@@ -377,6 +371,9 @@ public actual object Transcoder {
                             videoRate?.finish(::encodeVideoTick)
                             videoEncoder?.core?.finish(videoPacket)
                             audioEncoder?.core?.finish(audioPacket)
+                            // The first packet wrote the header. A source that yields nothing
+                            // still gets a valid, empty container rather than no file at all.
+                            sink.ensureHeaderWritten()
                             report(force = true)
                         }
                     }
