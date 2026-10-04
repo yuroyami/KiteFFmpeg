@@ -216,6 +216,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `MediaSource.chapters` of a Matroska file is the default edition's chapters (#172). A file can
+  hold several editions, such as a theatrical and an extended cut, and FFmpeg read the chapters of
+  all of them into one list, keeping each that started later than the one before, so a second
+  edition's chapters came out mixed into the first's. It also listed hidden and disabled chapters,
+  and a chapter that plays another file at that file's times. The list now follows RFC 9559: the
+  first edition flagged default, or the first when none is, without its hidden, disabled or linked
+  chapters, and a chapter's tags still reach it in any edition. The fix is the FFmpeg patch
+  `0013-matroska-take-the-chapters-of-the-default-edition.patch`, with a C suite,
+  `test_editions`, and a contract test on a file written by mkvmerge.
 - In the subtitle chain that KitePlayer links, the `ass-chain` release assets, a character that the
   style's font and the default family both lack is drawn from a loaded font that has it (#152). A
   chain with no system font provider, which is Android, Linux and the web, drew an empty box for

@@ -61,7 +61,15 @@ public expect class MediaSource : AutoCloseable {
      */
     public val metadata: Map<String, String>
 
-    /** The container's chapter table. Empty when the container declares none. */
+    /**
+     * The container's chapter table. Empty when the container declares none.
+     *
+     * A Matroska file can hold several editions of its chapters, such as a theatrical and an
+     * extended cut. This is the default edition's, as RFC 9559 defines it: the first one flagged
+     * default, or the first one when none is. Of those it holds the top-level chapters a viewer is
+     * meant to see that play this file, leaving out a hidden or disabled chapter and one that
+     * plays another file.
+     */
     public val chapters: List<Chapter>
 
     /**
