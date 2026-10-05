@@ -236,6 +236,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A sound that a transport stream starts carrying after the open learns its rate and its channels
+  at its first packet, and every packet of it carries a timestamp and a duration (#174). A
+  multicast, an IPTV channel joined between programmes and a tuner recording all start a sound
+  this way. FFmpeg's AAC parser leaves the rate and the channels to the open, which learns them by
+  decoding, so an AAC sound the open never saw kept an entry with no rate and no channels for as
+  long as it played, only the first frame of each transport packet was dated, about one in five,
+  and none had a duration. Its entry is now corrected at its first packet, through
+  `Packet.newStreams`, with the rate, channels and layout of that packet decoded, and FFmpeg dates
+  and times the rest as it does for a sound the open saw. An MPEG audio sound that the programme
+  table names MP3 also had its first packet timed as half an MP2 frame, or carried no duration and
+  the second packet repeated its timestamp; both now step by whole frames from the first. The fix
+  is the FFmpeg patch `0015-settle-an-unprobed-audio-stream-at-its-first-packet.patch`, with a
+  contract test on a joined AAC fixture.
+
 - `MediaSource.chapters` of a Matroska file is the default edition's chapters (#172). A file can
   hold several editions, such as a theatrical and an extended cut, and FFmpeg read the chapters of
   all of them into one list, keeping each that started later than the one before, so a second

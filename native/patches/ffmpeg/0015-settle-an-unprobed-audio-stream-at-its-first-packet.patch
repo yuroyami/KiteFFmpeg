@@ -1,0 +1,180 @@
+Settle an audio stream the probe never saw at its first packet.
+
+avformat_find_stream_info learns a stream's parameters by decoding its first packets. A stream
+that has no packet within the probe, because a transport stream lists a sound that starts later
+or starts carrying one later on, as a multicast, a channel joined between programmes or a tuner
+recording does, never had that done. For AAC the parser deliberately leaves the rate and the
+channels unset, because an ADTS header misstates them for HE-AAC, so such a stream stayed at no
+rate and no channels for as long as it played. With no rate, compute_pkt_fields could not give
+its packets a duration, and could not date the packets after the first in each PES packet, which
+carry no timestamp of their own, so about four packets in five came out undated.
+
+Once avformat_find_stream_info has returned, the first packet of an audio stream with no sample
+rate is now decoded with a throwaway decoder, as that function would have done, and the stream's
+rate, channel layout, sample format and frame size are taken from the frame before the packet's
+fields are computed. The stream then reads as one the probe saw: its parameters are known, every
+packet has a duration, and an undated packet is dated from the one before it. A packet that does
+not decode leaves the stream as it was, and the next is tried, up to eight. The packet that settles
+the stream takes the decoded frame's length when it has none, because its codec can still be the
+programme table's guess: a table names MPEG audio MP3, an MP3 packet at a low rate is timed as 576
+samples, and an MP2 frame holds 1152; the parser corrects the codec from the next packet on.
+Streams the probe saw,
+and every stream of a caller that never calls avformat_find_stream_info, are untouched.
+
+Applied by BuildFFmpegTask before configure.
+
+diff --git a/libavformat/avformat_internal.h b/libavformat/avformat_internal.h
+index 157252f..f12f2a0 100644
+--- a/libavformat/avformat_internal.h
++++ b/libavformat/avformat_internal.h
+@@ -93,6 +93,13 @@ typedef struct FormatContextInternal {
+              * Set if chapter ids are strictly monotonic.
+              */
+             int chapter_ids_monotonic;
++
++            /**
++             * Set once avformat_find_stream_info() has returned. An audio
++             * stream it never saw a packet of is settled at its first
++             * packet after that, by settle_unprobed_audio() in demux.c.
++             */
++            int stream_info_found;
+         };
+     };
+ } FormatContextInternal;
+diff --git a/libavformat/demux.c b/libavformat/demux.c
+index 99029d4..519841c 100644
+--- a/libavformat/demux.c
++++ b/libavformat/demux.c
+@@ -1169,6 +1169,91 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
+         pkt->flags |= AV_PKT_FLAG_KEY;
+ }
+ 
++/**
++ * Learn the parameters of an audio stream that avformat_find_stream_info()
++ * never saw a packet of, from its first packets, the way that function would
++ * have: by decoding one with a throwaway decoder.
++ *
++ * A transport stream can list a sound that starts only after the probe has
++ * finished, or start carrying one later on, as a multicast, a channel joined
++ * between programmes or a tuner recording does. For AAC the parser leaves the
++ * rate and the channels unset, because an ADTS header misstates them for
++ * HE-AAC, and nothing decodes later, so such a stream stayed at no rate and
++ * no channels for good, and with no rate compute_pkt_fields() could neither
++ * give its packets a duration nor date the ones a PES packet leaves undated.
++ * Settled here before the packet's fields are computed, the stream reads as
++ * one the probe saw: its parameters are known, every packet has a duration,
++ * and an undated packet is dated from the one before it.
++ *
++ * The packet that settles the stream takes the decoded frame's length when it
++ * has none, because the entry's codec can still be the programme table's
++ * guess: a table names MPEG audio MP3, compute_pkt_fields() times an MP3
++ * packet at a low rate as 576 samples, and an MP2 frame holds 1152. The
++ * parser corrects the codec from the next packet on.
++ */
++static void settle_unprobed_audio(AVFormatContext *s, AVStream *st, AVPacket *pkt)
++{
++    FormatContextInternal *const fci = ff_fc_internal(s);
++    FFStream *const sti = ffstream(st);
++    AVCodecParameters *const par = st->codecpar;
++    const AVCodec *codec;
++    AVCodecContext *dec = NULL;
++    AVDictionary *opts = NULL;
++    AVFrame *frame = NULL;
++    int ret;
++
++    if (!fci->stream_info_found || par->codec_type != AVMEDIA_TYPE_AUDIO ||
++        par->codec_id == AV_CODEC_ID_NONE || par->sample_rate > 0 ||
++        pkt->size <= 0 || sti->unprobed_settle_attempts >= 8)
++        return;
++    sti->unprobed_settle_attempts++;
++
++    codec = find_probe_decoder(s, st, par->codec_id);
++    if (!codec)
++        return;
++    dec   = avcodec_alloc_context3(codec);
++    frame = av_frame_alloc();
++    if (!dec || !frame)
++        goto end;
++    if (avcodec_parameters_to_context(dec, par) < 0)
++        goto end;
++    dec->pkt_timebase = st->time_base;
++    av_dict_set(&opts, "threads", "1", 0);
++    if (s->codec_whitelist)
++        av_dict_set(&opts, "codec_whitelist", s->codec_whitelist, 0);
++    if (avcodec_open2(dec, codec, &opts) < 0)
++        goto end;
++    ret = avcodec_send_packet(dec, pkt);
++    if (ret >= 0)
++        ret = avcodec_receive_frame(dec, frame);
++    if (ret < 0 || frame->sample_rate <= 0 || frame->ch_layout.nb_channels <= 0)
++        goto end;
++
++    /* The stream's internal context too, as a parser that knows the rate
++     * sets it: read_frame_internal() copies the rate and the layout from it
++     * back into codecpar after every parse. */
++    if (av_channel_layout_copy(&par->ch_layout, &frame->ch_layout) < 0 ||
++        av_channel_layout_copy(&sti->avctx->ch_layout, &frame->ch_layout) < 0)
++        goto end;
++    par->sample_rate = sti->avctx->sample_rate = frame->sample_rate;
++    par->format      = sti->avctx->sample_fmt  = frame->format;
++    if (par->frame_size <= 0)
++        par->frame_size = dec->frame_size > 0 ? dec->frame_size : frame->nb_samples;
++    if (sti->avctx->frame_size <= 0)
++        sti->avctx->frame_size = par->frame_size;
++    if (!pkt->duration && frame->nb_samples > 0)
++        pkt->duration = av_rescale_q_rnd(frame->nb_samples,
++                                         (AVRational){ 1, frame->sample_rate },
++                                         st->time_base, AV_ROUND_DOWN);
++    av_log(s, AV_LOG_DEBUG, "Stream %d settled at its first packet: %d Hz, %d channels\n",
++           st->index, par->sample_rate, par->ch_layout.nb_channels);
++
++end:
++    av_dict_free(&opts);
++    av_frame_free(&frame);
++    avcodec_free_context(&dec);
++}
++
+ /**
+  * Parse a packet, add all split parts to parse_queue.
+  *
+@@ -1301,6 +1386,7 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
+         if (sti->parser->key_frame == -1 && sti->parser->pict_type ==AV_PICTURE_TYPE_NONE && (pkt->flags&AV_PKT_FLAG_KEY))
+             out_pkt->flags |= AV_PKT_FLAG_KEY;
+ 
++        settle_unprobed_audio(s, st, out_pkt);
+         compute_pkt_fields(s, st, sti->parser, out_pkt, next_dts, next_pts);
+ 
+         ret = ff_packet_list_put(&fci->parse_queue,
+@@ -1497,6 +1583,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
+ 
+         if (!sti->need_parsing || !sti->parser) {
+             /* no parsing needed: we just output the packet as is */
++            settle_unprobed_audio(s, st, pkt);
+             compute_pkt_fields(s, st, NULL, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
+             if ((s->iformat->flags & AVFMT_GENERIC_INDEX) &&
+                 (pkt->flags & AV_PKT_FLAG_KEY) && pkt->dts != AV_NOPTS_VALUE) {
+@@ -3193,6 +3280,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
+     }
+ 
+ find_stream_info_err:
++    ff_fc_internal(ic)->stream_info_found = 1;
+     for (unsigned i = 0; i < ic->nb_streams; i++) {
+         AVStream *const st  = ic->streams[i];
+         FFStream *const sti = ffstream(st);
+diff --git a/libavformat/internal.h b/libavformat/internal.h
+index a043439..85bd9ec 100644
+--- a/libavformat/internal.h
++++ b/libavformat/internal.h
+@@ -353,6 +353,12 @@ typedef struct FFStream {
+     int64_t cur_dts;
+ 
+     const struct AVCodecDescriptor *codec_desc;
++    /**
++     * Packets of this audio stream that settle_unprobed_audio() in demux.c
++     * has decoded without learning its parameters. It stops trying after a
++     * few.
++     */
++    int unprobed_settle_attempts;
+ } FFStream;
+ 
+ static av_always_inline FFStream *ffstream(AVStream *st)
