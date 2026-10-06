@@ -34,7 +34,7 @@ KC_API int ffkmp_averror_eof(void);
 KC_API int ffkmp_avseek_flag_any(void);
 KC_API int ffkmp_avseek_flag_backward(void);
 KC_API int ffkmp_caption_decode(kc_codec_ctx *c, const uint8_t *data, int size, int64_t pts_us, kc_subtitle **out);
-KC_API int ffkmp_caption_decoder_open(kc_codec_ctx **out);
+KC_API int ffkmp_caption_decoder_open(kc_codec_ctx **out, int real_time);
 KC_API int ffkmp_codec_first_pix_fmt(const kc_codec *codec);
 KC_API int ffkmp_codec_first_sample_fmt(const kc_codec *codec);
 KC_API int ffkmp_codec_id(const kc_codec *codec);

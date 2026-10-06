@@ -215,7 +215,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxReceiveFrame
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCodecCtxFlush",    "(J)V",                   kj_codecctx_flush)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSubtitleDecoderOpen", "(JI)J",               kj_subtitle_decoder_open)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSubtitleDecode",   "(JJ)J",                  kj_subtitle_decode)
-KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCaptionDecoderOpen", "()J",                  kj_caption_decoder_open)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCaptionDecoderOpen", "(Z)J",                 kj_caption_decoder_open)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeCaptionDecode",    "(J[BJ)J",                kj_caption_decode)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSubtitleInfo",     "(J)[J",                  kj_subtitle_info)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeSubtitleRect",     "(JI)[I",                 kj_subtitle_rect)

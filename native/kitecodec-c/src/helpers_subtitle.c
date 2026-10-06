@@ -11,6 +11,7 @@
 #include <libavutil/error.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/mem.h>
+#include <libavutil/opt.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -70,7 +71,7 @@ KC_API int ffkmp_subtitle_decode(AVCodecContext *c, const AVPacket *p, AVSubtitl
     return 0;
 }
 
-KC_API int ffkmp_caption_decoder_open(AVCodecContext **out) {
+KC_API int ffkmp_caption_decoder_open(AVCodecContext **out, int real_time) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
@@ -86,6 +87,8 @@ KC_API int ffkmp_caption_decoder_open(AVCodecContext **out) {
        locks it onto a field nothing is captioned in. */
     AVDictionary *options = NULL;
     int rc = av_dict_set(&options, "data_field", "first", 0);
+    /* Real time answers as the screen changes, which a player needs (#180). */
+    if (rc >= 0) rc = av_dict_set(&options, "real_time", real_time ? "1" : "0", 0);
     if (rc >= 0) rc = avcodec_open2(c, codec, &options);
     av_dict_free(&options);
     if (rc < 0) {
@@ -112,6 +115,13 @@ KC_API int ffkmp_caption_decode(AVCodecContext *c, const uint8_t *data, int size
     p->dts = pts_us;
     rc = ffkmp_subtitle_decode(c, p, out);
     av_packet_free(&p);
+    /* In real time FFmpeg's decoder dates a changed screen at the change before it, the start its
+       buffered mode gives a caption. The screen as it now stands shows from this frame (#180). */
+    int64_t real_time = 0;
+    if (rc >= 0 && *out && av_opt_get_int(c->priv_data, "real_time", 0, &real_time) >= 0 && real_time) {
+        (*out)->pts = pts_us;
+        (*out)->start_display_time = 0;
+    }
     return rc;
 }
 

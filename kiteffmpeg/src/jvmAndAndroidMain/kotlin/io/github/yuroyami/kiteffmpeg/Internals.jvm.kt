@@ -233,7 +233,7 @@ internal object Internals {
     private external fun nativeCodecCtxFullRange(context: Long)
     private external fun nativeSubtitleDecoderOpen(fmtToken: Long, streamIndex: Int): Long
     private external fun nativeSubtitleDecode(context: Long, packet: Long): Long
-    private external fun nativeCaptionDecoderOpen(): Long
+    private external fun nativeCaptionDecoderOpen(realTime: Boolean): Long
     private external fun nativeCaptionDecode(context: Long, captions: ByteArray, ptsMicros: Long): Long
     private external fun nativeSubtitleInfo(token: Long): LongArray
     private external fun nativeSubtitleRect(token: Long, index: Int): IntArray
@@ -627,7 +627,7 @@ internal object Internals {
     internal fun subtitleDecoderOpen(fmtToken: Long, streamIndex: Int) =
         token("subtitle decoder") { nativeSubtitleDecoderOpen(fmtToken, streamIndex) }
     internal fun subtitleDecode(context: Long, packet: Long) = checked { nativeSubtitleDecode(context, packet) }
-    internal fun captionDecoderOpen() = token("caption decoder") { nativeCaptionDecoderOpen() }
+    internal fun captionDecoderOpen(realTime: Boolean) = token("caption decoder") { nativeCaptionDecoderOpen(realTime) }
     internal fun captionDecode(context: Long, captions: ByteArray, ptsMicros: Long) =
         checked { nativeCaptionDecode(context, captions, ptsMicros) }
     internal fun subtitleInfo(token: Long) = checked { nativeSubtitleInfo(token) }

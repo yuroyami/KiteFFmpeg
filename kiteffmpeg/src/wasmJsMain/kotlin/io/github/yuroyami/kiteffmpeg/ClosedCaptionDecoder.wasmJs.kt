@@ -47,11 +47,10 @@ public actual class ClosedCaptionDecoder private constructor(private val context
 
     public actual companion object {
         public actual fun open(realTime: Boolean): ClosedCaptionDecoder {
-            if (realTime) realTimeNotWiredYet()
             val m = requireModule()
             val slot = wasmAlloc(m, 4)
             try {
-                val rc = ffkmp_caption_decoder_open(m, slot)
+                val rc = ffkmp_caption_decoder_open(m, slot, if (realTime) 1 else 0)
                 if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "opening the closed caption decoder failed with $rc"))
                 return ClosedCaptionDecoder(readInt32(m, slot))
             } finally {
@@ -60,7 +59,3 @@ public actual class ClosedCaptionDecoder private constructor(private val context
         }
     }
 }
-
-/** The real-time shape of #180 lands before its wiring, which the next commit adds. */
-private fun realTimeNotWiredYet(): Nothing =
-    throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "real-time closed captions are not wired yet"))

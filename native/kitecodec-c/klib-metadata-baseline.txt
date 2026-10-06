@@ -910,7 +910,7 @@ library {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_caption_decoder_open")
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_caption_decoder_open(out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */> */>?): kotlin/Int
+      public final external fun ffkmp_caption_decoder_open(out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */> */>?, real_time: kotlin/Int): kotlin/Int
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_caption_decode")
       @kotlinx/cinterop/ExperimentalForeignApi

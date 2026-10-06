@@ -57,15 +57,10 @@ public actual class ClosedCaptionDecoder private constructor(
     public actual companion object {
         @Throws(FFmpegException::class)
         public actual fun open(realTime: Boolean): ClosedCaptionDecoder = memScoped {
-            if (realTime) realTimeNotWiredYet()
             val slot = alloc<CPointerVar<kc_codec_ctx>>()
-            val rc = ffkmp_caption_decoder_open(slot.ptr)
+            val rc = ffkmp_caption_decoder_open(slot.ptr, if (realTime) 1 else 0)
             if (rc < 0) throw FFmpegException(avError(rc))
             ClosedCaptionDecoder(checkNotNull(slot.value) { "the caption decoder opened to nothing" })
         }
     }
 }
-
-/** The real-time shape of #180 lands before its wiring, which the next commit adds. */
-private fun realTimeNotWiredYet(): Nothing =
-    throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "real-time closed captions are not wired yet"))

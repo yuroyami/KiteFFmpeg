@@ -318,8 +318,8 @@ static void case_the_captions_frames_carry_decode_without_a_stream(void)
     const char *text;
 
     kc_case("the captions video frames carry decode to timed text with no container stream behind them");
-    KC_EQ_INT(ffkmp_caption_decoder_open(NULL), AVERROR(EINVAL));
-    KC_EQ_INT(ffkmp_caption_decoder_open(&c), 0);
+    KC_EQ_INT(ffkmp_caption_decoder_open(NULL, 0), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_caption_decoder_open(&c, 0), 0);
     KC_NOT_NULL(c);
     caption_pair(cc, 0, 0);
     KC_EQ_INT(ffkmp_caption_decode(NULL, cc, 3, 0, &s), AVERROR(EINVAL));
@@ -353,6 +353,46 @@ static void case_the_captions_frames_carry_decode_without_a_stream(void)
     ffkmp_codecctx_free(c);
 }
 
+static void case_captions_in_real_time_show_as_the_screen_changes(void)
+{
+    /* The same pop-on HELLO, answered in real time (#180): the caption comes at its end of caption
+       with no end, and the erase answers with an empty screen. */
+    static const unsigned char pairs[][2] = {
+        {0x14, 0x20}, {0x14, 0x20}, {'H', 'E'}, {'L', 'L'}, {'O', 0x00}, {0x14, 0x2F}, {0x14, 0x2F},
+    };
+    const int frames = 31;
+    kc_codec_ctx *c = NULL;
+    kc_subtitle *s = NULL;
+    unsigned char cc[3];
+    int64_t shown_at = -1, cleared_at = -1, start, end;
+
+    kc_case("captions in real time answer as the screen changes, with no end, and an empty screen when it clears");
+    KC_EQ_INT(ffkmp_caption_decoder_open(&c, 1), 0);
+    KC_NOT_NULL(c);
+    for (int frame = 0; frame < frames; frame++) {
+        int n = (int)(sizeof(pairs) / sizeof(pairs[0]));
+        int64_t at = (int64_t)frame * 1000000 / 30;
+        if (frame < n) caption_pair(cc, pairs[frame][0], pairs[frame][1]);
+        else if (frame >= frames - 2) caption_pair(cc, 0x14, 0x2C);
+        else caption_pair(cc, 0x00, 0x00);
+        KC_EQ_INT(ffkmp_caption_decode(c, cc, 3, at, &s), 0);
+        if (s == NULL) continue;
+        KC_EQ_INT(ffkmp_subtitle_times(s, &start, &end), 0);
+        KC_CHECKF(end == INT64_MIN, "a real-time answer ends at %lld us, not when the next one comes", (long long)end);
+        const char *text = ffkmp_subtitle_rect_count(s) > 0 ? ffkmp_subtitle_rect_text(s, 0) : NULL;
+        if (text != NULL && strstr(text, "HELLO") != NULL) {
+            if (shown_at < 0) shown_at = start;
+        } else if (shown_at >= 0 && cleared_at < 0) {
+            cleared_at = start;
+        }
+        ffkmp_subtitle_free(&s);
+    }
+    kc_detail("shown=%lld cleared=%lld", (long long)shown_at, (long long)cleared_at);
+    KC_CHECKF(shown_at == 5 * 1000000 / 30, "the caption shows at %lld us, its end of caption", (long long)shown_at);
+    KC_CHECKF(cleared_at == 29 * 1000000 / 30, "the screen clears at %lld us, its erase", (long long)cleared_at);
+    ffkmp_codecctx_free(c);
+}
+
 int main(void)
 {
     kc_suite_begin("test_subtitle");
@@ -362,6 +402,7 @@ int main(void)
     case_a_decoder_that_holds_nothing_drains_to_nothing();
     case_a_held_caption_comes_out_of_the_drain();
     case_the_captions_frames_carry_decode_without_a_stream();
+    case_captions_in_real_time_show_as_the_screen_changes();
 
     return kc_suite_end();
 }

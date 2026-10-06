@@ -555,9 +555,11 @@ KC_API int ffkmp_subtitle_decode(kc_codec_ctx *c, const kc_packet *p, kc_subtitl
  * frame's A/53 side data carries, three bytes per caption pair, with no container stream behind it.
  *
  * Ownership. Opens the decoder into *out, a context the caller frees with ffkmp_codecctx_free. It
- * times packets in microseconds and reads field 1, which carries CC1 and CC2. A build without the
- * decoder answers AVERROR_DECODER_NOT_FOUND. */
-KC_API int ffkmp_caption_decoder_open(kc_codec_ctx **out);
+ * times packets in microseconds and reads field 1, which carries CC1 and CC2. With real_time set it
+ * answers with the screen each time it changes, with no end, and an empty rectangle when the screen
+ * clears (#180); otherwise it answers with each caption once it leaves the screen, with its end. A
+ * build without the decoder answers AVERROR_DECODER_NOT_FOUND. */
+KC_API int ffkmp_caption_decoder_open(kc_codec_ctx **out, int real_time);
 
 /* Ownership. Decodes the `size` bytes at `data`, the captions of the frame shown at `pts_us`, into
  * *out as ffkmp_subtitle_decode does: a subtitle the caller frees with ffkmp_subtitle_free, or NULL

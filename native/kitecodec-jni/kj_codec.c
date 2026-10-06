@@ -302,15 +302,15 @@ JNIEXPORT jlong JNICALL kj_subtitle_decode(JNIEnv *env, jclass cls, jlong ctx_to
     return token;
 }
 
-/* A decoder for the closed captions video frames carry (#179): an owned context, freed with
- * kj_codecctx_free like any other. */
-JNIEXPORT jlong JNICALL kj_caption_decoder_open(JNIEnv *env, jclass cls)
+/* A decoder for the closed captions video frames carry (#179), in real time when asked (#180): an
+ * owned context, freed with kj_codecctx_free like any other. */
+JNIEXPORT jlong JNICALL kj_caption_decoder_open(JNIEnv *env, jclass cls, jboolean real_time)
 {
     kc_codec_ctx *c = NULL;
     jlong token;
     int rc;
     (void)cls;
-    rc = ffkmp_caption_decoder_open(&c);
+    rc = ffkmp_caption_decoder_open(&c, real_time ? 1 : 0);
     if (rc < 0 || c == NULL) {
         kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "caption_decoder_open");
         return 0;

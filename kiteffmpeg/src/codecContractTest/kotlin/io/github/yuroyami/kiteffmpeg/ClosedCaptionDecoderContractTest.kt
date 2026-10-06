@@ -8,8 +8,9 @@ import kotlin.test.assertTrue
 
 /**
  * The closed captions video frames carry, turned into timed text with no container stream behind
- * them (#179). Each frame carries one field 1 caption pair, as an A/53 SEI at 30 frames a second
- * does: a pop-on HELLO on CC1, shown at its end of caption and taken off a second later.
+ * them (#179), buffered and in real time (#180). Each frame carries one field 1 caption pair, as an
+ * A/53 SEI at 30 frames a second does: a pop-on HELLO on CC1, shown at its end of caption and taken
+ * off a second later.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 internal class ClosedCaptionDecoderContractTest {
@@ -50,6 +51,24 @@ internal class ClosedCaptionDecoderContractTest {
     fun theTimesAreTheCallersOwn() {
         val shown = ClosedCaptionDecoder.open().use { it.captions(from = 3_600_000_000L) }.first { it.texts.isNotEmpty() }
         assertEquals(3_600_000_000L + timeOf(5), shown.startMicros)
+    }
+
+    @Test
+    fun inRealTimeEachAnswerIsTheScreenFromTheFrameThatChangedIt() {
+        val answers = ClosedCaptionDecoder.open(realTime = true).use { decoder ->
+            val given = ArrayList<Pair<Int, Subtitle>>()
+            frames.forEachIndexed { index, bytes -> decoder.decode(bytes, timeOf(index))?.let { given += index to it } }
+            assertNull(decoder.drain(), "the last answer already holds")
+            given
+        }
+        assertEquals(listOf(5, 29), answers.map { it.first }, "answered at ${answers.map { it.first }}")
+        val (shown, cleared) = answers.map { it.second }
+        assertEquals(timeOf(5), shown.startMicros, "the caption shows from its end of caption")
+        assertNull(shown.endMicros, "an answer in real time holds until the next")
+        assertTrue(shown.texts.single().endsWith("HELLO"), "${shown.texts}")
+        assertEquals(timeOf(29), cleared.startMicros, "the screen clears at its erase")
+        assertNull(cleared.endMicros)
+        assertTrue(cleared.texts.single().endsWith(",,"), "the erase leaves an empty screen: ${cleared.texts}")
     }
 
     @Test
