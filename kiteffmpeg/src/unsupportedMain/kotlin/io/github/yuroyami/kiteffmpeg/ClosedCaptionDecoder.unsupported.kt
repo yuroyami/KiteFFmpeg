@@ -14,6 +14,6 @@ public actual class ClosedCaptionDecoder private constructor() : AutoCloseable {
 
     public actual companion object {
         @Throws(FFmpegException::class)
-        public actual fun open(): ClosedCaptionDecoder = placeholderBackendUnavailable("Opening a closed caption decoder")
+        public actual fun open(realTime: Boolean): ClosedCaptionDecoder = placeholderBackendUnavailable("Opening a closed caption decoder")
     }
 }
