@@ -171,6 +171,8 @@ jobs:
             mkdir -p "native-libs/lgpl/${triple}"
             unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
+            # The release does not move when a patch is added, so a stale tree fails here (#175).
+            ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
             rm -f "${asset}" "${asset}.sha256"
           done
       # The two ratchets. apiCheck compares kiteffmpeg's klib against the committed dump in
@@ -482,6 +484,7 @@ jobs:
           mkdir -p native-libs/lgpl/linux-x64
           unzip -q "${asset}" -d native-libs/lgpl/linux-x64
           test -f native-libs/lgpl/linux-x64/lib/libavformat.a
+          ./scripts/check-tree-patches.sh native-libs/lgpl/linux-x64
           rm -f "${asset}" "${asset}.sha256"
       - name: Unit + native tests
         run: ./gradlew :kiteffmpeg:linuxX64Test --stacktrace
@@ -759,6 +762,7 @@ jobs:
           mkdir -p "native-libs/lgpl/${{ matrix.triple }}"
           unzip -q "${asset}" -d "native-libs/lgpl/${{ matrix.triple }}"
           test -f "native-libs/lgpl/${{ matrix.triple }}/lib/libavformat.a"
+          ./scripts/check-tree-patches.sh "native-libs/lgpl/${{ matrix.triple }}"
           rm -f "${asset}" "${asset}.sha256"
       # The publish guard accepts hostTargetsOnly for publishToMavenLocal only, so this works with
       # just the runner's system FFmpeg (no android/vendored trees needed).
@@ -906,6 +910,10 @@ jobs:
             throw "unpacked tree has no lib/libavformat.a"
           }
           Remove-Item $asset, "$asset.sha256"
+      # The same patch check as the other fetch steps (#175), in the runner's Git Bash.
+      - name: Check the tree carries every committed patch
+        shell: bash
+        run: ./scripts/check-tree-patches.sh native-libs/lgpl/mingw-x64
       # The ffmpeg CLI for scripts/e2e.sh's assertions only; not what gets linked.
       - name: Install the ffmpeg CLI (for e2e assertions only)
         shell: pwsh

@@ -146,6 +146,9 @@ jobs:
             mkdir -p "native-libs/lgpl/${triple}"
             unzip -q "${kept}/${asset}" -d "native-libs/lgpl/${triple}"
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
+            # Before anything is built: a tree without every committed patch stops the run here,
+            # naming what it lacks, instead of at the web zip's bill of materials (#175).
+            ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
           done
       # Written from the archives the step above kept, and before anything is built or uploaded,
       # so a refusal stops the run early. It is written again once the web zip exists.

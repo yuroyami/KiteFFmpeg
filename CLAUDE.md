@@ -85,7 +85,9 @@ Each line is something that bit someone. Delete a line when it stops being true.
   tree when a patch is added or changed. Each tree names the patches it carries in
   `lib/kiteffmpeg/ffmpeg-patches.txt`. CI's FFmpeg cache keys hash the patches, so the trees CI
   builds itself follow a new patch, but the prebuilt trees that `FFMPEG_ASSET_TAG` names do not
-  move until they are rebuilt and the tag is raised.
+  move until they are rebuilt and the tag is raised. `scripts/check-tree-patches.sh` runs after
+  every fetch of them and fails while they lag, so adding or changing a patch turns those jobs red
+  until the release is rebuilt (#175).
 - The host C suites link Homebrew's FFmpeg through pkg-config, locally and in CI, so
   `test_nested_io` runs only its patch-free cases there. Run it against the vendored tree with
   `KC_FFMPEG_PREFIX=native-libs/lgpl/macos-arm64`. Against that tree, `test_args`, `test_buffers`
