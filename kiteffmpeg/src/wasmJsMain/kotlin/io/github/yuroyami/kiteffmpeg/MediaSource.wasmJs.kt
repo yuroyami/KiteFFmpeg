@@ -613,6 +613,15 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    @KiteFFmpegLowLevelApi
+    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder =
+        if (realTime) {
+            // The shape of #181 lands before its wiring, which the next commit adds.
+            throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "real-time captions are not wired yet"))
+        } else {
+            openSubtitleDecoder(stream)
+        }
+
     /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
     private var paused = false
 

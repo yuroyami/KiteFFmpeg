@@ -288,6 +288,22 @@ public expect class MediaSource : AutoCloseable {
     public fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder
 
     /**
+     * Opens a decoder for the subtitle [stream] as [openSubtitleDecoder] does, answering in real
+     * time when [realTime] is set (#181). Only CEA-608 closed captions stored as a stream of their
+     * own, such as a MOV `c608` track, have such a mode, which [ClosedCaptionDecoder] describes:
+     * each answer is the screen as it now stands, from the packet that changed it, with no end, and
+     * an empty answer clears it. Buffered, the default, gives a caption only once it leaves the
+     * screen, too late for a player reading a little ahead. For every other format [realTime]
+     * changes nothing.
+     *
+     * @throws IllegalArgumentException when [stream] is not a subtitle stream of this source
+     * @throws FFmpegException with [FFmpegError.DecoderNotFound] when this build has no decoder for it
+     */
+    @KiteFFmpegLowLevelApi
+    @Throws(FFmpegException::class)
+    public fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder
+
+    /**
      * Tells the server of a live source that the caller has stopped reading, and says whether the
      * source has any notion of that: true when it has and is now paused, false when it has none,
      * in which case nothing was sent and the source reads on as before.

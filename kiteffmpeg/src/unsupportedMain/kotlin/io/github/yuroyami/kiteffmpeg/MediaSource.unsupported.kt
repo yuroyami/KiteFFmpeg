@@ -67,6 +67,9 @@ public actual class MediaSource private constructor() : AutoCloseable {
     public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder =
         placeholderBackendUnavailable("Opening a subtitle decoder")
 
+    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder =
+        placeholderBackendUnavailable("Opening a subtitle decoder")
+
     public actual var corruptData: CorruptData = CorruptData.Skip
 
     public actual var corruptDataSkipped: Long = 0L
