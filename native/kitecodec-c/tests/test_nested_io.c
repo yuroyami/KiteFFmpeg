@@ -35,7 +35,7 @@
 /* One second of 48 kHz stereo 16-bit PCM: more than three reads of the AES reader's buffer. */
 #define KC_PCM_BYTES 192000
 #define KC_WAV_BYTES (44 + KC_PCM_BYTES)
-#define KC_MAX_ASKED 8
+#define KC_MAX_ASKED 96
 
 static const unsigned char kc_key[16] = {
     0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
@@ -880,7 +880,135 @@ static void case_a_playlist_the_specification_refuses_fails_the_open(const faili
     free(wav);
 }
 
+/* ---- A rendition the reads leave (#178) ---- */
+
+#define KC_RENDITION_SEGMENTS 8
+#define KC_PIECE_PCM 48000 /* a quarter second of the pattern's PCM */
+
+/* The quarter second at [index] of a WAV that never says where it ends, as a live encoder writes
+   one: the first piece carries the header, and every later one is the PCM that follows. */
+static unsigned char *make_piece(int index, int *size)
+{
+    static const unsigned char header[44] = {
+        'R', 'I', 'F', 'F', 0xFF, 0xFF, 0xFF, 0xFF, 'W', 'A', 'V', 'E',
+        'f', 'm', 't', ' ', 16, 0, 0, 0, 1, 0, 2, 0,
+        0x80, 0xBB, 0, 0, 0x00, 0xEE, 0x02, 0, 4, 0, 16, 0,
+        'd', 'a', 't', 'a', 0xFF, 0xFF, 0xFF, 0xFF,
+    };
+    int head = index == 0 ? 44 : 0;
+    unsigned char *piece = malloc((size_t)(head + KC_PIECE_PCM));
+    KC_NOT_NULL(piece);
+    if (head) memcpy(piece, header, sizeof(header));
+    for (int i = 0; i < KC_PIECE_PCM; i++) piece[head + i] = (unsigned char)((index * KC_PIECE_PCM + i) * 7 + 3);
+    *size = head + KC_PIECE_PCM;
+    return piece;
+}
+
+static char *make_rendition_playlist(const char *name)
+{
+    char *text = malloc(4096);
+    int at;
+    KC_NOT_NULL(text);
+    at = snprintf(text, 4096,
+                  "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:1\n#EXT-X-MEDIA-SEQUENCE:0\n"
+                  "#EXT-X-PLAYLIST-TYPE:VOD\n");
+    for (int i = 0; i < KC_RENDITION_SEGMENTS; i++) at += snprintf(text + at, (size_t)(4096 - at), "#EXTINF:0.25,\n%s/%d.wav\n", name, i);
+    snprintf(text + at, (size_t)(4096 - at), "#EXT-X-ENDLIST\n");
+    return text;
+}
+
+/* How many of [net]'s requests from [from] on asked for a segment of the rendition [name]. */
+static int asked_for(const network *net, int from, const char *name)
+{
+    char prefix[128];
+    int count = 0;
+    snprintf(prefix, sizeof(prefix), KC_BASE "%s/", name);
+    for (int i = from; i < net->asked_count; i++) {
+        if (strncmp(net->asked[i], prefix, strlen(prefix)) == 0) count++;
+    }
+    return count;
+}
+
+static void case_a_rendition_the_reads_leave_stops_downloading(void)
+{
+    static const char *const names[] = { "main", "en", "fr" };
+    resource resources[3 + 3 * KC_RENDITION_SEGMENTS];
+    unsigned char *pieces[3 * KC_RENDITION_SEGMENTS];
+    char urls[3 + 3 * KC_RENDITION_SEGMENTS][128];
+    char *playlists[3];
+    int count = 0;
+    for (int n = 0; n < 3; n++) {
+        playlists[n] = make_rendition_playlist(names[n]);
+        snprintf(urls[count], sizeof(urls[count]), KC_BASE "%s.m3u8", names[n]);
+        resources[count] = (resource){ urls[count], (const unsigned char *)playlists[n], (int64_t)strlen(playlists[n]) };
+        count++;
+        for (int i = 0; i < KC_RENDITION_SEGMENTS; i++) {
+            int size;
+            pieces[n * KC_RENDITION_SEGMENTS + i] = make_piece(i, &size);
+            snprintf(urls[count], sizeof(urls[count]), KC_BASE "%s/%d.wav", names[n], i);
+            resources[count] = (resource){ urls[count], pieces[n * KC_RENDITION_SEGMENTS + i], size };
+            count++;
+        }
+    }
+    const char *master =
+        "#EXTM3U\n"
+        "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"sound\",NAME=\"English\",LANGUAGE=\"en\",DEFAULT=YES,URI=\"en.m3u8\"\n"
+        "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"sound\",NAME=\"French\",LANGUAGE=\"fr\",URI=\"fr.m3u8\"\n"
+        "#EXT-X-STREAM-INF:BANDWIDTH=1600000,AUDIO=\"sound\"\n"
+        "main.m3u8\n";
+    network net = { .resources = resources, .count = count };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = NULL;
+    AVPacket *packet = av_packet_alloc();
+    int stream_of[3] = { -1, -1, -1 };
+    int read_after = 0, switched_at, fr_after = 0;
+    int64_t en_bytes_after = 0;
+
+    kc_case("a rendition whose streams the reads leave stops downloading, and the one they take up starts");
+    KC_NOT_NULL(packet);
+    KC_EQ_INT(open_playlist(&ctx, &top, master, KC_BASE "master.m3u8", NULL, &opener, NULL, NULL), 0);
+    KC_EQ_INT((int)ctx->nb_streams, 3);
+    /* Each stream's playlist, by its language: the variant's own sound has none. */
+    for (unsigned i = 0; i < ctx->nb_streams; i++) {
+        const AVDictionaryEntry *language = av_dict_get(ctx->streams[i]->metadata, "language", NULL, 0);
+        int which = language == NULL ? 0 : strcmp(language->value, "en") == 0 ? 1 : 2;
+        stream_of[which] = (int)i;
+    }
+    kc_detail("main=%d en=%d fr=%d", stream_of[0], stream_of[1], stream_of[2]);
+    KC_CHECK(stream_of[0] >= 0 && stream_of[1] >= 0 && stream_of[2] >= 0);
+    /* The picture's stream and the English sound are read, as a player reads the sound heard. */
+    ctx->streams[stream_of[2]]->discard = AVDISCARD_ALL;
+    for (int i = 0; i < 40 && av_read_frame(ctx, packet) >= 0; i++) av_packet_unref(packet);
+    KC_CHECKF(asked_for(&net, 0, "en") >= 2, "English was read before the switch: %d", asked_for(&net, 0, "en"));
+    /* The listener switches to French. */
+    ctx->streams[stream_of[1]]->discard = AVDISCARD_ALL;
+    ctx->streams[stream_of[2]]->discard = AVDISCARD_DEFAULT;
+    switched_at = net.asked_count;
+    while (av_read_frame(ctx, packet) >= 0) {
+        if (packet->stream_index == stream_of[1]) en_bytes_after += packet->size;
+        if (packet->stream_index == stream_of[2]) fr_after++;
+        read_after++;
+        av_packet_unref(packet);
+    }
+    kc_detail("after the switch: en segments asked=%d, fr segments asked=%d, en bytes=%lld, fr packets=%d of %d",
+              asked_for(&net, switched_at, "en"), asked_for(&net, switched_at, "fr"), (long long)en_bytes_after,
+              fr_after, read_after);
+    /* No segment of the sound left behind is asked for again, because FFmpeg checks before each
+       segment that some stream of its playlist is read. What was already downloaded still comes
+       out, and nothing more. */
+    KC_EQ_INT(asked_for(&net, switched_at, "en"), 0);
+    KC_CHECKF(asked_for(&net, switched_at, "fr") >= 2, "French was not taken up: %d", asked_for(&net, switched_at, "fr"));
+    KC_CHECK(fr_after > 0);
+    av_packet_free(&packet);
+    ffkmp_fmt_close_input_io(&ctx);
+    KC_EQ_INT(net.closed, net.opened);
+    for (int n = 0; n < 3; n++) free(playlists[n]);
+    for (int i = 0; i < 3 * KC_RENDITION_SEGMENTS; i++) free(pieces[i]);
+}
+
 int main(void)
+
 {
     kc_suite_begin("test_nested_io");
 
@@ -910,6 +1038,7 @@ int main(void)
     case_the_input_location_rebases_its_variants(NULL);
     case_a_long_location_takes_a_second_call();
     case_a_failed_location_fails_that_address();
+    case_a_rendition_the_reads_leave_stops_downloading();
 
     if (!linked_tree_carries(KC_VARIABLES_PATCH)) {
         kc_note("the linked FFmpeg's tree lacks %s, so the variable cases did not run", KC_VARIABLES_PATCH);
