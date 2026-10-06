@@ -1191,6 +1191,17 @@ final class io.github.yuroyami.kiteffmpeg/Chapter { // io.github.yuroyami.kiteff
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg/Chapter.toString|toString(){}[0]
 }
 
+final class io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder|null[0]
+    final fun close() // io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder.close|close(){}[0]
+    final fun decode(kotlin/ByteArray, kotlin/Long): io.github.yuroyami.kiteffmpeg/Subtitle? // io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder.decode|decode(kotlin.ByteArray;kotlin.Long){}[0]
+    final fun drain(): io.github.yuroyami.kiteffmpeg/Subtitle? // io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder.drain|drain(){}[0]
+    final fun flush() // io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder.flush|flush(){}[0]
+
+    final object Companion { // io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder.Companion|null[0]
+        final fun open(): io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder // io.github.yuroyami.kiteffmpeg/ClosedCaptionDecoder.Companion.open|open(){}[0]
+    }
+}
+
 final class io.github.yuroyami.kiteffmpeg/ColorInfo { // io.github.yuroyami.kiteffmpeg/ColorInfo|null[0]
     constructor <init>(io.github.yuroyami.kiteffmpeg/ColorMatrix = ..., io.github.yuroyami.kiteffmpeg/ColorPrimaries = ..., io.github.yuroyami.kiteffmpeg/ColorTransfer = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/ChromaLocation = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // io.github.yuroyami.kiteffmpeg/ColorInfo.<init>|<init>(io.github.yuroyami.kiteffmpeg.ColorMatrix;io.github.yuroyami.kiteffmpeg.ColorPrimaries;io.github.yuroyami.kiteffmpeg.ColorTransfer;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.ChromaLocation;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 

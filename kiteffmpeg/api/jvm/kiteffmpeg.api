@@ -132,6 +132,18 @@ public final class io/github/yuroyami/kiteffmpeg/ChromaLocation$Companion {
 	public final fun fromAv (I)Lio/github/yuroyami/kiteffmpeg/ChromaLocation;
 }
 
+public final class io/github/yuroyami/kiteffmpeg/ClosedCaptionDecoder : java/lang/AutoCloseable {
+	public static final field Companion Lio/github/yuroyami/kiteffmpeg/ClosedCaptionDecoder$Companion;
+	public fun close ()V
+	public final fun decode ([BJ)Lio/github/yuroyami/kiteffmpeg/Subtitle;
+	public final fun drain ()Lio/github/yuroyami/kiteffmpeg/Subtitle;
+	public final fun flush ()V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/ClosedCaptionDecoder$Companion {
+	public final fun open ()Lio/github/yuroyami/kiteffmpeg/ClosedCaptionDecoder;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/CodecId {
 	public static final field Companion Lio/github/yuroyami/kiteffmpeg/CodecId$Companion;
 	public static final synthetic fun box-impl (Ljava/lang/String;)Lio/github/yuroyami/kiteffmpeg/CodecId;
