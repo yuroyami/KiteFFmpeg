@@ -908,6 +908,14 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_subtitle_decode(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, p: kotlinx/cinterop/CValuesRef<cnames/structs/AVPacket /* = ffmpeg/kc_packet^ */>?, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */> */>?): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_caption_decoder_open")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_caption_decoder_open(out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */> */>?): kotlin/Int
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_caption_decode")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_caption_decode(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, data: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/UByteVarOf<kotlin/UByte> /* = platform/posix/uint8_tVar^ */>?, size: kotlin/Int, pts_us: kotlin/Long /* = platform/posix/int64_t^ */, out: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/CPointerVarOf<kotlinx/cinterop/CPointer<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>> /* = kotlinx/cinterop/CPointerVar^<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */> */>?): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_subtitle_times")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_subtitle_times(s: kotlinx/cinterop/CValuesRef<cnames/structs/AVSubtitle /* = ffmpeg/kc_subtitle^ */>?, start_us: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/LongVarOf<kotlin/Long> /* = platform/posix/int64_tVar^ */>?, end_us: kotlinx/cinterop/CValuesRef<kotlinx/cinterop/LongVarOf<kotlin/Long> /* = platform/posix/int64_tVar^ */>?): kotlin/Int
@@ -1310,6 +1318,13 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_low_delay")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecctx_set_low_delay(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, on: kotlin/Int): kotlin/Unit
+    }
+  }
+
+  library fragment {
+    // package name: ffmpeg
+
+    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_avseek_flag_backward")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1318,13 +1333,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_avseek_flag_any")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_avseek_flag_any(): kotlin/Int
-    }
-  }
-
-  library fragment {
-    // package name: ffmpeg
-
-    package {
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_fmt_seek_file")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1519,7 +1527,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 3 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 4 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

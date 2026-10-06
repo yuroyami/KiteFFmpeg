@@ -7,6 +7,7 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/dict.h>
 #include <libavutil/error.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/mem.h>
@@ -67,6 +68,51 @@ KC_API int ffkmp_subtitle_decode(AVCodecContext *c, const AVPacket *p, AVSubtitl
     }
     *out = sub;
     return 0;
+}
+
+KC_API int ffkmp_caption_decoder_open(AVCodecContext **out) {
+    if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
+    if (!out) return AVERROR(EINVAL);
+    *out = NULL;
+    const AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_EIA_608);
+    if (!codec) return AVERROR_DECODER_NOT_FOUND;
+    AVCodecContext *c = avcodec_alloc_context3(codec);
+    if (!c) return AVERROR(ENOMEM);
+    /* The caller's times are microseconds, and without a packet time base every decoded time is unset. */
+    c->time_base = AV_TIME_BASE_Q;
+    c->pkt_timebase = AV_TIME_BASE_Q;
+    /* Field 1, which carries CC1 and CC2. Left to choose, the decoder takes the field of the first
+       byte it is given before it checks that byte, so one damaged or CEA-708 byte at the start
+       locks it onto a field nothing is captioned in. */
+    AVDictionary *options = NULL;
+    int rc = av_dict_set(&options, "data_field", "first", 0);
+    if (rc >= 0) rc = avcodec_open2(c, codec, &options);
+    av_dict_free(&options);
+    if (rc < 0) {
+        avcodec_free_context(&c);
+        return rc;
+    }
+    *out = c;
+    return 0;
+}
+
+KC_API int ffkmp_caption_decode(AVCodecContext *c, const uint8_t *data, int size, int64_t pts_us, AVSubtitle **out) {
+    if (!out) return AVERROR(EINVAL);
+    *out = NULL;
+    if (!c || !data || size < 1) return AVERROR(EINVAL);
+    AVPacket *p = av_packet_alloc();
+    if (!p) return AVERROR(ENOMEM);
+    int rc = av_new_packet(p, size);
+    if (rc < 0) {
+        av_packet_free(&p);
+        return rc;
+    }
+    memcpy(p->data, data, (size_t)size);
+    p->pts = pts_us;
+    p->dts = pts_us;
+    rc = ffkmp_subtitle_decode(c, p, out);
+    av_packet_free(&p);
+    return rc;
 }
 
 KC_API int ffkmp_subtitle_times(const AVSubtitle *s, int64_t *start_us, int64_t *end_us) {

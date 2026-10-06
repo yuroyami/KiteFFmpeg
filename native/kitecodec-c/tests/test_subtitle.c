@@ -285,6 +285,74 @@ static void case_a_held_caption_comes_out_of_the_drain(void)
     ffkmp_fmt_close_input(&ctx);
 }
 
+/* A CEA-608 byte with its odd parity bit set, as a caption pair carries it. */
+static unsigned char odd_parity(unsigned char b)
+{
+    int ones = 0;
+    for (int i = 0; i < 7; i++) ones += (b >> i) & 1;
+    return (unsigned char)(ones % 2 == 0 ? b | 0x80 : b);
+}
+
+/* One frame's cc_data: a single field 1 caption pair, as an A/53 SEI carries it. */
+static void caption_pair(unsigned char out[3], unsigned char a, unsigned char b)
+{
+    out[0] = 0xFC; /* marker bits, cc_valid, cc_type 0: field 1 */
+    out[1] = odd_parity(a);
+    out[2] = odd_parity(b);
+}
+
+static void case_the_captions_frames_carry_decode_without_a_stream(void)
+{
+    /* Pop-on HELLO on CC1: resume caption loading, the letters, end of caption, then null pairs
+       until the erase of displayed memory a second in. Control codes come twice, as broadcast
+       sends them. One pair per frame at 30 frames a second. */
+    static const unsigned char pairs[][2] = {
+        {0x14, 0x20}, {0x14, 0x20}, {'H', 'E'}, {'L', 'L'}, {'O', 0x00}, {0x14, 0x2F}, {0x14, 0x2F},
+    };
+    const int frames = 31;
+    kc_codec_ctx *c = NULL;
+    kc_subtitle *s = NULL;
+    kc_subtitle *shown = NULL;
+    unsigned char cc[3];
+    int64_t start, end;
+    const char *text;
+
+    kc_case("the captions video frames carry decode to timed text with no container stream behind them");
+    KC_EQ_INT(ffkmp_caption_decoder_open(NULL), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_caption_decoder_open(&c), 0);
+    KC_NOT_NULL(c);
+    caption_pair(cc, 0, 0);
+    KC_EQ_INT(ffkmp_caption_decode(NULL, cc, 3, 0, &s), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_caption_decode(c, NULL, 3, 0, &s), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_caption_decode(c, cc, 0, 0, &s), AVERROR(EINVAL));
+    KC_EQ_INT(ffkmp_caption_decode(c, cc, 3, 0, NULL), AVERROR(EINVAL));
+    for (int frame = 0; frame < frames; frame++) {
+        int n = (int)(sizeof(pairs) / sizeof(pairs[0]));
+        if (frame < n) caption_pair(cc, pairs[frame][0], pairs[frame][1]);
+        else if (frame >= frames - 2) caption_pair(cc, 0x14, 0x2C);
+        else caption_pair(cc, 0x00, 0x00);
+        KC_EQ_INT(ffkmp_caption_decode(c, cc, 3, (int64_t)frame * 1000000 / 30, &s), 0);
+        if (s == NULL) continue;
+        if (ffkmp_subtitle_rect_count(s) > 0 && shown == NULL) {
+            shown = s;
+        } else {
+            ffkmp_subtitle_free(&s);
+        }
+        s = NULL;
+    }
+    if (shown == NULL) KC_EQ_INT(ffkmp_subtitle_decode(c, NULL, &shown), 0);
+    KC_NOT_NULL(shown);
+    KC_EQ_INT(ffkmp_subtitle_times(shown, &start, &end), 0);
+    kc_detail("start=%lld end=%lld", (long long)start, (long long)end);
+    KC_CHECKF(start >= 150000 && start <= 250000, "the caption starts at %lld us, at its end of caption", (long long)start);
+    KC_CHECKF(end >= 950000 && end <= 1050000, "the caption ends at %lld us, at its erase", (long long)end);
+    text = ffkmp_subtitle_rect_text(shown, 0);
+    KC_NOT_NULL(text);
+    KC_CHECKF(strstr(text, "HELLO") != NULL, "the caption reads %s", text);
+    ffkmp_subtitle_free(&shown);
+    ffkmp_codecctx_free(c);
+}
+
 int main(void)
 {
     kc_suite_begin("test_subtitle");
@@ -293,6 +361,7 @@ int main(void)
     case_a_blu_ray_subtitle_decodes_to_its_image();
     case_a_decoder_that_holds_nothing_drains_to_nothing();
     case_a_held_caption_comes_out_of_the_drain();
+    case_the_captions_frames_carry_decode_without_a_stream();
 
     return kc_suite_end();
 }

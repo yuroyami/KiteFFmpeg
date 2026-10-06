@@ -7,8 +7,11 @@ package io.github.yuroyami.kiteffmpeg
  * is a subtitle stream instead and decodes through [MediaSource.openSubtitleDecoder].
  *
  * This is FFmpeg's own caption decoder, `eia_608`, the one mpv feeds each frame's captions to. It
- * reads the CEA-608 captions of the bytes, those inside CEA-708 data included, and skips the
- * CEA-708 service blocks, which FFmpeg does not decode.
+ * reads the CEA-608 captions of field 1, CC1 and CC2, which is where broadcast puts its captions,
+ * those inside CEA-708 data included, and skips the CEA-708 service blocks, which FFmpeg does not
+ * decode. The field is fixed rather than guessed: left to guess, FFmpeg's decoder takes the field
+ * of the first byte it is given, before it checks that byte, so one damaged or CEA-708 byte at the
+ * start leaves it reading a field nothing is captioned in.
  *
  * Hand over each frame's bytes in the order the frames are shown, which is the order the captions
  * were authored in and not the order a decoder with reordered pictures receives them. Each answer

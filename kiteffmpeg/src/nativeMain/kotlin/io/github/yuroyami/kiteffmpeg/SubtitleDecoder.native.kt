@@ -40,61 +40,14 @@ public actual class SubtitleDecoder internal constructor(
     public actual fun decode(packet: Packet): Subtitle? = kotlinx.atomicfu.locks.synchronized(lock) {
         check(!closed) { "SubtitleDecoder is closed" }
         requireOwnStream(packet, stream)
-        decodeInto { slot -> packet.locked { live -> ffkmp_subtitle_decode(codecCtx, live, slot) } }
+        decodeSubtitleInto(codecCtx) { slot -> packet.locked { live -> ffkmp_subtitle_decode(codecCtx, live, slot) } }
     }
 
     @Throws(FFmpegException::class)
     public actual fun drain(): Subtitle? = kotlinx.atomicfu.locks.synchronized(lock) {
         check(!closed) { "SubtitleDecoder is closed" }
         // A NULL packet is the C layer's drain (#149).
-        decodeInto { slot -> ffkmp_subtitle_decode(codecCtx, null, slot) }
-    }
-
-    /** Runs [call], which decodes into the slot it is given, and assembles what it decoded. */
-    private inline fun decodeInto(call: (CPointer<CPointerVar<kc_subtitle>>) -> Int): Subtitle? {
-        return memScoped {
-            val slot = alloc<CPointerVar<kc_subtitle>>()
-            val rc = call(slot.ptr)
-            if (rc < 0) throw FFmpegException(avError(rc))
-            val subtitle = slot.value ?: return null
-            try {
-                val start = alloc<LongVar>()
-                val end = alloc<LongVar>()
-                ffkmp_subtitle_times(subtitle, start.ptr, end.ptr)
-                val fields = List(6) { alloc<IntVar>() }
-                assembleSubtitle(
-                    start.value, end.value,
-                    ffkmp_codecctx_width(codecCtx), ffkmp_codecctx_height(codecCtx),
-                    ffkmp_subtitle_rect_count(subtitle),
-                    rect = { i ->
-                        check0(
-                            ffkmp_subtitle_rect(
-                                subtitle, i,
-                                fields[0].ptr, fields[1].ptr, fields[2].ptr, fields[3].ptr, fields[4].ptr, fields[5].ptr,
-                            ),
-                            "subtitle rectangle",
-                        )
-                        IntArray(6) { fields[it].value }
-                    },
-                    // Called right after rect(i), so fields still hold rectangle i's size.
-                    rgba = { i ->
-                        val bytes = ByteArray(fields[3].value * fields[4].value * 4)
-                        bytes.usePinned { pinned ->
-                            check0(
-                                ffkmp_subtitle_rect_rgba(subtitle, i, pinned.addressOf(0).reinterpret(), bytes.size),
-                                "subtitle image",
-                            )
-                        }
-                        bytes
-                    },
-                    text = { i -> ffkmp_subtitle_rect_text(subtitle, i)?.toKString() },
-                )
-            } finally {
-                val owned = alloc<CPointerVar<kc_subtitle>>()
-                owned.value = subtitle
-                ffkmp_subtitle_free(owned.ptr)
-            }
-        }
+        decodeSubtitleInto(codecCtx) { slot -> ffkmp_subtitle_decode(codecCtx, null, slot) }
     }
 
     public actual fun flush(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
@@ -106,5 +59,59 @@ public actual class SubtitleDecoder internal constructor(
         if (closed) return
         closed = true
         ffkmp_codecctx_free(codecCtx)
+    }
+}
+
+/**
+ * Runs [call], which decodes into the slot it is given with the decoder [codecCtx], and assembles
+ * what it decoded. The subtitle and the closed caption decoders share it.
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal inline fun decodeSubtitleInto(
+    codecCtx: CPointer<kc_codec_ctx>,
+    call: (CPointer<CPointerVar<kc_subtitle>>) -> Int,
+): Subtitle? {
+    return memScoped {
+        val slot = alloc<CPointerVar<kc_subtitle>>()
+        val rc = call(slot.ptr)
+        if (rc < 0) throw FFmpegException(avError(rc))
+        val subtitle = slot.value ?: return null
+        try {
+            val start = alloc<LongVar>()
+            val end = alloc<LongVar>()
+            ffkmp_subtitle_times(subtitle, start.ptr, end.ptr)
+            val fields = List(6) { alloc<IntVar>() }
+            assembleSubtitle(
+                start.value, end.value,
+                ffkmp_codecctx_width(codecCtx), ffkmp_codecctx_height(codecCtx),
+                ffkmp_subtitle_rect_count(subtitle),
+                rect = { i ->
+                    check0(
+                        ffkmp_subtitle_rect(
+                            subtitle, i,
+                            fields[0].ptr, fields[1].ptr, fields[2].ptr, fields[3].ptr, fields[4].ptr, fields[5].ptr,
+                        ),
+                        "subtitle rectangle",
+                    )
+                    IntArray(6) { fields[it].value }
+                },
+                // Called right after rect(i), so fields still hold rectangle i's size.
+                rgba = { i ->
+                    val bytes = ByteArray(fields[3].value * fields[4].value * 4)
+                    bytes.usePinned { pinned ->
+                        check0(
+                            ffkmp_subtitle_rect_rgba(subtitle, i, pinned.addressOf(0).reinterpret(), bytes.size),
+                            "subtitle image",
+                        )
+                    }
+                    bytes
+                },
+                text = { i -> ffkmp_subtitle_rect_text(subtitle, i)?.toKString() },
+            )
+        } finally {
+            val owned = alloc<CPointerVar<kc_subtitle>>()
+            owned.value = subtitle
+            ffkmp_subtitle_free(owned.ptr)
+        }
     }
 }

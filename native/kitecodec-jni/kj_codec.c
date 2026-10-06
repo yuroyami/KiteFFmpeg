@@ -302,6 +302,62 @@ JNIEXPORT jlong JNICALL kj_subtitle_decode(JNIEnv *env, jclass cls, jlong ctx_to
     return token;
 }
 
+/* A decoder for the closed captions video frames carry (#179): an owned context, freed with
+ * kj_codecctx_free like any other. */
+JNIEXPORT jlong JNICALL kj_caption_decoder_open(JNIEnv *env, jclass cls)
+{
+    kc_codec_ctx *c = NULL;
+    jlong token;
+    int rc;
+    (void)cls;
+    rc = ffkmp_caption_decoder_open(&c);
+    if (rc < 0 || c == NULL) {
+        kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "caption_decoder_open");
+        return 0;
+    }
+    token = kj_handle_put_checked(env, KJ_KIND_CODEC_CTX, c);
+    if (token == 0) ffkmp_codecctx_free(c);
+    return token;
+}
+
+typedef struct {
+    kc_codec_ctx *c;
+    int64_t pts_us;
+    kc_subtitle *subtitle;
+    int rc;
+} kj_caption_bytes;
+
+/* Inside the array's critical region, so it calls nothing that reaches back into the JVM. */
+static int kj_caption_bytes_in(void *opaque, const uint8_t *src, int32_t len)
+{
+    kj_caption_bytes *cb = (kj_caption_bytes *)opaque;
+    cb->rc = ffkmp_caption_decode(cb->c, src, (int)len, cb->pts_us, &cb->subtitle);
+    return 0;
+}
+
+/* Decodes the captions in bytes, those of the frame shown at pts_us: 0 when they completed no
+ * subtitle, else a subtitle token the caller frees with kj_subtitle_free. */
+JNIEXPORT jlong JNICALL kj_caption_decode(JNIEnv *env, jclass cls, jlong ctx_token, jbyteArray bytes, jlong pts_us)
+{
+    kj_caption_bytes cb;
+    jlong token;
+    (void)cls;
+    cb.c = (kc_codec_ctx *)kj_handle_get(env, ctx_token, KJ_KIND_CODEC_CTX);
+    if (cb.c == NULL) return 0;
+    cb.pts_us = (int64_t)pts_us;
+    cb.subtitle = NULL;
+    cb.rc = 0;
+    if (kj_bytes_read_in_place(env, bytes, kj_caption_bytes_in, &cb) < 0) return 0;
+    if (cb.rc < 0) {
+        kj_throw_ffmpeg(env, cb.rc, "caption_decode");
+        return 0;
+    }
+    if (cb.subtitle == NULL) return 0;
+    token = kj_handle_put_checked(env, KJ_KIND_SUBTITLE, cb.subtitle);
+    if (token == 0) ffkmp_subtitle_free(&cb.subtitle);
+    return token;
+}
+
 /* { start, end, rectangle count }, with INT64_MIN for a time that is not known. */
 JNIEXPORT jlongArray JNICALL kj_subtitle_info(JNIEnv *env, jclass cls, jlong token)
 {

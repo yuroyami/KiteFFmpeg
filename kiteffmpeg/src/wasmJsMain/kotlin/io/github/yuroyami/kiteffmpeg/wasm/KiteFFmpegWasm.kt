@@ -84,6 +84,12 @@ internal external fun ffkmp_avseek_flag_any(module: JsAny): Int
 @JsFun("(m) => m._ffkmp_avseek_flag_backward()")
 internal external fun ffkmp_avseek_flag_backward(module: JsAny): Int
 
+@JsFun("(m, a0, a1, a2, a3, a4) => m._ffkmp_caption_decode(a0, a1, a2, a3, a4)")
+internal external fun ffkmp_caption_decode(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Long, a4: Int): Int
+
+@JsFun("(m, a0) => m._ffkmp_caption_decoder_open(a0)")
+internal external fun ffkmp_caption_decoder_open(module: JsAny, a0: Int): Int
+
 @JsFun("(m, a0) => m._ffkmp_codec_first_pix_fmt(a0)")
 internal external fun ffkmp_codec_first_pix_fmt(module: JsAny, a0: Int): Int
 

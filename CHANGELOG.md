@@ -43,6 +43,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- The closed captions a video frame carries become timed text (#179). `ClosedCaptionDecoder` is
+  FFmpeg's own `eia_608` decoder over the bytes `Frame.closedCaptions()` gives, the one mpv feeds
+  each frame's captions to, so the captions broadcast H.264, HEVC and MPEG-2 carry inside the
+  video, which have no subtitle stream of their own, decode to the same `Subtitle` text the
+  subtitle decoder gives, timed on the caller's timeline. It reads field 1, CC1 and CC2, rather
+  than guessing: left to guess, FFmpeg's decoder takes the field of the first byte it is given
+  before it checks that byte, and one damaged or CEA-708 byte at the start leaves it reading a
+  field nothing is captioned in. The C ABI is 5.4 and adds `ffkmp_caption_decoder_open` and
+  `ffkmp_caption_decode`.
 - A Matroska file's editions, ordered chapters and segment links reach a caller (#173). A Matroska
   file can describe its own timeline: an ordered edition plays its chapters in the order it lists
   them and skips the rest of the file, a chapter can play part of another file named by that
@@ -236,6 +245,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A byte source that grows while it is read, such as a recording in progress, can be sought into
+  the part that arrived after the open (#177). The bridge read `MediaByteSource.size` once at the
+  open and answered every one of FFmpeg's size probes with it, so an MPEG-TS seek searched only the
+  bytes that existed then. The probe now reaches the source's seek callback, as it reaches FFmpeg's
+  own file reader, and every backend answers with the current size; a source that cannot answer
+  keeps the size it gave at the open.
 - A sound that a transport stream starts carrying after the open learns its rate and its channels
   at its first packet, and every packet of it carries a timestamp and a duration (#174). A
   multicast, an IPTV channel joined between programmes and a tuner recording all start a sound

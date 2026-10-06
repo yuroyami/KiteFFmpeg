@@ -1,23 +1,66 @@
 package io.github.yuroyami.kiteffmpeg
 
+import ffmpeg.ffkmp_caption_decode
+import ffmpeg.ffkmp_caption_decoder_open
+import ffmpeg.ffkmp_codecctx_flush
+import ffmpeg.ffkmp_codecctx_free
+import ffmpeg.ffkmp_subtitle_decode
+import ffmpeg.kc_codec_ctx
+import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.CPointerVar
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.value
+
 @KiteFFmpegLowLevelApi
-public actual class ClosedCaptionDecoder private constructor() : AutoCloseable {
-    @Throws(FFmpegException::class)
-    public actual fun decode(captions: ByteArray, ptsMicros: Long): Subtitle? = notWiredYet()
+@OptIn(ExperimentalForeignApi::class)
+public actual class ClosedCaptionDecoder private constructor(
+    private val codecCtx: CPointer<kc_codec_ctx>,
+) : AutoCloseable {
+    private val lock = kotlinx.atomicfu.locks.SynchronizedObject()
+    private var closed = false
 
     @Throws(FFmpegException::class)
-    public actual fun drain(): Subtitle? = notWiredYet()
+    public actual fun decode(captions: ByteArray, ptsMicros: Long): Subtitle? = kotlinx.atomicfu.locks.synchronized(lock) {
+        check(!closed) { "ClosedCaptionDecoder is closed" }
+        if (captions.isEmpty()) return null
+        decodeSubtitleInto(codecCtx) { slot ->
+            captions.usePinned { pinned ->
+                ffkmp_caption_decode(codecCtx, pinned.addressOf(0).reinterpret(), captions.size, ptsMicros, slot)
+            }
+        }
+    }
 
-    public actual fun flush(): Unit = notWiredYet()
+    @Throws(FFmpegException::class)
+    public actual fun drain(): Subtitle? = kotlinx.atomicfu.locks.synchronized(lock) {
+        check(!closed) { "ClosedCaptionDecoder is closed" }
+        // A NULL packet is the C layer's drain.
+        decodeSubtitleInto(codecCtx) { slot -> ffkmp_subtitle_decode(codecCtx, null, slot) }
+    }
 
-    actual override fun close(): Unit = Unit
+    public actual fun flush(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
+        check(!closed) { "ClosedCaptionDecoder is closed" }
+        ffkmp_codecctx_flush(codecCtx)
+    }
+
+    actual override fun close(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
+        if (closed) return
+        closed = true
+        ffkmp_codecctx_free(codecCtx)
+    }
 
     public actual companion object {
         @Throws(FFmpegException::class)
-        public actual fun open(): ClosedCaptionDecoder = notWiredYet()
+        public actual fun open(): ClosedCaptionDecoder = memScoped {
+            val slot = alloc<CPointerVar<kc_codec_ctx>>()
+            val rc = ffkmp_caption_decoder_open(slot.ptr)
+            if (rc < 0) throw FFmpegException(avError(rc))
+            ClosedCaptionDecoder(checkNotNull(slot.value) { "the caption decoder opened to nothing" })
+        }
     }
 }
-
-/** The shape of #179 lands before its wiring, which the next commit adds. */
-private fun notWiredYet(): Nothing =
-    throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "the closed caption decoder is not wired yet"))

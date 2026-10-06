@@ -551,6 +551,20 @@ KC_API int ffkmp_subtitle_decoder_open(kc_fmt_ctx *ctx, int stream_index, kc_cod
  * ffkmp_codecctx_flush before it decodes again. A NULL c or out is refused with AVERROR(EINVAL). */
 KC_API int ffkmp_subtitle_decode(kc_codec_ctx *c, const kc_packet *p, kc_subtitle **out);
 
+/* Closed captions inside a video stream (#179): FFmpeg's eia_608 decoder over the cc_data a video
+ * frame's A/53 side data carries, three bytes per caption pair, with no container stream behind it.
+ *
+ * Ownership. Opens the decoder into *out, a context the caller frees with ffkmp_codecctx_free. It
+ * times packets in microseconds and reads field 1, which carries CC1 and CC2. A build without the
+ * decoder answers AVERROR_DECODER_NOT_FOUND. */
+KC_API int ffkmp_caption_decoder_open(kc_codec_ctx **out);
+
+/* Ownership. Decodes the `size` bytes at `data`, the captions of the frame shown at `pts_us`, into
+ * *out as ffkmp_subtitle_decode does: a subtitle the caller frees with ffkmp_subtitle_free, or NULL
+ * when the bytes completed none. The bytes are copied. The drain is ffkmp_subtitle_decode with a
+ * NULL packet. A NULL context or output, NULL data or a size below 1 is refused with AVERROR(EINVAL). */
+KC_API int ffkmp_caption_decode(kc_codec_ctx *c, const uint8_t *data, int size, int64_t pts_us, kc_subtitle **out);
+
 /* When the subtitle starts and ends, in microseconds on the stream's own timeline. Either is
  * INT64_MIN when it is not known: the start when the packet had no timestamp, the end when the
  * stream does not say, as with Blu-ray subtitles. NULL arguments are refused with AVERROR(EINVAL). */
