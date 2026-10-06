@@ -65,6 +65,8 @@ static int memory_read(void *opaque, unsigned char *buf, int len)
 static int64_t memory_seek(void *opaque, int64_t offset, int whence)
 {
     memory_source *m = (memory_source *)opaque;
+    /* FFmpeg's size probe reaches the reader and moves nothing (#177). */
+    if (whence == AVSEEK_SIZE) return m->size;
     int64_t target = whence == SEEK_SET ? offset : whence == SEEK_CUR ? m->position + offset : m->size + offset;
     if (target < 0 || target > m->size) return KC_IO_ERR;
     m->position = target;

@@ -15,7 +15,14 @@ package io.github.yuroyami.kiteffmpeg
  */
 public interface MediaByteSource : AutoCloseable {
 
-    /** Total size in bytes, or null when unknown (a live stream). */
+    /**
+     * Total size in bytes, or null when unknown (a live stream).
+     *
+     * Read again each time FFmpeg asks for the size, as FFmpeg's own file reader looks at the file
+     * again, so a source that grows while it is read, such as a recording in progress, answers what
+     * it holds now and a seek reaches the part that arrived after the open (#177). Null after a
+     * size keeps the last one FFmpeg was given at open.
+     */
     public val size: Long?
 
     /** False makes the whole input unseekable; [seek] is then never called. */

@@ -53,10 +53,15 @@ internal class JniByteIo(
         -2
     }
 
-    /** Called from C. whence is SEEK_SET(0)/SEEK_CUR(1)/SEEK_END(2). */
+    /**
+     * Called from C. whence is SEEK_SET(0)/SEEK_CUR(1)/SEEK_END(2), or FFmpeg's size probe
+     * (0x10000), which asks for the current size without moving, so a source that grows answers
+     * what it holds now (#177).
+     */
     @Suppress("unused")
     fun seek(offset: Long, whence: Int): Long = try {
         val target = when (whence) {
+            SIZE_PROBE -> return io.size ?: -1L
             0 -> offset
             1 -> position + offset
             2 -> (io.size ?: -1L).let { if (it < 0) return -2L else it + offset }
@@ -150,3 +155,6 @@ internal class JniByteIo(
         primary?.let { throw it }
     }
 }
+
+/** FFmpeg's `AVSEEK_SIZE`: asks for the size and moves nothing. */
+private const val SIZE_PROBE = 0x10000

@@ -1018,7 +1018,13 @@ static int kc_io_read_through(kc_io_read_fn read_fn, void *source, const int *ce
 static int64_t kc_io_seek_through(kc_io_seek_fn seek_fn, void *source, const int *cell,
                                   int64_t size, int64_t offset, int whence) {
     if (kc_cell_raised(cell)) return AVERROR_EXIT;
-    if (whence & AVSEEK_SIZE) return size >= 0 ? size : AVERROR(ENOSYS);
+    if (whence & AVSEEK_SIZE) {
+        /* Asked each time, as FFmpeg's file reader asks the file, so a source that grows answers
+           what it holds now (#177). One that cannot answer keeps the size it gave at open. */
+        int64_t current = seek_fn ? seek_fn(source, 0, AVSEEK_SIZE) : -1;
+        if (current >= 0) return current;
+        return size >= 0 ? size : AVERROR(ENOSYS);
+    }
     whence &= ~AVSEEK_FORCE;
     if (!seek_fn) return AVERROR(ENOSYS);
     int64_t r = seek_fn(source, offset, whence);

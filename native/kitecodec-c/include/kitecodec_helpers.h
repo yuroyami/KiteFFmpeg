@@ -662,7 +662,10 @@ KC_API void ffkmp_dict_free(kc_dict **dict);
  *
  * seek_fn contract: move the cursor to offset (whence is SEEK_SET/SEEK_CUR/SEEK_END) and
  * return the NEW absolute position, or KC_IO_ERR. A NULL seek_fn declares the stream
- * unseekable; AVSEEK_SIZE never reaches it because size below answers that probe.
+ * unseekable. FFmpeg's size probe, whence AVSEEK_SIZE (0x10000), reaches it too, as it reaches
+ * FFmpeg's own file reader: answer the CURRENT size without moving the cursor, so a source that
+ * grows reports what it holds now (#177). A negative answer means "not known", and the size
+ * given at open answers instead.
  */
 #define KC_IO_EOF (-1)
 #define KC_IO_ERR (-2)

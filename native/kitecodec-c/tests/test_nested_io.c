@@ -94,6 +94,8 @@ static int cursor_read(void *opaque, unsigned char *buf, int len)
 static int64_t cursor_seek(void *opaque, int64_t offset, int whence)
 {
     cursor *c = (cursor *)opaque;
+    /* FFmpeg's size probe reaches the reader and moves nothing (#177). */
+    if (whence == AVSEEK_SIZE) return c->size;
     int64_t target = whence == SEEK_SET ? offset : whence == SEEK_CUR ? c->position + offset : c->size + offset;
     if (target < 0 || target > c->size) return KC_IO_ERR;
     c->position = target;

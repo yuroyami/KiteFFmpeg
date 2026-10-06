@@ -312,6 +312,8 @@ private class OnDemandReader(private val module: JsAny, val io: MediaByteSource)
     /** Offsets cross as JavaScript numbers, which hold every byte position below 8 PiB exactly. */
     fun seek(offset: Double, whence: Int): Double = try {
         val target = when (whence) {
+            // The current size, without moving, so a source that grows answers what it holds now (#177).
+            SEEK_SIZE -> return io.size?.toDouble() ?: -1.0
             SEEK_SET -> offset.toLong()
             SEEK_CUR -> position + offset.toLong()
             SEEK_END -> io.size?.let { it + offset.toLong() } ?: -1L
@@ -336,6 +338,9 @@ private class OnDemandReader(private val module: JsAny, val io: MediaByteSource)
         const val SEEK_SET = 0
         const val SEEK_CUR = 1
         const val SEEK_END = 2
+
+        /** FFmpeg's `AVSEEK_SIZE`: asks for the size and moves nothing. */
+        const val SEEK_SIZE = 0x10000
     }
 }
 

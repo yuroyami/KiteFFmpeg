@@ -1098,6 +1098,9 @@ private val byteSourceSeek = staticCFunction { opaque: COpaquePointer?, offset: 
     val state = opaque!!.asStableRef<ByteSourceState>().get()
     try {
         val target = when (whence) {
+            // FFmpeg's size probe: the current size, without moving, so a source that grows answers
+            // what it holds now (#177).
+            0x10000 -> return@staticCFunction state.io.size ?: -1L
             0 -> offset                                       // SEEK_SET
             1 -> state.position + offset                      // SEEK_CUR
             2 -> (state.io.size ?: -1L).let { if (it < 0) return@staticCFunction -2L else it + offset }

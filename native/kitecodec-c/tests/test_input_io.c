@@ -4,6 +4,9 @@
  * as an I/O error. Each case below serves a WAV from memory and answers its reads with a wrong
  * count; the open must fail and hand nothing back. The asan variant also checks every access FFmpeg
  * makes on the way. The first case is the control: an honest source opens.
+ *
+ * FFmpeg's size probe reaches the reader each time FFmpeg asks, so a source whose size moves
+ * after the open, as a file still being written does, answers with what it holds now (#177).
  */
 
 #include "harness.h"
@@ -27,6 +30,8 @@ typedef struct {
     int64_t size;
     int64_t position;
     answer_kind answer;
+    /* True when the size probe goes unanswered, as from a reader that cannot tell. */
+    int size_unknown;
 } memory_source;
 
 static void make_wav(memory_source *m, answer_kind answer)
@@ -43,6 +48,7 @@ static void make_wav(memory_source *m, answer_kind answer)
     memcpy(m->bytes, header, sizeof(header));
     m->position = 0;
     m->answer = answer;
+    m->size_unknown = 0;
 }
 
 /* Fills what it honestly can, then answers with the count its kind names. */
@@ -66,6 +72,8 @@ static int memory_read(void *opaque, unsigned char *buf, int len)
 static int64_t memory_seek(void *opaque, int64_t offset, int whence)
 {
     memory_source *m = (memory_source *)opaque;
+    /* FFmpeg's size probe reaches the reader and moves nothing (#177). */
+    if (whence == AVSEEK_SIZE) return m->size_unknown ? KC_IO_ERR : m->size;
     int64_t target = whence == SEEK_SET ? offset : whence == SEEK_CUR ? m->position + offset : m->size + offset;
     if (target < 0 || target > m->size) return KC_IO_ERR;
     m->position = target;
@@ -103,11 +111,36 @@ static void case_an_over_count_fails_the_open(answer_kind answer, const char *wh
     free(source.bytes);
 }
 
+static void case_a_source_that_grows_reports_its_current_size(void)
+{
+    memory_source source;
+    kc_fmt_ctx *ctx = NULL;
+    int64_t at_open;
+
+    kc_case("a source whose size moves after the open answers FFmpeg with what it holds now");
+    make_wav(&source, ANSWER_HONEST);
+    at_open = source.size;
+    KC_EQ_INT(ffkmp_fmt_open_input_io(&ctx, &source, memory_read, memory_seek, source.size,
+                                      NULL, NULL, 0, NULL, NULL), 0);
+    KC_NOT_NULL(ctx);
+    KC_EQ_INT(avio_size(ctx->pb), at_open);
+    /* The bytes stay where they are; only the size the reader states moves, which is all the probe sees. */
+    source.size = at_open - 4096;
+    kc_detail("size at open %lld, now %lld", (long long)at_open, (long long)avio_size(ctx->pb));
+    KC_EQ_INT(avio_size(ctx->pb), at_open - 4096);
+    /* A reader that cannot tell keeps the size it gave at open. */
+    source.size_unknown = 1;
+    KC_EQ_INT(avio_size(ctx->pb), at_open);
+    ffkmp_fmt_close_input_io(&ctx);
+    free(source.bytes);
+}
+
 int main(void)
 {
     kc_suite_begin("test_input_io");
 
     case_an_honest_source_opens();
+    case_a_source_that_grows_reports_its_current_size();
     case_an_over_count_fails_the_open(ANSWER_PLUS_16, "16 bytes more than it read");
     case_an_over_count_fails_the_open(ANSWER_FULL_PLUS_1, "one byte more than the whole buffer");
     case_an_over_count_fails_the_open(ANSWER_INT_MAX, "INT_MAX");
