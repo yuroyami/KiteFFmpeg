@@ -53,8 +53,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   field nothing is captioned in. `open(realTime = true)` answers as a player needs (#180): each
   answer is the screen as it now stands, from the frame that changed it, with no end, held until
   the next, and an empty one clears the screen. Buffered, the default, gives each caption once it
-  leaves the screen, with its end. mpv plays every caption stream in real time. The C ABI is 5.4
-  and adds `ffkmp_caption_decoder_open`, which takes the real-time flag, and `ffkmp_caption_decode`.
+  leaves the screen, with its end. mpv plays every caption stream in real time. A caption stream of
+  its own, such as a MOV `c608` track, answers the same way through
+  `MediaSource.openSubtitleDecoder(stream, realTime = true)` (#181), an overload beside the one that
+  stays. The C ABI is 5.4 and adds `ffkmp_caption_decoder_open`, which takes the real-time flag,
+  `ffkmp_caption_decode` and `ffkmp_subtitle_decoder_open2`, which takes it too.
 - A Matroska file's editions, ordered chapters and segment links reach a caller (#173). A Matroska
   file can describe its own timeline: an ordered edition plays its chapters in the order it lists
   them and skips the rest of the file, a chapter can play part of another file named by that

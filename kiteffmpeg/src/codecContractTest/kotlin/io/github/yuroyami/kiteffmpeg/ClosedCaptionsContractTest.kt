@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 /**
  * Closed captions: the CEA-608 bytes a decoder attaches to the video frames that carry them, and a
- * caption track stored on its own decoding to text.
+ * caption track stored on its own decoding to text, buffered and in real time (#181).
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
 internal class ClosedCaptionsContractTest {
@@ -68,6 +68,27 @@ internal class ClosedCaptionsContractTest {
         assertEquals(330_000L, shown.startMicros, "the caption starts at 0.33 s, where the SCC line puts it")
         assertEquals(1_330_000L, shown.endMicros, "the caption ends at the erase at 1.33 s")
         assertTrue(shown.texts.single().endsWith("HELLO"), "the caption text: ${shown.texts}")
+    }
+
+    @Test
+    fun anEia608TrackInRealTimeShowsEachScreenFromThePacketThatChangedIt() {
+        val subtitles = MediaSource.open(materialize(CAPTION_TRACK, CAPTION_TRACK_SHA256)).use { source ->
+            val stream = source.streams.single()
+            source.openSubtitleDecoder(stream, realTime = true).use { decoder ->
+                source.openPacketReader(listOf(stream)).use { reader ->
+                    buildList {
+                        while (true) {
+                            val packet = reader.read() ?: break
+                            packet.use { decoder.decode(it)?.let(::add) }
+                        }
+                    }
+                }
+            }
+        }
+        // The screen as it stands is the last rectangle of each answer.
+        val screens = subtitles.map { it.startMicros to it.texts.lastOrNull().orEmpty().substringAfterLast(",,") }
+        assertEquals(listOf(330_000L to "HELLO", 1_330_000L to ""), screens.map { (at, text) -> at to text.substringAfterLast('}') }, "$screens")
+        assertTrue(subtitles.all { it.endMicros == null }, "a real-time answer holds until the next: $subtitles")
     }
 
     private companion object {

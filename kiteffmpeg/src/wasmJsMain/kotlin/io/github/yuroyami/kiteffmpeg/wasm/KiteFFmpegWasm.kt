@@ -555,6 +555,9 @@ internal external fun ffkmp_subtitle_decode(module: JsAny, a0: Int, a1: Int, a2:
 @JsFun("(m, a0, a1, a2) => m._ffkmp_subtitle_decoder_open(a0, a1, a2)")
 internal external fun ffkmp_subtitle_decoder_open(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m, a0, a1, a2, a3) => m._ffkmp_subtitle_decoder_open2(a0, a1, a2, a3)")
+internal external fun ffkmp_subtitle_decoder_open2(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int): Int
+
 @JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7) => m._ffkmp_subtitle_rect(a0, a1, a2, a3, a4, a5, a6, a7)")
 internal external fun ffkmp_subtitle_rect(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int): Int
 

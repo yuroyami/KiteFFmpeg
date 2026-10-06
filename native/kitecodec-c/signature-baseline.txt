@@ -2,10 +2,10 @@
 #
 # abi-version 5.4
 #
-# Exact scope: 276 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 277 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 299 records.
+# records are sorted without deduplication. There must be exactly 300 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -191,6 +191,7 @@ KC_API int ffkmp_subtitle_converter_convert(kc_subtitle_converter *c, const kc_p
 KC_API int ffkmp_subtitle_converter_open(kc_fmt_ctx *ctx, int stream_index, const char *codec, kc_codec_par *out_par, kc_subtitle_converter **out);
 KC_API int ffkmp_subtitle_decode(kc_codec_ctx *c, const kc_packet *p, kc_subtitle **out);
 KC_API int ffkmp_subtitle_decoder_open(kc_fmt_ctx *ctx, int stream_index, kc_codec_ctx **out);
+KC_API int ffkmp_subtitle_decoder_open2(kc_fmt_ctx *ctx, int stream_index, int real_time, kc_codec_ctx **out);
 KC_API int ffkmp_subtitle_rect(const kc_subtitle *s, int i, int *type, int *x, int *y, int *w, int *h, int *forced);
 KC_API int ffkmp_subtitle_rect_count(const kc_subtitle *s);
 KC_API int ffkmp_subtitle_rect_rgba(const kc_subtitle *s, int i, uint8_t *dst, int dst_size);

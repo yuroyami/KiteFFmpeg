@@ -2,7 +2,7 @@ package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions
 import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
-import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_subtitle_decoder_open
+import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_subtitle_decoder_open2
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_content_light
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_mastering_display
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecctx_alloc
@@ -592,7 +592,10 @@ public actual class MediaSource internal constructor(
     }
 
     @KiteFFmpegLowLevelApi
-    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder {
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = openSubtitleDecoder(stream, realTime = false)
+
+    @KiteFFmpegLowLevelApi
+    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder {
         val m = requireModule()
         require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
         // The same identity rule the packet reader applies: a StreamInfo can be forged.
@@ -601,7 +604,7 @@ public actual class MediaSource internal constructor(
         try {
             // What FFmpeg logged while it refused rides on the exception (#170).
             return withLoggedReason {
-                val rc = ffkmp_subtitle_decoder_open(m, alive(), stream.index, slot)
+                val rc = ffkmp_subtitle_decoder_open2(m, alive(), stream.index, if (realTime) 1 else 0, slot)
                 if (rc == FFmpegError.AVERROR_DECODER_NOT_FOUND) {
                     throw FFmpegException(FFmpegError.DecoderNotFound(rc, decoderNotFoundMessage(stream.codec, requested = null)))
                 }
@@ -613,14 +616,6 @@ public actual class MediaSource internal constructor(
         }
     }
 
-    @KiteFFmpegLowLevelApi
-    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder =
-        if (realTime) {
-            // The shape of #181 lands before its wiring, which the next commit adds.
-            throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "real-time captions are not wired yet"))
-        } else {
-            openSubtitleDecoder(stream)
-        }
 
     /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
     private var paused = false

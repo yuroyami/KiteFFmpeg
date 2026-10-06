@@ -277,6 +277,7 @@ ffkmp_subtitle_converter_free
 ffkmp_subtitle_converter_open
 ffkmp_subtitle_decode
 ffkmp_subtitle_decoder_open
+ffkmp_subtitle_decoder_open2
 ffkmp_subtitle_free
 ffkmp_subtitle_rect
 ffkmp_subtitle_rect_count

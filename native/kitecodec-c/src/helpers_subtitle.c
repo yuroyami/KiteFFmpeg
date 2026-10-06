@@ -17,6 +17,10 @@
 #include <string.h>
 
 KC_API int ffkmp_subtitle_decoder_open(AVFormatContext *ctx, int stream_index, AVCodecContext **out) {
+    return ffkmp_subtitle_decoder_open2(ctx, stream_index, 0, out);
+}
+
+KC_API int ffkmp_subtitle_decoder_open2(AVFormatContext *ctx, int stream_index, int real_time, AVCodecContext **out) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
@@ -31,7 +35,11 @@ KC_API int ffkmp_subtitle_decoder_open(AVFormatContext *ctx, int stream_index, A
     if (rc >= 0) {
         /* Without it avcodec_decode_subtitle2 leaves every decoded time unset. */
         c->pkt_timebase = st->time_base;
-        rc = avcodec_open2(c, codec, NULL);
+        /* Only the caption decoder has a real-time mode (#181). */
+        AVDictionary *options = NULL;
+        if (real_time && codec->id == AV_CODEC_ID_EIA_608) rc = av_dict_set(&options, "real_time", "1", 0);
+        if (rc >= 0) rc = avcodec_open2(c, codec, &options);
+        av_dict_free(&options);
     }
     if (rc < 0) {
         avcodec_free_context(&c);
@@ -61,12 +69,22 @@ KC_API int ffkmp_subtitle_decode(AVCodecContext *c, const AVPacket *p, AVSubtitl
     }
     int got = 0;
     int rc = avcodec_decode_subtitle2(c, sub, &got, p);
-    av_packet_free(&empty);
     if (rc < 0 || !got) {
+        av_packet_free(&empty);
         avsubtitle_free(sub);
         av_free(sub);
         return rc < 0 ? rc : 0;
     }
+    /* In real time FFmpeg's caption decoder dates a changed screen at the change before it, the
+       start its buffered mode gives a caption. The screen as it now stands shows from the packet
+       that changed it (#180, #181). */
+    int64_t real_time = 0;
+    if (!empty && p->pts != AV_NOPTS_VALUE && c->codec_id == AV_CODEC_ID_EIA_608 &&
+        av_opt_get_int(c->priv_data, "real_time", 0, &real_time) >= 0 && real_time) {
+        sub->pts = av_rescale_q(p->pts, c->pkt_timebase, AV_TIME_BASE_Q);
+        sub->start_display_time = 0;
+    }
+    av_packet_free(&empty);
     *out = sub;
     return 0;
 }
@@ -115,13 +133,6 @@ KC_API int ffkmp_caption_decode(AVCodecContext *c, const uint8_t *data, int size
     p->dts = pts_us;
     rc = ffkmp_subtitle_decode(c, p, out);
     av_packet_free(&p);
-    /* In real time FFmpeg's decoder dates a changed screen at the change before it, the start its
-       buffered mode gives a caption. The screen as it now stands shows from this frame (#180). */
-    int64_t real_time = 0;
-    if (rc >= 0 && *out && av_opt_get_int(c->priv_data, "real_time", 0, &real_time) >= 0 && real_time) {
-        (*out)->pts = pts_us;
-        (*out)->start_display_time = 0;
-    }
     return rc;
 }
 

@@ -4,7 +4,7 @@ import cnames.structs.kc_interrupt
 import cnames.structs.kc_io_tags
 import cnames.structs.kc_subtitle_converter
 import ffmpeg.ffkmp_subtitle_converter_open
-import ffmpeg.ffkmp_subtitle_decoder_open
+import ffmpeg.ffkmp_subtitle_decoder_open2
 import ffmpeg.ffkmp_codec_id_name
 import ffmpeg.ffkmp_codecctx_alloc
 import ffmpeg.ffkmp_codecctx_free
@@ -706,14 +706,18 @@ public actual class MediaSource internal constructor(
 
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
-    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder {
+    public actual fun openSubtitleDecoder(stream: StreamInfo): SubtitleDecoder = openSubtitleDecoder(stream, realTime = false)
+
+    @KiteFFmpegLowLevelApi
+    @Throws(FFmpegException::class)
+    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder {
         check(!isClosed) { "MediaSource is closed" }
         require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
         requireOwnStream(stream)
         val codecCtx = withLoggedReason {
             memScoped {
                 val slot = alloc<CPointerVar<kc_codec_ctx>>()
-                val rc = ffkmp_subtitle_decoder_open(ctx, stream.index, slot.ptr)
+                val rc = ffkmp_subtitle_decoder_open2(ctx, stream.index, if (realTime) 1 else 0, slot.ptr)
                 if (rc < 0) throw FFmpegException(avError(rc))
                 slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle decoder open returned no context"))
             }
@@ -721,15 +725,6 @@ public actual class MediaSource internal constructor(
         return SubtitleDecoder(stream, codecCtx)
     }
 
-    @KiteFFmpegLowLevelApi
-    @Throws(FFmpegException::class)
-    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder =
-        if (realTime) {
-            // The shape of #181 lands before its wiring, which the next commit adds.
-            throw FFmpegException(FFmpegError.Unsupported(FFmpegError.AVERROR_PATCHWELCOME, "real-time captions are not wired yet"))
-        } else {
-            openSubtitleDecoder(stream)
-        }
 
     @Throws(FFmpegException::class)
     public actual fun pause(): Boolean = synchronized(stateLock) {

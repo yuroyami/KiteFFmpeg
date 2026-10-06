@@ -544,6 +544,11 @@ KC_API int64_t ffkmp_ch_layout_default_mask(int channels);
  * AVERROR_DECODER_NOT_FOUND. *out is NULL on every failure. */
 KC_API int ffkmp_subtitle_decoder_open(kc_fmt_ctx *ctx, int stream_index, kc_codec_ctx **out);
 
+/* Ownership. As ffkmp_subtitle_decoder_open, with a CEA-608 caption stream answering in real time
+ * when real_time is set (#181): each answer is the screen as it stands, from the packet that changed
+ * it, with no end, and an empty rectangle when the screen clears. Every other codec ignores it. */
+KC_API int ffkmp_subtitle_decoder_open2(kc_fmt_ctx *ctx, int stream_index, int real_time, kc_codec_ctx **out);
+
 /* Ownership. Decodes packet p into *out, a subtitle the caller frees with ffkmp_subtitle_free.
  * *out is NULL when the packet completed no subtitle, which is not an error. A NULL p is the drain,
  * since 3.19: *out is then what the decoder still holds at the end of the stream, which only a

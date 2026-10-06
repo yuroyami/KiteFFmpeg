@@ -231,7 +231,7 @@ internal object Internals {
     private external fun nativeCodecCtxTimeBase(context: Long): Long
     private external fun nativeCodecCtxGlobalHeader(context: Long)
     private external fun nativeCodecCtxFullRange(context: Long)
-    private external fun nativeSubtitleDecoderOpen(fmtToken: Long, streamIndex: Int): Long
+    private external fun nativeSubtitleDecoderOpen(fmtToken: Long, streamIndex: Int, realTime: Boolean): Long
     private external fun nativeSubtitleDecode(context: Long, packet: Long): Long
     private external fun nativeCaptionDecoderOpen(realTime: Boolean): Long
     private external fun nativeCaptionDecode(context: Long, captions: ByteArray, ptsMicros: Long): Long
@@ -624,8 +624,8 @@ internal object Internals {
     internal fun codecCtxSampleRate(context: Long) = checked { nativeCodecCtxSampleRate(context) }
     internal fun codecCtxChannels(context: Long) = checked { nativeCodecCtxChannels(context) }
     internal fun codecCtxTimeBase(context: Long) = unpackRational(checked { nativeCodecCtxTimeBase(context) })
-    internal fun subtitleDecoderOpen(fmtToken: Long, streamIndex: Int) =
-        token("subtitle decoder") { nativeSubtitleDecoderOpen(fmtToken, streamIndex) }
+    internal fun subtitleDecoderOpen(fmtToken: Long, streamIndex: Int, realTime: Boolean = false) =
+        token("subtitle decoder") { nativeSubtitleDecoderOpen(fmtToken, streamIndex, realTime) }
     internal fun subtitleDecode(context: Long, packet: Long) = checked { nativeSubtitleDecode(context, packet) }
     internal fun captionDecoderOpen(realTime: Boolean) = token("caption decoder") { nativeCaptionDecoderOpen(realTime) }
     internal fun captionDecode(context: Long, captions: ByteArray, ptsMicros: Long) =

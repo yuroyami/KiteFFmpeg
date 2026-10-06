@@ -258,7 +258,7 @@ JNIEXPORT jint JNICALL kj_codecctx_height(JNIEnv *env,jclass cls,jlong token)
 
 /* A decoder for subtitle stream stream_index of the source behind fmt_token: an owned context,
  * freed with kj_codecctx_free like any other. */
-JNIEXPORT jlong JNICALL kj_subtitle_decoder_open(JNIEnv *env, jclass cls, jlong fmt_token, jint stream_index)
+JNIEXPORT jlong JNICALL kj_subtitle_decoder_open(JNIEnv *env, jclass cls, jlong fmt_token, jint stream_index, jboolean real_time)
 {
     kc_fmt_ctx *ctx = (kc_fmt_ctx *)kj_handle_get(env, fmt_token, KJ_KIND_FMT_CTX);
     kc_codec_ctx *c = NULL;
@@ -266,7 +266,7 @@ JNIEXPORT jlong JNICALL kj_subtitle_decoder_open(JNIEnv *env, jclass cls, jlong 
     int rc;
     (void)cls;
     if (ctx == NULL) return 0;
-    rc = ffkmp_subtitle_decoder_open(ctx, stream_index, &c);
+    rc = ffkmp_subtitle_decoder_open2(ctx, stream_index, real_time ? 1 : 0, &c);
     if (rc < 0 || c == NULL) {
         kj_throw_ffmpeg(env, rc < 0 ? rc : -12, "subtitle_decoder_open");
         return 0;

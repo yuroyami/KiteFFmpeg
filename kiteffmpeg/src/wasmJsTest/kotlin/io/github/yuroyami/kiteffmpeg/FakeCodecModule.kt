@@ -1059,7 +1059,7 @@ internal fun fakeSubtitleCodecModule(): JsAny = installFakeSubtitleSurface(fakeP
         const text = m._malloc(32);
         m.stringToUTF8("0,0,Default,,0,0,0,,Hi", text, 32);
         const view = () => new DataView(m.HEAPU8.buffer);
-        m._ffkmp_subtitle_decoder_open = (ctx, index, out) => {
+        m._ffkmp_subtitle_decoder_open2 = (ctx, index, realTime, out) => {
             if (m.__subtitleOpenRc) return m.__subtitleOpenRc;
             m.HEAP32[out >> 2] = DECODER + index;
             return 0;
