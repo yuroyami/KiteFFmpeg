@@ -408,6 +408,21 @@ abstract class LinkKiteFFmpegJniTask @Inject constructor(
             emptyList()
         }
 
+        /**
+         * The NDK clang that runs on this build host. An NDK carries one prebuilt toolchain,
+         * named after the host it was made for, and a Mac NDK names its `darwin-x86_64` on Apple
+         * silicon too. Parameterised on the os.name so a test can drive every host from one
+         * machine (#176).
+         */
+        fun ndkClang(ndkHome: String, osName: String = System.getProperty("os.name").orEmpty()): String {
+            val (host, executable) = when {
+                osName.startsWith("Mac") || osName.startsWith("Darwin") -> "darwin-x86_64" to "clang"
+                osName.startsWith("Windows") -> "windows-x86_64" to "clang.exe"
+                else -> "linux-x86_64" to "clang"
+            }
+            return "$ndkHome/toolchains/llvm/prebuilt/$host/bin/$executable"
+        }
+
         /** The Gradle property that turns on the two Linux JNI libraries. */
         const val LINUX_SWITCH: String = "kiteffmpeg.jni.linux"
 

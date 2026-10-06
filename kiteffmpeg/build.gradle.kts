@@ -1101,10 +1101,12 @@ run {
         outputLibrary.set(outputDirectory.file("libkitecodec_jni.dylib"))
     }
 
-    // The Android arms, exactly the Android link recipe. ANDROID_NDK_HOME is read at
-    // configuration from the environment; a missing NDK or FFmpeg tree
+    // The Android arms, exactly the Android link recipe. The NDK is read at configuration from
+    // the same three variables the FFmpeg build reads; a missing NDK or FFmpeg tree
     // fails the arm at execution with the producer task named in the message.
     val ndkHome = providers.environmentVariable("ANDROID_NDK_HOME")
+        .orElse(providers.environmentVariable("ANDROID_NDK_ROOT"))
+        .orElse(providers.environmentVariable("ANDROID_NDK_LATEST_HOME"))
         .orElse("/Users/macbook/WORKSTATION/AndroidSDK/ndk/29.0.14206865")
     val androidJniLinks = LinkKiteFFmpegJniTask.ANDROID_ABI_RECIPES.associateWith { arm ->
         val helperCompile = androidHelperTasks.getValue(arm)
@@ -1117,9 +1119,7 @@ run {
             dependsOn(helperCompile)
             helperArchive.from(helperCompile.flatMap { it.outputDir.file(CompileKiteFFmpegCTask.ARCHIVE_NAME) })
             ffmpegLibDir.set(rootDir.resolve("native-libs/lgpl/${arm.ffmpegDirName}/lib"))
-            compiler.set(
-                ndkHome.map { "$it/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang" },
-            )
+            compiler.set(ndkHome.map { LinkKiteFFmpegJniTask.ndkClang(it) })
             extraIncludeDirs.set(emptyList())
             libSearchDirs.set(emptyList())
             linkFlags.set(

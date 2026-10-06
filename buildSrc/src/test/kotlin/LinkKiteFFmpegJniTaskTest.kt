@@ -60,6 +60,33 @@ class LinkKiteFFmpegJniTaskTest {
         )
     }
 
+    /**
+     * An NDK carries one prebuilt toolchain, named after the host it was made for, so the Android
+     * link names the build host's own. A path fixed to the Mac failed every link on Linux (#176).
+     */
+    @Test
+    fun theAndroidLinkTakesTheNdkClangOfTheBuildHost() {
+        val ndk = "/sdk/ndk/29.0.14206865"
+        assertEquals(
+            "$ndk/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang",
+            LinkKiteFFmpegJniTask.ndkClang(ndk, osName = "Mac OS X"),
+        )
+        assertEquals(
+            "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang",
+            LinkKiteFFmpegJniTask.ndkClang(ndk, osName = "Linux"),
+        )
+        assertEquals(
+            "$ndk/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe",
+            LinkKiteFFmpegJniTask.ndkClang(ndk, osName = "Windows 11"),
+        )
+        val source = File(checkNotNull(System.getProperty("kiteffmpeg.repo.root")))
+            .resolve("kiteffmpeg/build.gradle.kts").readText()
+        assertTrue("prebuilt/darwin-x86_64" !in source, "the build script names the Mac toolchain itself")
+        listOf("ANDROID_NDK_HOME", "ANDROID_NDK_ROOT", "ANDROID_NDK_LATEST_HOME").forEach { name ->
+            assertTrue("environmentVariable(\"$name\")" in source, "the Android link does not read $name")
+        }
+    }
+
     @Test
     fun desktopRecipesCoverEveryJvmPlatformTheLoaderNamesBesideMacos() {
         val recipes = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES
