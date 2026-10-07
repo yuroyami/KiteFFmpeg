@@ -126,6 +126,13 @@ public actual class MediaSource internal constructor(
     internal fun demuxFailure(code: Int, what: String): FFmpegException =
         FFmpegException(FFmpegError.fromCode(code, "$what failed with $code"), bridge.takeFailure() ?: nested?.takeFailure())
 
+    /**
+     * Starts one native demux operation. A callback failure which FFmpeg recovered from belongs
+     * to that completed operation, not a later error. Successful callbacks must not clear a
+     * failure here: the same operation can visit another input before returning its error.
+     */
+    internal fun beginDemuxOperation() = clearIoFailures(bridge, nested)
+
     /** A closed source throws IllegalStateException, with the message the other backends use. */
     private fun alive(): Int {
         check(!closed) { "MediaSource is closed" }
@@ -621,7 +628,9 @@ public actual class MediaSource internal constructor(
     private var paused = false
 
     public actual fun pause(): Boolean {
-        val rc = ffkmp_fmt_read_pause(requireModule(), alive())
+        val context = alive()
+        beginDemuxOperation()
+        val rc = ffkmp_fmt_read_pause(requireModule(), context)
         if (rc < 0) throw demuxFailure(rc, "pausing the source")
         if (rc == 1) paused = true
         return rc == 1
@@ -630,6 +639,7 @@ public actual class MediaSource internal constructor(
     public actual fun resume(): Boolean {
         val context = alive()
         if (!paused) return false
+        beginDemuxOperation()
         val rc = ffkmp_fmt_read_play(requireModule(), context)
         if (rc < 0) throw demuxFailure(rc, "resuming the source")
         paused = false
@@ -751,6 +761,7 @@ public actual class MediaSource internal constructor(
                 releaseIo()
                 throw failure
             }
+            clearIoFailures(bridge, nested)
             val rc = try {
                 if (url == null && location == null && mimeType == null && nested == null && bridge.tagsPointer == 0) {
                     openInputIo(
@@ -803,6 +814,7 @@ public actual class MediaSource internal constructor(
             val leftover = drainUnusedKeys(m, unusedSlot)
             wasmFree(m, unusedSlot)
             val ctx = readInt32(m, slot)
+            clearIoFailures(bridge, nested)
             val infoRc = ffkmp_fmt_find_stream_info(m, ctx)
             if (infoRc < 0) {
                 ffkmp_fmt_close_input_io(m, slot)
@@ -1213,4 +1225,10 @@ private class CStringArrays(val keys: Int, val values: Int, private val strings:
 internal fun webAvError(m: kotlin.js.JsAny, code: Int, label: String): FFmpegError {
     val text = utf8OrNull(m, ffkmp_strerror(m, code)) ?: "AVERROR($code)"
     return FFmpegError.fromCode(code, "$label: $text (code=$code)")
+}
+
+/** Clears both bridges, including when the preceding operation recovered from a callback error. */
+private fun clearIoFailures(bridge: WebIoBridge, nested: WebNestedOpener?) {
+    bridge.takeFailure()
+    nested?.takeFailure()
 }

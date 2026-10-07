@@ -283,7 +283,6 @@ private class OnDemandReader(private val module: JsAny, val io: MediaByteSource)
                 got > 0 -> {
                     writeBytes(module, destination, scratch, got)
                     position += got
-                    failure = null
                     got
                 }
                 got < 0 -> KC_IO_EOF

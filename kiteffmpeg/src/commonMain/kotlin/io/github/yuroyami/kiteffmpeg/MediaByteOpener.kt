@@ -30,10 +30,16 @@ package io.github.yuroyami.kiteffmpeg
  * Lifetime. The [MediaSource] owns every byte source that [open] returns. FFmpeg closes each one
  * when it has read what it needs, and the rest close with the MediaSource.
  *
- * On the web, a read cannot wait, so each byte source that [open] returns is read whole into the
- * codec module's memory and closed straight away, up to 512 MB each. [open] itself must answer
- * without waiting: on a page with bytes it already holds, and in a Worker, where a blocking request
- * is allowed, with a synchronous one.
+ * On the web, callbacks are synchronous. In a Worker or Node, [open], [MediaByteSource.read] and
+ * [MediaByteSource.seek] may perform synchronous I/O. Each child is read on demand with bounded
+ * scratch storage, without a whole-resource size cap, and remains owned until FFmpeg closes it or
+ * the parent closes. Known and unknown lengths, forward-only sources and changing [MediaByteSource.size]
+ * follow the same contract as the other backends. No callback may return a promise or suspend.
+ *
+ * On a browser page, callbacks must answer from bytes already available. Each child is still
+ * staged whole into the codec module's memory, up to 512 MiB, and closed straight away. A finite
+ * source of unknown length is staged to EOF within that bound. Use a Worker for streaming or
+ * synchronous range requests. The backend does not perform HTTP requests or choose their policy.
  */
 public fun interface MediaByteOpener {
 

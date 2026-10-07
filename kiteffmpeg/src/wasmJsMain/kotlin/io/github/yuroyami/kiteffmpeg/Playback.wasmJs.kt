@@ -124,6 +124,7 @@ public actual class PacketReader internal constructor(
         while (true) {
             val packet = ffkmp_packet_alloc(m)
             if (packet == 0) throw FFmpegException(FFmpegError.Internal("av_packet_alloc returned NULL"))
+            source.beginDemuxOperation()
             val rc = ffkmp_fmt_read_frame(m, context, packet)
             if (rc < 0) {
                 ffkmp_packet_free(m, packet)
@@ -194,6 +195,7 @@ public actual class PacketReader internal constructor(
         // place by exactly its start time: MPEG-TS captures above all.
         val target = micros + startTimeMicros
         val (min, max) = seekWindow(target, direction, notEarlierThan?.let { it + startTimeMicros })
+        source.beginDemuxOperation()
         val rc = ffkmp_fmt_seek_file(m, context, -1, min, target, max, flags)
         if (rc < 0) throw source.demuxFailure(rc, "seeking to ${micros}us")
     }

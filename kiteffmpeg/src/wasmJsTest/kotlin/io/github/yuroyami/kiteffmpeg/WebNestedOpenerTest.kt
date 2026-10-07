@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  * JVM and the native backends. That suite writes its segment with `MediaSink`, which the web does
  * not have, so the segment here is a fixed clip.
  *
- * The web reads each source the opener returns whole, at once, and closes it, so a segment is
+ * The browser page fallback reads each source whole, at once, and closes it, so a segment is
  * closed before FFmpeg reads its first packet. The native suite's test that a segment FFmpeg still
  * holds closes with the MediaSource therefore becomes [aSegmentIsReadWholeAndClosedWhenTheOpenerReturnsIt].
  */
@@ -95,7 +95,7 @@ class WebNestedOpenerTest {
 
     @Test
     fun anHttpsPlaylistLoadsItsSegmentThroughTheNestedOpener() = runTest {
-        if (!useLinkedCodecModule()) return@runTest
+        if (!useStagedModule()) return@runTest
         val opener = RecordingOpener(mapOf(SEGMENT_URL to SEGMENT))
         openPlaylist(opener).use { media ->
             assertEquals("hls", media.formatName)
@@ -108,7 +108,7 @@ class WebNestedOpenerTest {
 
     @Test
     fun aSegmentOfUnknownSizeIsReadToItsEnd() = runTest {
-        if (!useLinkedCodecModule()) return@runTest
+        if (!useStagedModule()) return@runTest
         val opener = RecordingOpener(mapOf(SEGMENT_URL to SEGMENT), sizeKnown = false)
         openPlaylist(opener).use { media -> assertEquals(60, videoPackets(media), "the segment holds 60 frames") }
         assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
@@ -116,7 +116,7 @@ class WebNestedOpenerTest {
 
     @Test
     fun aSegmentIsReadWholeAndClosedWhenTheOpenerReturnsIt() = runTest {
-        if (!useLinkedCodecModule()) return@runTest
+        if (!useStagedModule()) return@runTest
         val opener = RecordingOpener(mapOf(SEGMENT_URL to SEGMENT))
         openPlaylist(opener).use {
             assertTrue(opener.opened > 0, "the open never asked for the segment")
@@ -127,7 +127,7 @@ class WebNestedOpenerTest {
 
     @Test
     fun aRefusedSegmentFailsTheOpenAndOpensNothing() = runTest {
-        if (!useLinkedCodecModule()) return@runTest
+        if (!useStagedModule()) return@runTest
         val opener = RecordingOpener(emptyMap())
         val error = runCatching { openPlaylist(opener).close() }.exceptionOrNull()
         assertIs<FFmpegException>(error, "a playlist whose only segment is refused must not open")
@@ -137,7 +137,7 @@ class WebNestedOpenerTest {
 
     @Test
     fun anOpenerExceptionIsTheCauseOfTheFailedOpen() = runTest {
-        if (!useLinkedCodecModule()) return@runTest
+        if (!useStagedModule()) return@runTest
         val thrown = OpenerFailure("the opener failed while the open loaded a segment")
         val error = runCatching { openPlaylist(RecordingOpener(emptyMap(), failWith = thrown)).close() }.exceptionOrNull()
         assertIs<FFmpegException>(error)
@@ -147,7 +147,7 @@ class WebNestedOpenerTest {
     /** The read fails while the segment is staged, which the web does before FFmpeg reads a byte. */
     @Test
     fun aSegmentWhoseReadFailsFailsTheOpenAndIsClosed() = runTest {
-        if (!useLinkedCodecModule()) return@runTest
+        if (!useStagedModule()) return@runTest
         val thrown = OpenerFailure("the segment failed while it was read")
         val opener = RecordingOpener(mapOf(SEGMENT_URL to SEGMENT), failReadWith = thrown)
         val error = runCatching { openPlaylist(opener).close() }.exceptionOrNull()
@@ -159,14 +159,20 @@ class WebNestedOpenerTest {
 
     @Test
     fun withoutTheMimeTypeANameWithoutM3u8DoesNotOpen() = runTest {
-        if (!useLinkedCodecModule()) return@runTest
+        if (!useStagedModule()) return@runTest
         val opener = RecordingOpener(mapOf(SEGMENT_URL to SEGMENT))
         val error = runCatching { openPlaylist(opener, mimeType = null).close() }.exceptionOrNull()
         assertIs<FFmpegException>(error, "FFmpeg's probe must refuse a playlist it cannot recognise")
         assertEquals(0, opener.opened)
     }
 
-    private companion object {
+    private suspend fun useStagedModule(): Boolean {
+        if (!useLinkedCodecModule()) return false
+        WebIoBridge.readOnDemand = false
+        return true
+    }
+
+    internal companion object {
         const val PLAYLIST_URL = "https://media.example/live/index"
         const val SEGMENT_URL = "https://media.example/live/seg0.ts"
         const val HLS_TYPE = "application/vnd.apple.mpegurl"

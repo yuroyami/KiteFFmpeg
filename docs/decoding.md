@@ -158,11 +158,6 @@ Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`
 The opener runs on the thread that drives the demuxer, and it may block. The `MediaSource` closes
 every source the opener returned.
 
-**Planned contract for #182.** The demand-read behavior below is the accepted design and is not
-implemented yet. The released 0.5.0 nested bridge and the current implementation stage every child
-whole, including in a Worker or Node, with a 512 MiB limit. The implementation step will remove
-this notice after its regression tests pass. The browser-page staging fallback remains intentional.
-
 On the web, the opener and each source's callbacks are synchronous. In a Web Worker or Node,
 FFmpeg reads each child on demand through its `read` and `seek`, with bounded scratch storage and
 no whole-resource size cap. The child can serve synchronous range requests against a large
