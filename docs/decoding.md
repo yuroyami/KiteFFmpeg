@@ -158,12 +158,32 @@ Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`
 The opener runs on the thread that drives the demuxer, and it may block. The `MediaSource` closes
 every source the opener returned.
 
-On the web, a read cannot wait for the network, so the opener has to answer at once. A page can
-serve the bytes it already holds, and a Web Worker, where a synchronous `XMLHttpRequest` is still
-allowed, can fetch each address as it is asked. Each source the opener returns is read whole into
-the codec module's memory and closed straight away, so a segment is held in memory while FFmpeg
-reads it, up to 512 MB per source. `url` and `mimeType` reach the probe as on the other platforms,
-and a source's `location` counts as it does there.
+**Planned contract for #182.** The demand-read behavior below is the accepted design and is not
+implemented yet. The released 0.5.0 nested bridge and the current implementation stage every child
+whole, including in a Worker or Node, with a 512 MiB limit. The implementation step will remove
+this notice after its regression tests pass. The browser-page staging fallback remains intentional.
+
+On the web, the opener and each source's callbacks are synchronous. In a Web Worker or Node,
+FFmpeg reads each child on demand through its `read` and `seek`, with bounded scratch storage and
+no whole-resource size cap. The child can serve synchronous range requests against a large
+resource without copying that resource into the codec module. A known or unknown length reaches
+FFmpeg as supplied; `size` is queried again for later size requests. A forward-only child remains
+forward-only. No callback may suspend or return a promise.
+
+A child stays owned until FFmpeg closes it, and every remaining child closes with the parent.
+An open or metadata failure closes a child already transferred to the opener. Read and seek
+failures retain the caller's exception as the cause of the demux error when FFmpeg reports that
+failure. The opener decides which addresses are permitted and how transport, redirects, headers,
+timeouts and cancellation work. The backend does not make HTTP requests or bypass that policy.
+On an open `MediaSource`, an interrupt is observed at FFmpeg's checks, including between child
+reads; it cannot preempt a synchronous read that is already inside caller code. `OpenInterrupt`
+retains the web backend's checks before and after open. No other event-loop work can run on the
+same Worker while its synchronous open or read is running.
+
+On a browser page, callbacks must answer from bytes already available. Each child keeps the
+whole-source staging fallback, up to 512 MiB, and closes after staging. A finite source without a
+known length is staged to EOF within the same bound. Streaming and synchronous range I/O belong
+in a Worker. `url`, `mimeType` and a source's final `location` retain their normal meaning.
 
 The `MediaByteSource` handed to `open` itself is read on demand in a Web Worker: FFmpeg calls its
 `read` and `seek` as it needs bytes, so a source that answers with synchronous range requests plays
