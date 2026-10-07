@@ -27,7 +27,7 @@ Two points decide whether KiteFFmpeg is usable for you:
   this repository's CI. `wasmJs` is a real playback backend once its wasm module is loaded, while
   `js` reports no capabilities and rejects every media operation with typed
   `FFmpegError.Unsupported`.
-- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.4.0` on Maven Central, one
+- **KiteFFmpeg is published**: `io.github.yuroyami:kiteffmpeg:0.5.0` on Maven Central, one
   dependency line, FFmpeg embedded inside the artifacts. There is no Gradle plugin and no FFmpeg
   download step. `mingwX64` builds and tests in CI; `linuxArm64` runs its native suite in an arm64
   container; `iosX64` and `macosX64` remain unqualified.
@@ -142,7 +142,7 @@ place, which is why the Windows job tests the SHIPPED profile rather than somebo
 
 ```powershell
 # Tag and asset are pinned, never "latest", and the checksum is verified before use.
-$tag  = "ffmpeg-n9.0.2-r2"
+$tag  = "ffmpeg-n9.0.2-r3"
 $name = "ffmpeg-n9.0.2-lgpl-mingw-x64.zip"
 Invoke-WebRequest -Uri "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$name" -OutFile $name
 Expand-Archive $name -DestinationPath native-libs\lgpl\mingw-x64

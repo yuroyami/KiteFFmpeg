@@ -44,9 +44,10 @@ portions remain LGPL-2.1-or-later (dav1d: BSD-2-Clause); the artifact POMs
 declare all three licences, the JVM jar carries the licence texts under
 META-INF/licenses/kiteffmpeg-ffmpeg/, and the complete corresponding FFmpeg
 source is attached to the GitHub release that FFMPEG_ASSET_TAG names in
-.github/workflows/publish.yml, beside the prebuilt binaries (ffmpeg-n9.0.2-r2 from
-KiteFFmpeg 0.4.0, ffmpeg-n9.0.2 for 0.3.0). Those releases are never deleted,
-because a published version cannot be withdrawn from Maven Central. An application
+.github/workflows/publish.yml, beside the prebuilt binaries (ffmpeg-n9.0.2-r3 from
+KiteFFmpeg 0.5.0, ffmpeg-n9.0.2-r2 for 0.4.0, ffmpeg-n9.0.2 for 0.3.0). Those
+releases are never deleted, because a published version cannot be withdrawn from
+Maven Central. An application
 that ships these artifacts must give its users the LGPL notice and keep that
 source available; that release asset satisfies the source half.
 

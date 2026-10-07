@@ -58,8 +58,8 @@ env:
   # drift check could not see them because it only read this line.
   FFMPEG_VERSION: n9.0.2
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
-  # They parted again for 0.4.0: ffmpeg-n9.0.2-r2 holds n9.0.2 built with the HLS patch, and
-  # ffmpeg-n9.0.2 stays as the binaries and source offer of 0.3.0. The ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as
+  # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0. ffmpeg-n9.0.2-r2 stays
+  # as the binaries and source offer of 0.4.0, and ffmpeg-n9.0.2 as those of 0.3.0. The ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as
   # the LGPL source offer for kitecodec-core artifacts already on Maven Central, and Central cannot
   # withdraw a version. What follows is the record of why they parted in 2026-08.
   #
@@ -68,7 +68,7 @@ env:
   # than over ffmpeg-n8.0, because NOTICE names that release as the LGPL source offer for artifacts
   # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
   # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
-  FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r2
+  FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r3
 
 jobs:
   macos-arm64:
@@ -895,7 +895,7 @@ jobs:
         shell: pwsh
         env:
           FFMPEG_VERSION: n9.0.2
-          FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r2
+          FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r3
         run: |
           $base = "https://github.com/${{ github.repository }}/releases/download/$env:FFMPEG_ASSET_TAG"
           $asset = "ffmpeg-$env:FFMPEG_VERSION-lgpl-mingw-x64.zip"

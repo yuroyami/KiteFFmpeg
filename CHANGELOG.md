@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-07
+
+Closed captions, live network streams over UDP, RTP and RTMP, Matroska chapters and editions,
+programmes, Dolby Vision and spherical metadata, and HLS on the web. The FFmpeg builds carry
+fifteen patches. The upgrade notes come first.
+
 ### Upgrading
 
 - `VideoStreamInfo` gains `dolbyVision`, `crop`, `spherical` and `stereo3d`, which changes its
@@ -1196,7 +1202,8 @@ Everything below grew from `0.0.1` and is listed for orientation rather than as 
 
 Initial development baseline: project structure, consolidated FFmpeg cinterop binding (`ffmpeg.def` + `ffkmp_*` helpers), and the first working decode/encode paths on macOS arm64. Everything listed under [Unreleased] grew from here; treat 0.0.1 as the "it exists and transcodes" milestone rather than a supported release.
 
-[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.4.0...HEAD
+[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.5.0...HEAD
+[0.5.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.5.0
 [0.4.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.4.0
 [0.3.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.3.0
 [0.2.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.2.0

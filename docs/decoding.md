@@ -151,7 +151,7 @@ Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`
   defined with `QUERYPARAM` takes its value from the query of the playlist's own address, which for
   the master playlist is `url`, so pass the address with its query. A playlist that uses a variable
   nothing defined, or defines one in a way the specification forbids, fails the open, and FFmpeg's
-  log names the variable. This needs the FFmpeg patch `0011`, which the trees of 0.4.0 do not carry.
+  log names the variable. This needs the FFmpeg patch `0011`, which the trees carry from 0.5.0.
 - A playlist of WebM or Matroska segments seeks after it has been read to its end, as MP4 and
   MPEG-TS segments do.
 

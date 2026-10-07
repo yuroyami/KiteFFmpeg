@@ -111,7 +111,7 @@ When something goes wrong, you get one `FFmpegException` that carries a typed `F
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.4.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.5.0")
 }
 ```
 
