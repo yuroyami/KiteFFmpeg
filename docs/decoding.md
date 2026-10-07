@@ -94,6 +94,10 @@ call neither from another thread while a read or another call runs.
 bytes come from your own HTTP client, a cache or an encrypted store. The source must block until it
 has bytes, and the returned `MediaSource` closes it.
 
+An asynchronous provider is a separate [planned byte-I/O API](async-byte-io.md), tracked in
+[KiteFFmpeg #183](https://github.com/yuroyami/KiteFFmpeg/issues/183). It is not implemented or
+available in a release; the callbacks described here remain synchronous.
+
 Three optional parameters say where the bytes come from:
 
 - `url` is the address the bytes came from. FFmpeg recognises formats by it, as it does by a file
