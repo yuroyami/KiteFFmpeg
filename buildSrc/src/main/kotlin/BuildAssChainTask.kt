@@ -557,12 +557,13 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
         const val LIBASS_PATCH_EVIDENCE = "libass-patches.txt"
 
         /** The chain this repo builds by default; mpv-android ships the same series. */
-        const val DEFAULT_SOURCE_REFS = "fribidi-1.0.17 freetype-2.14.3 harfbuzz-14.5.0 libass-0.17.5"
+        const val DEFAULT_SOURCE_REFS = "fribidi-1.0.17 freetype-2.14.3 harfbuzz-14.6.0 libass-0.17.5"
 
         /**
          * The four checkouts under `vendor/`, each named by its directory, with the tag
          * `release-ass-chain.yml` clones and the commit that tag names upstream, read with
-         * `git ls-remote` on 2026-10-04. Moving a tag means moving its commit with it.
+         * `git ls-remote` on 2026-10-04, and for HarfBuzz on 2026-10-08. Moving a tag means moving
+         * its commit with it.
          */
         val SOURCES: List<PinnedSource> = listOf(
             PinnedSource(
@@ -574,8 +575,8 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
                 "0a0221a1347e2f1e07c395263540026e9a0aa7c7",
             ),
             PinnedSource(
-                "harfbuzz", "https://github.com/harfbuzz/harfbuzz.git", "14.5.0",
-                "863d3f7787c6df18d20e4535c5906bf3eb803bd5",
+                "harfbuzz", "https://github.com/harfbuzz/harfbuzz.git", "14.6.0",
+                "c7a7457b7385f33178e8cf87615ca077a810bbe7",
             ),
             PinnedSource(
                 "libass", "https://github.com/libass/libass.git", "0.17.5",

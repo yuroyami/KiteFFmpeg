@@ -184,7 +184,7 @@ jobs:
       # later publish cannot ship different bytes from the same inputs.
       - name: Build the web codec module
         env:
-          EMSCRIPTEN_VERSION: "6.0.10"
+          EMSCRIPTEN_VERSION: "6.0.11"
         run: |
           set -euo pipefail
           git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"

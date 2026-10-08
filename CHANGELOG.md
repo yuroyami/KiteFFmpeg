@@ -21,6 +21,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   synchronous API and `kite.mjs` did not change.
   See [docs/async-byte-io.md](docs/async-byte-io.md).
 
+### Changed
+
+- The build uses Kotlin 2.4.21, Gradle 9.8.1, Dokka 2.3.0-Beta, Android compileSdk 37, Android
+  NDK r30 and Emscripten 6.0.11.
+- The subtitle chain that KitePlayer links, the `ass-chain` release assets, builds HarfBuzz
+  14.6.0 instead of 14.5.0.
+
 ### Fixed
 
 - The web codec module opens an HLS stream that has a WebVTT subtitle rendition, and reads the

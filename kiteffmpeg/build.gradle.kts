@@ -254,7 +254,7 @@ kotlin {
             as KotlinMultiplatformAndroidLibraryTarget
         androidTarget.apply {
             namespace = "io.github.yuroyami.kiteffmpeg"
-            compileSdk = 36
+            compileSdk { version = release(37) { minorApiLevel = 2 } }
             minSdk = 26
             withHostTest {}
             withDeviceTestBuilder {
@@ -1106,7 +1106,7 @@ mavenPublishing {
  *                                through -exported_symbols_list (Mach-O has no version script).
  *   linkKiteFFmpegJniAndroidArm64 / linkKiteFFmpegJniAndroidArm32 / linkKiteFFmpegJniAndroidX64
  *                                the AAR's jniLibs inputs, one per LinkKiteFFmpegJniTask
- *                                ANDROID_ABI_RECIPES entry. NDK r29 clang, the ELF version script,
+ *                                ANDROID_ABI_RECIPES entry. NDK r30 clang, the ELF version script,
  *                                and 16 KiB page flags on the two 64-bit ABIs. They require the
  *                                Android FFmpeg trees the producer tasks vendor first.
  */
@@ -1197,7 +1197,7 @@ run {
     val ndkHome = providers.environmentVariable("ANDROID_NDK_HOME")
         .orElse(providers.environmentVariable("ANDROID_NDK_ROOT"))
         .orElse(providers.environmentVariable("ANDROID_NDK_LATEST_HOME"))
-        .orElse("/Users/macbook/WORKSTATION/AndroidSDK/ndk/29.0.14206865")
+        .orElse("/Users/macbook/WORKSTATION/AndroidSDK/ndk/30.0.16248370")
     val androidJniLinks = LinkKiteFFmpegJniTask.ANDROID_ABI_RECIPES.associateWith { arm ->
         val helperCompile = androidHelperTasks.getValue(arm)
         tasks.register<LinkKiteFFmpegJniTask>(arm.linkTaskName) {
