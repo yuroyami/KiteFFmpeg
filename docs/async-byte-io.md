@@ -25,7 +25,7 @@ The authored mechanism probes exercised tiny C/Wasm programs and actual Kotlin/W
 - A source closes its open packet reader with itself. The synchronous `MediaSource.close` refuses while a reader is open.
 - The FFmpeg log sink of `FFmpeg.setLogSink` does not hear a web runtime's module. The lines FFmpeg logs while it refuses an open still ride on the exception.
 - The operation states of "Kotlin job and native-unwind ownership" are not a named enum. The lane holds the same facts in its lock, its stop signal and its close records.
-- No test counts descriptor materialisations, and no browser test runs the runtime yet. The Node run covers both modules.
+- No test counts descriptor materialisations. The runtime's tests run in Node and in a page of headless Chrome, on both modules. No test runs it in a Web Worker yet.
 - The experiments of "Required cancellation, seek and playback experiments" are not done. Nothing here promises a responsive seek on a live stream.
 
 ## Owned runtime and artifact choice

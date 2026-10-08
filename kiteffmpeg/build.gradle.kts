@@ -214,7 +214,16 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+        browser {
+            testTask {
+                // karma.config.d/modules.js serves the linked modules to the page and reads this
+                // switch, which means here what it means for the Node half below.
+                environment(
+                    "KITEFFMPEG_WEB_MODULE_REQUIRED",
+                    providers.gradleProperty("kiteffmpeg.web.requireModule").getOrElse("false"),
+                )
+            }
+        }
         nodejs {
             testTask {
                 // Mocha's per-test default is 2000 ms, the same ceiling timeouts.js raises for the

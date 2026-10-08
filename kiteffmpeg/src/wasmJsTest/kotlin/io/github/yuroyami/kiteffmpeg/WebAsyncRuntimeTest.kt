@@ -199,9 +199,17 @@ class WebAsyncRuntimeTest : AsyncRuntimeContract() {
     }
 }
 
-/** A file URL for [name] in the folder of the linked asynchronous modules, or null when it is not there. */
+/**
+ * A URL for [name] among the linked asynchronous modules, or null when it is not there: a file URL
+ * in Node, and in a browser the address karma.config.d/modules.js serves it at.
+ */
 @JsFun(
     """(name) => {
+        const served = globalThis.__karma__ && globalThis.__karma__.config ? globalThis.__karma__.config.kiteModules : undefined;
+        if (served) {
+            const at = name === "kite-jspi.mjs" ? served.jspi : name === "kite-asyncify.mjs" ? served.asyncify : served.module;
+            return at ? new URL(at, globalThis.location.href).href : null;
+        }
         const p = globalThis.process;
         const folder = p && p.env ? p.env.KITEFFMPEG_WEB_ASYNC_MODULES : undefined;
         if (!folder || !p.getBuiltinModule) return null;
@@ -214,6 +222,8 @@ private external fun asyncModuleUrl(name: String): String?
 
 @JsFun(
     """() => {
+        const served = globalThis.__karma__ && globalThis.__karma__.config ? globalThis.__karma__.config.kiteModules : undefined;
+        if (served) return !!served.required;
         const p = globalThis.process;
         return !!(p && p.env && p.env.KITEFFMPEG_WEB_MODULE_REQUIRED === "true");
     }""",
@@ -224,6 +234,14 @@ private external fun asyncModulesRequired(): Boolean
 @JsFun(
     """(key) => {
         const p = globalThis.process;
+        const served = globalThis.__karma__ && globalThis.__karma__.config ? globalThis.__karma__.config.kiteModules : undefined;
+        if (!globalThis.kiteHlsFixture && served) {
+            // A page has no file to read, and this lookup cannot wait, so the request is a synchronous one.
+            const request = new XMLHttpRequest();
+            request.open("GET", served.hlsFixture, false);
+            request.send();
+            globalThis.kiteHlsFixture = JSON.parse(request.responseText);
+        }
         if (!globalThis.kiteHlsFixture) {
             const file = p && p.env ? p.env.KITEFFMPEG_WEB_HLS_FIXTURE : undefined;
             globalThis.kiteHlsFixture = JSON.parse(p.getBuiltinModule("node:fs").readFileSync(file, "utf8"));
@@ -235,7 +253,8 @@ private external fun asyncModulesRequired(): Boolean
 )
 private external fun hlsFixture(key: String): String?
 
-@JsFun("(url) => import(url).then((loaded) => loaded.default({ printErr: () => {} }))")
+// webpack bundles the browser tests and would resolve a plain import() itself, so it is told not to.
+@JsFun("(url) => import(/* webpackIgnore: true */ url).then((loaded) => loaded.default({ printErr: () => {} }))")
 private external fun instantiate(url: String): Promise<JsAny>
 
 @JsFun("() => performance.now()")

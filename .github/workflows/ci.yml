@@ -429,6 +429,12 @@ jobs:
         run: |
           ./gradlew :kiteffmpeg:wasmJsNodeTest -Pkiteffmpeg.web.requireModule=true \
             -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+      # The same tests in a page of headless Chrome, which loads the modules over HTTP as a site
+      # does. karma.config.d/modules.js serves them.
+      - name: Web tests against the linked module (headless browser)
+        run: |
+          ./gradlew :kiteffmpeg:wasmJsBrowserTest -Pkiteffmpeg.web.requireModule=true \
+            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4

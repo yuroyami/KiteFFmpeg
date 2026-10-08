@@ -29,10 +29,15 @@ internal suspend fun useLinkedCodecModule(): Boolean {
     return true
 }
 
-/** A file URL for the linked module the build named, or null when there is none. */
+/**
+ * A URL for the linked module the build named, or null when there is none: a file URL in Node, and
+ * in a browser the address karma.config.d/modules.js serves it at.
+ */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
     """() => {
+        const served = globalThis.__karma__ && globalThis.__karma__.config ? globalThis.__karma__.config.kiteModules : undefined;
+        if (served) return served.module ? new URL(served.module, globalThis.location.href).href : null;
         const p = globalThis.process;
         const file = p && p.env ? p.env.KITEFFMPEG_WEB_MODULE : undefined;
         if (!file) return null;
@@ -48,6 +53,8 @@ private external fun linkedModuleUrl(): String?
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
     """() => {
+        const served = globalThis.__karma__ && globalThis.__karma__.config ? globalThis.__karma__.config.kiteModules : undefined;
+        if (served) return !!served.required;
         const p = globalThis.process;
         return !!(p && p.env && p.env.KITEFFMPEG_WEB_MODULE_REQUIRED === "true");
     }""",
