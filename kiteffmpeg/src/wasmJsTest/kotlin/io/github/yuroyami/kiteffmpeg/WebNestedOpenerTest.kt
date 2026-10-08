@@ -157,6 +157,47 @@ class WebNestedOpenerTest {
         assertEquals(1, opener.closed, "a segment that could not be read is still closed")
     }
 
+    /**
+     * A subtitle rendition is a WebVTT stream of the playlist (#184). FFmpeg's HLS reader probes
+     * the first segment of every playlist at the open, so a module with no WebVTT reader fails
+     * the whole open, not only the subtitles.
+     */
+    @Test
+    fun aPlaylistWithAWebVttRenditionOpensWithItsSubtitleStream() = runTest {
+        if (!useStagedModule()) return@runTest
+        val opener = RecordingOpener(
+            mapOf(
+                PLAYLIST_URL to PLAYLIST.encodeToByteArray(),
+                SEGMENT_URL to SEGMENT,
+                SUBTITLE_PLAYLIST_URL to SUBTITLE_PLAYLIST.encodeToByteArray(),
+                FIRST_CUE_URL to FIRST_CUE.encodeToByteArray(),
+                SECOND_CUE_URL to SECOND_CUE.encodeToByteArray(),
+            ),
+        )
+        MediaSource.open(MemorySource(MASTER.encodeToByteArray()), url = MASTER_URL, mimeType = HLS_TYPE, nestedOpener = opener).use { media ->
+            assertEquals(CodecId("h264"), media.primaryVideo?.codec)
+            val subtitle = media.streams.singleOrNull { it.type == MediaType.Subtitle }
+                ?: error("the rendition is not a stream: ${media.streams.map { it.type to it.codec }}")
+            assertEquals(CodecId("webvtt"), subtitle.codec)
+            assertEquals("de", subtitle.metadata["language"])
+            // FFmpeg reads a subtitle rendition beside the streams it follows, so both are read.
+            val video = media.primaryVideo ?: error("the playlist has no video stream")
+            val cues = mutableListOf<Long?>()
+            var pictures = 0
+            media.openPacketReader(listOf(video, subtitle)).use { reader ->
+                while (true) {
+                    val packet = reader.read() ?: break
+                    if (packet.streamIndex == subtitle.index) cues += packet.ptsMicros else pictures++
+                    packet.close()
+                }
+            }
+            assertEquals(60, pictures, "the segment holds 60 frames")
+            assertTrue(2_000_000L in cues, "the cue of the second WebVTT file arrives at its own time, 2 s: $cues")
+        }
+        assertTrue(FIRST_CUE_URL in opener.asked, "the opener was never asked for the WebVTT file: ${opener.asked}")
+        assertEquals(opener.opened, opener.closed, "every nested source must be closed once")
+    }
+
     @Test
     fun withoutTheMimeTypeANameWithoutM3u8DoesNotOpen() = runTest {
         if (!useStagedModule()) return@runTest
@@ -176,6 +217,35 @@ class WebNestedOpenerTest {
         const val PLAYLIST_URL = "https://media.example/live/index"
         const val SEGMENT_URL = "https://media.example/live/seg0.ts"
         const val HLS_TYPE = "application/vnd.apple.mpegurl"
+        const val MASTER_URL = "https://media.example/live/master"
+        const val SUBTITLE_PLAYLIST_URL = "https://media.example/live/subs.m3u8"
+        const val FIRST_CUE_URL = "https://media.example/live/s0.vtt"
+        const val SECOND_CUE_URL = "https://media.example/live/s1.vtt"
+
+        /** One variant, which is [PLAYLIST], and one subtitle rendition. */
+        val MASTER = """
+            #EXTM3U
+            #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Deutsch",LANGUAGE="de",URI="subs.m3u8"
+            #EXT-X-STREAM-INF:BANDWIDTH=400000,CODECS="avc1.42c00a",SUBTITLES="subs"
+            index
+        """.trimIndent() + "\n"
+
+        val SUBTITLE_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-TARGETDURATION:2
+            #EXT-X-MEDIA-SEQUENCE:0
+            #EXT-X-PLAYLIST-TYPE:VOD
+            #EXTINF:2.0,
+            s0.vtt
+            #EXTINF:2.0,
+            s1.vtt
+            #EXT-X-ENDLIST
+        """.trimIndent() + "\n"
+
+        /** The two WebVTT segments, one cue each. [SEGMENT] shows from 1.4 s to 3.4 s. */
+        val FIRST_CUE = "WEBVTT\n\n00:00:00.000 --> 00:00:01.900\nZeile 1\n"
+        val SECOND_CUE = "WEBVTT\n\n00:00:02.000 --> 00:00:03.900\nZeile 2\n"
 
         val PLAYLIST = """
             #EXTM3U

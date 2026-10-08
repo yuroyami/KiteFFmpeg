@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- The web codec module opens an HLS stream that has a WebVTT subtitle rendition, and reads the
+  rendition as a `webvtt` stream. Before, the web FFmpeg had no WebVTT reader, and the HLS reader
+  failed the whole open on the subtitle playlist with "Invalid data found when processing input"
+  (#184).
+
 ## [0.5.0] - 2026-10-07
 
 Closed captions, live network streams over UDP, RTP and RTMP, Matroska chapters and editions,

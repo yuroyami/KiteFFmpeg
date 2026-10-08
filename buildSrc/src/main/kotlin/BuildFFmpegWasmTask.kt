@@ -268,8 +268,12 @@ abstract class BuildFFmpegWasmTask @Inject constructor() : DefaultTask() {
          * selects the readers its segments need along with it: `mpegts`, `mov` and the raw `aac`,
          * `ac3` and `eac3` ones. It opens nothing by itself, because the web build carries no
          * network protocol, so every playlist, segment and key arrives through the caller's opener.
+         *
+         * `webvtt` is the reader of an HLS subtitle rendition, which configure does not select
+         * with `hls`. Without it the open of a stream that has such a rendition fails as a whole,
+         * because the HLS reader probes the first segment of every playlist (#184).
          */
-        const val DEMUXERS = "mov,matroska,mp3,flac,hls"
+        const val DEMUXERS = "mov,matroska,mp3,flac,hls,webvtt"
 
         const val PARSERS = "h264,hevc,vp9,aac,aac_latm,mpegaudio,flac,opus,vorbis"
 
