@@ -62,7 +62,7 @@ allprojects {
 
 apiValidation {
     // Only :kiteffmpeg is a published library with a guarded API surface.
-    ignoredProjects += listOf("kiteffmpeg-sample")
+    ignoredProjects += listOf("kiteffmpeg-sample", "kiteffmpeg-web-worker-test")
 
     // Native declarations remain guarded in klibs. Every scope has one public JVM target using
     // the unavailable placeholder, so its dump lives directly under kiteffmpeg/api/. The

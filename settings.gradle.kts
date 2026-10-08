@@ -22,4 +22,5 @@ dependencyResolutionManagement {
 rootProject.name = "KiteFFmpeg"
 include(":kiteffmpeg")
 include(":kiteffmpeg-sample")
+include(":kiteffmpeg-web-worker-test")
 // kiteffmpeg-gpl is not a module: nothing builds or publishes a GPL flavour (see kiteffmpeg-gpl/README.md).

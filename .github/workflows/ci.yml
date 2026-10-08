@@ -435,6 +435,12 @@ jobs:
         run: |
           ./gradlew :kiteffmpeg:wasmJsBrowserTest -Pkiteffmpeg.web.requireModule=true \
             -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+      # The asynchronous runtime in a Web Worker: a second wasm binary reads a real HLS stream on
+      # both modules, and the page checks what it posts.
+      - name: Asynchronous runtime in a Web Worker (headless browser)
+        run: |
+          ./gradlew :kiteffmpeg-web-worker-test:wasmJsBrowserTest -Pkiteffmpeg.web.requireModule=true \
+            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
