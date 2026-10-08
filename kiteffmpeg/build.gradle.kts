@@ -830,6 +830,51 @@ val linkWasmModule =
         signatureBaseline.set(rootDir.resolve("native/kitecodec-c/signature-baseline.txt"))
         outputDir.set(layout.buildDirectory.dir("kite-web"))
     }
+// The two asynchronous codec modules (#183), whose byte sources may answer later. They are build
+// outputs only for now: no API loads them yet, so the `web` zip does not carry them.
+val linkAsyncWasmModules =
+    tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.LinkKiteFFmpegAsyncWasmModulesTask>("linkKiteFFmpegAsyncWasmModules") {
+        group = "kiteffmpeg"
+        description = "Links kite-jspi and kite-asyncify, the codec modules whose byte sources may answer later."
+        dependsOn("compileKiteFFmpegCForWasm")
+        helperArchive.set(rootDir.resolve("native-libs/deps/wasm32/kiteffmpeg/libkitecodec.a"))
+        ffmpegLibDir.set(wasmFFmpegRoot.resolve("lib"))
+        signatureBaseline.set(rootDir.resolve("native/kitecodec-c/signature-baseline.txt"))
+        bridgeSource.set(rootDir.resolve("native/kitecodec-web/kite_async_bridge.c"))
+        importsLibrary.set(rootDir.resolve("native/kitecodec-web/kite_async_imports.js"))
+        includeDirs.from(
+            rootDir.resolve("native/kitecodec-c/include"),
+            rootDir.resolve("native/kitecodec-handles"),
+            wasmFFmpegRoot.resolve("include"),
+        )
+        outputDir.set(layout.buildDirectory.dir("kite-web-async"))
+    }
+
+// Drives the real FFmpeg in each asynchronous module from Node: every byte source call answers
+// from a timer, a live playlist stops growing, and the event loop must run while it waits.
+val checkAsyncWasmModules = tasks.register("checkKiteFFmpegAsyncWasmModules") {
+    group = "verification"
+    description = "Runs the Node check of kite-jspi and kite-asyncify."
+    dependsOn(linkAsyncWasmModules)
+    val modules = layout.buildDirectory.dir("kite-web-async")
+    val script = rootDir.resolve("native/kitecodec-web/tests/check_async_module.mjs")
+    val node = providers.exec { commandLine("sh", "-c", "command -v node || true") }.standardOutput.asText
+    inputs.dir(modules)
+    inputs.dir(rootDir.resolve("native/kitecodec-web/tests"))
+    doLast {
+        val nodePath = node.get().trim()
+        check(nodePath.isNotEmpty()) { "node is not on PATH, and the asynchronous codec modules are checked with it." }
+        for (strategy in io.github.yuroyami.kiteffmpeg.buildtools.LinkKiteFFmpegAsyncWasmModulesTask.Strategy.entries) {
+            val module = modules.get().asFile.resolve(strategy.moduleFile)
+            val process = ProcessBuilder(nodePath, script.absolutePath, module.absolutePath, strategy.name.lowercase())
+                .redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            check(process.waitFor() == 0) { "the check of ${strategy.moduleFile} failed:\n$output" }
+            logger.lifecycle(output.trim())
+        }
+    }
+}
+
 val kiteffmpegWebZip = tasks.register<Zip>("kiteffmpegWebZip") {
     group = "kiteffmpeg"
     description = "The web codec module as one zip, for the wasmJs publication."

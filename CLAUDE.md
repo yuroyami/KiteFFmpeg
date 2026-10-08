@@ -147,6 +147,15 @@ Each line is something that bit someone. Delete a line when it stops being true.
   loop living in JavaScript.
 - The latin1 pack trick corrupts bytes over 0x7F if anything encodes the string as UTF-8 in
   transit; the 0 to 255 ramp test exists for exactly that and must never be weakened to ASCII.
+- The asynchronous codec modules hold one bridge for JSPI and Asyncify, and Asyncify sets its
+  rules (#183). An export that can park takes no 64-bit parameter: Asyncify calls it again with
+  no arguments to rewind, and the wrapper fails with "Cannot convert undefined to a BigInt". A
+  suspending import returns no 64-bit value: it fails with "Cannot convert 0 to a BigInt". Pass
+  both through memory. An import marked `__async` parks by itself only with JSPI; with Asyncify
+  it must go through `Asyncify.handleAsync`.
+- FFmpeg's live HLS reader waits in `av_usleep`, which holds the only thread on the web. The
+  asynchronous modules link with `--wrap=av_usleep`, so the wait reaches a timer import. The
+  Node check fails without the wrap: the event loop ran 6 times in 1.5 s, against about 270.
 - A per-pixel conversion loop on the web is about 5x slower than the same loop in JavaScript and
   about 10x slower than FFmpeg's own scaler inside the module; convert in C, beside the decoder.
 - A 64-bit integer across a JavaScript function boundary needs `WASM_BIGINT` and arrives as a

@@ -416,6 +416,14 @@ jobs:
       # -x keeps a restored tree: a fresh runner has no task history, so Gradle would rebuild it.
       - name: Link the codec module
         run: ./gradlew :kiteffmpeg:linkKiteFFmpegWasmModule -x buildFFmpegForWasm --stacktrace
+      # JSPI needs a recent engine, and the runner's own Node may be older.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: Check the asynchronous codec modules (node)
+        run: |
+          ./gradlew :kiteffmpeg:checkKiteFFmpegAsyncWasmModules -x buildFFmpegForWasm \
+            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
       - name: Web tests against the linked module (node)
         run: |
           ./gradlew :kiteffmpeg:wasmJsNodeTest -Pkiteffmpeg.web.requireModule=true \

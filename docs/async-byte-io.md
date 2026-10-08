@@ -4,6 +4,8 @@
 
 The authored mechanism probes exercised tiny C/Wasm programs and actual Kotlin/Wasm stdlib coroutine bridges with Emscripten 6.0.10-git, Kotlin/Wasm 2.4.20, Node 26.10.0 and headless Chrome 149.0.7827.201 on page and Worker, without cross-origin isolation. They produced 60 positive method executions and 12 intended synchronous-import negative suite failures: repeated executions of five authored methods, not 60 distinct tests. These results establish the tested stack-suspension mechanisms only. No async FFmpeg artifact or public async API has been implemented, and real FFmpeg reachability, kotlinx Job cancellation, other engines, host backends and playback behavior remain unqualified.
 
+**Built so far.** `linkKiteFFmpegAsyncWasmModules` links `kite-jspi` and `kite-asyncify` with the static bridge of `native/kitecodec-web`, and `checkKiteFFmpegAsyncWasmModules` drives the real FFmpeg in each from Node: an fMP4 HLS stream read through byte source calls that all answer later, a seek, and a live playlist that stops growing while the event loop must go on running. No Kotlin API loads these modules yet, and the `web` zip does not carry them.
+
 ## Owned runtime and artifact choice
 
 Add a common `AsyncMediaRuntime` owner. On JVM/native it owns an execution lane for C callbacks. On web it owns one separate codec module instance, a module-local registration table, one active native operation, bounded request scratch, cleanup records and log capture. It does not use or replace `KiteFFmpegWeb.module`. Multiple sources may share it, with serialized codec operations. The scope of serialization is the runtime instance, never the entire page or every library instance.
