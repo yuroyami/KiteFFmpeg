@@ -123,12 +123,24 @@ class WebAsyncRuntimeTest : AsyncRuntimeContract() {
                     beats++
                 }
             }
-            // Longer than the stream is, so the reader is now waiting for a playlist that never grows.
-            delay(1500)
+            // The reader has the whole stream once no packet came for half a second. From then on it
+            // waits inside FFmpeg for a playlist that never grows.
+            withTimeout(20_000) {
+                var seen = -1
+                while (packets == 0 || packets != seen) {
+                    seen = packets
+                    delay(500)
+                }
+            }
+            // Beats are counted only during that wait. A sleep that held the thread allows at most ten a
+            // second, one between two of FFmpeg's 100 ms sleeps. A slow page still runs about forty.
+            val before = beats
+            delay(1000)
+            val during = beats - before
             beat.cancelAndJoin()
             assertTrue(reads.isActive, "$name: the live read ended by itself after $packets packets")
             assertTrue(packets in 1..40, "$name: $packets packets before the wait")
-            assertTrue(beats >= 100, "$name: another coroutine ran $beats times in 1.5 s")
+            assertTrue(during >= 20, "$name: another coroutine ran $during times in 1 s of the wait")
 
             val started = nowMillis()
             withTimeout(5_000) { reads.cancelAndJoin() }
