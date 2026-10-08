@@ -228,6 +228,14 @@ kotlin {
                     "KITEFFMPEG_WEB_MODULE_REQUIRED",
                     providers.gradleProperty("kiteffmpeg.web.requireModule").getOrElse("false"),
                 )
+                // The asynchronous runtime's tests (#183) load the two modules that
+                // linkKiteFFmpegAsyncWasmModules built, under the same switch, and read the HLS
+                // stream of the Node check.
+                environment("KITEFFMPEG_WEB_ASYNC_MODULES", layout.buildDirectory.dir("kite-web-async").get().asFile.absolutePath)
+                environment(
+                    "KITEFFMPEG_WEB_HLS_FIXTURE",
+                    rootDir.resolve("native/kitecodec-web/tests/hls-fixture.json").absolutePath,
+                )
             }
         }
     }
@@ -577,10 +585,18 @@ kotlin {
         // The JVM is a REAL backend, not a placeholder: it runs the same JNI adapter the Android
         // target runs, over the same opaque C ABI (phase W). unsupportedMain
         // is web's alone now.
-        val jvmAndAndroidMain = maybeCreate("jvmAndAndroidMain").apply {
+        // The asynchronous runtime of every backend that has threads (#183): the JVM, Android and
+        // native. It sits between commonMain and their own source sets, because it blocks a
+        // thread, which the web cannot do.
+        val hostAsyncMain = maybeCreate("hostAsyncMain").apply {
             dependsOn(commonMain)
         }
+        val jvmAndAndroidMain = maybeCreate("jvmAndAndroidMain").apply {
+            dependsOn(hostAsyncMain)
+        }
         getByName("jvmMain").dependsOn(jvmAndAndroidMain)
+        // findByName, as below: a build with no native target has no nativeMain.
+        findByName("nativeMain")?.dependsOn(hostAsyncMain)
 
         // The shared codec-contract suite is what a real backend has to satisfy, so the jvm test
         // tree runs it instead of the placeholder's throw-everything assertions.
@@ -614,6 +630,7 @@ kotlin {
                 }
             }
             val jniHarnessPlatformMain = maybeCreate("jniHarnessPlatformMain").apply {
+                kotlin.srcDir("src/hostAsyncMain/kotlin")
                 kotlin.srcDir("src/jvmAndAndroidMain/kotlin")
                 dependsOn(jniHarnessCommonMain)
             }
@@ -830,8 +847,9 @@ val linkWasmModule =
         signatureBaseline.set(rootDir.resolve("native/kitecodec-c/signature-baseline.txt"))
         outputDir.set(layout.buildDirectory.dir("kite-web"))
     }
-// The two asynchronous codec modules (#183), whose byte sources may answer later. They are build
-// outputs only for now: no API loads them yet, so the `web` zip does not carry them.
+// The two asynchronous codec modules (#183), whose byte sources may answer later.
+// KiteFFmpegWeb.loadAsyncRuntime loads them. The `web` zip does not carry them: each is as large
+// as kite.wasm, so a page that wants a runtime links and serves them itself.
 val linkAsyncWasmModules =
     tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.LinkKiteFFmpegAsyncWasmModulesTask>("linkKiteFFmpegAsyncWasmModules") {
         group = "kiteffmpeg"

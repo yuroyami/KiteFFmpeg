@@ -16,7 +16,14 @@ internal expect fun endLogCapture(): List<FFmpegLogLine>
  * is not inline and cannot suspend: a coroutine that resumed elsewhere would close another
  * thread's capture, and on the web, where every coroutine shares one thread, another call's.
  */
-internal fun <T> withLoggedReason(block: () -> T): T {
+internal fun <T> withLoggedReason(block: () -> T): T = withLoggedReasonHeld(block)
+
+/**
+ * [withLoggedReason] as an inline function, so [block] may wait. Only a caller that holds the
+ * capture's whole world for that time may use it: the web runtime's lane holds its codec module
+ * from the capture's begin to its end, so no other call can open or close one there.
+ */
+internal inline fun <T> withLoggedReasonHeld(block: () -> T): T {
     val capturing = try {
         beginLogCapture()
     } catch (unavailable: Throwable) {
@@ -35,7 +42,7 @@ internal fun <T> withLoggedReason(block: () -> T): T {
 }
 
 /** The capture's lines, or none when ending it failed, which must not replace what the call did. */
-private fun endOrNothing(): List<FFmpegLogLine> = try {
+internal fun endOrNothing(): List<FFmpegLogLine> = try {
     endLogCapture()
 } catch (lost: Throwable) {
     emptyList()

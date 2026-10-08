@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Byte sources that answer later (#183). `AsyncMediaByteSource` is the suspending form of
+  `MediaByteSource`, and `AsyncMediaByteOpener` of `MediaByteOpener`. An `AsyncMediaRuntime` opens
+  them and gives `AsyncMediaSource`, `AsyncPacketReader`, `AsyncStreamDecoder`,
+  `AsyncSubtitleDecoder`, `AsyncPacket` and `AsyncFrame`, the suspending forms of the classes with
+  the same names. On the JVM, Android and native, `FFmpeg.createAsyncRuntime()` creates a runtime.
+  On wasmJs, `KiteFFmpegWeb.loadAsyncRuntime` and `attachAsyncRuntime` create one that owns a
+  `kite-jspi` or `kite-asyncify` codec module, which `linkKiteFFmpegAsyncWasmModules` links. The
+  `web` zip does not carry those two modules. The synchronous API and `kite.mjs` did not change.
+  See [docs/async-byte-io.md](docs/async-byte-io.md).
+
 ### Fixed
 
 - The web codec module opens an HLS stream that has a WebVTT subtitle rendition, and reads the

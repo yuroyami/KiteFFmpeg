@@ -73,6 +73,18 @@ public expect object FFmpeg {
      * FFmpeg and never calls [sink].
      */
     public fun setLogSink(level: FFmpegLogLevel = FFmpegLogLevel.Warning, sink: FFmpegLogSink?)
+
+    /**
+     * Creates a runtime that reads media whose bytes may answer later, from an
+     * [AsyncMediaByteSource]. The caller owns the runtime and closes it.
+     *
+     * On the JVM, Android and native the runtime owns one thread, and FFmpeg waits there while
+     * the byte source works elsewhere. On the web this call fails: a runtime there is a codec
+     * module of its own, so create it with `KiteFFmpegWeb.loadAsyncRuntime` or
+     * `KiteFFmpegWeb.attachAsyncRuntime`. The placeholder backend has no FFmpeg and fails too.
+     */
+    @Throws(FFmpegException::class, kotlin.coroutines.cancellation.CancellationException::class)
+    public suspend fun createAsyncRuntime(): AsyncMediaRuntime
 }
 
 /** The C layer's code for [kind], a KC_COMPONENT_* value. */

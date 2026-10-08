@@ -86,4 +86,10 @@ public actual object FFmpeg {
         requireCompatibleFFmpeg()
         setNativeLogSink(level, sink)
     }
+
+    @Throws(FFmpegException::class, kotlin.coroutines.cancellation.CancellationException::class)
+    public actual suspend fun createAsyncRuntime(): AsyncMediaRuntime {
+        requireCompatibleFFmpeg()
+        return createHostAsyncRuntime()
+    }
 }

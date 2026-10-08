@@ -26,6 +26,11 @@ internal object WebLog {
         }
         setLogSinkIn(module, if (level < 0) 0 else forwarder, level)
     }
+
+    /** Stops [module] printing FFmpeg's lines. An asynchronous runtime's module has no sink yet. */
+    fun silence(module: JsAny) {
+        if (hasLogSink(module)) setLogSinkIn(module, 0, FFmpegLog.QUIET)
+    }
 }
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

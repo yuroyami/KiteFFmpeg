@@ -93,6 +93,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_rescale_q
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_start_time
 import kotlinx.coroutines.flow.Flow
+import kotlin.js.JsAny
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 
@@ -105,11 +106,10 @@ import kotlinx.coroutines.flow.flow
 public actual class MediaSource internal constructor(
     private val contextSlot: Int,
     private val context: Int,
-    private val bridge: WebIoBridge,
+    /** Where the bytes come from: the byte source's bridge and the nested opener's, or a runtime's. */
+    private val input: WebInput,
     private val unused: List<String>,
     metadata: Map<String, String>,
-    /** The nested opener of the open, whose sources' failures explain an error too, or null. */
-    private val nested: WebNestedOpener? = null,
 ) : AutoCloseable {
 
     private var closed = false
@@ -124,14 +124,14 @@ public actual class MediaSource internal constructor(
      * code (#169).
      */
     internal fun demuxFailure(code: Int, what: String): FFmpegException =
-        FFmpegException(FFmpegError.fromCode(code, "$what failed with $code"), bridge.takeFailure() ?: nested?.takeFailure())
+        FFmpegException(FFmpegError.fromCode(code, "$what failed with $code"), input.takeFailure())
 
     /**
      * Starts one native demux operation. A callback failure which FFmpeg recovered from belongs
      * to that completed operation, not a later error. Successful callbacks must not clear a
      * failure here: the same operation can visit another input before returning its error.
      */
-    internal fun beginDemuxOperation() = clearIoFailures(bridge, nested)
+    internal fun beginDemuxOperation() = input.clearFailures()
 
     /** A closed source throws IllegalStateException, with the message the other backends use. */
     private fun alive(): Int {
@@ -627,20 +627,26 @@ public actual class MediaSource internal constructor(
     /** Whether a [pause] is in effect, so that [resume] reaches FFmpeg only to lift one. */
     private var paused = false
 
-    public actual fun pause(): Boolean {
+    public actual fun pause(): Boolean = pauseUsing { m, context -> ffkmp_fmt_read_pause(m, context) }
+
+    /** [pause] with FFmpeg's pause call given by the caller, which an asynchronous runtime waits for. */
+    internal inline fun pauseUsing(readPause: (JsAny, Int) -> Int): Boolean {
         val context = alive()
         beginDemuxOperation()
-        val rc = ffkmp_fmt_read_pause(requireModule(), context)
+        val rc = readPause(requireModule(), context)
         if (rc < 0) throw demuxFailure(rc, "pausing the source")
         if (rc == 1) paused = true
         return rc == 1
     }
 
-    public actual fun resume(): Boolean {
+    public actual fun resume(): Boolean = resumeUsing { m, context -> ffkmp_fmt_read_play(m, context) }
+
+    /** [resume] with FFmpeg's play call given by the caller, which an asynchronous runtime waits for. */
+    internal inline fun resumeUsing(readPlay: (JsAny, Int) -> Int): Boolean {
         val context = alive()
         if (!paused) return false
         beginDemuxOperation()
-        val rc = ffkmp_fmt_read_play(requireModule(), context)
+        val rc = readPlay(requireModule(), context)
         if (rc < 0) throw demuxFailure(rc, "resuming the source")
         paused = false
         return true
@@ -660,7 +666,10 @@ public actual class MediaSource internal constructor(
         releases = releases + release
     }
 
-    actual override fun close() {
+    actual override fun close(): Unit = closeUsing { m, slot -> ffkmp_fmt_close_input_io(m, slot) }
+
+    /** [close] with FFmpeg's close call given by the caller, which an asynchronous runtime waits for. */
+    internal inline fun closeUsing(closeInput: (JsAny, Int) -> Unit) {
         if (closed) return
         closed = true
         // Before the context goes: every reader and decoder holding it raw must stop using it.
@@ -668,9 +677,9 @@ public actual class MediaSource internal constructor(
         val m = requireModule()
         // Every step runs whichever one throws, as on the other backends (#112).
         val failures = CloseFailures()
-        failures.run { ffkmp_fmt_close_input_io(m, contextSlot) }
+        failures.run { closeInput(m, contextSlot) }
         failures.run { wasmFree(m, contextSlot) }
-        failures.run { bridge.release() }
+        failures.run { input.release() }
         releases.forEach { release -> failures.run(release) }
         failures.rethrow()
     }
@@ -735,108 +744,51 @@ public actual class MediaSource internal constructor(
                 runCatching { bridge.release() }.exceptionOrNull()?.let(failure::addSuppressed)
                 throw failure
             }
-            // Every failure below gives back the bridge and the nested callbacks. FFmpeg has
+            // Every failure of the open gives back the bridge and the nested callbacks. FFmpeg has
             // released each nested source by then, on a failed open and in the close alike. A source
             // read on demand is closed with the bridge, and a close that fails then has nothing to
             // add to the failure on its way up.
             val releaseIo = {
                 runCatching { bridge.release() }
                 nested?.let { runCatching { it.release() } }
+                Unit
             }
-            var slot = 0
-            // The unused-option dictionary FFmpeg hands back, as its own out-slot. The binding
-            // used to pass a null pointer here and then guess the answer from the key array, which
-            // the C side never writes to, so every option was reported unused on every open
-            // Ask for the dictionary and read it instead.
-            var unusedSlot = 0
-            // An allocation that fails here gives back the ones before it and the bridge (#142).
-            val opts = try {
-                slot = wasmAlloc(m, 4)
-                unusedSlot = wasmAlloc(m, 4)
-                writeInt32(m, unusedSlot, 0)
-                CStringArrays.of(m, options)
-            } catch (failure: Throwable) {
-                if (unusedSlot != 0) wasmFree(m, unusedSlot)
-                if (slot != 0) wasmFree(m, slot)
-                releaseIo()
-                throw failure
-            }
-            clearIoFailures(bridge, nested)
-            val rc = try {
-                if (url == null && location == null && mimeType == null && nested == null && bridge.tagsPointer == 0) {
-                    openInputIo(
-                        m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
-                        opts.keys, opts.values, options.size, unusedSlot,
-                    )
-                } else {
-                    // Input only, copied by the C side, so all three go back right after the call.
-                    var urlPointer = 0
-                    var locationPointer = 0
-                    var mimePointer = 0
-                    // Copied by the C side as well; the callbacks it names live until the close.
-                    var openerPointer = 0
-                    try {
-                        urlPointer = url?.let { allocCString(m, it) } ?: 0
-                        locationPointer = location?.let { allocCString(m, it) } ?: 0
-                        mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
-                        openerPointer = nested?.writeStruct() ?: 0
-                        openInputIo2(
-                            m, slot, bridge.readPointer, bridge.seekPointer, bridge.tagsPointer, bridge.size,
-                            urlPointer, locationPointer, mimePointer, openerPointer, opts.keys, opts.values,
-                            options.size, unusedSlot,
+            return openWebSource(
+                m, SyncWebInput(bridge, nested), options, releaseIo,
+                openInput = { slot, keys, values, unusedSlot ->
+                    if (url == null && location == null && mimeType == null && nested == null && bridge.tagsPointer == 0) {
+                        openInputIo(
+                            m, slot, bridge.readPointer, bridge.seekPointer, bridge.size,
+                            keys, values, options.size, unusedSlot,
                         )
-                    } finally {
-                        if (urlPointer != 0) wasmFree(m, urlPointer)
-                        if (locationPointer != 0) wasmFree(m, locationPointer)
-                        if (mimePointer != 0) wasmFree(m, mimePointer)
-                        if (openerPointer != 0) wasmFree(m, openerPointer)
+                    } else {
+                        // Input only, copied by the C side, so all three go back right after the call.
+                        var urlPointer = 0
+                        var locationPointer = 0
+                        var mimePointer = 0
+                        // Copied by the C side as well; the callbacks it names live until the close.
+                        var openerPointer = 0
+                        try {
+                            urlPointer = url?.let { allocCString(m, it) } ?: 0
+                            locationPointer = location?.let { allocCString(m, it) } ?: 0
+                            mimePointer = mimeType?.let { allocCString(m, it) } ?: 0
+                            openerPointer = nested?.writeStruct() ?: 0
+                            openInputIo2(
+                                m, slot, bridge.readPointer, bridge.seekPointer, bridge.tagsPointer, bridge.size,
+                                urlPointer, locationPointer, mimePointer, openerPointer, keys, values,
+                                options.size, unusedSlot,
+                            )
+                        } finally {
+                            if (urlPointer != 0) wasmFree(m, urlPointer)
+                            if (locationPointer != 0) wasmFree(m, locationPointer)
+                            if (mimePointer != 0) wasmFree(m, mimePointer)
+                            if (openerPointer != 0) wasmFree(m, openerPointer)
+                        }
                     }
-                }
-            } catch (failure: Throwable) {
-                // The option arrays are released by the finally below on this path too, so they
-                // are deliberately absent here: freeing them twice corrupts the module's heap.
-                wasmFree(m, unusedSlot); wasmFree(m, slot); releaseIo(); throw failure
-            } finally {
-                // Input only, and consumed by the call: FFmpeg copied what it wanted into its own
-                // dictionary, so these go back whatever the outcome was.
-                opts.free(m)
-            }
-            if (rc < 0) {
-                // Nothing to release: on failure the C side frees the dictionary it built and
-                // leaves the out-slot at the NULL it wrote on entry.
-                wasmFree(m, unusedSlot); wasmFree(m, slot); releaseIo()
-                // The opener's own exception is the cause, because FFmpeg only saw an error code.
-                throw FFmpegException(
-                    webAvError(m, rc, "avformat_open_input"),
-                    bridge.takeFailure() ?: nested?.takeFailure(),
-                )
-            }
-            val leftover = drainUnusedKeys(m, unusedSlot)
-            wasmFree(m, unusedSlot)
-            val ctx = readInt32(m, slot)
-            clearIoFailures(bridge, nested)
-            val infoRc = ffkmp_fmt_find_stream_info(m, ctx)
-            if (infoRc < 0) {
-                ffkmp_fmt_close_input_io(m, slot)
-                wasmFree(m, slot)
-                releaseIo()
-                throw FFmpegException(
-                    webAvError(m, infoRc, "avformat_find_stream_info"),
-                    bridge.takeFailure() ?: nested?.takeFailure(),
-                )
-            }
-            val tags = try {
-                // The streams' and the source's metadata already hold what the probe's reads
-                // applied, so only a change after the open reaches a packet (#135).
-                ffkmp_fmt_take_tag_changes(m, ctx, -1)
-                readMetadata(m, ffkmp_fmt_metadata(m, ctx))
-            } catch (failure: Throwable) {
-                ffkmp_fmt_close_input_io(m, slot)
-                wasmFree(m, slot)
-                releaseIo()
-                throw failure
-            }
-            return MediaSource(slot, ctx, bridge, leftover, tags, nested).also { media -> nested?.let { media.releaseAtClose(it::release) } }
+                },
+                findStreamInfo = { context -> ffkmp_fmt_find_stream_info(m, context) },
+                closeInput = { slot -> ffkmp_fmt_close_input_io(m, slot) },
+            ).also { media -> nested?.let { media.releaseAtClose(it::release) } }
         }
 
         /**
@@ -857,6 +809,114 @@ public actual class MediaSource internal constructor(
             ),
         )
     }
+}
+
+/**
+ * Where a web [MediaSource] gets its bytes, as far as the source itself needs to know: the failure
+ * a byte source call left behind, and what to release at the close.
+ */
+internal interface WebInput {
+
+    /** The exception a byte source threw inside the last demux call, taken once. */
+    fun takeFailure(): Throwable?
+
+    /** Forgets a failure that FFmpeg recovered from, before the next demux call. */
+    fun clearFailures()
+
+    /** Releases what the input holds in the codec module, after the context is closed. */
+    fun release()
+}
+
+/** The input of the synchronous API: a byte source's bridge, and a nested opener's when there is one. */
+internal class SyncWebInput(private val bridge: WebIoBridge, private val nested: WebNestedOpener?) : WebInput {
+    // The opener's own exception explains an error too, because FFmpeg only saw an error code.
+    override fun takeFailure(): Throwable? = bridge.takeFailure() ?: nested?.takeFailure()
+
+    override fun clearFailures() {
+        bridge.takeFailure()
+        nested?.takeFailure()
+    }
+
+    override fun release() = bridge.release()
+}
+
+/**
+ * Opens a container on [m] through [input] and reads its stream information. The three native
+ * calls come from the caller: the synchronous API passes calls that answer at once, and an
+ * asynchronous runtime passes calls that wait. [releaseIo] gives the input back when the open fails.
+ */
+internal inline fun openWebSource(
+    m: JsAny,
+    input: WebInput,
+    options: Map<String, String>,
+    releaseIo: () -> Unit,
+    openInput: (slot: Int, keys: Int, values: Int, unusedSlot: Int) -> Int,
+    findStreamInfo: (context: Int) -> Int,
+    closeInput: (slot: Int) -> Unit,
+): MediaSource {
+    var slot = 0
+    // The unused-option dictionary FFmpeg hands back, as its own out-slot. The binding
+    // used to pass a null pointer here and then guess the answer from the key array, which
+    // the C side never writes to, so every option was reported unused on every open
+    // Ask for the dictionary and read it instead.
+    var unusedSlot = 0
+    // An allocation that fails here gives back the ones before it and the input (#142).
+    val opts = try {
+        slot = wasmAlloc(m, 4)
+        unusedSlot = wasmAlloc(m, 4)
+        writeInt32(m, unusedSlot, 0)
+        CStringArrays.of(m, options)
+    } catch (failure: Throwable) {
+        if (unusedSlot != 0) wasmFree(m, unusedSlot)
+        if (slot != 0) wasmFree(m, slot)
+        releaseIo()
+        throw failure
+    }
+    input.clearFailures()
+    val rc = try {
+        openInput(slot, opts.keys, opts.values, unusedSlot)
+    } catch (failure: Throwable) {
+        // The option arrays are released by the finally below on this path too, so they
+        // are deliberately absent here: freeing them twice corrupts the module's heap.
+        wasmFree(m, unusedSlot); wasmFree(m, slot); releaseIo(); throw failure
+    } finally {
+        // Input only, and consumed by the call: FFmpeg copied what it wanted into its own
+        // dictionary, so these go back whatever the outcome was.
+        opts.free(m)
+    }
+    if (rc < 0) {
+        // Nothing to release: on failure the C side frees the dictionary it built and
+        // leaves the out-slot at the NULL it wrote on entry.
+        wasmFree(m, unusedSlot); wasmFree(m, slot)
+        // Taken before the input goes, because a byte source's exception is the cause.
+        val cause = input.takeFailure()
+        releaseIo()
+        throw FFmpegException(webAvError(m, rc, "avformat_open_input"), cause)
+    }
+    val leftover = drainUnusedKeys(m, unusedSlot)
+    wasmFree(m, unusedSlot)
+    val ctx = readInt32(m, slot)
+    input.clearFailures()
+    val infoRc = findStreamInfo(ctx)
+    if (infoRc < 0) {
+        val cause = input.takeFailure()
+        closeInput(slot)
+        wasmFree(m, slot)
+        releaseIo()
+        throw FFmpegException(webAvError(m, infoRc, "avformat_find_stream_info"), cause)
+    }
+    val tags = try {
+        // The streams' and the source's metadata already hold what the probe's reads
+        // applied, so only a change after the open reaches a packet (#135).
+        ffkmp_fmt_take_tag_changes(m, ctx, -1)
+        readMetadata(m, ffkmp_fmt_metadata(m, ctx))
+    } catch (failure: Throwable) {
+        closeInput(slot)
+        wasmFree(m, slot)
+        releaseIo()
+        throw failure
+    }
+    return MediaSource(slot, ctx, input, leftover, tags)
 }
 
 /** The programme table (#148), against the [streams] this source lists. */
@@ -1155,7 +1215,7 @@ private const val TAGS_STREAM = 2
  * reads and never frees. Contrast [drainUnusedKeys] below, which owns the dictionary it walks.
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-private fun readMetadata(m: kotlin.js.JsAny, dict: Int): Map<String, String> {
+internal fun readMetadata(m: kotlin.js.JsAny, dict: Int): Map<String, String> {
     if (dict == 0) return emptyMap()
     val out = LinkedHashMap<String, String>()
     var entry = 0
@@ -1169,7 +1229,7 @@ private fun readMetadata(m: kotlin.js.JsAny, dict: Int): Map<String, String> {
 }
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-private fun drainUnusedKeys(m: kotlin.js.JsAny, slot: Int): List<String> {
+internal fun drainUnusedKeys(m: kotlin.js.JsAny, slot: Int): List<String> {
     val dict = readInt32(m, slot)
     if (dict == 0) return emptyList()
     val keys = mutableListOf<String>()
@@ -1185,7 +1245,7 @@ private fun drainUnusedKeys(m: kotlin.js.JsAny, slot: Int): List<String> {
 }
 
 /** Two NULL-terminated `char *` arrays in codec memory, which is how the C surface takes options. */
-private class CStringArrays(val keys: Int, val values: Int, private val strings: List<Int>) {
+internal class CStringArrays(val keys: Int, val values: Int, private val strings: List<Int>) {
 
     fun free(m: kotlin.js.JsAny) {
         strings.forEach { wasmFree(m, it) }
@@ -1225,10 +1285,4 @@ private class CStringArrays(val keys: Int, val values: Int, private val strings:
 internal fun webAvError(m: kotlin.js.JsAny, code: Int, label: String): FFmpegError {
     val text = utf8OrNull(m, ffkmp_strerror(m, code)) ?: "AVERROR($code)"
     return FFmpegError.fromCode(code, "$label: $text (code=$code)")
-}
-
-/** Clears both bridges, including when the preceding operation recovered from a callback error. */
-private fun clearIoFailures(bridge: WebIoBridge, nested: WebNestedOpener?) {
-    bridge.takeFailure()
-    nested?.takeFailure()
 }

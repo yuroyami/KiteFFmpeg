@@ -90,4 +90,14 @@ public actual object FFmpeg {
     public actual fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
         WebLog.set(level, sink)
     }
+
+    // A runtime on the web is a codec module of its own, and only the page knows where it is.
+    public actual suspend fun createAsyncRuntime(): AsyncMediaRuntime = throw FFmpegException(
+        FFmpegError.Unsupported(
+            0,
+            "On the web an asynchronous runtime needs its own codec module, kite-jspi or " +
+                "kite-asyncify. Create the runtime with KiteFFmpegWeb.loadAsyncRuntime(artifacts), or " +
+                "with KiteFFmpegWeb.attachAsyncRuntime(codecModule) for a module the page instantiated.",
+        ),
+    )
 }

@@ -186,6 +186,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
 
 ### Media behaviour
 
+- FFmpeg can hide a failed read of a byte source. `avio_read` answers the bytes it already had
+  and keeps the error, so the call succeeds, and the next call fails without asking the byte
+  source again. A test that makes one read throw can see the open succeed with one stream of the
+  wrong format. Make every read from that point on throw, or throw in the first read (#183).
 - FFmpeg's audio encoder segfaults on a frame whose channel count or sample format does not
   match it: `avcodec_send_frame` reads using the encoder's idea of the geometry and runs off the
   end of the buffers. Both mismatches crashed at the same address when measured against the aac

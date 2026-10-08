@@ -488,12 +488,32 @@ final enum class io.github.yuroyami.kiteffmpeg/Vp9Profile : kotlin/Enum<io.githu
     }
 }
 
+abstract fun interface io.github.yuroyami.kiteffmpeg/AsyncMediaByteOpener { // io.github.yuroyami.kiteffmpeg/AsyncMediaByteOpener|null[0]
+    abstract suspend fun open(kotlin/String): io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource? // io.github.yuroyami.kiteffmpeg/AsyncMediaByteOpener.open|open(kotlin.String){}[0]
+}
+
 abstract fun interface io.github.yuroyami.kiteffmpeg/FFmpegLogSink { // io.github.yuroyami.kiteffmpeg/FFmpegLogSink|null[0]
     abstract fun log(io.github.yuroyami.kiteffmpeg/FFmpegLogLevel, kotlin/String, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegLogSink.log|log(io.github.yuroyami.kiteffmpeg.FFmpegLogLevel;kotlin.String;kotlin.String){}[0]
 }
 
 abstract fun interface io.github.yuroyami.kiteffmpeg/MediaByteOpener { // io.github.yuroyami.kiteffmpeg/MediaByteOpener|null[0]
     abstract fun open(kotlin/String): io.github.yuroyami.kiteffmpeg/MediaByteSource? // io.github.yuroyami.kiteffmpeg/MediaByteOpener.open|open(kotlin.String){}[0]
+}
+
+abstract interface io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncCloseable|null[0]
+    abstract suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncCloseable.close|close(){}[0]
+}
+
+abstract interface io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource|null[0]
+    abstract val seekable // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.seekable|{}seekable[0]
+        abstract fun <get-seekable>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.seekable.<get-seekable>|<get-seekable>(){}[0]
+    open val location // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.location|{}location[0]
+        open fun <get-location>(): kotlin/String? // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.location.<get-location>|<get-location>(){}[0]
+
+    abstract suspend fun read(kotlin/ByteArray, kotlin/Int, kotlin/Int): kotlin/Int // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.read|read(kotlin.ByteArray;kotlin.Int;kotlin.Int){}[0]
+    abstract suspend fun seek(kotlin/Long) // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.seek|seek(kotlin.Long){}[0]
+    abstract suspend fun size(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.size|size(){}[0]
+    open suspend fun takeTags(): kotlin.collections/Map<kotlin/String, kotlin/String>? // io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource.takeTags|takeTags(){}[0]
 }
 
 abstract interface io.github.yuroyami.kiteffmpeg/MediaByteSink : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/MediaByteSink|null[0]
@@ -1046,6 +1066,158 @@ final class io.github.yuroyami.kiteffmpeg.dsl/Volume : io.github.yuroyami.kiteff
     final fun equals(kotlin/Any?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg.dsl/Volume.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // io.github.yuroyami.kiteffmpeg.dsl/Volume.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/Volume.toString|toString(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncFrame : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncFrame|null[0]
+    final val durationMicros // io.github.yuroyami.kiteffmpeg/AsyncFrame.durationMicros|{}durationMicros[0]
+        final fun <get-durationMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncFrame.durationMicros.<get-durationMicros>|<get-durationMicros>(){}[0]
+    final val info // io.github.yuroyami.kiteffmpeg/AsyncFrame.info|{}info[0]
+        final fun <get-info>(): io.github.yuroyami.kiteffmpeg/FrameInfo // io.github.yuroyami.kiteffmpeg/AsyncFrame.info.<get-info>|<get-info>(){}[0]
+    final val ptsMicros // io.github.yuroyami.kiteffmpeg/AsyncFrame.ptsMicros|{}ptsMicros[0]
+        final fun <get-ptsMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncFrame.ptsMicros.<get-ptsMicros>|<get-ptsMicros>(){}[0]
+
+    final suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncFrame.close|close(){}[0]
+    final suspend fun closedCaptions(): kotlin/ByteArray? // io.github.yuroyami.kiteffmpeg/AsyncFrame.closedCaptions|closedCaptions(){}[0]
+    final suspend fun copy(): io.github.yuroyami.kiteffmpeg/AsyncFrame // io.github.yuroyami.kiteffmpeg/AsyncFrame.copy|copy(){}[0]
+    final suspend fun copyPlanesInto(kotlin/ByteArray): kotlin/Int // io.github.yuroyami.kiteffmpeg/AsyncFrame.copyPlanesInto|copyPlanesInto(kotlin.ByteArray){}[0]
+    final suspend fun copyPlanesToByteArray(): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/AsyncFrame.copyPlanesToByteArray|copyPlanesToByteArray(){}[0]
+    final suspend fun dolbyVision(): io.github.yuroyami.kiteffmpeg/DolbyVisionMetadata? // io.github.yuroyami.kiteffmpeg/AsyncFrame.dolbyVision|dolbyVision(){}[0]
+    final suspend fun dolbyVisionRpu(): io.github.yuroyami.kiteffmpeg/DolbyVisionRpu? // io.github.yuroyami.kiteffmpeg/AsyncFrame.dolbyVisionRpu|dolbyVisionRpu(){}[0]
+    final suspend fun downloadFromHardware(): io.github.yuroyami.kiteffmpeg/AsyncFrame // io.github.yuroyami.kiteffmpeg/AsyncFrame.downloadFromHardware|downloadFromHardware(){}[0]
+    final suspend fun planesByteCount(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AsyncFrame.planesByteCount|planesByteCount(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncMediaInfo { // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo|null[0]
+    final val bitrateBps // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.bitrateBps|{}bitrateBps[0]
+        final fun <get-bitrateBps>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.bitrateBps.<get-bitrateBps>|<get-bitrateBps>(){}[0]
+    final val chapters // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.chapters|{}chapters[0]
+        final fun <get-chapters>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/Chapter> // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.chapters.<get-chapters>|<get-chapters>(){}[0]
+    final val durationMicros // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.durationMicros|{}durationMicros[0]
+        final fun <get-durationMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.durationMicros.<get-durationMicros>|<get-durationMicros>(){}[0]
+    final val durationOrigin // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.durationOrigin|{}durationOrigin[0]
+        final fun <get-durationOrigin>(): io.github.yuroyami.kiteffmpeg/DurationOrigin? // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.durationOrigin.<get-durationOrigin>|<get-durationOrigin>(){}[0]
+    final val formatName // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.formatName|{}formatName[0]
+        final fun <get-formatName>(): kotlin/String // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.formatName.<get-formatName>|<get-formatName>(){}[0]
+    final val isSeekable // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.isSeekable|{}isSeekable[0]
+        final fun <get-isSeekable>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.isSeekable.<get-isSeekable>|<get-isSeekable>(){}[0]
+    final val matroska // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.matroska|{}matroska[0]
+        final fun <get-matroska>(): io.github.yuroyami.kiteffmpeg/MatroskaSegment? // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.matroska.<get-matroska>|<get-matroska>(){}[0]
+    final val metadata // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.metadata|{}metadata[0]
+        final fun <get-metadata>(): kotlin.collections/Map<kotlin/String, kotlin/String> // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.metadata.<get-metadata>|<get-metadata>(){}[0]
+    final val primaryAudio // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.primaryAudio|{}primaryAudio[0]
+        final fun <get-primaryAudio>(): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.primaryAudio.<get-primaryAudio>|<get-primaryAudio>(){}[0]
+    final val primaryVideo // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.primaryVideo|{}primaryVideo[0]
+        final fun <get-primaryVideo>(): io.github.yuroyami.kiteffmpeg/StreamInfo? // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.primaryVideo.<get-primaryVideo>|<get-primaryVideo>(){}[0]
+    final val programs // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.programs|{}programs[0]
+        final fun <get-programs>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/Program> // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.programs.<get-programs>|<get-programs>(){}[0]
+    final val startTimeMicros // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.startTimeMicros|{}startTimeMicros[0]
+        final fun <get-startTimeMicros>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.startTimeMicros.<get-startTimeMicros>|<get-startTimeMicros>(){}[0]
+    final val streams // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.streams|{}streams[0]
+        final fun <get-streams>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo> // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.streams.<get-streams>|<get-streams>(){}[0]
+    final val unusedOpenOptions // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.unusedOpenOptions|{}unusedOpenOptions[0]
+        final fun <get-unusedOpenOptions>(): kotlin.collections/List<kotlin/String> // io.github.yuroyami.kiteffmpeg/AsyncMediaInfo.unusedOpenOptions.<get-unusedOpenOptions>|<get-unusedOpenOptions>(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime|null[0]
+    final val identity // io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime.identity|{}identity[0]
+        final fun <get-identity>(): io.github.yuroyami.kiteffmpeg/FFmpegIdentity // io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime.identity.<get-identity>|<get-identity>(){}[0]
+
+    final suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime.close|close(){}[0]
+    final suspend fun open(io.github.yuroyami.kiteffmpeg/AsyncMediaByteSource, kotlin.collections/Map<kotlin/String, kotlin/String> = ..., io.github.yuroyami.kiteffmpeg/OpenInterrupt? = ..., kotlin/String? = ..., kotlin/String? = ..., io.github.yuroyami.kiteffmpeg/AsyncMediaByteOpener? = ...): io.github.yuroyami.kiteffmpeg/AsyncMediaSource // io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime.open|open(io.github.yuroyami.kiteffmpeg.AsyncMediaByteSource;kotlin.collections.Map<kotlin.String,kotlin.String>;io.github.yuroyami.kiteffmpeg.OpenInterrupt?;kotlin.String?;kotlin.String?;io.github.yuroyami.kiteffmpeg.AsyncMediaByteOpener?){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncMediaSource : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncMediaSource|null[0]
+    final val corruptData // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.corruptData|{}corruptData[0]
+        final fun <get-corruptData>(): io.github.yuroyami.kiteffmpeg/CorruptData // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.corruptData.<get-corruptData>|<get-corruptData>(){}[0]
+    final val corruptDataSkipped // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.corruptDataSkipped|{}corruptDataSkipped[0]
+        final fun <get-corruptDataSkipped>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.corruptDataSkipped.<get-corruptDataSkipped>|<get-corruptDataSkipped>(){}[0]
+    final val info // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.info|{}info[0]
+        final fun <get-info>(): io.github.yuroyami.kiteffmpeg/AsyncMediaInfo // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.info.<get-info>|<get-info>(){}[0]
+    final val streamDivergences // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.streamDivergences|{}streamDivergences[0]
+        final fun <get-streamDivergences>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamDivergence> // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.streamDivergences.<get-streamDivergences>|<get-streamDivergences>(){}[0]
+
+    final fun decodeStreams(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>): kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/AsyncFrame> // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.decodeStreams|decodeStreams(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
+    final fun decodedFrames(io.github.yuroyami.kiteffmpeg/StreamInfo): kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/AsyncFrame> // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.decodedFrames|decodedFrames(io.github.yuroyami.kiteffmpeg.StreamInfo){}[0]
+    final fun interrupt() // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.interrupt|interrupt(){}[0]
+    final suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.close|close(){}[0]
+    final suspend fun extractFrame(kotlin/Long, io.github.yuroyami.kiteffmpeg/StreamInfo? = ...): io.github.yuroyami.kiteffmpeg/AsyncFrame // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.extractFrame|extractFrame(kotlin.Long;io.github.yuroyami.kiteffmpeg.StreamInfo?){}[0]
+    final suspend fun openDecoder(io.github.yuroyami.kiteffmpeg/StreamInfo, kotlin/Int = ..., kotlin/Boolean = ..., io.github.yuroyami.kiteffmpeg/DecoderId? = ..., io.github.yuroyami.kiteffmpeg.dsl/DecoderOptions? = ..., io.github.yuroyami.kiteffmpeg/HardwareAccel? = ..., io.github.yuroyami.kiteffmpeg/CorruptData = ...): io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.openDecoder|openDecoder(io.github.yuroyami.kiteffmpeg.StreamInfo;kotlin.Int;kotlin.Boolean;io.github.yuroyami.kiteffmpeg.DecoderId?;io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions?;io.github.yuroyami.kiteffmpeg.HardwareAccel?;io.github.yuroyami.kiteffmpeg.CorruptData){}[0]
+    final suspend fun openPacketReader(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>): io.github.yuroyami.kiteffmpeg/AsyncPacketReader // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.openPacketReader|openPacketReader(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
+    final suspend fun openSubtitleDecoder(io.github.yuroyami.kiteffmpeg/StreamInfo, kotlin/Boolean = ...): io.github.yuroyami.kiteffmpeg/AsyncSubtitleDecoder // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.openSubtitleDecoder|openSubtitleDecoder(io.github.yuroyami.kiteffmpeg.StreamInfo;kotlin.Boolean){}[0]
+    final suspend fun pause(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.pause|pause(){}[0]
+    final suspend fun resetCorruptDataSkipped() // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.resetCorruptDataSkipped|resetCorruptDataSkipped(){}[0]
+    final suspend fun resume(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.resume|resume(){}[0]
+    final suspend fun seekMicros(kotlin/Long) // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.seekMicros|seekMicros(kotlin.Long){}[0]
+    final suspend fun setCorruptData(io.github.yuroyami.kiteffmpeg/CorruptData) // io.github.yuroyami.kiteffmpeg/AsyncMediaSource.setCorruptData|setCorruptData(io.github.yuroyami.kiteffmpeg.CorruptData){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncPacket : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncPacket|null[0]
+    final val bytePosition // io.github.yuroyami.kiteffmpeg/AsyncPacket.bytePosition|{}bytePosition[0]
+        final fun <get-bytePosition>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AsyncPacket.bytePosition.<get-bytePosition>|<get-bytePosition>(){}[0]
+    final val dts // io.github.yuroyami.kiteffmpeg/AsyncPacket.dts|{}dts[0]
+        final fun <get-dts>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AsyncPacket.dts.<get-dts>|<get-dts>(){}[0]
+    final val dtsMicros // io.github.yuroyami.kiteffmpeg/AsyncPacket.dtsMicros|{}dtsMicros[0]
+        final fun <get-dtsMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncPacket.dtsMicros.<get-dtsMicros>|<get-dtsMicros>(){}[0]
+    final val duration // io.github.yuroyami.kiteffmpeg/AsyncPacket.duration|{}duration[0]
+        final fun <get-duration>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AsyncPacket.duration.<get-duration>|<get-duration>(){}[0]
+    final val durationMicros // io.github.yuroyami.kiteffmpeg/AsyncPacket.durationMicros|{}durationMicros[0]
+        final fun <get-durationMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncPacket.durationMicros.<get-durationMicros>|<get-durationMicros>(){}[0]
+    final val hasPts // io.github.yuroyami.kiteffmpeg/AsyncPacket.hasPts|{}hasPts[0]
+        final fun <get-hasPts>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncPacket.hasPts.<get-hasPts>|<get-hasPts>(){}[0]
+    final val isKeyframe // io.github.yuroyami.kiteffmpeg/AsyncPacket.isKeyframe|{}isKeyframe[0]
+        final fun <get-isKeyframe>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncPacket.isKeyframe.<get-isKeyframe>|<get-isKeyframe>(){}[0]
+    final val newContainerTags // io.github.yuroyami.kiteffmpeg/AsyncPacket.newContainerTags|{}newContainerTags[0]
+        final fun <get-newContainerTags>(): kotlin.collections/Map<kotlin/String, kotlin/String>? // io.github.yuroyami.kiteffmpeg/AsyncPacket.newContainerTags.<get-newContainerTags>|<get-newContainerTags>(){}[0]
+    final val newPrograms // io.github.yuroyami.kiteffmpeg/AsyncPacket.newPrograms|{}newPrograms[0]
+        final fun <get-newPrograms>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/Program>? // io.github.yuroyami.kiteffmpeg/AsyncPacket.newPrograms.<get-newPrograms>|<get-newPrograms>(){}[0]
+    final val newStreamTags // io.github.yuroyami.kiteffmpeg/AsyncPacket.newStreamTags|{}newStreamTags[0]
+        final fun <get-newStreamTags>(): kotlin.collections/Map<kotlin/String, kotlin/String>? // io.github.yuroyami.kiteffmpeg/AsyncPacket.newStreamTags.<get-newStreamTags>|<get-newStreamTags>(){}[0]
+    final val newStreams // io.github.yuroyami.kiteffmpeg/AsyncPacket.newStreams|{}newStreams[0]
+        final fun <get-newStreams>(): kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>? // io.github.yuroyami.kiteffmpeg/AsyncPacket.newStreams.<get-newStreams>|<get-newStreams>(){}[0]
+    final val pts // io.github.yuroyami.kiteffmpeg/AsyncPacket.pts|{}pts[0]
+        final fun <get-pts>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AsyncPacket.pts.<get-pts>|<get-pts>(){}[0]
+    final val ptsMicros // io.github.yuroyami.kiteffmpeg/AsyncPacket.ptsMicros|{}ptsMicros[0]
+        final fun <get-ptsMicros>(): kotlin/Long? // io.github.yuroyami.kiteffmpeg/AsyncPacket.ptsMicros.<get-ptsMicros>|<get-ptsMicros>(){}[0]
+    final val sizeBytes // io.github.yuroyami.kiteffmpeg/AsyncPacket.sizeBytes|{}sizeBytes[0]
+        final fun <get-sizeBytes>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AsyncPacket.sizeBytes.<get-sizeBytes>|<get-sizeBytes>(){}[0]
+    final val streamIndex // io.github.yuroyami.kiteffmpeg/AsyncPacket.streamIndex|{}streamIndex[0]
+        final fun <get-streamIndex>(): kotlin/Int // io.github.yuroyami.kiteffmpeg/AsyncPacket.streamIndex.<get-streamIndex>|<get-streamIndex>(){}[0]
+    final val timeBase // io.github.yuroyami.kiteffmpeg/AsyncPacket.timeBase|{}timeBase[0]
+        final fun <get-timeBase>(): io.github.yuroyami.kiteffmpeg/Rational // io.github.yuroyami.kiteffmpeg/AsyncPacket.timeBase.<get-timeBase>|<get-timeBase>(){}[0]
+
+    final suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncPacket.close|close(){}[0]
+    final suspend fun copy(): io.github.yuroyami.kiteffmpeg/AsyncPacket // io.github.yuroyami.kiteffmpeg/AsyncPacket.copy|copy(){}[0]
+    final suspend fun copyBytes(): kotlin/ByteArray // io.github.yuroyami.kiteffmpeg/AsyncPacket.copyBytes|copyBytes(){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncPacketReader : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncPacketReader|null[0]
+    final suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncPacketReader.close|close(){}[0]
+    final suspend fun read(): io.github.yuroyami.kiteffmpeg/AsyncPacket? // io.github.yuroyami.kiteffmpeg/AsyncPacketReader.read|read(){}[0]
+    final suspend fun reselect(kotlin.collections/List<io.github.yuroyami.kiteffmpeg/StreamInfo>) // io.github.yuroyami.kiteffmpeg/AsyncPacketReader.reselect|reselect(kotlin.collections.List<io.github.yuroyami.kiteffmpeg.StreamInfo>){}[0]
+    final suspend fun seek(kotlin/Long, io.github.yuroyami.kiteffmpeg/SeekDirection = ..., kotlin/Long? = ...) // io.github.yuroyami.kiteffmpeg/AsyncPacketReader.seek|seek(kotlin.Long;io.github.yuroyami.kiteffmpeg.SeekDirection;kotlin.Long?){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder|null[0]
+    final val corruptDataSkipped // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.corruptDataSkipped|{}corruptDataSkipped[0]
+        final fun <get-corruptDataSkipped>(): kotlin/Long // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.corruptDataSkipped.<get-corruptDataSkipped>|<get-corruptDataSkipped>(){}[0]
+    final val isDrained // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.isDrained|{}isDrained[0]
+        final fun <get-isDrained>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.isDrained.<get-isDrained>|<get-isDrained>(){}[0]
+    final val stream // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.stream|{}stream[0]
+        final fun <get-stream>(): io.github.yuroyami.kiteffmpeg/StreamInfo // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.stream.<get-stream>|<get-stream>(){}[0]
+
+    final suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.close|close(){}[0]
+    final suspend fun flush() // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.flush|flush(){}[0]
+    final suspend fun receive(): io.github.yuroyami.kiteffmpeg/AsyncFrame? // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.receive|receive(){}[0]
+    final suspend fun resetCorruptDataSkipped() // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.resetCorruptDataSkipped|resetCorruptDataSkipped(){}[0]
+    final suspend fun send(io.github.yuroyami.kiteffmpeg/AsyncPacket?): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.send|send(io.github.yuroyami.kiteffmpeg.AsyncPacket?){}[0]
+    final suspend fun setSkipFrame(io.github.yuroyami.kiteffmpeg.dsl/DecoderSkip) // io.github.yuroyami.kiteffmpeg/AsyncStreamDecoder.setSkipFrame|setSkipFrame(io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip){}[0]
+}
+
+final class io.github.yuroyami.kiteffmpeg/AsyncSubtitleDecoder : io.github.yuroyami.kiteffmpeg/AsyncCloseable { // io.github.yuroyami.kiteffmpeg/AsyncSubtitleDecoder|null[0]
+    final suspend fun close() // io.github.yuroyami.kiteffmpeg/AsyncSubtitleDecoder.close|close(){}[0]
+    final suspend fun decode(io.github.yuroyami.kiteffmpeg/AsyncPacket): io.github.yuroyami.kiteffmpeg/Subtitle? // io.github.yuroyami.kiteffmpeg/AsyncSubtitleDecoder.decode|decode(io.github.yuroyami.kiteffmpeg.AsyncPacket){}[0]
+    final suspend fun drain(): io.github.yuroyami.kiteffmpeg/Subtitle? // io.github.yuroyami.kiteffmpeg/AsyncSubtitleDecoder.drain|drain(){}[0]
+    final suspend fun flush() // io.github.yuroyami.kiteffmpeg/AsyncSubtitleDecoder.flush|flush(){}[0]
 }
 
 final class io.github.yuroyami.kiteffmpeg/AudioEncoder : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/AudioEncoder|null[0]
@@ -3213,6 +3385,7 @@ final object io.github.yuroyami.kiteffmpeg/FFmpeg { // io.github.yuroyami.kiteff
     final fun hasEncoder(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasEncoder|hasEncoder(kotlin.String){}[0]
     final fun hasFilter(kotlin/String): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/FFmpeg.hasFilter|hasFilter(kotlin.String){}[0]
     final fun setLogSink(io.github.yuroyami.kiteffmpeg/FFmpegLogLevel = ..., io.github.yuroyami.kiteffmpeg/FFmpegLogSink?) // io.github.yuroyami.kiteffmpeg/FFmpeg.setLogSink|setLogSink(io.github.yuroyami.kiteffmpeg.FFmpegLogLevel;io.github.yuroyami.kiteffmpeg.FFmpegLogSink?){}[0]
+    final suspend fun createAsyncRuntime(): io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime // io.github.yuroyami.kiteffmpeg/FFmpeg.createAsyncRuntime|createAsyncRuntime(){}[0]
 }
 
 final object io.github.yuroyami.kiteffmpeg/Remuxer { // io.github.yuroyami.kiteffmpeg/Remuxer|null[0]
@@ -3240,10 +3413,12 @@ final fun (io.github.yuroyami.kiteffmpeg/MediaSource.Companion).io.github.yuroya
 final fun (io.github.yuroyami.kiteffmpeg/MediaSource.Companion).io.github.yuroyami.kiteffmpeg/open(kotlin/String, io.github.yuroyami.kiteffmpeg.dsl/DemuxOptions, io.github.yuroyami.kiteffmpeg/OpenInterrupt? = ...): io.github.yuroyami.kiteffmpeg/MediaSource // io.github.yuroyami.kiteffmpeg/open|open@io.github.yuroyami.kiteffmpeg.MediaSource.Companion(kotlin.String;io.github.yuroyami.kiteffmpeg.dsl.DemuxOptions;io.github.yuroyami.kiteffmpeg.OpenInterrupt?){}[0]
 final fun (io.github.yuroyami.kiteffmpeg/MediaSource.Companion).io.github.yuroyami.kiteffmpeg/probe(io.github.yuroyami.kiteffmpeg/MediaByteSource, kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/MediaProbe // io.github.yuroyami.kiteffmpeg/probe|probe@io.github.yuroyami.kiteffmpeg.MediaSource.Companion(io.github.yuroyami.kiteffmpeg.MediaByteSource;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
 final fun (io.github.yuroyami.kiteffmpeg/MediaSource.Companion).io.github.yuroyami.kiteffmpeg/probe(kotlin/String, kotlin.collections/Map<kotlin/String, kotlin/String> = ...): io.github.yuroyami.kiteffmpeg/MediaProbe // io.github.yuroyami.kiteffmpeg/probe|probe@io.github.yuroyami.kiteffmpeg.MediaSource.Companion(kotlin.String;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
+final fun (kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/AsyncFrame>).io.github.yuroyami.kiteffmpeg/bufferAsyncFrames(kotlin/Int = ..., kotlin.coroutines/CoroutineContext = ...): kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/AsyncFrame> // io.github.yuroyami.kiteffmpeg/bufferAsyncFrames|bufferAsyncFrames@kotlinx.coroutines.flow.Flow<io.github.yuroyami.kiteffmpeg.AsyncFrame>(kotlin.Int;kotlin.coroutines.CoroutineContext){}[0]
 final fun (kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/Frame>).io.github.yuroyami.kiteffmpeg/bufferFrames(kotlin/Int = ..., kotlin.coroutines/CoroutineContext = ...): kotlinx.coroutines.flow/Flow<io.github.yuroyami.kiteffmpeg/Frame> // io.github.yuroyami.kiteffmpeg/bufferFrames|bufferFrames@kotlinx.coroutines.flow.Flow<io.github.yuroyami.kiteffmpeg.Frame>(kotlin.Int;kotlin.coroutines.CoroutineContext){}[0]
 final fun io.github.yuroyami.kiteffmpeg.dsl/audioFilters(kotlin/Function1<io.github.yuroyami.kiteffmpeg.dsl/AudioFilterBuilder, kotlin/Unit>): io.github.yuroyami.kiteffmpeg.dsl/FilterChain // io.github.yuroyami.kiteffmpeg.dsl/audioFilters|audioFilters(kotlin.Function1<io.github.yuroyami.kiteffmpeg.dsl.AudioFilterBuilder,kotlin.Unit>){}[0]
 final fun io.github.yuroyami.kiteffmpeg.dsl/escapeFilterValue(kotlin/String): kotlin/String // io.github.yuroyami.kiteffmpeg.dsl/escapeFilterValue|escapeFilterValue(kotlin.String){}[0]
 final fun io.github.yuroyami.kiteffmpeg.dsl/videoFilters(kotlin/Function1<io.github.yuroyami.kiteffmpeg.dsl/VideoFilterBuilder, kotlin/Unit>): io.github.yuroyami.kiteffmpeg.dsl/FilterChain // io.github.yuroyami.kiteffmpeg.dsl/videoFilters|videoFilters(kotlin.Function1<io.github.yuroyami.kiteffmpeg.dsl.VideoFilterBuilder,kotlin.Unit>){}[0]
+final suspend fun <#A: io.github.yuroyami.kiteffmpeg/AsyncCloseable, #B: kotlin/Any?> (#A).io.github.yuroyami.kiteffmpeg/useAsync(kotlin.coroutines/SuspendFunction1<#A, #B>): #B // io.github.yuroyami.kiteffmpeg/useAsync|useAsync@0:0(kotlin.coroutines.SuspendFunction1<0:0,0:1>){0§<io.github.yuroyami.kiteffmpeg.AsyncCloseable>;1§<kotlin.Any?>}[0]
 
 // Targets: [native]
 final val io.github.yuroyami.kiteffmpeg/hardwareSurface // io.github.yuroyami.kiteffmpeg/hardwareSurface|@io.github.yuroyami.kiteffmpeg.Frame{}hardwareSurface[0]
@@ -3251,6 +3426,16 @@ final val io.github.yuroyami.kiteffmpeg/hardwareSurface // io.github.yuroyami.ki
 
 // Targets: [native]
 final fun <#A: kotlin/Any?> (io.github.yuroyami.kiteffmpeg/Frame).io.github.yuroyami.kiteffmpeg/withPlanes(kotlin/Function3<kotlin.collections/List<kotlinx.cinterop/CPointer<kotlinx.cinterop/UByteVarOf<kotlin/UByte>>>, kotlin.collections/List<kotlin/Int>, kotlin.collections/List<kotlin/Int>, #A>): #A // io.github.yuroyami.kiteffmpeg/withPlanes|withPlanes@io.github.yuroyami.kiteffmpeg.Frame(kotlin.Function3<kotlin.collections.List<kotlinx.cinterop.CPointer<kotlinx.cinterop.UByteVarOf<kotlin.UByte>>>,kotlin.collections.List<kotlin.Int>,kotlin.collections.List<kotlin.Int>,0:0>){0§<kotlin.Any?>}[0]
+
+// Targets: [wasmJs]
+final class io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts { // io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts|null[0]
+    constructor <init>(kotlin/String? = ..., kotlin/String? = ...) // io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts.<init>|<init>(kotlin.String?;kotlin.String?){}[0]
+
+    final val asyncifyUrl // io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts.asyncifyUrl|{}asyncifyUrl[0]
+        final fun <get-asyncifyUrl>(): kotlin/String? // io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts.asyncifyUrl.<get-asyncifyUrl>|<get-asyncifyUrl>(){}[0]
+    final val jspiUrl // io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts.jspiUrl|{}jspiUrl[0]
+        final fun <get-jspiUrl>(): kotlin/String? // io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts.jspiUrl.<get-jspiUrl>|<get-jspiUrl>(){}[0]
+}
 
 // Targets: [wasmJs]
 final class io.github.yuroyami.kiteffmpeg/WebRgbaConverter : kotlin/AutoCloseable { // io.github.yuroyami.kiteffmpeg/WebRgbaConverter|null[0]
@@ -3269,7 +3454,9 @@ final object io.github.yuroyami.kiteffmpeg/KiteFFmpegWeb { // io.github.yuroyami
         final fun <get-isLoaded>(): kotlin/Boolean // io.github.yuroyami.kiteffmpeg/KiteFFmpegWeb.isLoaded.<get-isLoaded>|<get-isLoaded>(){}[0]
 
     final fun attach(kotlin.js/JsAny) // io.github.yuroyami.kiteffmpeg/KiteFFmpegWeb.attach|attach(kotlin.js.JsAny){}[0]
+    final fun attachAsyncRuntime(kotlin.js/JsAny): io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime // io.github.yuroyami.kiteffmpeg/KiteFFmpegWeb.attachAsyncRuntime|attachAsyncRuntime(kotlin.js.JsAny){}[0]
     final suspend fun load(kotlin/String = ...) // io.github.yuroyami.kiteffmpeg/KiteFFmpegWeb.load|load(kotlin.String){}[0]
+    final suspend fun loadAsyncRuntime(io.github.yuroyami.kiteffmpeg/WebAsyncCodecArtifacts): io.github.yuroyami.kiteffmpeg/AsyncMediaRuntime // io.github.yuroyami.kiteffmpeg/KiteFFmpegWeb.loadAsyncRuntime|loadAsyncRuntime(io.github.yuroyami.kiteffmpeg.WebAsyncCodecArtifacts){}[0]
 
     final class IncompleteModule : kotlin/IllegalArgumentException // io.github.yuroyami.kiteffmpeg/KiteFFmpegWeb.IncompleteModule|null[0]
 

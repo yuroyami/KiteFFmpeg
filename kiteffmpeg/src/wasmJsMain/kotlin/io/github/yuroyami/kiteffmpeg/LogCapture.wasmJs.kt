@@ -11,13 +11,13 @@ import kotlin.js.JsAny
 
 /** A module linked before the capture existed has nothing to open, so its failures keep their message alone. */
 internal actual fun beginLogCapture(): Boolean {
-    val m = KiteFFmpegWeb.module ?: return false
+    val m = moduleInUseOrNull() ?: return false
     if (!hasLogCapture(m)) return false
     return ffkmp_log_capture_begin(m) == 0
 }
 
 internal actual fun endLogCapture(): List<FFmpegLogLine> {
-    val m = KiteFFmpegWeb.module ?: return emptyList()
+    val m = moduleInUseOrNull() ?: return emptyList()
     if (!hasLogCapture(m)) return emptyList()
     val capture = ffkmp_log_capture_end(m)
     if (capture == 0) return emptyList()

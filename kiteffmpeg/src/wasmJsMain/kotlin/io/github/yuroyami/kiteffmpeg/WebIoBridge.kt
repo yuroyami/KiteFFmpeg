@@ -243,7 +243,7 @@ internal class WebIoBridge private constructor(
  * want of memory, because [ffmpegTagPairs] leaves no empty key and no NUL. Throws when codec memory
  * for a string runs out.
  */
-private fun handTags(module: JsAny, tags: Int, pairs: Array<String>): Boolean {
+internal fun handTags(module: JsAny, tags: Int, pairs: Array<String>): Boolean {
     var index = 0
     while (index + 1 < pairs.size) {
         val rc = withCString(module, pairs[index]) { key ->

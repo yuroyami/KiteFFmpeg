@@ -1,3 +1,146 @@
+public abstract interface class io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public abstract fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncFrame : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun closedCaptions (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun copy (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun copyPlanesInto ([BLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun copyPlanesToByteArray (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun dolbyVision (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun dolbyVisionRpu (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun downloadFromHardware (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getInfo ()Lio/github/yuroyami/kiteffmpeg/FrameInfo;
+	public final fun getPtsMicros ()Ljava/lang/Long;
+	public final fun planesByteCount (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncFrameFlowKt {
+	public static final fun bufferAsyncFrames (Lkotlinx/coroutines/flow/Flow;ILkotlin/coroutines/CoroutineContext;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun bufferAsyncFrames$default (Lkotlinx/coroutines/flow/Flow;ILkotlin/coroutines/CoroutineContext;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public abstract interface class io/github/yuroyami/kiteffmpeg/AsyncMediaByteOpener {
+	public abstract fun open (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class io/github/yuroyami/kiteffmpeg/AsyncMediaByteSource : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public fun getLocation ()Ljava/lang/String;
+	public abstract fun getSeekable ()Z
+	public abstract fun read ([BIILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun seek (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun size (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun takeTags (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncMediaByteSource$DefaultImpls {
+	public static fun getLocation (Lio/github/yuroyami/kiteffmpeg/AsyncMediaByteSource;)Ljava/lang/String;
+	public static fun takeTags (Lio/github/yuroyami/kiteffmpeg/AsyncMediaByteSource;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncMediaByteSourceKt {
+	public static final fun useAsync (Lio/github/yuroyami/kiteffmpeg/AsyncCloseable;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncMediaInfo {
+	public final fun getBitrateBps ()Ljava/lang/Long;
+	public final fun getChapters ()Ljava/util/List;
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getDurationOrigin ()Lio/github/yuroyami/kiteffmpeg/DurationOrigin;
+	public final fun getFormatName ()Ljava/lang/String;
+	public final fun getMatroska ()Lio/github/yuroyami/kiteffmpeg/MatroskaSegment;
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getPrimaryAudio ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getPrimaryVideo ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun getPrograms ()Ljava/util/List;
+	public final fun getStartTimeMicros ()J
+	public final fun getStreams ()Ljava/util/List;
+	public final fun getUnusedOpenOptions ()Ljava/util/List;
+	public final fun isSeekable ()Z
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncMediaRuntime : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getIdentity ()Lio/github/yuroyami/kiteffmpeg/FFmpegIdentity;
+	public final fun open (Lio/github/yuroyami/kiteffmpeg/AsyncMediaByteSource;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/AsyncMediaByteOpener;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun open$default (Lio/github/yuroyami/kiteffmpeg/AsyncMediaRuntime;Lio/github/yuroyami/kiteffmpeg/AsyncMediaByteSource;Ljava/util/Map;Lio/github/yuroyami/kiteffmpeg/OpenInterrupt;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteffmpeg/AsyncMediaByteOpener;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncMediaSource : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public static final field EXTRACT_SEEK_BACKOFF_MICROS J
+	public fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun decodeStreams (Ljava/util/List;)Lkotlinx/coroutines/flow/Flow;
+	public final fun decodedFrames (Lio/github/yuroyami/kiteffmpeg/StreamInfo;)Lkotlinx/coroutines/flow/Flow;
+	public final fun extractFrame (JLio/github/yuroyami/kiteffmpeg/StreamInfo;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun extractFrame$default (Lio/github/yuroyami/kiteffmpeg/AsyncMediaSource;JLio/github/yuroyami/kiteffmpeg/StreamInfo;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun getCorruptData ()Lio/github/yuroyami/kiteffmpeg/CorruptData;
+	public final fun getCorruptDataSkipped ()J
+	public final fun getInfo ()Lio/github/yuroyami/kiteffmpeg/AsyncMediaInfo;
+	public final fun getStreamDivergences ()Ljava/util/List;
+	public final fun interrupt ()V
+	public final fun openDecoder-umqk5Cs (Lio/github/yuroyami/kiteffmpeg/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;Lio/github/yuroyami/kiteffmpeg/HardwareAccel;Lio/github/yuroyami/kiteffmpeg/CorruptData;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun openDecoder-umqk5Cs$default (Lio/github/yuroyami/kiteffmpeg/AsyncMediaSource;Lio/github/yuroyami/kiteffmpeg/StreamInfo;IZLjava/lang/String;Lio/github/yuroyami/kiteffmpeg/dsl/DecoderOptions;Lio/github/yuroyami/kiteffmpeg/HardwareAccel;Lio/github/yuroyami/kiteffmpeg/CorruptData;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun openPacketReader (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun openSubtitleDecoder (Lio/github/yuroyami/kiteffmpeg/StreamInfo;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun openSubtitleDecoder$default (Lio/github/yuroyami/kiteffmpeg/AsyncMediaSource;Lio/github/yuroyami/kiteffmpeg/StreamInfo;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun pause (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun resetCorruptDataSkipped (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun resume (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun seekMicros (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setCorruptData (Lio/github/yuroyami/kiteffmpeg/CorruptData;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncPacket : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun copy (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun copyBytes (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getBytePosition ()J
+	public final fun getDts ()J
+	public final fun getDtsMicros ()Ljava/lang/Long;
+	public final fun getDuration ()J
+	public final fun getDurationMicros ()Ljava/lang/Long;
+	public final fun getHasPts ()Z
+	public final fun getNewContainerTags ()Ljava/util/Map;
+	public final fun getNewPrograms ()Ljava/util/List;
+	public final fun getNewStreamTags ()Ljava/util/Map;
+	public final fun getNewStreams ()Ljava/util/List;
+	public final fun getPts ()J
+	public final fun getPtsMicros ()Ljava/lang/Long;
+	public final fun getSizeBytes ()I
+	public final fun getStreamIndex ()I
+	public final fun getTimeBase ()Lio/github/yuroyami/kiteffmpeg/Rational;
+	public final fun isKeyframe ()Z
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncPacketReader : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun read (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun reselect (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun seek (JLio/github/yuroyami/kiteffmpeg/SeekDirection;Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun seek$default (Lio/github/yuroyami/kiteffmpeg/AsyncPacketReader;JLio/github/yuroyami/kiteffmpeg/SeekDirection;Ljava/lang/Long;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncStreamDecoder : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun flush (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getCorruptDataSkipped ()J
+	public final fun getStream ()Lio/github/yuroyami/kiteffmpeg/StreamInfo;
+	public final fun isDrained ()Z
+	public final fun receive (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun resetCorruptDataSkipped (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun send (Lio/github/yuroyami/kiteffmpeg/AsyncPacket;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setSkipFrame (Lio/github/yuroyami/kiteffmpeg/dsl/DecoderSkip;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteffmpeg/AsyncSubtitleDecoder : io/github/yuroyami/kiteffmpeg/AsyncCloseable {
+	public fun close (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun decode (Lio/github/yuroyami/kiteffmpeg/AsyncPacket;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun drain (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun flush (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class io/github/yuroyami/kiteffmpeg/AudioEncoder : java/lang/AutoCloseable {
 	public fun close ()V
 	public final fun drive (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -732,6 +875,7 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpeg {
 	public final fun codecOf--6UJowQ (Ljava/lang/String;)Ljava/lang/String;
 	public final fun codecOf-9nzc0N0 (Ljava/lang/String;)Ljava/lang/String;
 	public final fun components (Lio/github/yuroyami/kiteffmpeg/FFmpegComponent;)Ljava/util/List;
+	public final fun createAsyncRuntime (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun decodersFor-vVKjmHM (Ljava/lang/String;)Ljava/util/List;
 	public final fun encodersFor-vVKjmHM (Ljava/lang/String;)Ljava/util/List;
 	public final fun getBuildConfiguration ()Ljava/lang/String;

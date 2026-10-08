@@ -26,4 +26,7 @@ public actual object FFmpeg {
     // No FFmpeg, so there is never a line to deliver.
     public actual fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
     }
+
+    public actual suspend fun createAsyncRuntime(): AsyncMediaRuntime =
+        placeholderBackendUnavailable("Creating an asynchronous runtime")
 }

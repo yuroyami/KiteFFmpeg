@@ -207,6 +207,7 @@ jobs:
           # The shared native source sets compile only as metadata, which apiCheck never builds and
           # a publish does. The 0.3.0 publish once failed there, before any upload.
           ./gradlew -Pkiteffmpeg.requireAllTargets=true --stacktrace \
+            :kiteffmpeg:compileHostAsyncMainKotlinMetadata \
             :kiteffmpeg:compileNativeMainKotlinMetadata :kiteffmpeg:compileAppleMainKotlinMetadata \
             :kiteffmpeg:compileIosMainKotlinMetadata :kiteffmpeg:compileMacosMainKotlinMetadata \
             :kiteffmpeg:compileLinuxMainKotlinMetadata :kiteffmpeg:compileAndroidNativeMainKotlinMetadata

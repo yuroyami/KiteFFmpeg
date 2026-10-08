@@ -1,10 +1,32 @@
 # Asynchronous custom byte I/O: planned contract
 
-**Status: accepted planned contract, not implemented or available in a release.** This document records the public API and ownership design for [KiteFFmpeg #183](https://github.com/yuroyami/KiteFFmpeg/issues/183). Existing synchronous classes, signatures, defaults and the plain web codec artifact remain unchanged. See [Decoding](decoding.md) for the currently available API. Implementation, generated ABI changes and the real FFmpeg acceptance gates below must follow this separate design commit.
+**Status: implemented on `main`, not in a release yet.** This document records the public API and ownership design for [KiteFFmpeg #183](https://github.com/yuroyami/KiteFFmpeg/issues/183). Existing synchronous classes, signatures, defaults and the plain web codec artifact remain unchanged. See [Decoding](decoding.md) for the synchronous API. The sections below are the design. "Built so far" says what the code does today and where it differs.
 
-The authored mechanism probes exercised tiny C/Wasm programs and actual Kotlin/Wasm stdlib coroutine bridges with Emscripten 6.0.10-git, Kotlin/Wasm 2.4.20, Node 26.10.0 and headless Chrome 149.0.7827.201 on page and Worker, without cross-origin isolation. They produced 60 positive method executions and 12 intended synchronous-import negative suite failures: repeated executions of five authored methods, not 60 distinct tests. These results establish the tested stack-suspension mechanisms only. No async FFmpeg artifact or public async API has been implemented, and real FFmpeg reachability, kotlinx Job cancellation, other engines, host backends and playback behavior remain unqualified.
+The authored mechanism probes exercised tiny C/Wasm programs and actual Kotlin/Wasm stdlib coroutine bridges with Emscripten 6.0.10-git, Kotlin/Wasm 2.4.20, Node 26.10.0 and headless Chrome 149.0.7827.201 on page and Worker, without cross-origin isolation. They produced 60 positive method executions and 12 intended synchronous-import negative suite failures: repeated executions of five authored methods, not 60 distinct tests. These results establish the tested stack-suspension mechanisms only.
 
-**Built so far.** `linkKiteFFmpegAsyncWasmModules` links `kite-jspi` and `kite-asyncify` with the static bridge of `native/kitecodec-web`, and `checkKiteFFmpegAsyncWasmModules` drives the real FFmpeg in each from Node: an fMP4 HLS stream read through byte source calls that all answer later, a seek, and a live playlist that stops growing while the event loop must go on running. No Kotlin API loads these modules yet, and the `web` zip does not carry them.
+## Built so far
+
+**The codec modules.** `linkKiteFFmpegAsyncWasmModules` links `kite-jspi` and `kite-asyncify` with the static bridge of `native/kitecodec-web`, and `checkKiteFFmpegAsyncWasmModules` drives the real FFmpeg in each from Node. The `web` zip does not carry the two modules: each is as large as `kite.wasm` (4.7 MB and 5.7 MB), so the zip would triple. A page that wants a runtime links them with the Gradle task and serves them itself.
+
+**The Kotlin API.** Every declaration of "Concrete planned public surface" exists, in `commonMain`:
+
+- `AsyncMediaRuntime`, `AsyncMediaSource`, `AsyncMediaInfo`, `AsyncPacketReader`, `AsyncPacket`, `AsyncStreamDecoder`, `AsyncSubtitleDecoder`, `AsyncFrame`, `AsyncMediaByteSource`, `AsyncMediaByteOpener`, `AsyncCloseable`, `useAsync` and `bufferAsyncFrames`.
+- Each asynchronous class wraps the synchronous class of the same name. One internal class, the lane, runs all of it: it lets one operation into FFmpeg at a time, owns every byte source, and carries the cancellation rules below. A platform supplies only a small engine under it.
+- On the JVM, Android and native, `FFmpeg.createAsyncRuntime()` gives a runtime whose engine runs FFmpeg on a thread of its own. A C callback waits on that thread while the byte source call runs on `Dispatchers.Default`.
+- On wasmJs, `KiteFFmpegWeb.loadAsyncRuntime` and `KiteFFmpegWeb.attachAsyncRuntime` give a runtime that owns one `kite-jspi` or `kite-asyncify` module. `FFmpeg.createAsyncRuntime()` there fails with `FFmpegError.Unsupported` and names the loader. On `js` it fails as every other call of that placeholder does.
+
+**The tests.** `AsyncRuntimeContract` in `commonTest` runs against the real FFmpeg: on the JVM and macOS through `HostAsyncRuntimeContractTest`, and in Node through `WebAsyncRuntimeTest`, once on each web module. `WebAsyncRuntimeTest` adds the HLS stream of the Node check, a live playlist that stops growing, the refusal of `kite.mjs`, the page's module decoding while a runtime waits, and the one-owner rule.
+
+**Where the code differs from the design below.**
+
+- A cancelled `loadAsyncRuntime` waits for the module and then drops it. The modules have no disposal hook, so nothing is freed explicitly. The instance is never adopted and never used.
+- The owner of a module is a mark on the module object, not a weak registry. The mark lasts as long as the module, which is what the registry was for.
+- A failure of a byte source is kept on the source until a later read of the same source works. FFmpeg can answer a failed read with the bytes it already had and then fail the next call without asking again. That next call names the kept failure as its cause, and only when it made no byte source call of its own.
+- A source closes its open packet reader with itself. The synchronous `MediaSource.close` refuses while a reader is open.
+- The FFmpeg log sink of `FFmpeg.setLogSink` does not hear a web runtime's module. The lines FFmpeg logs while it refuses an open still ride on the exception.
+- The operation states of "Kotlin job and native-unwind ownership" are not a named enum. The lane holds the same facts in its lock, its stop signal and its close records.
+- No test counts descriptor materialisations, and no browser test runs the runtime yet. The Node run covers both modules.
+- The experiments of "Required cancellation, seek and playback experiments" are not done. Nothing here promises a responsive seek on a live stream.
 
 ## Owned runtime and artifact choice
 

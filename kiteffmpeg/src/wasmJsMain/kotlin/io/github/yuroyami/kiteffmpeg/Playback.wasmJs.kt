@@ -114,7 +114,10 @@ public actual class PacketReader internal constructor(
         free = { packet -> requireModule().let { ffkmp_packet_unref(it, packet); ffkmp_packet_free(it, packet) } },
     )
 
-    public actual fun read(): Packet? {
+    public actual fun read(): Packet? = readUsing { m, context, packet -> ffkmp_fmt_read_frame(m, context, packet) }
+
+    /** [read] with FFmpeg's read call given by the caller, which an asynchronous runtime waits for. */
+    internal inline fun readUsing(readFrame: (JsAny, Int, Int) -> Int): Packet? {
         check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
         val m = requireModule()
@@ -125,7 +128,7 @@ public actual class PacketReader internal constructor(
             val packet = ffkmp_packet_alloc(m)
             if (packet == 0) throw FFmpegException(FFmpegError.Internal("av_packet_alloc returned NULL"))
             source.beginDemuxOperation()
-            val rc = ffkmp_fmt_read_frame(m, context, packet)
+            val rc = readFrame(m, context, packet)
             if (rc < 0) {
                 ffkmp_packet_free(m, packet)
                 if (rc == eof) return null
@@ -181,6 +184,18 @@ public actual class PacketReader internal constructor(
     }
 
     public actual fun seek(micros: Long, direction: SeekDirection, notEarlierThan: Long?) {
+        seekUsing(micros, direction, notEarlierThan) { m, context, min, target, max, flags ->
+            ffkmp_fmt_seek_file(m, context, -1, min, target, max, flags)
+        }
+    }
+
+    /** [seek] with FFmpeg's seek call given by the caller, which an asynchronous runtime waits for. */
+    internal inline fun seekUsing(
+        micros: Long,
+        direction: SeekDirection,
+        notEarlierThan: Long?,
+        seekFile: (JsAny, Int, Long, Long, Long, Int) -> Int,
+    ) {
         check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")
         val m = requireModule()
@@ -196,7 +211,7 @@ public actual class PacketReader internal constructor(
         val target = micros + startTimeMicros
         val (min, max) = seekWindow(target, direction, notEarlierThan?.let { it + startTimeMicros })
         source.beginDemuxOperation()
-        val rc = ffkmp_fmt_seek_file(m, context, -1, min, target, max, flags)
+        val rc = seekFile(m, context, min, target, max, flags)
         if (rc < 0) throw source.demuxFailure(rc, "seeking to ${micros}us")
     }
 
