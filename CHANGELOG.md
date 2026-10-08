@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-08
+
+Byte sources that answer later, on every platform and on the web through two new codec modules.
+Nested web sources read on demand in a Worker, and an HLS stream with WebVTT subtitles opens on
+the web. Nothing breaks: the synchronous API, the C ABI and the `web` zip did not change.
+
 ### Added
 
 - Byte sources that answer later (#183). `AsyncMediaByteSource` is the suspending form of
@@ -25,11 +31,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The build uses Kotlin 2.4.21, Gradle 9.8.1, Dokka 2.3.0-Beta, Android compileSdk 37, Android
   NDK r30 and Emscripten 6.0.11.
-- The subtitle chain that KitePlayer links, the `ass-chain` release assets, builds HarfBuzz
-  14.6.0 instead of 14.5.0.
+- The recipe of the subtitle chain that KitePlayer links builds HarfBuzz 14.6.0 instead of 14.5.0.
+  The published `ass-chain-r2` assets keep 14.5.0 until the chain is built again.
 
 ### Fixed
 
+- In a Web Worker or Node, a source that a `MediaByteOpener` returns is read on demand and can be
+  seeked, as the top-level source already was, with no 512 MiB limit and no whole download first
+  (#182). On a browser page each nested source is still read whole, up to 512 MiB.
 - The web codec module opens an HLS stream that has a WebVTT subtitle rendition, and reads the
   rendition as a `webvtt` stream. Before, the web FFmpeg had no WebVTT reader, and the HLS reader
   failed the whole open on the subtitle playlist with "Invalid data found when processing input"
@@ -1229,7 +1238,8 @@ Everything below grew from `0.0.1` and is listed for orientation rather than as 
 
 Initial development baseline: project structure, consolidated FFmpeg cinterop binding (`ffmpeg.def` + `ffkmp_*` helpers), and the first working decode/encode paths on macOS arm64. Everything listed under [Unreleased] grew from here; treat 0.0.1 as the "it exists and transcodes" milestone rather than a supported release.
 
-[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.5.0...HEAD
+[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.5.1...HEAD
+[0.5.1]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.5.1
 [0.5.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.5.0
 [0.4.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.4.0
 [0.3.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.3.0

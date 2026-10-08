@@ -61,7 +61,7 @@ env:
   # sync with BuildFFmpegTask.DEFAULT_SOURCE_REF (buildSrc); the root build asserts they agree.
   FFMPEG_VERSION: n9.0.2
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
-  # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0. ffmpeg-n9.0.2-r2 stays
+  # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0 and 0.5.1. ffmpeg-n9.0.2-r2 stays
   # as the binaries and source offer of 0.4.0, and ffmpeg-n9.0.2 as those of 0.3.0. The ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as
   # the LGPL source offer for kitecodec-core artifacts already on Maven Central, and Central cannot
   # withdraw a version. What follows is the record of why they parted in 2026-08.

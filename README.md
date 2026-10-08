@@ -111,7 +111,7 @@ When something goes wrong, you get one `FFmpegException` that carries a typed `F
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.5.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.5.1")
 }
 ```
 
@@ -180,7 +180,7 @@ bytes the page already holds, or from a synchronous request inside a Web Worker.
 has the details.
 
 A byte source that answers later, such as a Fetch response, needs an asynchronous runtime and one
-of two other codec modules. From the version after 0.5.0, the `wasmJs` publication also carries
+of two other codec modules. From 0.5.1, the `wasmJs` publication also carries
 `kiteffmpeg-wasm-js-<version>-web-async.zip`, which holds `kite-jspi.mjs` and `kite-asyncify.mjs`
 with their `.wasm` files. Serve them beside your page and give their addresses to
 `KiteFFmpegWeb.loadAsyncRuntime(WebAsyncCodecArtifacts(...))`. See

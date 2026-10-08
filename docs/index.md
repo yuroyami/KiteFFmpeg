@@ -43,7 +43,7 @@ Everything routes through one demux pass. When you decode several streams, or co
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.5.0")
+    implementation("io.github.yuroyami:kiteffmpeg:0.5.1")
 }
 ```
 
