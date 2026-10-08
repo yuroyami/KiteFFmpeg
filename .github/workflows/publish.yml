@@ -151,7 +151,7 @@ jobs:
             ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
           done
       # Written from the archives the step above kept, and before anything is built or uploaded,
-      # so a refusal stops the run early. It is written again once the web zip exists.
+      # so a refusal stops the run early. It is written again once the web zips exist.
       - name: Bill of materials for the embedded FFmpeg and dav1d
         run: ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg
       # The C helper tasks compile with konan's own LLVM, which only lands in
@@ -177,7 +177,9 @@ jobs:
       # The web codec module, kite.mjs and kite.wasm, links with emscripten against a web FFmpeg
       # built here from the tag being published, with the same patches as the native trees. The
       # publish step's -Pkiteffmpeg.web.module=true attaches it to the wasmJs publication as the
-      # `web` zip, and refuses to publish without it. Emscripten comes from emsdk at a pinned
+      # `web` zip, and refuses to publish without it. The two modules whose byte sources may answer
+      # later, kite-jspi and kite-asyncify, link from the same tree and ride as the `web-async`
+      # zip. Emscripten comes from emsdk at a pinned
       # version, and the FFmpeg clone must be the commit the native archives were built from, so a
       # later publish cannot ship different bytes from the same inputs.
       - name: Build the web codec module
@@ -197,15 +199,24 @@ jobs:
             echo "::error::FFmpeg ${FFMPEG_VERSION} cloned as ${actual}, but the native archives were built from ${expected}" >&2
             exit 1
           fi
-          ./gradlew :kiteffmpeg:kiteffmpegWebZip -Pkiteffmpeg.emscripten.llvmBin="${EMSDK}/upstream/bin" --stacktrace
-          zip="kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}-web.zip"
-          for entry in kite.wasm build-info/web-build-info.txt build-info/ffmpeg-patches.txt; do
-            unzip -l "${zip}" "${entry}" > /dev/null \
+          ./gradlew :kiteffmpeg:kiteffmpegWebZip :kiteffmpeg:kiteffmpegWebAsyncZip \
+            -Pkiteffmpeg.emscripten.llvmBin="${EMSDK}/upstream/bin" --stacktrace
+          zips="kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}"
+          for entry in kite.mjs kite.wasm build-info/web-build-info.txt build-info/ffmpeg-patches.txt; do
+            unzip -l "${zips}-web.zip" "${entry}" > /dev/null \
               || { echo "::error::the web zip carries no ${entry}" >&2; exit 1; }
           done
-      # Now with the web zip: its digest, its FFmpeg commit and patches, and its emscripten version.
-      - name: Bill of materials for the embedded code, with the web zip
-        run: ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg --web-zip kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}-web.zip
+          for entry in kite-jspi.mjs kite-jspi.wasm kite-asyncify.mjs kite-asyncify.wasm \
+                       build-info/web-build-info.txt build-info/ffmpeg-patches.txt; do
+            unzip -l "${zips}-web-async.zip" "${entry}" > /dev/null \
+              || { echo "::error::the web-async zip carries no ${entry}" >&2; exit 1; }
+          done
+      # Now with the web zips: their digests, FFmpeg commit and patches, and emscripten version.
+      - name: Bill of materials for the embedded code, with the web zips
+        run: |
+          zips="kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}"
+          ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg \
+            --web-zip "${zips}-web.zip" --web-zip "${zips}-web-async.zip"
       - name: Keep the bill of materials
         uses: actions/upload-artifact@v4
         with:

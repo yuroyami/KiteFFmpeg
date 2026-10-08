@@ -848,8 +848,8 @@ val linkWasmModule =
         outputDir.set(layout.buildDirectory.dir("kite-web"))
     }
 // The two asynchronous codec modules (#183), whose byte sources may answer later.
-// KiteFFmpegWeb.loadAsyncRuntime loads them. The `web` zip does not carry them: each is as large
-// as kite.wasm, so a page that wants a runtime links and serves them itself.
+// KiteFFmpegWeb.loadAsyncRuntime loads them. They ride in a zip of their own, `web-async`: each
+// is as large as kite.wasm, and a page that reads only whole byte sources needs neither.
 val linkAsyncWasmModules =
     tasks.register<io.github.yuroyami.kiteffmpeg.buildtools.LinkKiteFFmpegAsyncWasmModulesTask>("linkKiteFFmpegAsyncWasmModules") {
         group = "kiteffmpeg"
@@ -908,11 +908,29 @@ val kiteffmpegWebZip = tasks.register<Zip>("kiteffmpegWebZip") {
     archiveClassifier.set("web")
     destinationDirectory.set(layout.buildDirectory.dir("kite-web-zip"))
 }
+val kiteffmpegWebAsyncZip = tasks.register<Zip>("kiteffmpegWebAsyncZip") {
+    group = "kiteffmpeg"
+    description = "The two asynchronous web codec modules as one zip, for the wasmJs publication."
+    from(linkAsyncWasmModules.map { it.outputDir })
+    // The same FFmpeg tree as kite.wasm, so the same record of its commit, patches and emscripten.
+    from(wasmFFmpegRoot.resolve("lib/kiteffmpeg")) {
+        include("web-build-info.txt", "ffmpeg-patches.txt")
+        into("build-info")
+    }
+    from(project.file("src/jvmMain/resources/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1")) { into("licenses") }
+    from(project.file("web/licenses/THIRD-PARTY.txt")) { into("licenses") }
+    archiveBaseName.set("kiteffmpeg-wasm-js")
+    archiveClassifier.set("web-async")
+    destinationDirectory.set(layout.buildDirectory.dir("kite-web-zip"))
+}
 if (providers.gradleProperty("kiteffmpeg.web.module").orNull == "true") {
     afterEvaluate {
         extensions.findByType<PublishingExtension>()?.publications
             ?.matching { it.name == "wasmJs" }
-            ?.configureEach { (this as MavenPublication).artifact(kiteffmpegWebZip) }
+            ?.configureEach {
+                (this as MavenPublication).artifact(kiteffmpegWebZip)
+                artifact(kiteffmpegWebAsyncZip)
+            }
     }
 }
 

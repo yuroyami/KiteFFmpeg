@@ -181,8 +181,8 @@ public object KiteFFmpegWeb {
         }
         val missing = missingAsyncPieces(codecModule)
         require(missing.isEmpty()) {
-            "this asynchronous codec module is missing $missing. Link it with the " +
-                "linkKiteFFmpegAsyncWasmModules Gradle task."
+            "this asynchronous codec module is missing $missing. Serve the module of the web-async " +
+                "zip of the wasmJs publication, or link it with the linkKiteFFmpegAsyncWasmModules Gradle task."
         }
         val version = asyncBridgeVersion(codecModule)
         if (version != ASYNC_BRIDGE_VERSION) {
@@ -246,7 +246,8 @@ public object KiteFFmpegWeb {
 }
 
 /**
- * Where an asynchronous runtime's codec modules are served. Give one address or both.
+ * Where an asynchronous runtime's codec modules are served. Give one address or both. The modules
+ * are in `kiteffmpeg-wasm-js-<version>-web-async.zip` of the `wasmJs` publication.
  *
  * @property jspiUrl the address of `kite-jspi.mjs`, which needs JavaScript Promise Integration in
  *   the engine. Its `.wasm` is fetched from beside it.

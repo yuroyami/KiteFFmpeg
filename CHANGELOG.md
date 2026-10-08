@@ -16,8 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `AsyncSubtitleDecoder`, `AsyncPacket` and `AsyncFrame`, the suspending forms of the classes with
   the same names. On the JVM, Android and native, `FFmpeg.createAsyncRuntime()` creates a runtime.
   On wasmJs, `KiteFFmpegWeb.loadAsyncRuntime` and `attachAsyncRuntime` create one that owns a
-  `kite-jspi` or `kite-asyncify` codec module, which `linkKiteFFmpegAsyncWasmModules` links. The
-  `web` zip does not carry those two modules. The synchronous API and `kite.mjs` did not change.
+  `kite-jspi` or `kite-asyncify` codec module. The two modules ride in a new zip of the `wasmJs`
+  publication, `kiteffmpeg-wasm-js-<version>-web-async.zip`, and the `web` zip keeps its size. The
+  synchronous API and `kite.mjs` did not change.
   See [docs/async-byte-io.md](docs/async-byte-io.md).
 
 ### Fixed

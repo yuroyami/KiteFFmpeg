@@ -179,6 +179,13 @@ a `nestedOpener` that serves each of its segments, and that opener has to answer
 bytes the page already holds, or from a synchronous request inside a Web Worker. [Decoding](https://yuroyami.github.io/KiteFFmpeg/decoding/#hls-through-your-own-http-client)
 has the details.
 
+A byte source that answers later, such as a Fetch response, needs an asynchronous runtime and one
+of two other codec modules. From the version after 0.5.0, the `wasmJs` publication also carries
+`kiteffmpeg-wasm-js-<version>-web-async.zip`, which holds `kite-jspi.mjs` and `kite-asyncify.mjs`
+with their `.wasm` files. Serve them beside your page and give their addresses to
+`KiteFFmpegWeb.loadAsyncRuntime(WebAsyncCodecArtifacts(...))`. See
+[docs/async-byte-io.md](docs/async-byte-io.md).
+
 </details>
 
 ## A quick tour

@@ -6,7 +6,7 @@ The authored mechanism probes exercised tiny C/Wasm programs and actual Kotlin/W
 
 ## Built so far
 
-**The codec modules.** `linkKiteFFmpegAsyncWasmModules` links `kite-jspi` and `kite-asyncify` with the static bridge of `native/kitecodec-web`, and `checkKiteFFmpegAsyncWasmModules` drives the real FFmpeg in each from Node. The `web` zip does not carry the two modules: each is as large as `kite.wasm` (4.7 MB and 5.7 MB), so the zip would triple. A page that wants a runtime links them with the Gradle task and serves them itself.
+**The codec modules.** `linkKiteFFmpegAsyncWasmModules` links `kite-jspi` and `kite-asyncify` with the static bridge of `native/kitecodec-web`, and `checkKiteFFmpegAsyncWasmModules` drives the real FFmpeg in each from Node. The `web` zip does not carry the two modules: their `.wasm` files are 4.7 MB and 5.7 MB, so the zip would triple. They ride in a zip of their own, `kiteffmpeg-wasm-js-<version>-web-async.zip`, on the `wasmJs` publication. `kiteffmpegWebAsyncZip` builds it, and the bill of materials records it beside the `web` zip.
 
 **The Kotlin API.** Every declaration of "Concrete planned public surface" exists, in `commonMain`:
 
