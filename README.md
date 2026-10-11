@@ -10,6 +10,11 @@
 </p>
 
 <p align="center">
+  <sub>AI tools wrote much of the code, tests and documentation in this project, under the direction
+  and review of its author.</sub>
+</p>
+
+<p align="center">
   <a href="https://central.sonatype.com/artifact/io.github.yuroyami/kiteffmpeg"><img src="https://img.shields.io/maven-central/v/io.github.yuroyami/kiteffmpeg?label=Maven%20Central" alt="Maven Central"></a>
   <a href="https://github.com/yuroyami/KiteFFmpeg/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/yuroyami/KiteFFmpeg/ci.yml?label=CI" alt="CI"></a>
   <a href="https://yuroyami.github.io/KiteFFmpeg/"><img src="https://img.shields.io/badge/docs-yuroyami.github.io-1f6feb" alt="Docs"></a>
