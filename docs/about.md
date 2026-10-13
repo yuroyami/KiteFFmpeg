@@ -1,168 +1,161 @@
 # About KiteFFmpeg
 
-**One coroutine-first Kotlin API for video and audio.** KiteFFmpeg binds to FFmpeg's libav\*
-libraries through Kotlin/Native cinterop, or through a dynamically registered JNI adapter over the
-same opaque C helpers on JVM and Android. `wasmJs` carries a real playback backend over a generated
-binding. `js` is the one unsupported placeholder. There is no `ffmpeg` subprocess, and memory stays
-constant regardless of input length.
+KiteFFmpeg is one Kotlin API for video and audio over FFmpeg's libav\* libraries. Kotlin/Native
+reaches them through cinterop, the JVM and Android through a JNI library over the same C helpers,
+and `wasmJs` through a generated binding over a WebAssembly build. `js` is a placeholder. There is
+no `ffmpeg` process.
 
-This page covers the project's current status, its roadmap, the binding architecture, and the license. For the API itself, start with [Getting started](getting-started.md) or the [API reference](https://yuroyami.github.io/KiteFFmpeg/api/).
+This page covers the design, the native boundary and the license. For the API itself, start with
+[Getting started](getting-started.md) or the
+[API reference](https://yuroyami.github.io/KiteFFmpeg/api/).
 
 ## Approach
 
-Media work from Kotlin normally means launching the `ffmpeg` CLI and parsing its stderr output, or wrapping a prebuilt binary like FFmpegKit. You build arguments into a string, launch a process, and read progress back out of log lines.
+An app that uses FFmpeg usually starts the `ffmpeg` command line and reads the text it prints, or
+it wraps a prebuilt binary such as FFmpegKit. You build the arguments into a string, start a
+process, and read the progress back out of log lines.
 
-KiteFFmpeg calls the libraries directly. `Transcoder.transcode(...)` opens the file via libavformat, demuxes once, routes packets to per-stream libavcodec decoders, pushes frames through libavfilter graphs, encodes, and interleaves the streams into a valid container. Progress arrives as a typed callback, errors arrive as typed exceptions, and frames flow as a coroutine `Flow`.
+KiteFFmpeg calls the libraries directly. `Transcoder.transcode(...)` opens the file with
+libavformat and demuxes it once. It sends the packets to a libavcodec decoder for each stream,
+pushes the frames through libavfilter graphs, encodes them, and interleaves the streams into a
+valid container. Progress arrives as a typed callback, errors arrive as typed exceptions, and
+frames arrive as a coroutine `Flow`.
 
-Everything routes through a single demux pass. When you decode several streams, or composite two inputs, the demuxer reads the file once and fans packets out to the decoders that need them.
+Every pipeline reads its input once. When you decode several streams, or composite two inputs, the
+demuxer reads the file a single time and hands the packets to the decoders that need them.
 
-## Current Status
+## Status
 
-KiteFFmpeg is pre-1.0 and actively developed. The full **demux -> decode -> filter -> encode -> mux**
-API is implemented for both video and audio, in a single pass. It is published on Maven Central, and
-Android and iOS play real media on real phones as the engine under
-[KitePlayer](https://github.com/yuroyami/KitePlayer).
-
-There is one status table for the whole project, and it lives in the [README](https://github.com/yuroyami/KiteFFmpeg#where-it-runs). It records, per target, whether a public artifact exists, what build/test evidence exists, and where FFmpeg comes from.
-
-The two things a reader most often needs from it:
-
-- **KiteFFmpeg IS on Maven Central.** `io.github.yuroyami:kiteffmpeg:0.5.1`, one dependency line,
-  FFmpeg embedded inside the artifacts. There is no Gradle plugin any more and no FFmpeg download
-  step: the plugin was deleted and FFmpeg moved inside the published klibs, so a consumer needs
-  nothing on disk.
-- **JVM, Android and Web.** The Android AAR is real: its own manifest declares
-  `minSdkVersion 26` and it carries `libkitecodec_jni.so` for `arm64-v8a`, `armeabi-v7a` and
-  `x86_64`. The JVM jar carries a native library for macOS arm64, Linux x64, Linux arm64 and
-  Windows x64; the Linux and Windows ones are link-checked, and no Linux or Windows machine has run
-  them yet. `wasmJs` is a real playback backend once
-  you load its wasm module: demux, decode and seek work, while encode, mux and filter are refused.
-  `js` is the placeholder, failing with typed `FFmpegError.Unsupported`.
+KiteFFmpeg has not reached 1.0, so the API can still change between minor versions. It is on Maven
+Central, with FFmpeg inside every artifact, and it is the engine under
+[KitePlayer](https://github.com/yuroyami/KitePlayer). [Platform support](platforms.md) lists what
+each target carries, and the [open issues](https://github.com/yuroyami/KiteFFmpeg/issues) list the
+work that is still to do.
 
 !!! note "Frame ownership"
-    Frames emitted by the public `Flow` APIs (`MediaSource.decodedFrames`, `MediaSource.decodeStreams`, `FilterGraph.process`) are **owned by the collector**. Each stays valid until you close it, so `toList()` is safe. `buffer()`, `flowOn`, `conflate` and `produceIn` are not, because a cancelled flow drops what they queued without closing it. `bufferFrames()` is the operator for decoding ahead. Every collected frame must be closed, or its native buffers leak. Frames passed to a callback (`FilterGraph.feedInput`'s `onOutput`) are valid only for the duration of that call. `Frame.copy()` takes an O(1) owned snapshot. The native `AVFrame*` is deliberately not exposed in `commonMain`.
-
-## What's next
-
-- **Hardware decode and full hwframes pipelines**: zero-copy VideoToolbox / CUDA.
+    Frames that the `Flow` APIs emit (`MediaSource.decodedFrames`, `MediaSource.decodeStreams` and
+    `FilterGraph.process`) belong to the collector. Each one stays valid until you close it, so
+    `toList()` is safe. `buffer()`, `flowOn`, `conflate` and `produceIn` are not safe, because a
+    canceled flow drops what they queued without closing it. Use `bufferFrames()` to decode
+    ahead. Close every frame you collect, or its native buffers leak. A frame passed to a callback
+    (the `onOutput` of `FilterGraph.feedInput`) is valid only during that call. `Frame.copy()`
+    takes an owned snapshot in constant time. The native `AVFrame*` is not exposed in `commonMain`.
 
 ## Architecture
 
 ### One opaque native boundary
 
-The Kotlin/Native binding is **one** cinterop module (`kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def`), but
-the def parses only KiteFFmpeg's helper, handle and ABI headers. It no longer parses libav\*
-functions, constants or struct layouts. Twelve incomplete forward tags remain behind the twelve
-`kc_*` aliases, and Kotlin source is forbidden to name those tags directly. The aliases and
-`ffkmp_*` functions are the complete native boundary; the compiled C archive owns the direct
-FFmpeg headers and calls internally. JVM and Android reach that same boundary through
-`native/kitecodec-jni`: a dynamically registered method manifest, generation-tagged handles,
-copied arrays and typed error conversion.
+The Kotlin/Native binding is one cinterop module
+(`kiteffmpeg/src/nativeInterop/cinterop/ffmpeg.def`). The def parses only KiteFFmpeg's helper,
+handle and ABI headers, not the libav\* functions, constants or struct layouts. Twelve `kc_*`
+aliases stand for FFmpeg's structs as incomplete types, and Kotlin code never names those structs
+directly. The aliases and the `ffkmp_*` functions are the whole native boundary. The compiled C
+archive includes the FFmpeg headers and makes the FFmpeg calls.
 
-Earlier revisions consolidated every libav header into that one cinterop to avoid the duplicate
-`AVCodec` / `AVFrame` / `AVPacket` types produced by six separate cinterops. The opaque boundary
-removes that type-sharing problem entirely while retaining one package and one archive.
+The JVM and Android reach the same boundary through `native/kitecodec-jni`. It registers its
+methods from a manifest, tags each handle with a generation, copies arrays, and converts errors to
+typed ones.
 
 ### The `ffkmp_*` C helpers
 
-Kotlin consumes more than 200 C helpers, all prefixed `ffkmp_*`, through twelve opaque `kc_*` handle
-aliases.
-They live in `native/kitecodec-c/`, compiled per Kotlin/Native target into a static archive that the
-def names and cinterop embeds. ABI 2.0 is the breaking C-source boundary: 140 legacy declarations
-were respelled from raw FFmpeg pointer types to the aliases, and the seven wrappers plus five
-media-type accessors added compatibly at ABI 1.1 now carry every Kotlin call across that boundary.
-ABI 2.1 added packet cloning and VM attachment, and ABI 2.2 added selected-codec identity so a named
-decoder is verified against its stream before open. The history goes on the same way: the major
-number changes when a declaration changes shape, and each minor adds helpers compatibly. The
-[CHANGELOG](https://github.com/yuroyami/KiteFFmpeg/blob/main/CHANGELOG.md) records each step,
-`KITECODEC_C_ABI_MAJOR` and `KITECODEC_C_ABI_MINOR` in `kitecodec_abi.h` hold the current version,
-and `kc_abi_version()` reports it at run time.
+Kotlin calls more than 270 C helpers, all named `ffkmp_*`, through the twelve `kc_*` aliases. They
+live in `native/kitecodec-c/`, with one source file for each subsystem, and the build compiles them
+into a static archive for each Kotlin/Native target. The C layer has its own test suites, three
+sanitizer builds and fuzz targets.
 
-The helpers used to be `static inline` text inside the def, which meant no translation unit, no object
-file and no test. The C layer now has a translation unit for each subsystem, its own C test suites,
-three sanitizer variants and fuzz targets. Its historical extraction was byte-compared before the generator and
-`scripts/verify-lift.sh` were retired; the proof remains in the execution record.
+The ABI of the C layer has a version. The major number changes when a declaration changes shape,
+and the minor number grows when helpers are added compatibly. `KITECODEC_C_ABI_MAJOR` and
+`KITECODEC_C_ABI_MINOR` in `kitecodec_abi.h` hold the current version, and `kc_abi_version()`
+reports it at run time.
 
-They exist because some of FFmpeg's surface does not survive cinterop cleanly:
+The helpers exist because some of FFmpeg's surface does not survive cinterop cleanly:
 
-- **Macros that don't survive cinterop.** `av_err2str` is a compound-statement macro; `AVERROR(EAGAIN)` and `AVERROR_EOF` are function-style macros. Each gets a real C function the indexer can actually read.
-- **Struct field accessors.** `ffkmp_stream_codecpar(kc_stream*)`, `ffkmp_frame_pts(kc_frame*)`, and similar accessors. Modern FFmpeg marks many fields "do not access directly," and several vary across libav versions. A thin C accessor pins one stable read path per field.
-- **128-bit-safe timestamp math.** `ffkmp_rescale_q` wraps `av_rescale_q`, the only overflow-safe way to convert timestamps between time-bases.
-- **Double-pointer ceremony for alloc/free pairs.** `avformat_close_input(AVFormatContext**)` and similar become single-pointer wrappers that Kotlin/Native interop calls cleanly.
-- **One-shot pipeline helpers.** `ffkmp_fmt_open_input(...)` does alloc plus open in one call; `ffkmp_graph_build_video(...)` / `ffkmp_graph_build_audio(...)` build a complete buffer -> chain -> buffersink graph from a single filter description. The audio variant appends `aformat` so output arrives ready for the encoder. Filter-string syntax stays stable across FFmpeg versions, while buffersink option names do not.
+- **Macros.** `av_err2str` is a compound-statement macro, and `AVERROR(EAGAIN)` and `AVERROR_EOF`
+  are function-style macros. Each one gets a real C function that cinterop can read.
+- **Struct field accessors.** `ffkmp_stream_codecpar(kc_stream*)`, `ffkmp_frame_pts(kc_frame*)`
+  and similar accessors give one stable read path for each field. FFmpeg marks many fields as "do
+  not access directly", and several change between libav versions.
+- **Timestamp math.** `ffkmp_rescale_q` wraps `av_rescale_q`, which converts a timestamp between
+  time bases without overflow.
+- **Pointer-to-pointer calls.** `avformat_close_input(AVFormatContext**)` and similar calls become
+  wrappers that take a single pointer.
+- **One-call pipeline helpers.** `ffkmp_fmt_open_input(...)` allocates and opens in one call.
+  `ffkmp_graph_build_video(...)` and `ffkmp_graph_build_audio(...)` build a whole graph (buffer,
+  chain, buffersink) from one filter string. The audio one appends `aformat`, so its output is
+  ready for the encoder. The filter string syntax stays stable across FFmpeg versions, while the
+  buffersink option names do not.
 
 ### Source layout
 
 ```
-native/kitecodec-c/                  ← the C helper layer, its own tests and fuzz targets
-├── include/kitecodec_helpers.h      ← maintained opaque helper declarations, no FFmpeg header
-├── include/kitecodec_handles.h      ← twelve opaque handle aliases
-├── include/kitecodec_abi.h          ← the FFmpeg identity gate's contract, no FFmpeg header in it
-├── src/helpers_*.c                  ← maintained implementations, one per subsystem
-├── src/kitecodec_abi.c              ← the identity gate itself
-├── tests/ fuzz/ scripts/            ← the C suites, the fuzz targets and the audits
-native/kitecodec-jni/                ← dynamically registered JNI adapter; no libav headers
+native/kitecodec-c/                  the C helper layer, with its tests and fuzz targets
+├── include/kitecodec_helpers.h      helper declarations, with no FFmpeg header
+├── include/kitecodec_handles.h      the twelve opaque handle aliases
+├── include/kitecodec_abi.h          the contract of the FFmpeg identity check
+├── src/helpers_*.c                  one implementation file for each subsystem
+├── src/kitecodec_abi.c              the identity check itself
+└── tests/ fuzz/ scripts/            the C suites, the fuzz targets and the audits
+native/kitecodec-jni/                the JNI library, with no libav headers
+native/kitecodec-web/                the web module around the WebAssembly FFmpeg
 kiteffmpeg/src/
-├── nativeInterop/cinterop/
-│   └── ffmpeg.def                   ← opaque cinterop; names the compiled helper archive
-├── commonMain/kotlin/io/github/yuroyami/kiteffmpeg/
-│   ├── FFmpeg.kt                    ← capability probing + Versions
-│   ├── MediaSource.kt               ← demuxer + decode flows (expect)
-│   ├── Frame.kt                     ← owned frame contract
-│   ├── FilterGraph.kt               ← video + audio graph wrappers
-│   ├── MediaSink.kt                 ← muxer + Video/AudioEncoder + specs
-│   ├── Transcoder.kt                ← high-level one-pass A/V pipeline (expect)
-│   ├── StreamInfo.kt / Errors.kt
-│   └── MediaType.kt / Rational.kt   ← value types for FFmpeg's small types
-├── nativeMain/kotlin/io/github/yuroyami/kiteffmpeg/
-    ├── FFmpeg.native.kt
-    ├── MediaSource.native.kt        ← single-pass multi-stream decode loop
-    ├── Frame.native.kt              ← frame acquire / wrap
-    ├── FilterGraph.native.kt        ← Flow + push-style graph driving
-    ├── MediaSink.native.kt          ← muxer + shared encode core
-    ├── Transcoder.native.kt         ← interleaved A/V orchestration
-│   └── Internals.kt                 ← error mapping, format mapping
-├── jvmAndAndroidMain/kotlin/io/github/yuroyami/kiteffmpeg/
-    ├── *.jvm.kt                     ← JVM/Android actuals for the common API
-    └── Internals.jvm.kt             ← checked JNI handles, identity and error mapping
-└── unsupportedMain/kotlin/io/github/yuroyami/kiteffmpeg/
-    └── *.unsupported.kt             ← public JVM + JS/WasmJs; no media runtime
+├── nativeInterop/cinterop/ffmpeg.def   the opaque cinterop, which names the helper archive
+├── commonMain/                      the public API: FFmpeg, MediaSource, Frame, FilterGraph,
+│                                    MediaSink, Transcoder, Remuxer and the value types
+├── nativeMain/                      the Kotlin/Native implementation
+├── jvmAndAndroidMain/               the JVM and Android implementation over JNI
+├── wasmJsMain/                      the web implementation over the generated binding
+├── webRefusedMain/                  what the web build refuses: transcode, remux, mux, filter
+└── unsupportedMain/                 the js placeholder
 ```
 
-Every common contract has Kotlin/Native, JVM/Android and Web actuals. Most public types live in
-`io.github.yuroyami.kiteffmpeg`. The option and filter builders, such as `DemuxOptions`,
-`DecoderOptions`, `FilterChain` and the filter steps, live in `io.github.yuroyami.kiteffmpeg.dsl`.
+Most public types live in `io.github.yuroyami.kiteffmpeg`. The option and filter builders, such as
+`DemuxOptions`, `DecoderOptions`, `FilterChain` and the filter steps, live in
+`io.github.yuroyami.kiteffmpeg.dsl`.
 
 ### Timestamp handling
 
-KiteFFmpeg follows `ffmpeg.c`'s own rules at every stage:
+KiteFFmpeg follows the rules of `ffmpeg.c` at every stage:
 
-- **Decode.** Decoders promote `best_effort_timestamp` to `pts`, so files with missing or broken pts still cut correctly.
-- **Filter.** Filter graphs report their **output** time-base, which is not always the input's: `fps` and `atempo` change it. Frames leaving a graph are stamped with the output time-base. The `FilterGraph.outputTimeBase` property exposes it.
-- **Encode.** Encoders rescale incoming pts onto the codec time-base via `av_rescale_q` and force strict monotonicity. Frames with no pts at all fall back to a synthetic timeline: frame count for video, accumulated sample count for audio.
-- **Mux.** Packet timestamps are rescaled once more onto whatever stream time-base the muxer actually chose after `avformat_write_header`.
+- **Decode.** A decoder promotes `best_effort_timestamp` to `pts`, so a file with missing or broken
+  timestamps still cuts correctly.
+- **Filter.** A filter graph reports its output time base, which is not always the input's (`fps`
+  and `atempo` change it). Frames that leave a graph carry the output time base, and
+  `FilterGraph.outputTimeBase` exposes it.
+- **Encode.** An encoder rescales each incoming `pts` onto the codec time base with
+  `av_rescale_q`, and keeps the timestamps strictly increasing. A frame with no `pts` at all falls
+  back to a counted timeline: the frame count for video, and the sample count for audio.
+- **Mux.** The packet timestamps are rescaled once more, onto the stream time base that the muxer
+  chose in `avformat_write_header`.
 
 !!! tip "Why `Rational` is its own type"
-    FFmpeg time-bases and frame rates are exact fractions, not floats. `Rational` is always normalised, and its `times(scalar: Long)` operator does overflow-safe rescaling. Use it instead of converting to seconds and back, where rounding accumulates. See the [API reference](https://yuroyami.github.io/KiteFFmpeg/api/) for the full `Rational` surface.
+    FFmpeg time bases and frame rates are exact fractions, not floats. `Rational` is always
+    reduced, and its `times(scalar: Long)` operator rescales without overflow. Use it rather than
+    converting to seconds and back, where rounding errors add up.
 
-## FFmpeg sourcing
+## Where FFmpeg comes from
 
-A consumer provides nothing: FFmpeg is compiled into every published artifact. Inside the
-repository, the build compiles against the vendored static tree under `native-libs/` and falls back
-to a system FFmpeg only for the host's own desktop target. [Building from source](building-from-source.md)
-covers both.
-
-See [Platform support](platforms.md) for the per-target detail.
+An app provides nothing, because FFmpeg is compiled into every published artifact. Inside the
+repository, the build compiles against the static tree under `native-libs/`, and it falls back to a
+system FFmpeg only for the host's own desktop target.
+[Building from source](building-from-source.md) covers both.
 
 ## License
 
-KiteFFmpeg's own code is licensed under the **Apache License 2.0**. You can freely use, modify, and distribute it in commercial and open-source projects.
+KiteFFmpeg's own code is licensed under the Apache License 2.0. You can use, change and distribute
+it in commercial and open-source projects.
 
-The FFmpeg you link against carries its own license, separate from KiteFFmpeg's. It is **LGPL-2.1+** when FFmpeg is built without `--enable-gpl`, and **GPL** with it. **Every KiteFFmpeg artifact is LGPL**, which a commercial, closed-source app can ship under the [LGPL distribution obligations](licensing.md). Static linking on the iOS App Store is the hardest case of those. A `kiteffmpeg-gpl` module that would package a GPL flavour (libx264 / libx265) as a drop-in artifact does not exist: the `kiteffmpeg-gpl` directory holds only a README that says so, and `settings.gradle.kts` does not include it.
+The FFmpeg that you link carries its own license. It is LGPL-2.1-or-later when FFmpeg is built
+without `--enable-gpl`, and GPL with it. Every published KiteFFmpeg artifact is LGPL, which a
+commercial, closed-source app can ship under the [LGPL duties](licensing.md). Static linking on the
+iOS App Store is the hardest case of those.
 
-When you build a vendored static FFmpeg here, there is only one flavour to build: `buildFFmpegFor<Target>` produces LGPL. **The `buildFFmpegFor<Target>Gpl` tasks were deleted on 2026-08-21**, because publishing a GPL-flavoured binary decides the licence of every application that links it. `-Pkiteffmpeg.ffmpeg.license=gpl` still selects `native-libs/gpl/<target>/`, so a GPL tree is one you build and own. Path resolution refuses GPL for every iOS target before it looks for a tree, with `iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.` Stay on LGPL if you ship through a GPL-hostile channel such as the iOS App Store. Full compliance guidance lives in the [Licensing guide](licensing.md).
+The build makes only LGPL trees. A GPL tree is one that you build and own, and
+`-Pkiteffmpeg.ffmpeg.license=gpl` selects it. The iOS targets refuse a GPL tree. The
+[Licensing guide](licensing.md) has the full guidance.
 
 ## Acknowledgments
 
-- **FFmpeg** and the libav\* libraries: the codec, container, and filter engine KiteFFmpeg binds to.
-- **`ffmpeg.c`**: the reference for correct demux, decode, filter, encode, and mux orchestration, especially timestamp handling.
+- **FFmpeg** and the libav\* libraries: the codec, container and filter engine that KiteFFmpeg
+  binds to.
+- **`ffmpeg.c`**: the reference for demux, decode, filter, encode and mux, and for timestamp
+  handling above all.

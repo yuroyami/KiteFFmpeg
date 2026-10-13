@@ -1,43 +1,31 @@
 # KiteFFmpeg
 
-**One coroutine-first Kotlin API for video and audio.** Decode, encode, transcode and filter media from a single suspend-friendly surface, backed by FFmpeg's libav\* libraries. Kotlin/Native uses cinterop; JVM and Android use a narrow JNI bridge; `wasmJs` uses a generated binding over a wasm module you load. The JVM jar carries native libraries for macOS arm64, Linux x64, Linux arm64 and Windows x64, and `js` is an invariant unsupported placeholder. There is no `ffmpeg` subprocess, and memory stays constant regardless of input length.
+KiteFFmpeg is FFmpeg for Kotlin Multiplatform, as plain Kotlin calls. You decode, encode,
+transcode and filter video and audio from `commonMain`, and FFmpeg is already inside the artifact.
+No `ffmpeg` process starts, and no log text is parsed. Progress arrives as a typed callback, errors
+arrive as typed exceptions, and frames arrive as a coroutine `Flow`.
 
 ```kotlin
-// One call: demux -> decode -> filter -> encode -> mux, in a single pass.
+// One call: demux, decode, filter, encode and mux, in a single pass.
 Transcoder.transcode(
     input  = "input.mp4",
     output = "output.mp4",
     spec = VideoEncoderSpec(
-        // mpeg4 is the dependency-free baseline present in every FFmpeg profile.
-        codec = CodecId("mpeg4"),
+        codec = CodecId.Mpeg4,                             // in every published build
         width = 320, height = 180,
         frameRate = Rational(30, 1),
         bitrateBps = 1_500_000,
     ),
     videoFilter = "scale=320:180,hue=b=0.1,vignette,format=yuv420p",
-    audioSpec   = AudioEncoderSpec(codec = CodecId.Aac),   // null drops audio
+    audioSpec   = AudioEncoderSpec(codec = CodecId.Aac),   // null drops the audio
     audioFilter = "volume=0.8",                            // optional
     onProgress  = { p -> println("encoded ${p.framesEncoded} frames") },
 )
 ```
 
-For H.264 or H.265, probe first and pick what the linked build has.
-`h264_videotoolbox` has standing macOS runtime evidence; `libx264` exists only in a GPL FFmpeg.
-On Android, `arm64-v8a` plays real media on real phones as the engine under
-[KitePlayer](https://github.com/yuroyami/KitePlayer), including FFmpeg's MediaCodec decoders,
-which KitePlayer selects by name as [Decoding](decoding.md) describes. No Android hardware encoder
-has run on a device. See [Platform support](platforms.md) and [Licensing](licensing.md).
-
-- [Getting started](getting-started.md): add the dependency, probe your build, run your first transcode.
-- [API reference](https://yuroyami.github.io/KiteFFmpeg/api/): every public type and signature.
-
-## Why KiteFFmpeg
-
-Media work from Kotlin normally means launching the `ffmpeg` CLI and parsing its stderr, or wrapping a prebuilt binary like FFmpegKit. You build arguments into a string, launch a process, and read progress back out of log lines. The codec engine lives outside your program.
-
-KiteFFmpeg is a **single Kotlin API over libav\* directly**. You call `Transcoder.transcode(...)` and it opens the file via libavformat, demuxes **once**, routes packets to per-stream libavcodec decoders, pushes frames through libavfilter graphs, encodes, and interleaves the streams into a valid container. There is no process to spawn and no log output to parse. Progress arrives as a typed callback, errors arrive as typed exceptions, and frames flow as a coroutine `Flow`.
-
-Everything routes through one demux pass. When you decode several streams, or composite two inputs, the demuxer reads the file a single time and fans packets out to the decoders that need them.
+For H.264 or HEVC, ask the build which encoder it has. `h264_videotoolbox` is in the macOS and
+iPhone builds, `h264_mediacodec` is in the Android build, and `libx264` exists only in a GPL FFmpeg
+that you build yourself. [Platform support](platforms.md) lists what each build carries.
 
 ## Install
 
@@ -47,48 +35,24 @@ commonMain.dependencies {
 }
 ```
 
-That is the whole setup. FFmpeg is compiled into each published artifact, so there is nothing to
-install and nothing to configure. The rest of this page is about working INSIDE the KiteFFmpeg
-checkout, where you build FFmpeg yourself.
+FFmpeg is compiled into each published artifact, so there is nothing else to install. An iOS app
+and a web app need one more step each, which [Getting started](getting-started.md) describes.
 
-=== "macOS"
+## How it works
 
-    ```bash
-    brew install ffmpeg
-    ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
-    ```
+Kotlin/Native calls FFmpeg's libraries through cinterop. The JVM and Android call them through a
+small JNI library that the artifact carries. `wasmJs` calls a WebAssembly build of FFmpeg that the
+page loads. Every target shares the same common API, so the code you write in `commonMain` runs on
+each of them.
 
-=== "Linux"
-
-    ```bash
-    # The prebuilt static tree from this repository's release, as CI uses it.
-    tag=ffmpeg-n9.0.2-r3
-    asset=ffmpeg-n9.0.2-lgpl-linux-x64.zip
-    curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset"
-    curl -fLO "https://github.com/yuroyami/KiteFFmpeg/releases/download/$tag/$asset.sha256"
-    shasum -a 256 -c "$asset.sha256"
-    mkdir -p native-libs/lgpl/linux-x64
-    unzip -q "$asset" -d native-libs/lgpl/linux-x64
-    ./gradlew :kiteffmpeg:linuxX64Test
-    ```
-
-JVM and Android are published artifacts, not source-only actuals. The Android AAR declares
-`minSdkVersion 26` in its own manifest and carries `libkitecodec_jni.so` for `arm64-v8a`,
-`armeabi-v7a` and `x86_64`, with 16 KiB ELF/app packaging on the two 64-bit ABIs. The JVM jar
-carries a native library for macOS arm64, Linux x64, Linux arm64 and Windows x64; the Linux and
-Windows ones are link-checked, and no Linux or Windows machine has run them yet. Android and iOS
-play real media on real phones as the engine under
-[KitePlayer](https://github.com/yuroyami/KitePlayer); what they lack is an automated device job in
-this repository's CI. `wasmJs` is a real playback backend once its wasm module is loaded, and `js`
-is an unsupported placeholder that reports no capabilities and rejects media operations
-predictably. See
-[Platform support](platforms.md).
+Every pipeline reads its input once. When you decode several streams, or composite two inputs, the
+demuxer reads the file a single time and hands the packets to the decoders that need them.
 
 ## What you can do
 
 ### Read
 
-Open a file, inspect its streams, and pull decoded frames as a `Flow`. The demuxer wraps `AVFormatContext`; the decode loop is EAGAIN-correct and promotes `best_effort_timestamp` to `pts`.
+Open a file, look at its streams, and collect decoded frames as a `Flow`:
 
 ```kotlin
 MediaSource.open("input.mp4").use { src ->
@@ -96,97 +60,92 @@ MediaSource.open("input.mp4").use { src ->
 
     val video = src.primaryVideo ?: error("no video stream")
     src.decodedFrames(video).collect { frame ->
-        try {
-            val info = frame.info           // width, height, pts, pixelFormat...
-            val pixels = frame.copyPlanesToByteArray()
-            // ...
-        } finally {
-            frame.close()                   // emitted frames are OWNED; close or they leak
+        frame.use {
+            val info = it.info                   // width, height, pts, pixel format
+            val pixels = it.copyPlanesToByteArray()
         }
     }
 }
 ```
 
-Read a single frame for a thumbnail and encode it straight to image bytes:
+Each frame that the flow emits is yours, so close it, or its native memory leaks. A single frame
+for a thumbnail can go straight to image bytes:
 
 ```kotlin
 MediaSource.open("input.mp4").use { src ->
     src.extractFrame(atMicros = 90_000_000).use { frame ->
-        writeFile(frame.encodeImage(CodecId.Mjpeg))
+        val jpeg = frame.encodeImage(CodecId.Mjpeg)
     }
 }
 ```
 
-See **[Decoding & frames](decoding.md)**.
+See [Decoding frames](decoding.md).
 
 ### Transcode
 
-The high-level pipeline handles trim, audio copy, subtitle copy, metadata and progress in one call. Skip the video codec (`spec = null`) for an audio-only transcode such as mp3 to aac.
+One call handles the trim, the audio copy, the subtitle copy, the metadata and the progress. Pass
+`spec = null` for an audio-only transcode, such as MP3 to AAC.
 
 ```kotlin
-// Frame-exact clip, output timestamps rebased to zero.
+// A clip that starts on the exact frame, with its timestamps rebased to zero.
 Transcoder.transcode(
     input = "input.mp4",
     output = "clip.mp4",
     spec = VideoEncoderSpec(
-        codec = CodecId("mpeg4"),
+        codec = CodecId.Mpeg4,
         width = 1280, height = 720,
         frameRate = Rational.Fps30,
     ),
-    audioCopy = true,                    // stream-copy audio bit-exact
+    audioCopy = true,                    // copy the audio bit for bit
     startMicros = 12_300_000,
     endMicros   = 45_600_000,
     metadata = mapOf("title" to "My clip"),
 )
 ```
 
-Nothing to re-encode at all? Rewrite the container losslessly:
+When nothing needs a new encode, rewrite the container instead. A remux decodes nothing, so it
+loses nothing:
 
 ```kotlin
-Remuxer.remux("input.mp4", "output.mkv")   // no decode, no encode, runs in seconds
+Remuxer.remux("input.mp4", "output.mkv")
 ```
 
-See **[Transcoding](transcoding.md)** and **[Remuxing](remuxing.md)**.
+See [Transcoding](transcoding.md) and [Remuxing](remuxing.md).
 
 ### Filter
 
-Build a libavfilter graph from a plain FFmpeg filter description and drive frames through it. Single-input graphs expose a `Flow` pipeline; multi-input graphs (overlay, amix) take a push callback.
+Build a filter graph from an FFmpeg filter string and push frames through it. A graph with one
+input works as a `Flow` step, and a graph with several inputs (such as `overlay` or `amix`) takes a
+callback:
 
 ```kotlin
-// Two inputs -> one output: watermark in the bottom-right corner.
+// Two inputs, one output: a watermark in the bottom-right corner.
 val graph = FilterGraph.buildVideoMulti(
     "[in0][in1]overlay=W-w-10:H-h-10[out]",
     listOf(mainVideoInput, logoInput),
 )
-graph.feedInput(0, videoFrame) { composited -> /* encode */ }
-graph.feedInput(1, logoFrame)  { /* ... */ }
+graph.feedInput(0, videoFrame) { composited -> /* encode it */ }
+graph.feedInput(1, logoFrame) { }
 ```
 
-See **[Filtering](filtering.md)**.
+See [Filter graphs](filtering.md).
 
 ## Guides
 
-| | |
-|---|---|
-| **[Getting started](getting-started.md)** | Add the dependency and run your first transcode. |
-| **[Transcoding](transcoding.md)** | The `Transcoder.transcode` pipeline: specs, trim, audio copy, progress. |
-| **[Decoding & frames](decoding.md)** | `MediaSource`, decode flows, single-pass multi-stream, thumbnails. |
-| **[Filtering](filtering.md)** | `FilterGraph` video and audio graphs, single and multi-input. |
-| **[Encoding & muxing](encoding-muxing.md)** | `MediaSink`, `VideoEncoder` / `AudioEncoder`, encoder specs and options. |
-| **[Remuxing](remuxing.md)** | Lossless container rewrite and keyframe-snapped trim. |
-| **[Concurrency](concurrency.md)** | Threading, confinement, and cancellation rules. |
-| **[Recipes](recipes.md)** | Copy-paste patterns for common tasks. |
-| **[Platform support](platforms.md)** | What runs where, and how FFmpeg is sourced. |
-| **[Licensing](licensing.md)** | LGPL/GPL flavours and what shipping them obligates. |
-| **[Troubleshooting](troubleshooting.md)** | FFmpeg discovery, Windows setup, VMs, NDK. |
+| Guide | What it covers |
+| --- | --- |
+| [Getting started](getting-started.md) | The dependency, the iOS and web setup, and a first transcode |
+| [Transcoding](transcoding.md) | `Transcoder.transcode`: specs, trim, audio copy and progress |
+| [Decoding frames](decoding.md) | `MediaSource`, decode flows, several streams in one pass, thumbnails and your own bytes |
+| [Asynchronous byte sources](async-byte-io.md) | Byte sources that answer later, such as a Fetch response on the web |
+| [Filter graphs](filtering.md) | Video and audio graphs, with one input or several |
+| [Encoding and muxing](encoding-muxing.md) | `MediaSink`, the encoders, their specs and options |
+| [Remuxing](remuxing.md) | Rewriting the container with no loss, and cuts at keyframes |
+| [Concurrency](concurrency.md) | Threads, ownership and cancellation |
+| [Recipes](recipes.md) | Short patterns for common tasks |
+| [Platform support](platforms.md) | What each build carries and where it runs |
+| [Licensing](licensing.md) | What shipping the LGPL FFmpeg asks of your app |
+| [Troubleshooting](troubleshooting.md) | Common errors and their fixes |
 
-## Status
-
-KiteFFmpeg is pre-1.0 and actively developed. The public pipeline is implemented for Kotlin/Native,
-JVM and Android over the same common contracts, and everything is published on Maven Central with
-FFmpeg embedded. The JVM JNI boundary is proved by the `jniJvmTest` suite over real FFmpeg on an
-arm64 Mac.
-Android and iOS device evidence is hand-verified and app-shipped rather than automated in this
-repository's CI.
-
-One target table covers the whole project and lives in the [README](https://github.com/yuroyami/KiteFFmpeg#where-it-runs). For the design, the FFmpeg sourcing modes, and what is next, see **[About KiteFFmpeg](about.md)**.
+The [API reference](https://yuroyami.github.io/KiteFFmpeg/api/) lists every public type, and
+[About KiteFFmpeg](about.md) explains the design.

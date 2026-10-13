@@ -280,7 +280,7 @@ if (FFmpeg.hasFilter("vignette")) {
 }
 ```
 
-A description referencing a filter that is not in the build fails when the graph is constructed. See [Getting started](getting-started.md) for how the FFmpeg build is sourced (system libraries vs. a vendored static build).
+A description that names a filter missing from the build fails when the graph is built. [Platform support](platforms.md) lists the filters in every published build, and [Building from source](building-from-source.md) explains where a local build finds FFmpeg.
 
 ## Errors
 

@@ -15,9 +15,9 @@ Transcoder.transcode(
     input  = "input.mp4",
     output = "output.mp4",
     spec = VideoEncoderSpec(
-        // mpeg4 is the dependency-free baseline present in every FFmpeg profile.
-        // See "Choosing a codec" below before hard-coding anything else.
-        codec = CodecId("mpeg4"),
+        // mpeg4 is in every published build. See "Choosing a format and an
+        // encoder" below before you hard-code anything else.
+        codec = CodecId.Mpeg4,
         width = 320, height = 180,
         frameRate = Rational(30, 1),
         bitrateBps = 1_500_000,
@@ -32,9 +32,8 @@ Transcoder.transcode(
 The call opens the file through libavformat, demuxes it **once**, routes packets to per-stream
 libavcodec decoders, pushes video frames through a libavfilter graph, resamples and chunks audio
 through a second graph, encodes with the codecs you named, and interleaves both streams into the
-output as they are produced. There is no `ffmpeg` subprocess. Kotlin/Native reaches the opaque C
-helpers through cinterop; JVM and Android actuals reach them through JNI. Memory stays constant
-regardless of how long the input is.
+output as they are produced. There is no `ffmpeg` process. Kotlin/Native reaches the C helpers
+through cinterop, and the JVM and Android reach them through JNI.
 
 `transcode` is a `suspend fun`, so call it from a coroutine. It suspends until the whole file is written. The work itself runs on a dispatcher for blocking work, not on the caller's, so calling it from a UI thread does not freeze that thread. See [Threads and cancellation](#threads-and-cancellation).
 
@@ -117,7 +116,7 @@ The output video has a constant rate: exactly `frameRate` frames per second. Whe
 
 The `options` map passes settings that have no typed field to the encoder (`preset`, `crf`, `allow_sw`, and so on). KiteFFmpeg does not check those keys, and they reach the encoder unchanged. A key that sets the same thing as a typed field is refused with an `FFmpegException` that names both, for example `b` beside `bitrateBps` or `pix_fmt` beside `pixelFormat`, because the option would silently win over the field.
 
-### Colour, HDR metadata, pixel shape and channel layout
+### Color, HDR metadata, pixel shape and channel layout
 
 A transcode keeps what describes the picture and the sound. For each of these spec fields that you leave `null`, `Transcoder` copies the value from the source:
 
@@ -134,7 +133,7 @@ To read that frame, the transcode opens the input a second time and decodes unti
 
 ```kotlin
 val sdr = videoSpec.copy(
-    color = ColorInfo.Unspecified,        // declare no colour
+    color = ColorInfo.Unspecified,        // declare no color
     sampleAspectRatio = Rational(1, 1),   // square pixels
     hdr = HdrMetadata(),                  // no HDR metadata
 )
@@ -149,9 +148,9 @@ A spec names two different things with two types:
 
 An encoder that writes another format than `codec` is refused with `FFmpegError.InvalidArgument`. What exists depends on the build:
 
-- Always present, every profile: the `mpeg4`, `mjpeg` and `png` encoders. `mpeg4` is the software video encoder every KiteFFmpeg build carries.
-- Software H.264 and H.265 encoders: `EncoderId.Libx264` and `EncoderId.Libx265`, both GPL-only and in neither published artifact.
-- Hardware video encoders with standing runtime evidence: `EncoderId.H264VideoToolbox` and `EncoderId.HevcVideoToolbox` on the qualified macOS profile. MediaCodec encoders exist in the Android FFmpeg profile, but no Android hardware encoder has run on a device.
+- In every published build: the `mpeg4`, `h263`, `mjpeg` and `png` encoders. `mpeg4` is the software video encoder that every build carries.
+- Software H.264 and HEVC encoders: `EncoderId.Libx264` and `EncoderId.Libx265`. Both are GPL, and no published build has them.
+- Hardware video encoders: `EncoderId.H264VideoToolbox` and `EncoderId.HevcVideoToolbox` on macOS and the iPhone, and `EncoderId.H264MediaCodec` and `EncoderId.HevcMediaCodec` on Android. No Android hardware encoder has run on a device yet.
 
 !!! tip "Probe before you encode"
     Whether a given encoder is present depends on how FFmpeg was built. Ask the build rather than hard-coding a name. `FFmpeg.encodersFor` lists what it has for a format, FFmpeg's default first, and `FFmpeg.codecOf` gives the format an encoder writes:
@@ -392,7 +391,7 @@ Transcoder.transcode(input, output, spec = videoSpec, dispatcher = transcodes)
 
 `onProgress` still runs in the caller's coroutine context, not on `dispatcher`, so a UI caller can update its views from it directly. The reports reach the caller as it becomes free to take them. When it is busy, older reports are skipped and only the newest is delivered, and the last one arrives before `transcode` returns.
 
-Cancelling the coroutine that called `transcode` stops the work within one packet of the input. `transcode` then throws `CancellationException`, but only after the work has stopped and every decoder, encoder, filter graph and file it opened is closed. The output file of a cancelled transcode is truncated, so delete it. A read that blocks inside FFmpeg itself, such as a network input that stops sending, is not interrupted by the cancellation; it ends when the read returns.
+Canceling the coroutine that called `transcode` stops the work within one packet of the input. `transcode` then throws `CancellationException`, but only after the work has stopped and every decoder, encoder, filter graph and file it opened is closed. The output of a canceled transcode still gets its trailer, so it is a valid file that holds the part written before the cancellation. Delete it if you do not want a short file. A read that blocks inside FFmpeg itself, such as a network input that stops sending, is not interrupted by the cancellation; it ends when the read returns.
 
 ## Error handling
 

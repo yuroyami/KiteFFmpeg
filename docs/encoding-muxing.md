@@ -64,7 +64,7 @@ val encoder = sink.addVideoEncoder(spec)
 | `keyframeIntervalFrames` | `Int` | `frameRate × 2` | GOP length. Computed from the frame rate unless you override it. |
 | `options` | `Map<String,String>` | empty | Encoder options set with `av_opt_set`. A key that repeats a field, such as `b` or `pix_fmt`, is refused. |
 | `encoder` | `EncoderId?` | `null` | The encoder that writes `codec`, such as `EncoderId.H264VideoToolbox`. `null` takes the one FFmpeg picks for the format. |
-| `color` | `ColorInfo?` | `null` | The colour the output declares: primaries, transfer, matrix, range and chroma location. Every field that is not unspecified is written. |
+| `color` | `ColorInfo?` | `null` | The color the output declares: primaries, transfer, matrix, range and chroma location. Every field that is not unspecified is written. |
 | `sampleAspectRatio` | `Rational?` | `null` | The shape of one pixel, for anamorphic video. `null` writes none, which players read as square. |
 | `hdr` | `HdrMetadata?` | `null` | The mastering display and the content light level of HDR video. |
 

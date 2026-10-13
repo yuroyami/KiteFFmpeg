@@ -1,10 +1,8 @@
 # Contributing to KiteFFmpeg
 
-Thanks for helping out. KiteFFmpeg is a Kotlin Multiplatform binding to FFmpeg's libav\* libraries, with Kotlin/Native, JVM, Android and wasmJs backends, so contributing means having both a Kotlin toolchain and an FFmpeg to link against.
+KiteFFmpeg is a Kotlin Multiplatform binding to FFmpeg's libav\* libraries, with Kotlin/Native, JVM, Android and wasmJs backends, so contributing means having both a Kotlin toolchain and an FFmpeg to link against.
 
 ## Ground rules
-
-These are not style preferences. Each one exists because ignoring it cost someone a day.
 
 - **Red first, always.** Write the failing test, run it, watch it fail at the line you
   predicted, then fix it, then break the fix and watch it go red again. A test that was never
@@ -28,9 +26,9 @@ These are not style preferences. Each one exists because ignoring it cost someon
 
 ### What we may and may not copy
 
-- This library ships under a permissive licence. Any GPL or LGPL player checked out under
+- This library ships under a permissive license. Any GPL or LGPL player checked out under
   `vendor/` is **study only**. Designs, algorithms and thresholds are facts and may be
-  restated. Source text is expression, and a Kotlin transliteration inherits its licence.
+  restated. Source text is expression, and a Kotlin transliteration inherits its license.
   Never transliterate, and never name a study-only source in a comment as the origin of an
   implementation.
 - The `ffmpeg` and `ffprobe` binaries as test oracles are always fine. Differential testing
@@ -42,11 +40,11 @@ These are not style preferences. Each one exists because ignoring it cost someon
 - **FFmpeg**: the fastest path on a dev machine is a system install:
   - macOS: `brew install ffmpeg`
   - Linux: the apt packages do not link (see [Building from source](docs/building-from-source.md#where-the-build-finds-ffmpeg)). Unzip this repository's `ffmpeg-<version>-lgpl-linux-x64.zip` release asset (or the `linux-arm64` one) under `native-libs/lgpl/linux-x64/`, which is what CI does.
-  - Windows has no auto-discovery; unzip this repository's `ffmpeg-<version>-lgpl-mingw-x64.zip` release asset under `native-libs/lgpl/mingw-x64/`, which is what CI does (see [docs/platforms.md](docs/platforms.md#windows-mingwx64)).
+  - Windows has no system lookup. Unzip this repository's `ffmpeg-<version>-lgpl-mingw-x64.zip` release asset under `native-libs/lgpl/mingw-x64/`, which is what CI does (see [Building from source](docs/building-from-source.md#windows)).
 - If Homebrew lives in a non-standard prefix, set `kiteffmpeg.macos.homebrew.prefix` in `gradle.properties`.
 - The `ffmpeg` and `ffprobe` CLIs on `PATH` (used by the e2e script only).
 
-macOS arm64 is the reference development target. It is the one verified end-to-end.
+macOS arm64 is the reference development machine.
 
 ### Vendored FFmpeg (optional)
 
@@ -56,7 +54,7 @@ To work on the static-linking path or the FFmpeg build tasks themselves:
 git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
 git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 brew install nasm meson ninja                             # nasm for x86_64 asm, meson/ninja for dav1d
-./gradlew :kiteffmpeg:buildFFmpegForMacosArm64        # LGPL, and the only flavour built here
+./gradlew :kiteffmpeg:buildFFmpegForMacosArm64        # LGPL, and the only flavor built here
 ```
 
 A build checks each checkout before it compiles anything. It must hold the commit its tag names,
@@ -67,9 +65,7 @@ A change to libass belongs under `native/patches/libass`, applied and recorded t
 `scripts/package-ass-chain.sh` refuses a chain whose record differs from that folder. dav1d,
 FreeType, HarfBuzz and FriBidi carry no patches.
 
-Every profile is portable as of 2026-08-22: no third-party media libraries are needed on any target,
-which is why that `brew install` line is three packages rather than eleven. **There is no
-`buildFFmpegForMacosArm64Gpl` task**; the GPL build tasks were deleted on 2026-08-21.
+No third-party media library is needed on any target, and there is no GPL build task.
 
 Outputs land in `native-libs/lgpl/<target>/`, and the cinterop picks them up on the next sync. If
 you build your own GPL tree, put it under `native-libs/gpl/<target>/` and select it with
@@ -86,7 +82,39 @@ you build your own GPL tree, put it under `native-libs/gpl/<target>/` and select
 scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
 ```
 
-Pure-logic tests (`Rational`, `FrameInfo`) live in `commonTest`; `nativeTest` runs against the actually-linked FFmpeg. CI runs all of this on macOS, Ubuntu, and Windows on every push, a green local `macosArm64Test` + `e2e.sh` is the bar before opening a PR.
+Pure-logic tests (`Rational`, `FrameInfo`) live in `commonTest`, and `nativeTest` runs against the linked FFmpeg. CI runs all of this on macOS, Ubuntu and Windows on every push. A green local `macosArm64Test` and `e2e.sh` is the bar before you open a PR.
+
+### The sample tool
+
+`:kiteffmpeg-sample` is a command-line program over the whole API. It builds for macOS arm64, Linux
+x64, Linux arm64 and Windows x64. It probes the linked FFmpeg for its encoders, so it works against
+the embedded build and against your own FFmpeg alike.
+
+```bash
+./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
+KEXE=kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
+
+$KEXE info                                    # versions and encoders
+$KEXE probe path/to/clip.mp4                  # streams, duration and metadata
+$KEXE transcode input.mp4 output.mp4 "scale=1280:720,format=yuv420p"
+$KEXE transcode input.mp4 output.mp4 "scale=1280:720" -an       # no audio
+$KEXE transcode input.mp4 output.mp4 "scale=1280:720" -acopy    # copy the audio
+$KEXE transcode input.mp4 output.mp4 "scale=1280:720" -vt       # hardware H.264
+$KEXE transcode input.mp4 clip.mp4 "scale=1280:720" --ss 12.3 --to 45.6 --title "My clip"
+$KEXE thumbnail input.mp4 frame.jpg 90.0
+$KEXE remux input.mp4 output.mkv
+```
+
+### The C layer
+
+The C layer under the Kotlin API builds and tests on its own, outside Gradle:
+
+```bash
+cd native/kitecodec-c
+./scripts/build-host.sh plain && ./scripts/run-c-tests.sh plain   # also asan, tsan
+```
+
+[native/kitecodec-c/README.md](native/kitecodec-c/README.md) says what each C check covers.
 
 ## The gate before every commit
 
@@ -133,7 +161,7 @@ first, or you are testing yesterday's binaries.
 - **Keep PRs focused**: one change per PR, with tests where the change is testable.
 - **Tests must pass**: the host-target test task and, for anything touching the pipeline, `scripts/e2e.sh`.
 - **New public API needs KDoc**: the docs site and the API reference are generated from it, and the KDoc contracts (frame ownership, confinement, timestamps) are part of the API.
-- **Docs**: if behaviour described under `docs/` changes, update the page in the same PR.
+- **Docs**: if behavior described under `docs/` changes, update the page in the same PR.
 - **Commit messages**: imperative subject line; explain the *why* in the body when it is not obvious.
 - CI must be green before review.
 
@@ -141,8 +169,8 @@ first, or you are testing yesterday's binaries.
 
 - Standard Kotlin style (official code style, four-space indent); match the formatting of the file you are editing.
 - Public API lives in `io.github.yuroyami.kiteffmpeg`, except the option and filter builders, which live in `io.github.yuroyami.kiteffmpeg.dsl`.
-- `commonMain` declares `expect`; `nativeMain` holds the `actual`s. Do not leak `kotlinx.cinterop` types (or the `ffmpeg.*` package) into `commonMain`.
-- C bridge helpers in `ffmpeg.def` are prefixed `ffkmp_*`; keep them `static inline` and single-purpose.
+- `commonMain` declares `expect`. The `actual`s live in `nativeMain` and the platform sets under it, `jvmAndAndroidMain`, `wasmJsMain`, `webRefusedMain` and `unsupportedMain`. Do not leak `kotlinx.cinterop` types (or the `ffmpeg.*` package) into `commonMain`.
+- C helpers live in `native/kitecodec-c/src`, are prefixed `ffkmp_*`, and are exported with `KC_API`. Keep each one single-purpose.
 - Native resources follow the `AutoCloseable` + `use { }` pattern; anything acquiring native memory must free it in `finally`.
 - The public API is compiled in [explicit API mode](https://kotlinlang.org/docs/whatsnew14.html#explicit-api-mode-for-library-authors), every public declaration states `public` and its return type.
 

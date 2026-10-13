@@ -4,22 +4,25 @@ An app that uses the published artifacts needs nothing but the dependency line, 
 
 ## "No FFmpeg install found for \<target\>"
 
-`FFmpegPaths.resolve` looks for a vendored static tree under `native-libs/<license>/<target>/{include,lib}` first, then falls back to a system install. This error means neither existed. Fix one of the two:
+`FFmpegPaths.resolve` looks for a static tree under `native-libs/<license>/<target>/{include,lib}` first, then falls back to a system install. This error means that neither exists. Fix it in one of these ways:
 
-- install FFmpeg system-wide (`brew install ffmpeg` on macOS; the `libav*-dev` packages via apt on Linux), or
-- vendor a static build: `./gradlew :kiteffmpeg:buildFFmpegFor<Target>` (see [prerequisites](#vendored-build-prerequisites) below).
+- Build a static tree with `./gradlew :kiteffmpeg:buildFFmpegFor<Target>` (see the [prerequisites](#vendored-build-prerequisites) below), or download the release tree as [Building from source](building-from-source.md#download-a-prebuilt-tree) shows.
+- Install FFmpeg with Homebrew (`brew install ffmpeg`). A system FFmpeg works only for the host's own desktop target, never for a cross target. On Linux, use the release tree instead, because a Kotlin/Native link against the apt packages fails.
 
-Note the `<license>` path segment: if you put your own GPL tree under `native-libs/gpl/<target>/` but did not pass `-Pkiteffmpeg.ffmpeg.license=gpl`, the build looks under `native-libs/lgpl/` and misses your libraries. Flavour and property must match. (KiteFFmpeg itself builds only the LGPL flavour; the `buildFFmpegFor<Target>Gpl` tasks were deleted on 2026-08-21.)
+Note the `<license>` path segment: if you put your own GPL tree under `native-libs/gpl/<target>/` but did not pass `-Pkiteffmpeg.ffmpeg.license=gpl`, the build looks under `native-libs/lgpl/` and misses your libraries. The folder and the property must match. KiteFFmpeg itself builds only LGPL trees.
 
-## "FFmpeg tree is incomplete"
+## "requires its complete vendored ... FFmpeg tree"
 
-Building inside this repository, a target's tree must contain
-`include/libavformat/avformat.h` plus `libavcodec.a`, `libavformat.a`, `libavutil.a`,
-`libavfilter.a`, `libswscale.a` and `libswresample.a` under
-`native-libs/<license>/<target-triple>/`. The error lists every missing file. Finish the
-`buildFFmpegFor<Target>` task first. Nothing is ever downloaded to fill a gap.
+`-Pkiteffmpeg.phoneTargetsOnly=true` checks the tree of each Apple and Android target before it
+builds. Each tree under `native-libs/lgpl/<target>/` must hold `include/libavformat/avformat.h`,
+the six libraries `libavcodec.a`, `libavformat.a`, `libavutil.a`, `libavfilter.a`, `libswscale.a`
+and `libswresample.a`, and the configure record `lib/kiteffmpeg/ffmpeg-configure.txt`. Run the
+`buildFFmpegFor<Target>` task that the message names. Nothing is downloaded to fill a gap.
 
-Consumers of the published artifact never see this: FFmpeg is compiled in.
+A bake that finishes without one of those libraries stops with "FFmpeg reported a successful
+install but ... is missing ...". Check the configure and make output that the task printed.
+
+An app that uses the published artifacts never sees either message, because FFmpeg is compiled in.
 
 ## macOS: Homebrew in a non-standard prefix
 
@@ -35,7 +38,7 @@ The prefix must contain `include/libavformat/avformat.h` and the FFmpeg dylibs u
 
 There is **no system-FFmpeg discovery on Windows**. `FFmpegPaths` resolves Homebrew (macOS) and apt (Linux) installs only. For `mingwX64` it requires a populated `native-libs/<license>/mingw-x64/` tree. Installing an `ffmpeg.exe` from anywhere will not help. The build needs headers and import libraries.
 
-Stage them yourself, either by unzipping this repository's own `ffmpeg-<version>-lgpl-mingw-x64.zip` release asset under `native-libs/lgpl/mingw-x64` (this is what CI does) or by cross-compiling the vendored build with a mingw-w64 toolchain. The steps are in [Platform support, Windows](platforms.md#windows-mingwx64). The release tree is static, so no DLL has to be on `PATH` at run time.
+Stage them yourself, either by unzipping this repository's own `ffmpeg-<version>-lgpl-mingw-x64.zip` release asset under `native-libs/lgpl/mingw-x64` (this is what CI does) or by cross-compiling the vendored build with a mingw-w64 toolchain. The steps are in [Building from source](building-from-source.md#windows). The release tree is static, so no DLL has to be on `PATH` at run time.
 
 ## VideoToolbox fails on VMs / CI runners
 
@@ -72,20 +75,20 @@ Each checkout must hold exactly the commit its tag names upstream, which the bui
 brew install nasm meson ninja
 ```
 
-**3. That is the whole list.** Every profile is portable (2026-08-22): no third-party encoder or
-text library is linked on any target, so configure never asks the host package manager for one.
+**3. That is the whole list.** No third-party encoder or text library is linked on any target,
+so configure never asks the host package manager for one.
 Apple targets use SDK zlib plus VideoToolbox/AudioToolbox from the SDK; Linux and Windows use
 konan's own sysroot; Android uses the NDK. There are no GPL tasks.
 
 **Path safety.** A checkout or final output path may contain `#`. Configure, make and install run
 only in a unique hash-free workspace under `java.io.tmpdir`; source copying excludes `.git` and
-every `build` subtree. After install, the normalised configure invocation is written as exactly one
+every `build` subtree. After install, the normalized configure invocation is written as exactly one
 line at `lib/kiteffmpeg/ffmpeg-configure.txt`; verification and packaging require that record, and
 packaging does not consult a vendor build log. On success, the verified install is copied to a
 sibling staging directory and replaces the output. On failure, the old output remains and the
 retained scratch path is printed for diagnosis.
 
-**4. When a build runs again.** Gradle runs a bake again when its output tree changed or one of its inputs differs from the last successful run: the build logic, the target, the licence, the pinned tag and commit, the commit the checkout holds and any change in it, the patches, or the self-contained switch. Otherwise it reports UP-TO-DATE. A machine with no record of an earlier run, such as a fresh CI runner with a restored tree, builds again. To force a rebuild, pass `--rerun` to the task or delete its output directory.
+**4. When a build runs again.** Gradle runs a bake again when its output tree changed or one of its inputs differs from the last successful run: the build logic, the target, the license, the pinned tag and commit, the commit the checkout holds and any change in it, the patches, or the self-contained switch. Otherwise it reports UP-TO-DATE. A machine with no record of an earlier run, such as a fresh CI runner with a restored tree, builds again. To force a rebuild, pass `--rerun` to the task or delete its output directory.
 
 ## Android: "Android NDK not found"
 
@@ -106,9 +109,9 @@ These are separate target models. `buildFFmpegForAndroid*` plus
 `compileKotlinAndroidNative*` produces Kotlin/Native klibs. The regular Android KMP source model
 uses a dynamically registered JNI bridge, is `minSdk 26`, and packages only `arm64-v8a`,
 `armeabi-v7a` and `x86_64` inputs, with 16 KiB ELF/app-packaging checks on the two 64-bit ABIs.
-Its local proof scope is
-`-Pkiteffmpeg.phoneTargetsOnly=true` and needs both `ANDROID_SDK_ROOT` and `ANDROID_NDK_HOME` plus
-the complete local FFmpeg trees.
+To build it locally on its own, pass
+`-Pkiteffmpeg.phoneTargetsOnly=true`, which needs `ANDROID_SDK_ROOT`, `ANDROID_NDK_HOME` and the
+complete local FFmpeg trees.
 
 The Android AAR is on Maven Central. It declares `minSdkVersion 26` and carries the three ABIs
 above.
@@ -118,19 +121,17 @@ the platform codec API directly.
 
 ## "libx264 not found" / `EncoderId.Libx264` encoder missing at runtime
 
-libx264 only exists in GPL-flavour FFmpeg builds. A system FFmpeg from Homebrew or apt usually has
-it; **no KiteFFmpeg artifact does, and no KiteFFmpeg task builds one.** The GPL build tasks were
-deleted on 2026-08-21.
+libx264 exists only in a GPL FFmpeg. A system FFmpeg from Homebrew or apt usually has it, but
+**no KiteFFmpeg artifact does, and no KiteFFmpeg task builds one.**
 
 Two ways forward:
 
 - **Use an encoder that is actually there.** `FFmpeg.encodersFor(CodecId.H264)` lists them:
   `EncoderId.H264VideoToolbox` or `EncoderId.HevcVideoToolbox` on macOS, `h264_mediacodec` on
   Android, or the universal `mpeg4`
-  baseline, which every profile carries. The Android MediaCodec names are present in the profile,
-  but the current evidence does not qualify device encoding.
+  baseline, which every build carries. No Android hardware encoder has run on a device yet.
 - **Link an FFmpeg tree you built.** Put it under `native-libs/gpl/<target>/` and select it with
-  `-Pkiteffmpeg.ffmpeg.license=gpl`. Read the [licence consequences](licensing.md) first: it makes
+  `-Pkiteffmpeg.ffmpeg.license=gpl`. Read the [license consequences](licensing.md) first: it makes
   your whole application GPL.
 
 Either way, probe at runtime with `FFmpeg.hasEncoder("libx264")` before committing to a codec.

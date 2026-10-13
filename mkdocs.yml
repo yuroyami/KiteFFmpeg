@@ -1,9 +1,9 @@
 site_name: KiteFFmpeg
 site_url: https://yuroyami.github.io/KiteFFmpeg/
 site_description: >-
-  Kotlin Multiplatform codec engine: coroutine-first video and audio decode,
-  encode, transcode and filter graphs over FFmpeg, with Kotlin/Native, JVM,
-  Android and wasmJs backends.
+  A Kotlin Multiplatform library over FFmpeg that decodes, encodes, transcodes,
+  remuxes and filters video and audio on Kotlin/Native, the JVM, Android and
+  the web.
 site_author: yuroyami
 copyright: Copyright &copy; 2026 yuroyami, Apache-2.0
 
@@ -96,11 +96,12 @@ nav:
       - Encoding and muxing: encoding-muxing.md
       - Remuxing: remuxing.md
       - Concurrency: concurrency.md
+      - Asynchronous byte sources: async-byte-io.md
   - Reference:
       - Recipes: recipes.md
       - Platform support: platforms.md
       - Licensing: licensing.md
       - Troubleshooting: troubleshooting.md
       - Building from source: building-from-source.md
-      - About and status: about.md
-      - API reference ▸: https://yuroyami.github.io/KiteFFmpeg/api/
+      - About: about.md
+      - API reference: https://yuroyami.github.io/KiteFFmpeg/api/

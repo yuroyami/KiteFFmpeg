@@ -2,36 +2,32 @@
 
 KiteFFmpeg's own Kotlin code is **Apache-2.0**. The FFmpeg it links against is not. FFmpeg is **LGPL-2.1 or later**, or **GPL** when built with `--enable-gpl`. When you ship an app that embeds KiteFFmpeg, the FFmpeg license travels with your binary, and it carries obligations. This page is the practical guide to meeting them.
 
-The FFmpeg mark used in KiteFFmpeg's logo is separate third-party artwork, not part of the Kotlin
-code's Apache-2.0 license grant. Its official PNG source, credited vectorisation, and attribution
-are recorded in the
-[artwork credits](https://github.com/yuroyami/KiteFFmpeg/blob/main/art/CREDITS.md). Wikimedia's
-public-domain classification does not remove trademark restrictions, and the archived permission
-names the FFmpeg Project rather than downstream branding users. Obtain appropriate clearance before
-publishing KiteFFmpeg's derivative logo.
+The FFmpeg mark in KiteFFmpeg's logo is third-party artwork, and the Apache-2.0 grant of the
+Kotlin code does not cover it. The
+[artwork credits](https://github.com/yuroyami/KiteFFmpeg/blob/main/art/CREDITS.md) record its
+source and attribution.
 
 !!! warning "Not legal advice"
-    This page summarises the obligations as they are commonly understood. It also explains how KiteFFmpeg's build outputs help you meet them. It is not legal advice. For a commercial product, have a lawyer review your distribution plan.
+    This page summarizes the obligations as they are commonly understood. It also explains how KiteFFmpeg's build outputs help you meet them. It is not legal advice. For a commercial product, have a lawyer review your distribution plan.
 
-## The two flavours
+## The two flavors
 
 You choose the license when FFmpeg is built, not in Kotlin code:
 
-| Flavour | Configure | Effective license | libx264 / libx265 | Who builds it |
+| Flavor | Configure | Effective license | libx264 / libx265 | Who builds it |
 |---|---|---|---|---|
 | **LGPL** | no `--enable-gpl` | LGPL-2.1+ | no | KiteFFmpeg, and this is what ships |
 | **GPL** | `--enable-gpl`, usually `--enable-version3` | **GPL-3.0** with version3 | yes | you, in your own tree |
 
-`buildFFmpegFor<Target>` produces the LGPL flavour, and every published artifact carries it.
-**There is no GPL task.** `buildFFmpegFor<Target>Gpl` existed once and was deleted on 2026-08-21:
-shipping a GPL-flavoured binary decides the licence of every application that links it, which is not
-a library's decision to make. `-Pkiteffmpeg.ffmpeg.license=gpl` still selects
-`native-libs/gpl/<target>/`, so the GPL route is a tree you build and own.
-[Platform support](platforms.md#licensing) explains how to select a flavour.
+`buildFFmpegFor<Target>` produces the LGPL flavor, and every published artifact carries it.
+There is no GPL task, because shipping a GPL binary decides the license of every app that links
+it, and that is not a library's decision to make. `-Pkiteffmpeg.ffmpeg.license=gpl` selects
+`native-libs/gpl/<target>/`, so the GPL route is a tree that you build and own.
+[Building from source](building-from-source.md#use-a-gpl-ffmpeg-of-your-own) shows how to select it.
 
 ## LGPL obligations when you distribute
 
-The LGPL flavour does **not** make your app open source. It does obligate you, whenever you distribute the app to others, to do four things.
+The LGPL flavor does **not** make your app open source. It does obligate you, whenever you distribute the app to others, to do four things.
 
 1. **Ship the license text.** Include FFmpeg's `COPYING.LGPLv2.1` and its `LICENSE.md`, which lists the per-component terms. An about screen, a bundled `licenses/` directory, or an oss-attribution page all work.
 2. **Tell users FFmpeg is in there** and that it is LGPL-licensed, with a pointer to its source.
@@ -40,17 +36,17 @@ The LGPL flavour does **not** make your app open source. It does obligate you, w
 
 ### Static and dynamic linking under §6
 
-- **Dynamic linking** satisfies §6 naturally, whether you link system dylibs and `.so` files or FFmpeg dylibs you bundle yourself. The user replaces the library file. **Prefer dynamic linking where it is practical.** This is what KiteFFmpeg's system-FFmpeg mode does.
-- **Static linking** (KiteFFmpeg's vendored `.a` builds) still complies, but only if you provide the material needed to relink. That means your app's object files, or an equivalent mechanism, so a user can produce a working binary against their own FFmpeg. Most vendors meet this by offering the linkable object code on request.
+- **Dynamic linking** satisfies §6 naturally, whether you link system dylibs and `.so` files or FFmpeg dylibs you bundle yourself. The user replaces the library file. **Prefer dynamic linking where it is practical.**
+- **Static linking** (every published KiteFFmpeg artifact) still complies, but only if you provide the material needed to relink. That means your app's object files, or an equivalent mechanism, so a user can produce a working binary against their own FFmpeg. Most vendors meet this by offering the linkable object code on request.
 
 !!! warning "The App Store problem"
-    Static linking plus the iOS App Store is the hardest case. Even if you offer object files, a user cannot practically install a relinked binary on a stock iPhone. Whether that satisfies §6 is disputed, and this is the argument that historically kept VLC out of the App Store. Positions differ, and many apps do ship LGPL code statically linked with an object-file offer. If you want to be conservative on Apple platforms, keep FFmpeg as a dynamically loaded framework inside your app bundle, so it can at least be replaced in the bundle. Take real legal advice before you ship.
+    Static linking plus the iOS App Store is the hardest case. Even if you offer object files, a user cannot practically install a relinked binary on a stock iPhone. Whether that satisfies §6 is disputed, and this is the argument that historically kept VLC out of the App Store. Positions differ, and many apps do ship LGPL code statically linked with an object-file offer. If you want to be conservative on Apple platforms, keep FFmpeg as a dynamically loaded framework inside your app bundle, so it can at least be replaced in the bundle. The published iOS klibs link FFmpeg statically, so that needs a build of your own. Take real legal advice before you ship.
 
 ### What the KiteFFmpeg release zips include
 
-The prebuilt FFmpeg archives on KiteFFmpeg's GitHub Releases are named `ffmpeg-<version>-<license>-<triple>.zip`; since 2026-08-22 they are the publication pipeline's input (their contents get embedded into the published klibs) and the LGPL source-offer anchor. Each one is packaged for compliance. Next to `include/` and `lib/`, every zip carries:
+The prebuilt FFmpeg archives on KiteFFmpeg's GitHub Releases are named `ffmpeg-<version>-<license>-<triple>.zip`. The published klibs embed their contents, and they anchor the LGPL source offer. Next to `include/` and `lib/`, every zip carries:
 
-- `COPYING.LGPLv2.1`, always. The `gpl` zips add `COPYING.GPLv2` and `COPYING.GPLv3`.
+- `COPYING.LGPLv2.1`.
 - `LICENSE.md` from the FFmpeg source tree, which is the per-component license map.
 - `BUILD-INFO.txt`, which records the FFmpeg tag and commit, the full `./configure` line, the target, the license profile, and the source-code URL for that exact build.
 
@@ -58,15 +54,15 @@ The release itself also carries `ffmpeg-<version>-source.tar.gz`. That is the ex
 
 Ship the license texts onward with your app. Use `BUILD-INFO.txt` plus the attached source tarball to satisfy the source offer. Together they identify and provide the complete corresponding source.
 
-## GPL flavour restrictions
+## GPL flavor restrictions
 
-The GPL flavour is different in kind: linking it makes the **whole combined work GPL-3.0**. If you distribute that work, then:
+The GPL flavor is different in kind: linking it makes the **whole combined work GPL-3.0**. If you distribute that work, then:
 
 - your application's full source code must be available under a GPL-compatible license,
 - you cannot use App Store, closed-source or proprietary distribution,
 - open-source apps, server-side tools and internal tools are fine. The GPL's obligations trigger on *distribution*, so purely internal or server use does not require releasing source to the world.
 
-If any of that is a problem, stay on the LGPL flavour. Use the hardware encoders (VideoToolbox on
+If any of that is a problem, stay on the LGPL flavor. Use the hardware encoders (VideoToolbox on
 Apple, MediaCodec on Android) or the `mpeg4` software baseline instead of x264 and x265.
 
 ## Third-party components
@@ -87,16 +83,13 @@ libmp3lame, libwebp, FreeType, HarfBuzz, FriBidi or libass.
 **The libass chain is a separate release.** `scripts/package-ass-chain.sh` and the "Release libass
 chain" workflow publish `ass-chain-<target>.zip` assets holding static libass (ISC), HarfBuzz (MIT),
 FreeType (FreeType License) and FriBidi (LGPL-2.1-or-later) archives, each zip carrying the four
-license texts. They are consumed by KitePlayer's `kiteplayer-libass` module, whose published
-artifacts embed them (the web one as a `kiteass.wasm` module linked from the wasm32 chain); FriBidi's LGPL terms apply to those artifacts, and their source is the tagged
-upstream checkout named in each zip's `CHAIN.txt`, with the libass patches it lists from
-`native/patches/libass`. FriBidi itself is built unpatched. An earlier "fat" desktop profile enabled most of those and was deleted
-on 2026-08-22, because it could never produce a self-contained Release asset: Homebrew ships
-graphite2 shared-only, so the result always trailed dynamic dependencies.
+license texts. KitePlayer's `kiteplayer-libass` module embeds them, so FriBidi's LGPL terms apply to its
+artifacts. Their source is the tagged upstream checkout that each zip's `CHAIN.txt` names, with
+the libass patches that it lists from `native/patches/libass`. FriBidi itself is built unpatched.
 
 x264 and x265 appear only in a GPL tree you build yourself, and both are **GPL-2.0+**.
 
-Permissive components (BSD, zlib) only require you to reproduce their licence text and copyright
+Permissive components (BSD, zlib) only require you to reproduce their license text and copyright
 notice. FFmpeg's LGPL obligations are the ones with real work in them, and they are above.
 
 ## Patents: a separate question
@@ -114,8 +107,8 @@ A practical summary for a commercial product: use hardware decode where you can,
 
 Before you ship an app that embeds KiteFFmpeg:
 
-- [ ] Know your flavour: LGPL (default) or GPL (`-Pkiteffmpeg.ffmpeg.license=gpl`). If GPL, confirm your whole app is GPL-3.0-compatible. If it is not, switch flavours.
-- [ ] Bundle the license texts: `COPYING.LGPLv2.1`, FFmpeg's `LICENSE.md`, and notices for the third-party components above. Add `COPYING.GPLv3` for the GPL flavour.
+- [ ] Know your flavor: LGPL (default) or GPL (`-Pkiteffmpeg.ffmpeg.license=gpl`). If GPL, confirm your whole app is GPL-3.0-compatible. If it is not, switch flavors.
+- [ ] Bundle the license texts: `COPYING.LGPLv2.1`, FFmpeg's `LICENSE.md`, and notices for the third-party components above. Add `COPYING.GPLv3` for the GPL flavor.
 - [ ] State in your app's about or licenses screen that it uses FFmpeg and the listed components.
 - [ ] Provide the source offer. Link or host the exact FFmpeg source your build used. `BUILD-INFO.txt` in the release zips records the tag, the commit, and the configure line.
 - [ ] Decide your §6 story: dynamic linking is easiest, or static linking plus an offer of relinkable object files. On Apple platforms, consider the App Store problem above.
@@ -124,5 +117,5 @@ Before you ship an app that embeds KiteFFmpeg:
 
 ## Related
 
-- [Platform support](platforms.md#licensing): choosing the flavour, and per-platform encoder guidance.
+- [Platform support](platforms.md): what each build carries, and the encoders on each platform.
 - [About KiteFFmpeg](about.md#license): the short version.

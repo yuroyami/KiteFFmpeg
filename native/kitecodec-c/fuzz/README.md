@@ -1,44 +1,33 @@
 # kitecodec-c fuzz targets
 
-Ten fuzz targets. Eight give a caller's string to a C entry point that parses it. Two give media
-bytes to the demuxers and the decoders through the custom read callback, which is where untrusted
-media arrives.
+Eleven fuzz targets. Eight give a caller's string to a C entry point that parses it. Three give
+media bytes to the demuxers and the decoders through the custom read callback, which is where
+untrusted media arrives.
 
 ## What runs where, and what each result is worth
 
-There are two drivers over one body, and the difference between them decides what a green run
-means. Nothing here should be read as "the library was fuzzed" unless the Linux job says so.
+Each target has one body and two drivers. Only the libFuzzer driver searches for new inputs, so a
+green replay does not mean that the library was fuzzed.
 
 | Driver | Where | Instruments | Evidence |
 |---|---|---|---|
-| libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux` job of `.github/workflows/fuzz.yml`, five minutes per target | ASan, UBSan, LeakSanitizer, coverage guidance | A search for unknown inputs. The status note at the top of that workflow records its runs. It links Ubuntu's FFmpeg, which is not instrumented, so for the two byte targets the coverage guidance comes from the helper layer alone. |
-| Corpus replay, `replay_main.c` | this machine, `scripts/replay-corpus.sh`, every later gate | ASan, UBSan | Level 2 for the inputs in the corpus and nothing more. A regression test, and today the only fuzz-shaped evidence that exists. |
+| libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux` job of `.github/workflows/fuzz.yml`, five minutes per target | ASan, UBSan, LeakSanitizer, coverage guidance | A search for unknown inputs. It links Ubuntu's FFmpeg, which is not instrumented, so for the three byte targets the coverage guidance comes from the helper layer alone. |
+| Corpus replay, `replay_main.c` | any host, `scripts/replay-corpus.sh`, and the `ci.yml` workflow on every push | ASan, UBSan | A regression test for the inputs in the corpus and nothing more. |
 
-**libFuzzer does not exist on this host.** Measured while writing this directory, not quoted from
-the plan:
+libFuzzer cannot link on macOS, because neither Apple clang nor the LLVM of Kotlin/Native ships
+`libclang_rt.fuzzer_osx.a`. `-fsanitize=fuzzer-no-link` compiles there, but it adds coverage
+instrumentation with no driver, so it fuzzes nothing. `scripts/run-fuzz.sh` compiles a two-line
+program first, and when that fails it exits 3 with one sentence instead of a linker error.
 
-```
-/usr/bin/clang -fsanitize=fuzzer          Apple clang 17.0.0 (clang-1700.3.19.1)
-  ld: library '.../lib/clang/17/lib/darwin/libclang_rt.fuzzer_osx.a' not found     exit 1
-~/.konan/.../llvm-21-aarch64-macos-essentials-97/bin/clang -fsanitize=fuzzer
-  clang version 21.1.6
-  ld: library '.../lib/clang/21/lib/darwin/libclang_rt.fuzzer_osx.a' not found     exit 1
-/opt/homebrew/opt/llvm/bin/clang          not installed
-```
-
-Only the header directory `lib/clang/17/include/fuzzer` is present. `-fsanitize=fuzzer-no-link`
-does compile, exit 0, but that is coverage instrumentation with no driver and it fuzzes nothing.
-`scripts/run-fuzz.sh` detects it by compiling a two line program
-and exits 3 with one sentence rather than dumping a linker error.
-
-So the local gate replays a committed corpus. It discovers nothing. It refuses to forget.
+So a macOS host replays the committed corpus. A replay finds no new input, but it catches a
+regression on every input that the corpus holds.
 
 ## The targets
 
 | Target | Entry points | Why it is a fuzz target |
 |---|---|---|
 | `fuzz_filter_video.c` | `ffkmp_graph_build_video`, `ffkmp_graph_build_video_multi` | The description goes to `avfilter_graph_parse_ptr` unvalidated, straight from the public Kotlin `FilterGraph` API. |
-| `fuzz_filter_audio.c` | `ffkmp_graph_build_audio`, `ffkmp_graph_build_audio_multi` | The same, plus the site of the description overflow they once had: these two COMPOSE the description into a fixed `char full_desc[2048]` with repeated `n += snprintf(...)`. |
+| `fuzz_filter_audio.c` | `ffkmp_graph_build_audio`, `ffkmp_graph_build_audio_multi` | The same. These two also compose the description into a fixed `char full_desc[2048]` with repeated `n += snprintf(...)`, so a long description tests their length checks. |
 | `fuzz_codec_option.c` | `ffkmp_codecctx_set_opt` | `av_opt_set` picks a value parser by looking the key up, so one caller string decides how the other is parsed. |
 | `fuzz_format_option.c` | `ffkmp_fmt_set_opt` | The same, over the muxer's private option table, which is a different set of parsers. |
 | `fuzz_metadata.c` | `ffkmp_fmt_set_metadata` | `av_dict_set` stores rather than looks up: growth, replacement and the NULL-value delete path. |
@@ -49,8 +38,8 @@ So the local gate replays a committed corpus. It discovers nothing. It refuses t
 | `fuzz_decode.c` | the same open, then `ffkmp_codecctx_send_packet`, `ffkmp_codecctx_receive_frame`, the frame HDR readers, the frame copies and the pixel conversion, with and without the decoder budgets | Every packet that a demuxer reads goes to its stream's decoder, and every frame goes through the copies that a caller reads it with. |
 | `fuzz_subtitle.c` | the same open, then the eight `ffkmp_subtitle_` functions: open, decode, times, rectangle count and geometry, the RGBA conversion, the text, and free | Every subtitle packet goes to its stream's subtitle decoder, and each image rectangle is converted from the index plane and palette that the decoder built from the input. |
 
-Each target's own file header says what it does, what matrix it runs and what a finding would look
-like. Read the file, not this table.
+The file header of each target says what it does, what matrix it runs and what a finding would look
+like.
 
 ## The input contract
 
@@ -62,7 +51,7 @@ disagrees with the split silently stops testing what its file names claim.
   path rather than one of them.
 * **Key and value targets.** The input splits at the **first newline**. Before it is the key, after
   it is the value. No newline anywhere means a NULL value, which all three entry points accept.
-* **Name target.** The whole input is one format name.
+* **Name targets.** The whole input is one name.
 * **Byte targets.** The whole input is the media. FFmpeg reads it through the custom read callback
   of `ffkmp_fmt_open_input_io`, so nothing is split and nothing is NUL terminated.
 
@@ -80,8 +69,7 @@ it in every family.
 
 The string corpora hold 128 files, 38807 bytes, all committed, all textual. The byte corpora hold
 82 small media files, 121866 bytes, all committed. No media seed is larger than 5559 bytes, which
-keeps every seed under the `-max_len` of 8192 that `run-fuzz.sh` passes. The full replay of all
-eleven targets under ASan and UBSan takes about 17 seconds on this machine, the compiles included.
+keeps every seed under the `-max_len` of 8192 that `run-fuzz.sh` passes.
 
 | Directory | Files | What is in it |
 |---|---|---|
@@ -106,96 +94,42 @@ one of those files with bytes changed at fixed offsets, so it can be made again.
 prefix, so single-input and multi-input builders both see them. Length 0 is `edge_empty`.
 
 The 1048576 vector is **generated** into `build/<variant>/fuzz/generated/filter_audio/` by
-`scripts/replay-corpus.sh`, and it is replayed through the same driver over the same code path. Two
-measured reasons rather than tidiness: one megabyte of padding would be 27 times the whole rest of
-the corpus and there would be two of them, against a corpus that must stay small; and libFuzzer
-derives `-max_len` from the largest seed when the flag is absent, so a megabyte seed would spend the
-five minute budget on length rather than on shape. `run-fuzz.sh` passes an explicit `-max_len` for
-the same reason.
+`scripts/replay-corpus.sh`, and it is replayed through the same driver over the same code path. It
+is not committed for two reasons. One megabyte of padding would be many times the size of the rest of
+the corpus. And libFuzzer derives `-max_len` from the largest seed when the flag is absent, so a
+megabyte seed would spend the five-minute budget on length instead of shape. `run-fuzz.sh` passes
+an explicit `-max_len` for the same reason.
 
-It is generated for `filter_audio` only, and the asymmetry is worth reading rather than skipping.
+The vector is generated for `filter_audio` only. The next section says why.
 
-## The video builders apply no length limit at all
+## The video builders apply no length limit
 
-The description overflow was a defect in the two **audio** builders by name, because they are the ones that compose the
-description into `char full_desc[2048]`. A 1048576 byte description is refused by their first length
-check in microseconds, so the vector is free there.
+The two **audio** builders compose the description into `char full_desc[2048]`, so they check its
+length first. They refuse a description of 1048576 bytes at once, and the vector costs nothing
+there.
 
-The video builders have no composition buffer, and therefore no length check of any kind. The
-description goes whole to `avfilter_graph_parse_ptr`. Measured on this machine with the same
-`filter_video_replay` binary over the same 1048576 byte `scale=1.000...` description:
+The video builders have no composition buffer, and therefore no length check. The description goes
+whole to `avfilter_graph_parse_ptr`. The gate runs ASan with `strict_string_checks=1`, which makes
+each string call check the whole buffer. The avfilter parser makes many string calls over the whole
+description, so a one-megabyte description through the video builders makes the replay very slow.
+That cost belongs to ASan, not to the library.
 
-| `ASAN_OPTIONS` | Wall clock |
-|---|---|
-| `detect_leaks=0:abort_on_error=1` | 0.25 s |
-| the same plus `strict_string_checks=1` | did not finish inside 120 s |
+The property underneath it is real: **an unbounded caller string reaches the avfilter parser
+through `ffkmp_graph_build_video` and `ffkmp_graph_build_video_multi`, and KiteFFmpeg sets no length
+policy for it.** The audio path is bounded and the video path is not. A length or time policy for
+caller filter text belongs with the resource limits that container fuzzing also needs. The
+committed video corpus stops at 4096 bytes, which is half of the `-max_len` of `run-fuzz.sh`, so the
+gate stays fast.
 
-`strict_string_checks=1` is what `run-c-tests.sh` sets and what `replay-corpus.sh` sets to match, so
-the second row is the gate's configuration. The cost belongs to ASan's string interceptors, which
-validate a whole buffer per call, against a parser that makes many string calls over the whole
-description. It is not a defect in the library and it is not a finding.
+## Coverage
 
-What IS worth recording is the property underneath it: **an unbounded caller string reaches the
-avfilter parser through `ffkmp_graph_build_video` and `ffkmp_graph_build_video_multi` with no length
-policy anywhere in KiteFFmpeg.** Nothing here says that is wrong. It says it is unbounded, that the
-audio path is bounded and the video path is not, and that a length or time policy for
-caller-supplied filter text belongs with the resource classification that container fuzzing
-needs anyway. The committed video corpus therefore stops at 4096 bytes, which is half of
-`run-fuzz.sh`'s `-max_len` and replays in 1.0 second for the whole 19 file directory, and the gate
-stays fast.
+No script in this directory measures coverage, and the gate depends on no coverage number. The
+targets exist for the entry points that parse caller strings or bytes, and `tests/test_*.c` covers
+the other helpers. Some paths need fault injection instead of another input, for example
+`avfilter_graph_alloc` or `avfilter_inout_alloc` returning NULL.
 
-## What the corpus actually reaches, measured
-
-A corpus is worth what it executes, not what its file names suggest. Measured with
-`-fprofile-instr-generate -fcoverage-mapping` and `xcrun llvm-cov` over the six replay binaries
-against the whole committed corpus, one profile per target merged into one report. The six entry
-points, their two internal graph finishers, and the helpers the targets use for setup:
-
-| Function | Lines | Regions | Branches |
-|---|---|---|---|
-| `ffkmp_graph_build_video` | 100.00% | 72.22% | 54.17% |
-| `ffkmp_graph_build_video_multi` | 100.00% | 73.13% | 57.14% |
-| `ffkmp_graph_build_audio` | 100.00% | 79.86% | 58.06% |
-| `ffkmp_graph_build_audio_multi` | 100.00% | 79.87% | 60.29% |
-| `ffkmp_graph_finish_` (internal) | 78.57% | 85.71% | 66.67% |
-| `ffkmp_graph_finish_multi_` (internal) | 100.00% | 84.38% | 80.00% |
-| `ffkmp_codecctx_set_opt` | 100.00% | 100.00% | 100.00% |
-| `ffkmp_fmt_set_opt` | 100.00% | 100.00% | 100.00% |
-| `ffkmp_fmt_set_metadata` | 100.00% | 100.00% | 100.00% |
-| `ffkmp_pix_fmt_from_name` | 100.00% | 100.00% | n/a |
-| `ffkmp_sample_fmt_from_name` | 100.00% | 100.00% | n/a |
-| whole `src/helpers_filter.c` | 92.34% | 75.25% | 55.05% |
-
-Every line of all four graph builders runs. The missing regions and branches are the allocation
-failure paths (`avfilter_graph_alloc` returning NULL, `avfilter_inout_alloc` returning NULL) and the
-`avfilter_get_by_name` misses, none of which an input can provoke: they need the allocator or the
-filter registry to fail, and provoking those needs fault injection rather than a different string.
-Three of the missing branches in `ffkmp_graph_finish_` are the same shape.
-
-The other helper units read near zero and that is correct rather than a gap: the fuzz targets
-exist for the entry points that parse caller strings or bytes, and `tests/test_*.c` covers the
-other helpers. The coverage measurement predates the helpers added since, and makes no claim that
-the fuzz corpus reaches them. Pointing a fuzz target at a getter would add coverage numbers and no
-evidence.
-
-Reproducing it is a one-off measurement and deliberately not a committed script: nothing in the gate
-depends on a coverage number, and a coverage script that nobody runs is worse than none.
-
-### What the byte corpora reach
-
-Measured by counting in a scratch build of the two targets, not with a coverage tool.
-
-* `demux`: 17 demuxers open the valid seeds. Every valid seed opens seekable, except the concat
-  script and the SDP file, whose nested opens are refused (see below). As a stream, the CAF file
-  does not open either. Of the ten corrupted seeds, five fail to open in both modes, one fails only
-  when seekable, and four open and then read what is left.
-* `decode`: 23 decoders open, and every valid seed gives frames. The corrupted seeds give damaged
-  frames, no frames, or no open, so they reach the error paths of the decoders.
-* `subtitle`: 5 subtitle decoders open (SubRip, WebVTT, ASS, MP4 timed text and Blu-ray), and every
-  valid seed gives two subtitles. The Blu-ray seed's image goes through the RGBA conversion. The
-  corrupted Blu-ray sets with a wrong object size and wrong run-length bytes still give an image
-  that is converted, the truncated one gives no subtitle, and random bytes and the empty file do
-  not open.
+The `corrupt_*` seeds of the byte corpora reach the error paths of the demuxers and the decoders.
+They fail to open, open and then read what is left, or give damaged frames or no frames.
 
 ## What is not fuzzed
 
@@ -206,31 +140,28 @@ Measured by counting in a scratch build of the two targets, not with a coverage 
 * `ffkmp_fmt_io_open`
 
 The boundary is scope. Fuzzing a path opens the filesystem, and then the thing being fuzzed is a
-protocol handler before it is a demuxer. Container bytes reach the demuxers through the two byte
+protocol handler before it is a demuxer. Container bytes reach the demuxers through the three byte
 targets instead: from memory, through the custom read callback, with no filesystem and no protocol
 in the way.
 
-Two consequences worth stating so nobody has to rediscover them:
+Three consequences follow:
 
-1. `ffkmp_fmt_alloc_output2` **is** called by `fuzz_format_option.c` and `fuzz_metadata.c`, because
-   an `AVFormatContext` is needed before an option or a tag can be set on one. There it is called
-   with a **fixed path constant** and a fixed muxer short name. Its `format` argument now has a
-   target of its own, `fuzz_muxer_name.c`: the muxer NAME is a registry lookup and not a path, so it
-   sits on this side of the boundary, and the path constant stays fixed there for the same reason it
-   is fixed here. The path itself is still never fuzzed.
-   `avformat_alloc_output_context2` guesses the muxer and copies the path into `ctx->url`; it opens
-   nothing, and `ffkmp_fmt_free_output` closes `ctx->pb` only when `pb` is non-NULL, which it never
-   is here. So no file is created and no protocol runs. The constant is named
-   `kc_fuzz_never_opened.out` so that a file by that name appearing anywhere would be traceable to
-   this directory instead of mysterious.
-1b. The three remaining name lookups, `ffkmp_find_encoder_by_name`, `ffkmp_find_decoder_by_name`
-   and `ffkmp_filter_exists`, have a target too, `fuzz_codec_name.c`. Same shape as
-   `fuzz_format_name.c` and the same reason: a caller-supplied string walks a registry, and all
-   three are public through one-line Kotlin functions that pass it straight down.
-
-2. The eight string targets read and write no media. None of them has an `AVPacket` or an `AVFrame`
-   carrying data, so a finding from one of them is never about a bitstream. The two byte targets
-   are the ones that read media.
+* `ffkmp_fmt_alloc_output2` **is** called by `fuzz_format_option.c` and `fuzz_metadata.c`, because
+  an `AVFormatContext` is needed before an option or a tag can be set on one. There it is called
+  with a **fixed path constant** and a fixed muxer short name. Its `format` argument has a target of
+  its own, `fuzz_muxer_name.c`: the muxer name is a registry lookup and not a path, so it sits on
+  this side of the boundary. The path itself is never fuzzed.
+  `avformat_alloc_output_context2` guesses the muxer and copies the path into `ctx->url`. It opens
+  nothing, and `ffkmp_fmt_free_output` closes `ctx->pb` only when `pb` is non-NULL, which it never
+  is here. So no file is created and no protocol runs. The constant is named
+  `kc_fuzz_never_opened.out`, so a file of that name points back to this directory.
+* The other name lookups, `ffkmp_find_encoder_by_name`, `ffkmp_find_decoder_by_name` and
+  `ffkmp_filter_exists`, have a target too, `fuzz_codec_name.c`. It has the same shape as
+  `fuzz_format_name.c` for the same reason: a caller string walks a registry, and all three are
+  public through one-line Kotlin functions that pass the string straight down.
+* The eight string targets read and write no media. None of them has an `AVPacket` or an `AVFrame`
+  that carries data, so a finding from one of them is never about a bitstream. The three byte
+  targets are the ones that read media.
 
 **The demuxer option pairs have no target.** `ffkmp_fmt_open_input2` and `ffkmp_fmt_open_input_io`
 take option pairs that a caller passes to `MediaSource.open(path, options)` and
@@ -260,9 +191,9 @@ because FFmpeg can encode them only from images, so the fuzzer has to find those
 
 ## Proving the harness has power
 
-A green fuzzer that has never caught anything is not evidence of anything except that it ran. So one
-deliberately planted defect for each kind of input, and one for the subtitle image conversion, is
-proved caught, then removed.
+A fuzz run that has never caught a defect proves only that it ran. So `--prove-power` plants one
+defect for each kind of input, and one in the subtitle image conversion, checks that the replay
+catches each one, then removes it.
 
 ```bash
 ./scripts/build-host.sh asan
@@ -304,7 +235,7 @@ The three defects:
 ./scripts/replay-corpus.sh                         # every target, the gate
 ./scripts/replay-corpus.sh asan filter_audio       # one target, the fast loop
 ./scripts/replay-corpus.sh --prove-power           # the planted defects
-./scripts/run-fuzz.sh                              # exits 3 here, fuzzes on Linux
+./scripts/run-fuzz.sh                              # exits 3 on macOS, fuzzes on Linux
 ```
 
 `replay-corpus.sh` never builds the helper layer, so a gate cannot pass against an archive that was
@@ -330,10 +261,9 @@ that drives parser error paths on purpose would otherwise bury the one line per 
 
 ## The NULL key guard
 
-`ffkmp_fmt_set_opt` once passed a NULL key on to `av_opt_set`, which walks the option table with
-`strcmp(o->name, name)` and never tests `name`. Under `-fsanitize=address,undefined` that was a
-SEGV in `strcmp`, called from `av_opt_find2`. All three option helpers now refuse a NULL key the
-same way:
+All three option helpers refuse a NULL key. `av_opt_set` walks the option table with
+`strcmp(o->name, name)` and never tests `name`, so a NULL key that reached it would crash in
+`strcmp`:
 
 ```
 ffkmp_codecctx_set_opt   if (!c || !key) return AVERROR(EINVAL);   src/helpers_codec.c

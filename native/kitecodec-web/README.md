@@ -2,8 +2,8 @@
 
 The plain web codec module, `kite`, asks a byte source for bytes and needs the answer at once.
 The two modules built from this folder, `kite-jspi` and `kite-asyncify`, can wait for it: the C
-stack that asked is parked while JavaScript works, and goes on when the answer is there. See
-[the design](../../docs/async-byte-io.md) and KiteFFmpeg issue 183.
+stack that asked is parked while JavaScript works, and goes on when the answer is there.
+[Asynchronous byte sources](../../docs/async-byte-io.md) shows the API that uses them.
 
 - `kite_async_bridge.c` holds the callbacks FFmpeg calls and the exports a host calls.
 - `kite_async_imports.js` is the emscripten library that marks the bridge's imports as suspending.

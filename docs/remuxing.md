@@ -28,7 +28,7 @@ suspend fun remux(
 ): Unit
 ```
 
-Two more overloads take the same parameters: one adds `inputOptions`, the pre-open options for the input, and one reads from a `MediaByteSource` and writes to a `MediaByteSink`, with the container named by `format`.
+Two more overloads exist. One adds `inputOptions`, the pre-open options for the input, and takes the same parameters otherwise. The other replaces `input` and `output` with `input: () -> MediaByteSource` and `output: MediaByteSink`, names the container with `format`, and takes muxer options as `outputOptions`.
 
 | Parameter | Purpose |
 |---|---|

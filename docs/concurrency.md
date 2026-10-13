@@ -6,7 +6,7 @@ KiteFFmpeg's API is coroutine-first: the long-running entry points (`Transcoder.
 
 ## libav contexts are not thread-safe
 
-Some KiteFFmpeg objects wrap native state: `MediaSource` (an `AVFormatContext` plus per-stream decoders), `MediaSink` and its encoders, and `FilterGraph`. None of them may be called from concurrent coroutines. FFmpeg's contexts have no internal locking for the way KiteFFmpeg drives them; two concurrent calls into the same context corrupt state rather than merely slowing down.
+Some KiteFFmpeg objects wrap native state: `MediaSource` (an `AVFormatContext` plus per-stream decoders), `MediaSink` and its encoders, and `FilterGraph`. Don't call any of them from concurrent coroutines. `MediaSource` has no lock, so two calls that overlap on one source break its state. `FilterGraph` and `MediaSink` take a lock around each native call, so overlapping calls wait for each other, but the order of the frames then depends on the scheduler. Share none of them.
 
 This is a rule about *concurrent access to one object*, not about threads in general. It is fine to:
 
@@ -67,16 +67,16 @@ A `FilterGraph` follows the same rule: `feedInput`, `flushInput`, and collecting
 
 ## Close every collected frame
 
-Frames emitted by `decodedFrames`, `decodeStreams`, and `FilterGraph.process` are owned by the collector: each stays valid until you `close()` it, so `toList()` and handing a frame to another coroutine are safe. `buffer()`, `flowOn`, `conflate` and `produceIn` are not: a flow cancelled part way drops the frames they queued without closing them, so use `bufferFrames()` instead. The obligation is release, not timing. Close every collected frame, or its native buffers leak. Callback-style outputs (`FilterGraph.feedInput`'s `onOutput`) are the exception: those frames are valid only inside the callback, so call `copy()` to keep one. The full ownership contract is in [Decoding, Frame ownership](decoding.md#frame-ownership).
+Frames emitted by `decodedFrames`, `decodeStreams`, and `FilterGraph.process` are owned by the collector: each stays valid until you `close()` it, so `toList()` and handing a frame to another coroutine are safe. `buffer()`, `flowOn`, `conflate` and `produceIn` are not: a flow canceled part way drops the frames they queued without closing them, so use `bufferFrames()` instead. The obligation is release, not timing. Close every collected frame, or its native buffers leak. Callback-style outputs (`FilterGraph.feedInput`'s `onOutput`) are the exception: those frames are valid only inside the callback, so call `copy()` to keep one. The full ownership contract is in [Decoding, Frame ownership](decoding.md#frame-ownership).
 
 ## Cancellation
 
-The pipelines cooperate with structured concurrency: cancellation is honoured at suspension points. Cancelling the coroutine that runs `Transcoder.transcode`, collects a decode flow, or awaits a `drive` call stops the work at the next suspension and releases the native resources on the way out (decoders, frames, and graphs are freed in `finally` blocks; `use { }` handles the objects you opened yourself).
+The pipelines cooperate with structured concurrency: cancellation is honored at suspension points. Canceling the coroutine that runs `Transcoder.transcode`, collects a decode flow, or awaits a `drive` call stops the work at the next suspension and releases the native resources on the way out (decoders, frames, and graphs are freed in `finally` blocks; `use { }` handles the objects you opened yourself).
 
 Two practical consequences:
 
 - **Cancellation is prompt but not instantaneous.** A decode/encode step that is already inside a native call finishes that call first; the loop then observes cancellation before the next one.
-- **A cancelled transcode leaves a truncated output file.** The trailer is only written by a clean `MediaSink.close()` / a completed `transcode`, so treat the output of a cancelled run as garbage and delete it.
+- **A canceled transcode leaves a short output file.** The sink still flushes its encoders and writes the trailer as it closes, so the file is valid and holds the part written before the cancellation. Delete it if you do not want a short file.
 
 `Transcoder.transcode` and `Remuxer.remux` run their work on their own dispatcher, `Dispatchers.IO` unless you pass another as `dispatcher`, so the thread you call them from stays free, and a cancel sent from that same thread reaches them. Their `onProgress` callbacks run in your coroutine context. The other entry points run on the dispatcher you call them from, so call them from a background dispatcher yourself. [Transcoding](transcoding.md#threads-and-cancellation) has the details.
 

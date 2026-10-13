@@ -28,13 +28,13 @@ directory.
 | `include/kitecodec_handles.h` | The opaque aliases for FFmpeg's types. No FFmpeg include. |
 | `include/kitecodec_abi.h` | The FFmpeg identity gate and the C ABI version. No FFmpeg include. |
 | `include/kitecodec_ffmpeg_versions.h` | Private. The only place the gate reads FFmpeg's version macros, and the one file the identity test replaces. |
-| `src/helpers_*.c` | One translation unit per subsystem: build, codec, codecpar, error, filter, format, frame, hdr, hwaccel, packet, playback, stream, subtitle and swr. |
+| `src/helpers_*.c` | One translation unit per subsystem: build, codec, codecpar, display, dovi, error, filter, format, frame, hdr, hwaccel, log, packet, playback, stream, subtitle and swr. |
 | `src/kitecodec_abi.c` | The gate: the frozen header versions, the runtime comparison, the report and the diagnostic bypass. |
 | `scripts/build-host.sh` | Builds the host test binaries for one variant. |
 | `scripts/run-c-tests.sh` | Runs every suite for one variant, or the plain binaries in the `interpose` mode, where allocation accounting is REQUIRED. |
 | `scripts/symbol-audit.sh` | Checks what the compiled archive needs, exports and keeps private, and the declaration shapes. |
 | `scripts/klib-metadata-diff.sh` | Checks the cinterop klib against its baseline and rejects any raw libav binding. |
-| `scripts/check-deleted-surface.sh` | Proves nothing in either repository refers to a helper whose status in `deleted-surface.txt` is deleted. |
+| `scripts/check-deleted-surface.sh` | Checks that nothing in this repository, or in a KitePlayer checkout beside it, refers to a helper whose status in `deleted-surface.txt` is deleted. |
 | `scripts/replay-corpus.sh` | Replays every committed fuzz seed through its target under ASan and UBSan. |
 | `scripts/run-fuzz.sh` | Runs the libFuzzer targets. It refuses on a host whose clang has no fuzzer runtime. |
 | `fuzz/` | The fuzz targets, their committed corpus and a README on what is fuzzed and what is not. |
@@ -43,7 +43,7 @@ directory.
 | `tests/test_*.c` | The suites, one binary each. Both scripts find them in this directory, so adding a file adds a suite. |
 | `tests/fake_headers/` | Doctored copies of the private versions header for the identity test, and a stand-in `jni.h` for `test_jni_bridge`, which compiles the JNI units without a JDK. |
 | `coupling-baseline.txt` | The ceilings on direct FFmpeg use from Kotlin, both zero. |
-| `probe/` | `report_offsets.c` and `opener_offsets.c`, which `scripts/wasm-report-offsets.sh` uses to state the byte layouts the web binding reads and writes; `wasm_link_probe.c`, a link check of the web archive run by `scripts/wasm-link-probe.sh`; and a browser demo page. None is part of a gate. |
+| `probe/` | `report_offsets.c` and `opener_offsets.c`, which `../../scripts/wasm-report-offsets.sh` uses to state the byte layouts the web binding reads and writes; `wasm_link_probe.c`, a link check of the web archive run by `../../scripts/wasm-link-probe.sh`; and a browser demo page. None is part of a gate. |
 | `build/` | Output. Gitignored. |
 
 ## The FFmpeg identity gate
@@ -54,7 +54,7 @@ field offsets are wrong. 48 of the helpers read or write through one of them, so
 wrong values and then dies inside `av_frame_free`, with AddressSanitizer naming a four byte read 36
 bytes past a 416 byte region. In the nondeterministic case it is silent.
 
-**How the expectations are frozen.** `src/kitecodec_abi.c` initialises a file scope `static const`
+**How the expectations are frozen.** `src/kitecodec_abi.c` initializes a file-scope `static const`
 array from the six `LIB*_VERSION_INT` macros. It is compiled by the same task, against the same
 include tree, as every helper unit, so if the compiler baked a struct offset it also read these
 macros. Nothing can recover a header version afterwards, which is why this construction is correct
@@ -99,8 +99,8 @@ failure. Every helper that allocates, frees or moves a reference has a case in
 
 ## Building and running
 
-There is no make, no cmake and no ninja here. Both repositories live under a path containing
-`#Kite`, and GNU make starts a comment at an unescaped `#`, so the scripts drive clang directly.
+There is no make, no cmake and no ninja here. A checkout path can contain `#`, and GNU make starts
+a comment at an unescaped `#`, so the scripts drive clang directly.
 
 ```bash
 ./scripts/check-deleted-surface.sh
@@ -146,11 +146,11 @@ ASan and TSan cannot be combined, which is why there are three variants rather t
 | Variant | Flags on top of `-std=c11 -Wall -Wextra -Werror -Werror=vla -g` | What it is for |
 |---|---|---|
 | `plain` | `-O2` | Compile fidelity, correctness, and allocation pairing. |
-| `asan` | `-fsanitize=address,undefined -fno-omit-frame-pointer -O1` | The out of bounds and undefined behaviour class. |
+| `asan` | `-fsanitize=address,undefined -fno-omit-frame-pointer -O1` | The out of bounds and undefined behavior class. |
 | `tsan` | `-fsanitize=thread -O1` | The threaded cases, starting with `ffkmp_strerror`. |
 
 The helper units also get `-fvisibility=hidden`, matching the shipped compile in
-`buildSrc/CompileKiteFFmpegCTask.kt`, so the host archive exports the same set as the shipped one.
+`buildSrc/src/main/kotlin/CompileKiteFFmpegCTask.kt`, so the host archive exports the same set as the shipped one.
 
 `-Werror` is not decoration. Every unit includes the public header, so this compile proves that all
 the public declarations agree with their definitions. Separate compilation adds a second proof: a
@@ -178,9 +178,6 @@ sanitizer runtime replaces the allocator first. `KC_ALLOC_BALANCED` and `KC_ALLO
 gap with `kc_partial()` when `kc_alloc_active()` is 0, and the suite summary counts the partial
 cases, so nothing claims a property the variant could not observe. `run-c-tests.sh interpose` makes
 an ineffective interposer fail instead.
-
-This harness and interposer have a twin in KitePlayer's `kiteplayer-rt/native/tests/`, with the same
-mechanism under `KPRT_REQUIRE_ALLOC_ACCOUNTING`. A fix to either lands in both in the same change.
 
 ## Writing a suite
 
@@ -219,6 +216,9 @@ Add a suite by adding `tests/test_<name>.c`. Both scripts pick it up.
 
 ## The suites
 
+The `tests/` directory holds 40 suites, and the header of each one says what it establishes. These
+cover the core contracts:
+
 | Suite | What it establishes |
 |---|---|
 | `test_ownership.c` | Exact allocation pairing for every ownership helper under the interposer, including the parent-owned stream, the cached `SwsContext`, the conditional `pb` close and the packet clone. |
@@ -237,13 +237,10 @@ Add a suite by adding `tests/test_<name>.c`. Both scripts pick it up.
 | `test_output_io.c` | The output bridge that writes a container into application-owned bytes. |
 | `test_subtitle.c` | The subtitle decoder, on a Blu-ray file written byte by byte. |
 | `test_swr.c` | The resampler's refusals and sample counts. |
-| `test_hdr.c` | The colour, pixel shape and HDR metadata an encode keeps. |
+| `test_hdr.c` | The color, pixel shape and HDR metadata an encode keeps. |
 | `test_rotation.c` | The rotation read from a display matrix, including an all-zero one. |
 | `test_field_order.c` | The field order mapping and the container bit rate. |
 | `test_append.c` | The bounded string append the JNI identity report uses. |
-
-Each suite was proved load bearing by mutation against copies of the helper sources in a scratch
-directory, never against the files in the repository. The details are in each suite's own header.
 
 ## What each instrument proves, and what it cannot
 
@@ -253,15 +250,12 @@ directory, never against the files in the repository. The details are in each su
 | ASan with UBSan | An out of bounds read or write, and a signed overflow, named at the byte and the line. | A leak, because LeakSanitizer is unsupported here. A race, because it cannot be combined with TSan. |
 | TSan | A real data race between two threads. | Memory ordering strength: a release store downgraded to relaxed is still atomic. |
 
-Three limits of this machine shape all of the above, each measured:
+Two limits of a macOS arm64 host shape all of the above:
 
 * **No libFuzzer.** Apple clang and konan's LLVM both lack `libclang_rt.fuzzer_osx.a`, so
   `run-fuzz.sh` refuses here, the Linux CI job is the only place the fuzzer runs, and what runs
   locally is the corpus replay: a regression test over the committed seeds and nothing more.
 * **No LeakSanitizer**, which is why the interposer exists.
-* **Local cross-target trees are not release evidence.** A Mac can build the host, iOS and Android
-  trees, but those archives are local proof only, with no public artifact or CI result.
 
-Not this directory's job: the lock-free C audio ring and the real-time device callback. Those live in
-KitePlayer's `kiteplayer-rt`, with their own suites. A lock-free audio ring has nothing to do with
-FFmpeg, and putting it here would make a player's real-time core a consequence of a codec dependency.
+Not this directory's job: a lock-free audio ring and a real-time device callback. Those belong to a
+player, and putting them here would make a player's real-time core depend on a codec binding.

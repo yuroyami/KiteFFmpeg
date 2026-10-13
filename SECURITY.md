@@ -18,15 +18,14 @@ Include if you can:
 - a minimal reproducing file or generator command, and the API entry point (`MediaSource.open`, `Transcoder.transcode`, ...),
 - the crash output (stack trace, ASan report if available).
 
-You should get an acknowledgement within a week. Please allow a fix to land before disclosing publicly; we will credit reporters in the advisory unless you prefer otherwise.
+You should get an acknowledgment within a week. Please allow a fix to land before disclosing publicly; we will credit reporters in the advisory unless you prefer otherwise.
 
 ## Supported versions
 
-KiteFFmpeg is pre-1.0 and IS published to Maven Central, and this line said the opposite until
-2026-08-24. That matters here rather than only being untidy: a published artifact cannot be
-withdrawn, so a security fix reaches users as a NEW version and never as a correction to an old one.
-There are no maintained release branches; fixes land on `main` and ship in the next patch. Versions
-already on Central stay exactly as they are.
+KiteFFmpeg has not reached 1.0, and it is published on Maven Central. A published artifact cannot
+be withdrawn, so a security fix reaches users as a new version, never as a correction to an old
+one. There are no maintained release branches. Fixes land on `main` and ship in the next patch
+release.
 
 | Version | Supported |
 |---|---|
@@ -36,6 +35,6 @@ already on Central stay exactly as they are.
 
 ## Hardening notes for integrators
 
-- The published artifacts EMBED a pinned FFmpeg (`n9.0.2`, minimal codec/filter set) plus dav1d, so your exposure is exactly what the artifact version names and is auditable from it. There is no download step and no checksum for a consumer to verify or bypass.
+- The published artifacts embed a pinned FFmpeg (`n9.0.2`, with a small encoder and filter set) plus dav1d, so your exposure is exactly what the artifact version names, and you can audit it from that. There is no download step and no checksum for a consumer to verify or bypass.
 - Keep the KiteFFmpeg version fresh: FFmpeg regularly fixes parsing CVEs, and since FFmpeg ships inside the artifact, picking up such a fix means bumping KiteFFmpeg.
 - Sandbox or isolate the process that parses fully untrusted input where your platform allows it.

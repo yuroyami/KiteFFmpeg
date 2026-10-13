@@ -36,6 +36,10 @@ that describes an RTP session. A read waits for the sender. None of them reaches
 page has no raw sockets.
 
 ```kotlin
+import io.github.yuroyami.kiteffmpeg.MediaSource
+import io.github.yuroyami.kiteffmpeg.dsl.DemuxOptions
+import io.github.yuroyami.kiteffmpeg.open
+
 val camera = MediaSource.open(
     "rtsp://192.168.1.20/stream1",
     DemuxOptions(options = mapOf("rtsp_transport" to "tcp")),
@@ -55,10 +59,6 @@ reader opens only `file`, `http` and `data` addresses, whatever else the build c
 input opened from a file reaches only the three protocols above. Any other open that must reach no
 further than it needs can say so with `protocolWhitelist`, which holds every nested open to the same
 list.
-
-The tests prove the RTSP demuxer by publishing to it with the `ffmpeg` command line over UDP and
-over TCP, and they dial a small RTSP server of their own that ends a session after two silent
-seconds, as a strict camera does.
 
 ### Pausing a live stream
 
@@ -94,13 +94,12 @@ call neither from another thread while a read or another call runs.
 bytes come from your own HTTP client, a cache or an encrypted store. The source must block until it
 has bytes, and the returned `MediaSource` closes it.
 
-An asynchronous provider is a separate [planned byte-I/O API](async-byte-io.md), tracked in
-[KiteFFmpeg #183](https://github.com/yuroyami/KiteFFmpeg/issues/183). It is not implemented or
-available in a release; the callbacks described here remain synchronous.
+The callbacks described here are synchronous. A source that answers later, such as a Fetch
+response, needs the [asynchronous runtime](async-byte-io.md) instead.
 
 Three optional parameters say where the bytes come from:
 
-- `url` is the address the bytes came from. FFmpeg recognises formats by it, as it does by a file
+- `url` is the address the bytes came from. FFmpeg recognizes formats by it, as it does by a file
   name, and resolves relative addresses inside the media against it, unless the source names its
   `location`, as after a redirect.
 - `mimeType` is the type the bytes arrived with, such as a server's `Content-Type`. FFmpeg's probe
@@ -142,7 +141,7 @@ Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`
   so follow the redirects before you return the source; a getter that throws fails that address,
   and the open carries its exception as the cause. `url` still names the input.
 - `mimeType` matters when `url` does not end in `.m3u8` or `.m3u`. Without it, the probe does not
-  recognise the playlist and the open fails.
+  recognize the playlist and the open fails.
 - An AES-128 segment reaches the opener as the address of its encrypted bytes. The key comes through
   the opener too, and KiteFFmpeg decrypts the segment.
 - A `data:` address never reaches the opener. FFmpeg reads the bytes inside it itself.
@@ -155,7 +154,7 @@ Here `fetch` stands for your own HTTP client, and it returns a `MediaByteSource`
   defined with `QUERYPARAM` takes its value from the query of the playlist's own address, which for
   the master playlist is `url`, so pass the address with its query. A playlist that uses a variable
   nothing defined, or defines one in a way the specification forbids, fails the open, and FFmpeg's
-  log names the variable. This needs the FFmpeg patch `0011`, which the trees carry from 0.5.0.
+  log names the variable. This needs the FFmpeg patch `0011`, which every published build carries.
 - A playlist of WebM or Matroska segments seeks after it has been read to its end, as MP4 and
   MPEG-TS segments do.
 
@@ -188,7 +187,7 @@ The `MediaByteSource` handed to `open` itself is read on demand in a Web Worker:
 `read` and `seek` as it needs bytes, so a source that answers with synchronous range requests plays
 after its first few reads, with no size cap and no copy of the whole file, and it is closed when the
 `MediaSource` closes. On a page's main thread, where nothing may block, it is read whole into the
-codec module's memory during the open instead, up to 512 MB, and closed then.
+codec module's memory during the open instead, up to 512 MiB, and closed then.
 
 ## Streams
 
@@ -203,7 +202,7 @@ val video = source.primaryVideo   // StreamInfo?: the primary video track, or nu
 val audio = source.primaryAudio   // StreamInfo?: the primary audio track, or null
 ```
 
-`primaryVideo` and `primaryAudio` are nullable. An audio-only file has no `primaryVideo`, so guard for null before you decode. A file whose only picture is its cover art does have one: `primaryVideo` skips cover art when another video stream exists and returns the cover art otherwise. In a source with [programmes](#programmes), `primaryAudio` is the sound of `primaryVideo`'s own channel. A live transport stream can add to the list while it plays, as [Streams that start after the open](#streams-that-start-after-the-open) shows.
+`primaryVideo` and `primaryAudio` are nullable. An audio-only file has no `primaryVideo`, so guard for null before you decode. A file whose only picture is its cover art does have one: `primaryVideo` skips cover art when another video stream exists and returns the cover art otherwise. In a source with [programs](#programs), `primaryAudio` is the sound of `primaryVideo`'s own channel. A live transport stream can add to the list while it plays, as [Streams that start after the open](#streams-that-start-after-the-open) shows.
 
 ### What a stream tells you
 
@@ -265,7 +264,7 @@ video.stereo3d?.let { stereo ->
 }
 ```
 
-A renderer splits each picture into the eyes' views as `stereo3d.type` says, maps each view onto the sphere as the projection says, and turns the sphere by the rotation `Ry(yaw) * Rx(pitch) * Rz(roll)` with the viewer at its centre. The angles are exactly the 16.16 fixed-point numbers FFmpeg holds, which a Matroska file's floating-point angles are rounded toward zero to fit. Google's first spherical box states its initial view as heading, pitch and roll in degrees, drawn on the same axes, and they read as yaw, pitch and roll with their signs as they are, a fraction rounded to the nearest step. That needs an FFmpeg tree built with the patch `0010`, without which all three read as 0. Apple's video extension box can say which eyes a picture holds without saying how they are packed, and then the type reads `Unspecified`. Apple's boxes also carry the eye to show in 2D, the distance between the lenses, how far to shift the views against each other, and the field of view, which the other containers do not state. A file that carries both Google's boxes and Apple's, as FFmpeg writes an MP4 under `-strict unofficial`, reads as one description whichever comes first: Google's mapping and packing, joined by Apple's primary eye, baseline and disparity adjustment when the two agree on the packing, and by Apple's field of view either way. That needs an FFmpeg tree built with the patch `0009`, as [Platforms](platforms.md) says.
+A renderer splits each picture into the eyes' views as `stereo3d.type` says, maps each view onto the sphere as the projection says, and turns the sphere by the rotation `Ry(yaw) * Rx(pitch) * Rz(roll)` with the viewer at its center. The angles are exactly the 16.16 fixed-point numbers FFmpeg holds, which a Matroska file's floating-point angles are rounded toward zero to fit. Google's first spherical box states its initial view as heading, pitch and roll in degrees, drawn on the same axes, and they read as yaw, pitch and roll with their signs as they are, a fraction rounded to the nearest step. That needs an FFmpeg tree built with the patch `0010`, without which all three read as 0. Apple's video extension box can say which eyes a picture holds without saying how they are packed, and then the type reads `Unspecified`. Apple's boxes also carry the eye to show in 2D, the distance between the lenses, how far to shift the views against each other, and the field of view, which the other containers do not state. A file that carries both Google's boxes and Apple's, as FFmpeg writes an MP4 under `-strict unofficial`, reads as one description whichever comes first: Google's mapping and packing, joined by Apple's primary eye, baseline and disparity adjustment when the two agree on the packing, and by Apple's field of view either way. That needs an FFmpeg tree built with the patch `0009`, as [Platforms](platforms.md) says.
 
 ### Container metadata
 
@@ -353,20 +352,20 @@ read. On a page's main thread a source is read whole during the open, which need
 does not have; a source of known size there is asked after each read of that drain, and each answer
 reaches FFmpeg when it reads the byte the answer belongs at, again every time it reads that byte.
 
-### Programmes
+### Programs
 
-A transport stream from a DVB tuner or an IPTV multiplex can carry several channels at once, each with its own picture, sound and subtitles, and the flat stream list cannot say which sound belongs to which picture. `source.programs` says it, as the container's programme tables state it:
+A transport stream from a DVB tuner or an IPTV multiplex can carry several channels at once, each with its own picture, sound and subtitles, and the flat stream list cannot say which sound belongs to which picture. `source.programs` says it, as the container's program tables state it:
 
 ```kotlin
 for (program in source.programs) {
     val streams = source.streams.filter { it.index in program.streamIndexes }
-    println("${program.serviceName ?: "programme ${program.number}"}: ${streams.map { it.type }}")
+    println("${program.serviceName ?: "program ${program.number}"}: ${streams.map { it.type }}")
 }
 ```
 
-A `Program` holds FFmpeg's id for it, the programme number the container states, which in a transport stream is the service id a channel guide names the channel by, the indexes of its streams, and its own tags, where a transport stream keeps the channel's name and provider under `service_name` and `service_provider`. FFmpeg also makes one programme for each variant of an HLS master playlist, with the variant's bit rate under `variant_bitrate`, and one holding every stream of a DASH presentation, and neither states a number. MP4, Matroska and the other containers without such tables have none, so the list is empty. A stream can sit in two programmes, as a sound that two channels share does, or in none, as a transport stream's stream does when FFmpeg found it by its packets rather than in a programme table. A channel that only the service description table names has a name but no number and no streams. `MediaSource.probe(path).programs` reads the same list without keeping the source open.
+A `Program` holds FFmpeg's id for it, the program number the container states, which in a transport stream is the service id a channel guide names the channel by, the indexes of its streams, and its own tags, where a transport stream keeps the channel's name and provider under `service_name` and `service_provider`. FFmpeg also makes one program for each variant of an HLS master playlist, with the variant's bit rate under `variant_bitrate`, and one holding every stream of a DASH presentation, and neither states a number. MP4, Matroska and the other containers without such tables have none, so the list is empty. A stream can sit in two programs, as a sound that two channels share does, or in none, as a transport stream's stream does when FFmpeg found it by its packets rather than in a program table. A channel that only the service description table names has a name but no number and no streams. `MediaSource.probe(path).programs` reads the same list without keeping the source open.
 
-A `TrackSelector` with your own language preferences keeps a channel together when you hand it the picture and the programmes:
+A `TrackSelector` with your own language preferences keeps a channel together when you hand it the picture and the programs:
 
 ```kotlin
 val selector = TrackSelector(preferredAudioLanguages = listOf("en"))
@@ -374,11 +373,11 @@ val video = selector.selectVideo(source.streams)
 val audio = selector.selectAudio(source.streams, source.programs, video)
 ```
 
-The picture fixes the channel, and the language preference chooses only among that channel's sound, so a preference for English never pairs one channel's picture with another channel's English sound. When the picture's programmes hold no sound, a sound in no programme is taken, and otherwise none. The `selectAudio` that takes the streams alone knows nothing of programmes.
+The picture fixes the channel, and the language preference chooses only among that channel's sound, so a preference for English never pairs one channel's picture with another channel's English sound. When the picture's programs hold no sound, a sound in no program is taken, and otherwise none. The `selectAudio` that takes the streams alone knows nothing of programs.
 
 ### Streams that start after the open
 
-A live transport stream can start its sound after its picture, add subtitles at a programme boundary or move a channel's sound to a new stream, and FFmpeg adds such a stream while it reads, long after the open. `source.streams` grows when it does, in index order and never shorter, and `source.programs` follows the programme tables, so a stream the container stopped carrying shows by leaving its programme. The first packet a reader hands out after a change carries the whole new list as `newStreams` or `newPrograms`:
+A live transport stream can start its sound after its picture, add subtitles at a program boundary or move a channel's sound to a new stream, and FFmpeg adds such a stream while it reads, long after the open. `source.streams` grows when it does, in index order and never shorter, and `source.programs` follows the program tables, so a stream the container stopped carrying shows by leaving its program. The first packet a reader hands out after a change carries the whole new list as `newStreams` or `newPrograms`:
 
 ```kotlin
 source.openPacketReader(listOf(video)).use { reader ->
@@ -400,7 +399,7 @@ source.openPacketReader(listOf(video)).use { reader ->
 
 FFmpeg may hand out the new stream's first packets before the packet that announces it, so they are held: add the stream with `reselect` before the next `read`, and that read hands them out first, so the stream starts from its first packet. They come after the announcing packet although FFmpeg read them before it, which a player that queues each stream apart does not notice. Read on or seek without adding the stream and they are dropped, and the stream is skipped as any stream the reader does not select is. At most 16 MB of them are held, the oldest going first, which matters only when the selected streams fall silent for a long time and no packet can announce the new one.
 
-An entry read before FFmpeg had any packet of its stream says only what the programme table could say, so a late MP2 sound reads as MP3 with no sample rate and no channels. FFmpeg's parser corrects that at the stream's first packet, the entry is read again then, and the corrected list rides the next packet handed out as `newStreams` too, which is the stream's own first packet once you added it. So find a new stream by its index rather than by comparing entries, and open its decoder at its first packet, from the entry the latest list holds. The same goes for a seekable file whose open found a stream by reading ahead without parsing it. The entry a correction replaced still names its stream, so a selection or a decoder made from it stays valid.
+An entry read before FFmpeg had any packet of its stream says only what the program table could say, so a late MP2 sound reads as MP3 with no sample rate and no channels. FFmpeg's parser corrects that at the stream's first packet, the entry is read again then, and the corrected list rides the next packet handed out as `newStreams` too, which is the stream's own first packet once you added it. So find a new stream by its index rather than by comparing entries, and open its decoder at its first packet, from the entry the latest list holds. The same goes for a seekable file whose open found a stream by reading ahead without parsing it. The entry a correction replaced still names its stream, so a selection or a decoder made from it stays valid.
 
 A decode flow keeps both lists current but hands out no packet, so the first packet a reader hands out after it carries what changed during it.
 
@@ -508,7 +507,7 @@ source.decodedFrames(video).collect { frame ->
 
 Frames emitted by the flow APIs (`decodedFrames`, `decodeStreams`, `FilterGraph.process`) are **owned by you**: each one stays valid until you `close()` it, so `toList()` and holding frames in a list are safe. Internally these are O(1) reference-counted clones of the decoder's landing frame, so no pixel copies are made.
 
-`buffer()`, `flowOn`, `conflate` and `produceIn` are **not** safe for frames. They queue frames in a channel that cannot close them, so a flow cancelled part way drops the queued frames without releasing them. Use `bufferFrames()` to decode ahead, and pass it a `context` where you would have used `flowOn`.
+`buffer()`, `flowOn`, `conflate` and `produceIn` are **not** safe for frames. They queue frames in a channel that cannot close them, so a flow canceled part way drops the queued frames without releasing them. Use `bufferFrames()` to decode ahead, and pass it a `context` where you would have used `flowOn`.
 
 There is one obligation: **close every frame you collect**, or its native buffers leak.
 
@@ -524,13 +523,13 @@ Callback-style APIs are different. A frame handed to `FilterGraph.feedInput`'s `
 `copy()` is O(1): it shares the underlying pixel data via reference counting rather than duplicating bytes, and the result is owned. Both collected frames and copies are `AutoCloseable`. Close them (or use `use { }`) when you are finished. `copyPlanesToByteArray()` is always safe. It copies into a fresh array the moment you call it.
 
 !!! note
-    The native `AVFrame*` pointer is deliberately not exposed in common code. You interact with frames only through `info`, `copyPlanesToByteArray()`, `copyPlanesInto()`, `copy()`, and `encodeImage()`.
+    The native `AVFrame*` pointer is not exposed in common code. You work with a frame through its members, such as `info`, `copyPlanesToByteArray()`, `copyPlanesInto()`, `copy()` and `encodeImage()`.
 
 ### Dolby Vision
 
 A Dolby Vision stream is an ordinary HEVC or AV1 stream, the base layer, with a reference processing unit (the RPU) on every frame that says how to turn the base layer into the picture that was graded. `stream.video?.dolbyVision` holds the configuration record the container declares, and null means the stream is not Dolby Vision.
 
-The first question is whether the base layer is a picture of its own. For profiles 8.1, 8.4 and 7 it is an HDR10 or HLG picture, and showing it as it is gives a correct image. For profile 5, which most streaming services deliver, and profile 10.0, it is coded in Dolby's IPT colour space and shows green and purple until it is composed:
+The first question is whether the base layer is a picture of its own. For profiles 8.1, 8.4 and 7 it is an HDR10 or HLG picture, and showing it as it is gives a correct image. For profile 5, which most streaming services deliver, and profile 10.0, it is coded in Dolby's IPT color space and shows green and purple until it is composed:
 
 ```kotlin
 val dv = stream.video?.dolbyVision
@@ -549,7 +548,7 @@ frame.composeDolbyVision()?.use { hdr10 ->
 }
 ```
 
-The composition runs on the CPU and costs about 70 ms for a 1080p frame on one core of a 2.1 GHz Xeon, so a player spreads it over several threads. `beginDolbyVisionComposition()` returns a `DolbyVisionComposition` whose bands of rows may run at the same time, as long as they do not overlap and each starts on an even row:
+The composition runs on the CPU and is slow for a large frame, so a player spreads it over several threads. `beginDolbyVisionComposition()` returns a `DolbyVisionComposition` whose bands of rows may run at the same time, as long as they do not overlap and each starts on an even row:
 
 ```kotlin
 frame.beginDolbyVisionComposition()?.use { composition ->
@@ -567,11 +566,11 @@ frame.beginDolbyVisionComposition()?.use { composition ->
 A few things to know:
 
 - The frame must be in memory. Download a hardware frame with `downloadFromHardware()` first.
-- Reshaping happens at each chroma sample, and the result is interpolated to every pixel. Held against libplacebo's composition of the same clip, every sample landed within 4 codes, with a mean difference under half a code.
+- Reshaping happens at each chroma sample, and the result is interpolated to every pixel.
 - A profile 7 stream with a full enhancement layer adds a residual that FFmpeg does not decode, so its composition is the base layer's share of the picture. `usesEnhancementLayer` says when a frame is one of those.
 - Built against an FFmpeg older than 7.1, which exports no extension blocks, `sceneBrightness` is always null and the composed picture carries no content light level.
 
-`frame.dolbyVisionRpu()` reads the whole RPU, for a caller that composes the picture somewhere else, such as in a shader, or wants to look inside it: the header, each component's reshaping curve in pieces between pivots, the inverse quantization of an enhancement layer's residual, and the colour matrices and signal levels. Every number is the one FFmpeg's decoder holds, which is the one `ffprobe -show_frames` prints for that frame. Coefficients are fixed-point numbers over two to the power of `header.coefficientLog2Denominator`, and `coefficientValue` turns one into a `Double`:
+`frame.dolbyVisionRpu()` reads the whole RPU, for a caller that composes the picture somewhere else, such as in a shader, or wants to look inside it: the header, each component's reshaping curve in pieces between pivots, the inverse quantization of an enhancement layer's residual, and the color matrices and signal levels. Every number is the one FFmpeg's decoder holds, which is the one `ffprobe -show_frames` prints for that frame. Coefficients are fixed-point numbers over two to the power of `header.coefficientLog2Denominator`, and `coefficientValue` turns one into a `Double`:
 
 ```kotlin
 frame.dolbyVisionRpu()?.let { rpu ->
@@ -616,7 +615,7 @@ A `Subtitle` holds:
 | `images` | Positioned images in canvas pixels, as premultiplied RGBA with no row padding. |
 | `texts` | For a text format, each rectangle as an ASS event: ReadOrder, Layer, Style, Name, MarginL, MarginR, MarginV, Effect, Text. |
 
-Three rules to know:
+Four rules to know:
 
 - `decode` returns null for a packet that completes no subtitle. A Blu-ray stream sends its palette and its image as separate packets before the one that shows them.
 - A subtitle with no images and no texts clears the screen. That is how a Blu-ray stream ends a line.
@@ -646,7 +645,7 @@ source.decodedFrames(video).collect { frame ->
 
 Seeking affects the shared demuxer position, so it influences every flow you collect afterward. Seek before you start collecting, not in the middle of an active flow.
 
-The keyframe is the last one that shows at or before the target, in the first video stream that is not a cover picture. That takes a check, because FFmpeg finds a keyframe by when it decodes, and in video with B-frames a keyframe decodes before it shows, while in an open group of pictures the B-frames after it show before it. FFmpeg's MP4 reader therefore picked a keyframe that showed after the target in an open group of pictures, its FLV reader did so with any B-frames, and MPEG-TS, which has no index and seeks by searching byte positions, landed among pictures whose first keyframe showed late. The seek now reads on to the keyframe it landed on and aims earlier when that one shows too late. The packets it read on the way are handed to the reads after it, so a seek FFmpeg landed right costs no extra reading. Keyframes more than 32 MB of input apart are not checked, and the seek then stays where FFmpeg put it. The audio and the other streams start where the container puts them beside the keyframe, which can be a little before it.
+The keyframe is the last one that shows at or before the target, in the first video stream that is not a cover picture. That takes a check, because FFmpeg finds a keyframe by when it decodes. In video with B-frames a keyframe decodes before it shows, and in an open group of pictures the B-frames after it show before it. So FFmpeg's own seek can land on a keyframe that shows after the target: in MP4 with an open group of pictures, in FLV with any B-frames, and in MPEG-TS, which has no index and seeks by searching byte positions. KiteFFmpeg reads on to the keyframe that FFmpeg landed on, and aims earlier when that one shows too late. The packets it read on the way are handed to the reads after it, so a seek FFmpeg landed right costs no extra reading. Keyframes more than 32 MB of input apart are not checked, and the seek then stays where FFmpeg put it. The audio and the other streams start where the container puts them beside the keyframe, which can be a little before it.
 
 A `PacketReader` seeks the same way when it selects that video stream. A stream it selects after a seek and before its first read starts where the seek would have landed it; after a read, a newly selected stream joins where the demuxer has read to, as `reselect` describes.
 
@@ -658,7 +657,7 @@ To read a single frame at a point in time, use `extractFrame(atMicros, stream)`,
 val thumb = source.extractFrame(atMicros = 90_000_000)   // one frame at 90s
 ```
 
-Pair it with `encodeImage(codec)` to get JPEG or PNG bytes you can write to disk. `encodeImage` re-encodes the frame as a still image and returns the encoded bytes:
+Pair it with `encodeImage(codec)` to get JPEG or PNG bytes that you can save. `encodeImage` re-encodes the frame as a still image and returns the encoded bytes:
 
 ```kotlin
 import io.github.yuroyami.kiteffmpeg.CodecId
@@ -666,19 +665,18 @@ import io.github.yuroyami.kiteffmpeg.CodecId
 MediaSource.open("input.mp4").use { source ->
     source.extractFrame(atMicros = 90_000_000).use { frame ->
         val jpeg = frame.encodeImage(CodecId.Mjpeg)   // or CodecId.Png
-        writeFile("thumb.jpg", jpeg)
     }
 }
 ```
 
-`CodecId.Mjpeg` produces JPEG bytes; `CodecId.Png` produces PNG bytes. Both `MediaSource` and the extracted `Frame` are `AutoCloseable`, so the `use { }` blocks above release everything once the bytes are written.
+`CodecId.Mjpeg` produces JPEG bytes; `CodecId.Png` produces PNG bytes. Both `MediaSource` and the extracted `Frame` are `AutoCloseable`, so the `use { }` blocks above release everything once you have the bytes.
 
 !!! tip
     `extractFrame` does its own seek internally. You do not need to call `seekMicros` first.
 
 ## Error handling
 
-Decode calls surface FFmpeg failures as an `FFmpegException` carrying an `FFmpegError`. The error is either an `AvError` (a concrete `AVERROR_*` from libav, with its `code`) or an `Internal` invariant failure on the library side:
+Decode calls report FFmpeg failures as an `FFmpegException` that carries an `FFmpegError`. The error is one subclass of `FFmpegError`, such as `FileNotFound`, `InvalidData`, `DecoderNotFound`, `Interrupted`, `AvError` (any other `AVERROR_*` code from libav) or `Internal` (a failure inside the library):
 
 ```kotlin
 import io.github.yuroyami.kiteffmpeg.FFmpegException
@@ -698,22 +696,17 @@ try {
 }
 ```
 
-## Status and platforms
+## Platforms
 
-The decoding contracts have Kotlin/Native, JVM/Android and `wasmJs` actuals. Native uses cinterop;
-JVM and Android use opaque, generation-tagged JNI handles. The JVM jar bundles the library for
-macOS arm64, Linux x64, Linux arm64 and Windows x64; on any other host a JVM consumer gets no
-capabilities and a typed `FFmpegError.Unsupported`. Android and iOS decode real media on real phones as the engine under
-[KitePlayer](https://github.com/yuroyami/KitePlayer). See
-[Platform support](platforms.md) for the exact matrix and [Getting started](getting-started.md) for
-the repository-local path.
+Decoding works on Kotlin/Native, the JVM, Android and `wasmJs`. Native code calls FFmpeg through
+cinterop, and the JVM and Android call it through JNI. The JVM jar carries the library for macOS
+arm64, Linux x64, Linux arm64 and Windows x64. On any other platform, the first call throws
+`UnsatisfiedLinkError`, as [Platform support](platforms.md) describes.
 
-The low-level decoder API also accepts an exact FFmpeg decoder name. On an Android FFmpeg build,
-`source.openDecoder(stream, decoder = DecoderId.H264MediaCodec)` selects FFmpeg's named
-MediaCodec decoder after the bridge has attached the app VM. It verifies that the named decoder
-matches the stream before opening. KiteFFmpeg does not call Android's codec API directly.
-KitePlayer selects `h264_mediacodec` and `hevc_mediacodec` this way and plays with them on
-`arm64-v8a` phones.
+The low-level decoder API also takes an exact FFmpeg decoder name. On Android,
+`source.openDecoder(stream, decoder = DecoderId.H264MediaCodec)` selects FFmpeg's MediaCodec
+decoder for H.264. It checks that the named decoder matches the stream before it opens.
+KiteFFmpeg does not call Android's codec API directly.
 
 ## Next
 

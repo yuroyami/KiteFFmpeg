@@ -8,6 +8,7 @@ Short, working solutions to common KiteFFmpeg tasks. Each snippet is copy-pastea
 ## Probe what this build can do
 
 ```kotlin
+import io.github.yuroyami.kiteffmpeg.CodecId
 import io.github.yuroyami.kiteffmpeg.FFmpeg
 
 val v = FFmpeg.versions
@@ -28,8 +29,7 @@ import io.github.yuroyami.kiteffmpeg.CodecId
 
 MediaSource.open("input.mp4").use { src ->
     src.extractFrame(atMicros = 90_000_000).use { frame ->
-        val jpeg: ByteArray = frame.encodeImage(CodecId.Mjpeg)
-        writeFile("thumb.jpg", jpeg)
+        val jpeg: ByteArray = frame.encodeImage(CodecId.Mjpeg)   // save these bytes as thumb.jpg
     }
 }
 ```
