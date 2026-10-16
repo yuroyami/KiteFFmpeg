@@ -131,7 +131,7 @@ is files that the user picked.
 <summary><b>Web setup</b>: the module that a page serves</summary>
 <br>
 
-A browser cannot link FFmpeg into the Kotlin binary, which is why the page serves it as a separate
+A browser cannot link FFmpeg into the Kotlin binary, so the page serves it as a separate
 WebAssembly module:
 
 1. Download `kiteffmpeg-wasm-js-<version>-web.zip`. It sits beside the `wasmJs` artifact on Maven
@@ -149,12 +149,12 @@ check(FFmpeg.identity.isAcceptable)
 A call before the module loads throws `KiteFFmpegWeb.NotLoaded`. The module is single-threaded,
 which means the page needs no cross-origin isolation headers.
 
-The module opens no address by itself, so the bytes come from a `MediaByteSource` of yours. In a
-web worker, FFmpeg reads the source as it needs the bytes, so a large file can stream through
-synchronous range requests. On the page's own thread, the whole source is read into memory when it
-opens, up to 512 MiB. An HLS playlist plays through a `nestedOpener` that serves each segment, and
-that opener has to answer at once (from bytes the page already holds, or from a synchronous request
-in a web worker).
+The module does not open URLs by itself. Your own `MediaByteSource` supplies the bytes. In a web
+worker, FFmpeg reads the source as it needs the bytes, so a large file can stream through
+synchronous range requests. On the page's main thread, the whole source is read into memory when
+it opens, up to 512 MiB. An HLS playlist plays through a `nestedOpener` that serves each segment.
+That opener has to answer at once, either from bytes the page already holds or from a synchronous
+request in a web worker.
 
 A source that answers later, such as a Fetch response, needs the asynchronous runtime. Its two
 codec modules come in `kiteffmpeg-wasm-js-<version>-web-async.zip`, beside the first zip.
@@ -226,7 +226,7 @@ it yourself. A graph names its inputs `[in0]`, `[in1]` and so on, and its one ou
 
 A `MediaByteSource` feeds FFmpeg bytes from memory, a cache, an encrypted store or your own HTTP
 client. For an HLS playlist, a `MediaByteOpener` also serves the segments and keys that the
-playlist names, which is how an `https` stream plays with no TLS inside FFmpeg:
+playlist names. This is how an `https` stream plays, even though FFmpeg has no TLS here:
 
 ```kotlin
 val stream = MediaSource.open(
@@ -249,7 +249,7 @@ FFmpeg.hasFilter("scale")                   // true everywhere but the web
 FFmpeg.setLogSink(FFmpegLogLevel.Warning) { level, component, message -> println("$component: $message") }
 ```
 
-Builds differ, so ask rather than assume. `FFmpeg.versions` and `FFmpeg.buildConfiguration` report
+Builds differ, so ask instead of assuming. `FFmpeg.versions` and `FFmpeg.buildConfiguration` report
 what is really linked. If the linked FFmpeg disagrees with the headers that the artifact was built
 against, the first call fails with a typed error that names both.
 
@@ -258,10 +258,10 @@ from, so keep it quick, and don't call KiteFFmpeg from inside it.
 
 ### Build a media player
 
-The calls above read a file from front to back, which suits converting and does not suit playback.
-A player needs audio and video to move separately and to jump while both run. The lower-level API
-behind `@KiteFFmpegLowLevelApi` does that, and [KitePlayer](https://github.com/yuroyami/KitePlayer)
-is built on it. You free its objects yourself, so stay with the calls above unless you write a
+The calls above read a file from start to end. That suits conversion, but not playback, where
+audio and video move separately and the user can seek at any time. The lower-level API behind
+`@KiteFFmpegLowLevelApi` handles that, and [KitePlayer](https://github.com/yuroyami/KitePlayer) is
+built on it. You free its objects yourself, so use the calls above unless you are writing a
 player.
 
 ## Platforms
@@ -312,7 +312,7 @@ that links LGPL code statically has three duties:
 | Duty | How to meet it |
 | --- | --- |
 | Say that the app uses FFmpeg, under the LGPL | Ship a notice with the license text. The JVM jar carries it at `META-INF/licenses/kiteffmpeg-ffmpeg/`. |
-| Keep the matching FFmpeg source available | Point at the source that each release names. [NOTICE](NOTICE) says where. |
+| Keep the matching FFmpeg source available | Point to the source that each release names. [NOTICE](NOTICE) says where. |
 | Let users relink against a modified FFmpeg | Publish your object files, or give a written offer for them. |
 
 Static linking on the iOS App Store is the hardest case.

@@ -9,7 +9,7 @@ untrusted media arrives.
 Each target has one body and two drivers. Only the libFuzzer driver searches for new inputs, so a
 green replay does not mean that the library was fuzzed.
 
-| Driver | Where | Instruments | Evidence |
+| Driver | Where | Tools | What a pass means |
 |---|---|---|---|
 | libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux` job of `.github/workflows/fuzz.yml`, five minutes per target | ASan, UBSan, LeakSanitizer, coverage guidance | A search for unknown inputs. It links Ubuntu's FFmpeg, which is not instrumented, so for the three byte targets the coverage guidance comes from the helper layer alone. |
 | Corpus replay, `replay_main.c` | any host, `scripts/replay-corpus.sh`, and the `ci.yml` workflow on every push | ASan, UBSan | A regression test for the inputs in the corpus and nothing more. |
@@ -43,8 +43,8 @@ like.
 
 ## The input contract
 
-Written once in `kc_fuzz.h` and repeated here because the corpus depends on it. A corpus that
-disagrees with the split silently stops testing what its file names claim.
+`kc_fuzz.h` defines this contract. It is repeated here because the corpus depends on it. A corpus
+that does not follow the split silently stops testing what its file names say.
 
 * **Graph targets.** The whole input is the filter description. The target then runs a fixed matrix
   over it (single and multi input, output pins off and on), so one seed reaches every composition
@@ -56,10 +56,12 @@ disagrees with the split silently stops testing what its file names claim.
   of `ffkmp_fmt_open_input_io`, so nothing is split and nothing is NUL terminated.
 
 Every string handed to a helper is a **NUL terminated heap copy**, never a pointer into the
-driver's buffer. libFuzzer's data is not NUL terminated, so passing it directly would read past the
-end on every call and every finding would be the harness's own; and ASan can put a redzone around a
-heap block but not around the middle of the fuzzer's buffer, so a helper reading one byte past a key
-is caught with the copy and invisible without it.
+driver's buffer. There are two reasons:
+
+* libFuzzer's data is not NUL terminated. Passing it directly would read past the end on every
+  call, and every finding would be a bug in the harness itself.
+* ASan can put a redzone around a heap block, but not around the middle of the fuzzer's buffer. A
+  helper that reads one byte past a key is caught with the copy, and missed without it.
 
 Embedded NUL bytes are kept rather than rejected. A key carrying one becomes a shorter C string,
 which is exactly what happens when the same bytes arrive from Kotlin, and the corpus has seeds for
@@ -114,7 +116,7 @@ each string call check the whole buffer. The avfilter parser makes many string c
 description, so a one-megabyte description through the video builders makes the replay very slow.
 That cost belongs to ASan, not to the library.
 
-The property underneath it is real: **an unbounded caller string reaches the avfilter parser
+The underlying point is real: **an unbounded caller string reaches the avfilter parser
 through `ffkmp_graph_build_video` and `ffkmp_graph_build_video_multi`, and KiteFFmpeg sets no length
 policy for it.** The audio path is bounded and the video path is not. A length or time policy for
 caller filter text belongs with the resource limits that container fuzzing also needs. The
@@ -139,7 +141,7 @@ They fail to open, open and then read what is left, or give damaged frames or no
 * `ffkmp_fmt_alloc_output2`
 * `ffkmp_fmt_io_open`
 
-The boundary is scope. Fuzzing a path opens the filesystem, and then the thing being fuzzed is a
+The reason is scope. Fuzzing a path opens the filesystem, and then the code under test is a
 protocol handler before it is a demuxer. Container bytes reach the demuxers through the three byte
 targets instead: from memory, through the custom read callback, with no filesystem and no protocol
 in the way.
@@ -189,9 +191,9 @@ FFmpeg ever gives that option back unused. The `concat_nested_file.ffconcat` and
 `fuzz_subtitle.c` decodes the subtitle streams. DVB, DVD and XSUB subtitles have no seed yet,
 because FFmpeg can encode them only from images, so the fuzzer has to find those decoders itself.
 
-## Proving the harness has power
+## Checking that the harness can catch a defect
 
-A fuzz run that has never caught a defect proves only that it ran. So `--prove-power` plants one
+A fuzz run that has never caught a defect only shows that it ran. So `--prove-power` plants one
 defect for each kind of input, and one in the subtitle image conversion, checks that the replay
 catches each one, then removes it.
 
@@ -210,14 +212,14 @@ What it does, once for each defect:
 3. Builds a mutant replay binary of each target against the mutant archive and replays seeds
    through it.
 4. Requires a non-zero exit **and** a sanitizer report in the output, and names the input that was
-   caught. A non-zero exit with no report is not evidence and is rejected.
+   caught. A non-zero exit with no report does not count, and the check fails.
 
 The three defects:
 
 * **The string path.** The running-length check after the `,aformat=` append in
   `ffkmp_graph_build_audio` is deleted. The corpus already carries the input that trips it,
-  `corpus/filter_audio/d27_len_2047`, and the target runs the pinned matrix on every seed, so the
-  proof needs no special input. It needs only the defect.
+  `corpus/filter_audio/d27_len_2047`, and the target runs the fixed matrix on every seed, so the
+  check needs no special input. It only needs the defect.
 * **The byte path.** A failed `ffkmp_fmt_open_input_io` frees the read buffer it allocated instead
   of the buffer that the I/O context holds. FFmpeg's probe swaps in its own buffer and frees the
   first one before it decides whether the input opens, so the changed line frees a buffer a second
@@ -238,12 +240,13 @@ The three defects:
 ./scripts/run-fuzz.sh                              # exits 3 on macOS, fuzzes on Linux
 ```
 
-`replay-corpus.sh` never builds the helper layer, so a gate cannot pass against an archive that was
-never recompiled. Note that `build-host.sh` deletes `build/<variant>` on every run, so the order
-above is the order that works.
+`replay-corpus.sh` never builds the helper layer. It tests whatever archive is there, so build
+first. `build-host.sh` deletes `build/<variant>` on every run, so the order above is the order that
+works.
 
-`KC_FFMPEG_LOG=1` keeps FFmpeg's own diagnostics, which are silenced by default because a target
-that drives parser error paths on purpose would otherwise bury the one line per corpus file.
+`KC_FFMPEG_LOG=1` keeps FFmpeg's own diagnostics. They are silenced by default, because a target
+that drives parser error paths on purpose would otherwise bury the one line it prints per corpus
+file.
 
 ## Adding a target
 

@@ -31,7 +31,7 @@ directory.
 | `src/helpers_*.c` | One translation unit per subsystem: build, codec, codecpar, display, dovi, error, filter, format, frame, hdr, hwaccel, log, packet, playback, stream, subtitle and swr. |
 | `src/kitecodec_abi.c` | The gate: the frozen header versions, the runtime comparison, the report and the diagnostic bypass. |
 | `scripts/build-host.sh` | Builds the host test binaries for one variant. |
-| `scripts/run-c-tests.sh` | Runs every suite for one variant, or the plain binaries in the `interpose` mode, where allocation accounting is REQUIRED. |
+| `scripts/run-c-tests.sh` | Runs every suite for one variant, or the plain binaries in the `interpose` mode, where allocation counting is required. |
 | `scripts/symbol-audit.sh` | Checks what the compiled archive needs, exports and keeps private, and the declaration shapes. |
 | `scripts/klib-metadata-diff.sh` | Checks the cinterop klib against its baseline and rejects any raw libav binding. |
 | `scripts/check-deleted-surface.sh` | Checks that nothing in this repository, or in a KitePlayer checkout beside it, refers to a helper whose status in `deleted-surface.txt` is deleted. |
@@ -48,8 +48,8 @@ directory.
 
 ## The FFmpeg identity gate
 
-**What it prevents was demonstrated, not argued.** Older FFmpeg headers against a newer runtime link
-cleanly. Every symbol resolves, the static archive has no SONAME to object, and 38 measured struct
+**Why it exists.** Code built against older FFmpeg headers links cleanly against a newer FFmpeg
+runtime. Every symbol resolves, the static archive has no SONAME to object, and 38 measured struct
 field offsets are wrong. 48 of the helpers read or write through one of them, so the process reads
 wrong values and then dies inside `av_frame_free`, with AddressSanitizer naming a four byte read 36
 bytes past a 416 byte region. In the nondeterministic case it is silent.
@@ -57,14 +57,18 @@ bytes past a 416 byte region. In the nondeterministic case it is silent.
 **How the expectations are frozen.** `src/kitecodec_abi.c` initializes a file-scope `static const`
 array from the six `LIB*_VERSION_INT` macros. It is compiled by the same task, against the same
 include tree, as every helper unit, so if the compiler baked a struct offset it also read these
-macros. Nothing can recover a header version afterwards, which is why this construction is correct
-by definition rather than by care.
+macros. Nothing else can recover the header versions after the build, and this construction
+cannot get them wrong.
 
-**The policy.** Major must be exactly equal: a hard reject with no override, because a major bump
-lets FFmpeg reorder struct contents. Runtime minor at or above header minor: below is a reject,
-because FFmpeg guarantees backward compatibility only. Micro is compared and reported and never
-rejects. The six `*_configuration()` strings must agree with each other: disagreement is a mixed
-install, which agreeing version numbers cannot see.
+**The policy.**
+
+- The major version must match exactly. A mismatch is rejected with no override, because a major
+  bump lets FFmpeg reorder struct fields.
+- The runtime minor version must be at or above the header minor version. FFmpeg only guarantees
+  backward compatibility, so a lower runtime minor is rejected.
+- The micro version is compared and reported, but never rejected.
+- The six `*_configuration()` strings must agree with each other. A disagreement means a mixed
+  install, which matching version numbers cannot reveal.
 
 **Once per process.** `kc_init` is guarded by `pthread_once`. A function-local static in a header
 would give one flag per translation unit, so the gate would run once per consumer of the header
@@ -75,9 +79,9 @@ pointers, and no two-dimensional arrays: cinterop flattens `char names[6][16]` i
 so `names[i]` would be byte `i` and not row `i`. The per-library names come from
 `kc_ffmpeg_library_name(index)` instead.
 
-**The diagnostic bypass**, `KITECODEC_FFMPEG_ABI_BYPASS=1`. Opt in only, exact value only, and never
-quiet: it downgrades a rejection to a warning written once per process that names both identities,
-and it records in the report that it was used. It exists because an unbypassable gate turns one
+**The diagnostic bypass**, `KITECODEC_FFMPEG_ABI_BYPASS=1`. It is opt-in, takes only that exact
+value, and is never quiet. It turns a rejection into a warning, written once per process, that
+names both identities, and it records in the report that it was used. It exists because an unbypassable gate turns one
 false rejection into an outage inside a consumer's product that the consumer cannot patch. It is not
 a supported configuration. This is the only unit in the layer that writes to a stream, and
 `symbol-audit.sh` pins that permission to this one file.
@@ -86,7 +90,7 @@ a supported configuration. This is the only unit in the layer that writes to a s
 includes the real private header and then redefines the `LIB*_VERSION_*` macros, so only the frozen
 expectation array changes. Each shim also renames that copy's exported symbols through
 `tests/fake_headers/kc_rename.h`, so several verdict copies of the same source link into one binary.
-The shim directory has to come BEFORE `-I include` on the command line; put it after and the real
+The shim directory must come before `-I include` on the command line. If it comes after, the real
 header wins, no copy is renamed, and the link fails on an undefined `kc_<case>_init`.
 
 ## Documented contracts
@@ -107,14 +111,14 @@ a comment at an unescaped `#`, so the scripts drive clang directly.
 ./scripts/build-host.sh plain && ./scripts/run-c-tests.sh plain
 ./scripts/build-host.sh asan  && ./scripts/run-c-tests.sh asan
 ./scripts/build-host.sh tsan  && ./scripts/run-c-tests.sh tsan
-./scripts/run-c-tests.sh interpose       # plain binaries, allocation accounting REQUIRED
+./scripts/run-c-tests.sh interpose       # plain binaries, allocation counting required
 ./scripts/symbol-audit.sh --host         # or with no argument, for the shipped archive
 ./scripts/replay-corpus.sh
 ```
 
-`run-c-tests.sh` never builds, so a gate cannot pass on a stale binary. Run the build script first
-every time. The runner takes suite names after the variant, which is the fast loop while writing a
-suite:
+`run-c-tests.sh` never builds anything. It tests whatever binaries are there, so run the build
+script first, every time. The runner takes suite names after the variant, which gives a fast loop
+while you write a suite:
 
 ```bash
 ./scripts/build-host.sh plain && ./scripts/run-c-tests.sh plain test_buffers
@@ -124,9 +128,8 @@ FFmpeg flags come from `pkg-config` for the six libraries, or from `KC_FFMPEG_PR
 set, which may point at a vendored static tree. `KC_CC` and `KC_AR` override the compiler and the
 archiver, which default to `/usr/bin/clang` and `/usr/bin/ar`.
 
-The cinterop surface has its own instrument, which needs a klib rather than a host binary. The
-cinterop definition parses only the three public headers; the libav headers are private to the C
-archive:
+The cinterop API has its own check, which needs a klib instead of a host binary. The cinterop
+definition parses only the three public headers. The libav headers are private to the C archive:
 
 ```bash
 ../../gradlew :kiteffmpeg:cinteropFfmpegMacosArm64
@@ -152,7 +155,7 @@ ASan and TSan cannot be combined, which is why there are three variants rather t
 The helper units also get `-fvisibility=hidden`, matching the shipped compile in
 `buildSrc/src/main/kotlin/CompileKiteFFmpegCTask.kt`, so the host archive exports the same set as the shipped one.
 
-`-Werror` is not decoration. Every unit includes the public header, so this compile proves that all
+`-Werror` matters here. Every unit includes the public header, so this compile checks that all
 the public declarations agree with their definitions. Separate compilation adds a second proof: a
 `static` helper cannot be called from another unit, because that would be an implicit declaration,
 and cannot sit in a unit that never calls it, because that would be an unused function.
@@ -160,8 +163,8 @@ and cannot sit in a unit that never calls it, because that would be an unused fu
 ## The allocation interposer
 
 LeakSanitizer is not supported on macOS arm64, so `tests/interpose_alloc.c` counts allocations
-through the Mach-O `__DATA,__interpose` section and is the local leak instrument. Three measured facts
-about it, each of which is a trap if it is not known:
+through the Mach-O `__DATA,__interpose` section, and it is the local leak check. Three measured
+facts about it can each mislead you if you do not know them:
 
 * A library that simply defines its own `malloc` counts exactly zero. The two-level namespace binds
   every call to libSystem's definition, so the shadowing one is never reached. The interpose section
@@ -176,8 +179,8 @@ about it, each of which is a trap if it is not known:
 The counters are live in the `plain` variant and read zero under `asan` and `tsan`, because each
 sanitizer runtime replaces the allocator first. `KC_ALLOC_BALANCED` and `KC_ALLOC_LIVE` record that
 gap with `kc_partial()` when `kc_alloc_active()` is 0, and the suite summary counts the partial
-cases, so nothing claims a property the variant could not observe. `run-c-tests.sh interpose` makes
-an ineffective interposer fail instead.
+cases, so no result claims something that the variant could not observe. `run-c-tests.sh interpose`
+makes an inactive interposer fail the run instead.
 
 ## Writing a suite
 
@@ -205,8 +208,9 @@ int main(void) {
   suite cannot pass by accident.
 * Assertions: `KC_CHECK`, `KC_CHECKF`, `KC_EQ_INT`, `KC_EQ_I64`, `KC_EQ_SIZE`, `KC_EQ_PTR`,
   `KC_NOT_NULL`, `KC_NULL`, `KC_EQ_STR`, `KC_EQ_STRLEN`, `KC_EQ_MEM`, `KC_ALL_ZERO`. Each prints the
-  case line, the source location and the actual against the expected value, then exits. There is no
-  continue-after-failure mode on purpose: the first failure is the one with intact state around it.
+  case line, the source location and the actual against the expected value, then exits. On
+  purpose, there is no mode that continues after a failure. The first failure is the one whose
+  surrounding state is still intact.
 * Allocation: `kc_alloc_active`, `kc_alloc_snapshot`, `kc_alloc_live_delta`, `kc_alloc_new_delta`,
   `kc_alloc_free_delta`, and the `KC_ALLOC_BALANCED` and `KC_ALLOC_LIVE` macros.
 * `kc_suite_begin` silences the FFmpeg log, because a suite that drives error paths on purpose would
@@ -242,9 +246,9 @@ cover the core contracts:
 | `test_field_order.c` | The field order mapping and the container bit rate. |
 | `test_append.c` | The bounded string append the JNI identity report uses. |
 
-## What each instrument proves, and what it cannot
+## What each check shows, and what it cannot
 
-| Instrument | Proves | Cannot prove |
+| Check | Shows | Cannot show |
 |---|---|---|
 | The allocation interposer | Exact allocation and free pairing per ownership helper, and that nothing is left live at the end of a case. | Anything under `asan` or `tsan`, where the sanitizer owns the allocator; those cases report a partial. |
 | ASan with UBSan | An out of bounds read or write, and a signed overflow, named at the byte and the line. | A leak, because LeakSanitizer is unsupported here. A race, because it cannot be combined with TSan. |
@@ -252,10 +256,10 @@ cover the core contracts:
 
 Two limits of a macOS arm64 host shape all of the above:
 
-* **No libFuzzer.** Apple clang and konan's LLVM both lack `libclang_rt.fuzzer_osx.a`, so
-  `run-fuzz.sh` refuses here, the Linux CI job is the only place the fuzzer runs, and what runs
-  locally is the corpus replay: a regression test over the committed seeds and nothing more.
+* **No libFuzzer.** Apple clang and Kotlin/Native's LLVM both lack `libclang_rt.fuzzer_osx.a`, so
+  `run-fuzz.sh` refuses to run here. The fuzzer only runs in the Linux CI job. Locally, only the
+  corpus replay runs, which is a regression test over the committed seeds and nothing more.
 * **No LeakSanitizer**, which is why the interposer exists.
 
-Not this directory's job: a lock-free audio ring and a real-time device callback. Those belong to a
-player, and putting them here would make a player's real-time core depend on a codec binding.
+This directory has no lock-free audio ring and no real-time device callback. Those belong to a
+player. Putting them here would make a player's real-time core depend on a codec binding.
