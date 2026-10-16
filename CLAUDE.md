@@ -12,6 +12,9 @@ only what reading the code or running the gate would not teach you.
 - Work on `main`. Never create a branch without asking. Commit locally, never push. The owner
   pushes, publishes and cuts every release.
 - Commit subject is one imperative sentence about the outcome. Short prose body. No trailers.
+- AI use is stated once, in the README. AI tools, Claude among them, helped build this project,
+  and the owner directs and reviews all of the work. A commit does not repeat that statement in
+  a `Co-Authored-By` or session line.
 - When the tree contradicts an issue, stop and report it. Do not improvise the issue back into
   truth. Prose drifting from the tree is this project's measured failure mode.
 - A design act is its own commit. Deciding a public API shape and executing it never happen in
