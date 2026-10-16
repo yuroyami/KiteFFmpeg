@@ -105,6 +105,15 @@ dur=$("$FFPROBE" -v error -show_entries format=duration -of csv=p=0 "$WORK/out.m
 awk -v d="$dur" 'BEGIN { exit !(d > 2.5 && d < 3.5) }' \
   || { echo "FAIL: output duration $dur not ~3s (timestamp bug?)"; exit 1; }
 
+echo "== kiteffmpeg transcode with the sample's default filter (no filter argument)"
+# Every other transcode case passes its own chain, so only this case runs the default.
+# The default must use only filters that the LGPL profile carries.
+"$KEXE" transcode "$WORK/in.mp4" "$WORK/out_default.mp4"
+has_stream "$WORK/out_default.mp4" "$KC_VCODEC" video || { echo "FAIL: default-filter output has no $KC_VCODEC video stream"; exit 1; }
+has_stream "$WORK/out_default.mp4" "$KC_ACODEC" audio  || { echo "FAIL: default-filter output has no $KC_ACODEC audio stream"; exit 1; }
+def_size=$("$FFPROBE" -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$WORK/out_default.mp4")
+[ "$def_size" = "320,180" ] || { echo "FAIL: default-filter output ${def_size} != 320,180 (default chain broken?)"; exit 1; }
+
 echo "== kiteffmpeg transcode video-only (-an)"
 "$KEXE" transcode "$WORK/in.mp4" "$WORK/out_an.mp4" "scale=160:120,format=yuv420p" -an
 audio_streams=$("$FFPROBE" -v error -select_streams a -show_entries stream=index -of csv=p=0 "$WORK/out_an.mp4" | grep -c . || true)
