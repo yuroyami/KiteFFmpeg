@@ -22,7 +22,7 @@ media file, attach it or give the ffmpeg command that generates one. -->
 ## Environment
 
 - **Platform / target**: <!-- e.g. macOS arm64, linuxX64, mingwX64, androidNativeArm64 -->
-- **FFmpeg source**: <!-- published artifact / system (brew/apt) / vendored LGPL / vendored GPL (-Pkiteffmpeg.ffmpeg.license=gpl) -->
+- **FFmpeg source**: <!-- published artifact / system (brew/apt) / vendored LGPL / vendored GPL (KITEFFMPEG_FFMPEG_LICENSE=gpl) -->
 - **FFmpeg version**: <!-- output of `FFmpeg.versions`, or `ffmpeg -version` for a system install -->
 - **KiteFFmpeg version / commit**:
 - **Kotlin version**:

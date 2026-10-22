@@ -26,7 +26,7 @@ run() {
     printf '\n'
     if ! "$DRY_RUN"; then "$@"; fi
 }
-gradle() { run ./gradlew --console=plain --stacktrace "$@"; }
+kotlin() { run env KOTLIN_CLI_NO_WELCOME_BANNER=1 ./kotlin "$@"; }
 
 scan_em_dashes() {
     # git grep reads the working copies of tracked files. Add new files to the index before the
@@ -49,7 +49,8 @@ if ! "$DRY_RUN"; then
 fi
 
 base() {
-    gradle checkCinteropCoupling :kiteffmpeg:checkFFmpegRecipes
+    kotlin check cinteropCoupling
+    kotlin do checkFFmpegRecipes
     run native/kitecodec-c/scripts/check-deleted-surface.sh
     run native/kitecodec-jni/scripts/source-discipline.sh
     # run-c-tests.sh never builds, so the build comes first.
@@ -58,21 +59,17 @@ base() {
     run scan_em_dashes
 }
 ratchets() {
-    # The committed API dump covers every klib target, so this needs all eleven native trees.
-    gradle :kiteffmpeg:apiCheck -Pkiteffmpeg.requireAllTargets=true
-    # The shared native source sets compile only as metadata, which apiCheck never builds.
-    gradle -Pkiteffmpeg.requireAllTargets=true \
-        :kiteffmpeg:compileNativeMainKotlinMetadata :kiteffmpeg:compileAppleMainKotlinMetadata \
-        :kiteffmpeg:compileIosMainKotlinMetadata :kiteffmpeg:compileMacosMainKotlinMetadata \
-        :kiteffmpeg:compileLinuxMainKotlinMetadata :kiteffmpeg:compileAndroidNativeMainKotlinMetadata
-    gradle :kiteffmpeg:checkWasmBindingMirror checkReleaseTargetMirror
+    # The committed API dump covers every klib platform, so this needs all eleven native trees.
+    # The build also compiles the shared native folders, such as src@native and src@apple.
+    kotlin build -m kiteffmpeg
+    kotlin check abi klibAbi wasmBindingMirror releaseTargetMirror jniRegistration ffmpegRefs
     run ./scripts/check-dependency-hygiene.sh
 }
 cinterop_metadata() {
-    gradle :kiteffmpeg:cinteropFfmpegMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true
+    kotlin build -m kiteffmpeg -p macosArm64
     run native/kitecodec-c/scripts/klib-metadata-diff.sh --check
 }
-build_logic() { gradle :buildSrc:test; }
+build_logic() { kotlin test -m native-build; }
 c_sanitizers() {
     # The interpose mode reuses the plain build from base. When resuming here, that build must exist.
     run native/kitecodec-c/scripts/run-c-tests.sh interpose
@@ -83,16 +80,18 @@ c_sanitizers() {
     done
     run native/kitecodec-c/scripts/replay-corpus.sh
 }
-macos() { gradle :kiteffmpeg:macosArm64Test; }
-jvm() { gradle :kiteffmpeg:jvmTest; }
+# The macOS tests write the codec-contract transcript that the jni step compares.
+macos() { run env KITECODEC_CONTRACT_TRANSCRIPT="$GATE_ROOT/build/contract-transcripts/macosArm64.txt" \
+    KOTLIN_CLI_NO_WELCOME_BANNER=1 ./kotlin test -m kiteffmpeg -p macosArm64; }
+# The JVM tests include the JNI boundary harness.
+jvm() { kotlin test -m kiteffmpeg -p jvm; }
 jni() {
-    # The phone target scope is the only one that registers these tasks. It needs the Android SDK
-    # and NDK, and the macOS, iOS and Android FFmpeg trees under native-libs/.
-    gradle -Pkiteffmpeg.phoneTargetsOnly=true :kiteffmpeg:jniJvmTest :kiteffmpeg:compareJvmNativeContract
+    # The JVM and macOS codec-contract transcripts must agree byte for byte. The macos and jvm steps write them.
+    kotlin do compareCodecContract
 }
 e2e() {
-    gradle :kiteffmpeg-sample:linkDebugExecutableMacosArm64
-    run scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
+    kotlin build -m kiteffmpeg-sample-macos -p macosArm64
+    run scripts/e2e.sh "$(find build/tasks -name 'kiteffmpeg-sample-macos.kexe' -type f | head -1)"
 }
 linux() { run ./scripts/linux-tests.sh; }
 

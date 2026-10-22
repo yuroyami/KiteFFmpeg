@@ -84,8 +84,10 @@ if [ -z "$ARCHIVE" ]; then
         ARCHIVE="$ROOT/build/plain/lib/libkitecodec_helpers_host.a"
         HINT="build it first:  ./scripts/build-host.sh plain"
     else
-        ARCHIVE="$REPO/kiteffmpeg/build/kitecodec-c/$TARGET/libkitecodec.a"
-        HINT="build it first:  ./gradlew :kiteffmpeg:compileKiteFFmpegCFor<Target>"
+        # The ffmpegInterop<Platform> task of the build writes it, for example build/tasks/_kiteffmpeg_ffmpegInteropMacosArm64/macos_arm64/.
+        ARCHIVE="$(ls "$REPO"/build/tasks/_kiteffmpeg_ffmpegInterop*/"$TARGET"/libkitecodec.a 2>/dev/null | head -1)"
+        ARCHIVE="${ARCHIVE:-$REPO/build/tasks/_kiteffmpeg_ffmpegInterop<Platform>/$TARGET/libkitecodec.a}"
+        HINT="build it first:  ./kotlin build -m kiteffmpeg -p <platform>"
     fi
 fi
 [ -f "$ARCHIVE" ] || {

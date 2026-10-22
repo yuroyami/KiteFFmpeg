@@ -68,10 +68,11 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-KLIB_DIR="$REPO/kiteffmpeg/build/classes/kotlin/$TARGET/main/cinterop/kiteffmpeg-cinterop-ffmpeg"
-if [ ! -d "$KLIB_DIR" ]; then
+# The cinterop step of `./kotlin build -m kiteffmpeg -p <platform>` writes the klib here.
+KLIB_DIR="$REPO/build/generated/kiteffmpeg/$TARGET/cinterop/io.github.yuroyami_kiteffmpeg-cinterop-ffmpeg.klib"
+if [ ! -e "$KLIB_DIR" ]; then
     echo "klib-metadata-diff.sh: no cinterop klib at $KLIB_DIR" >&2
-    echo "  build it first:  ./gradlew :kiteffmpeg:cinteropFfmpeg$TARGET" >&2
+    echo "  build it first:  ./kotlin build -m kiteffmpeg -p $TARGET" >&2
     exit 1
 fi
 
@@ -81,9 +82,10 @@ fi
 if [ -n "${KC_KLIB_TOOL:-}" ]; then
     KLIB_TOOL="$KC_KLIB_TOOL"
 else
-    KOTLIN_VERSION="$(sed -n 's/^kotlin *= *"\(.*\)".*/\1/p' "$REPO/gradle/libs.versions.toml" | head -1)"
+    # The `version:` line of the `kotlin:` block in the shared module template.
+    KOTLIN_VERSION="$(awk '/^  kotlin:/ { p = 1 } p && /^    version:/ { print $2; exit }' "$REPO/library.module-template.yaml")"
     [ -n "$KOTLIN_VERSION" ] || {
-        echo "klib-metadata-diff.sh: cannot read the kotlin version from gradle/libs.versions.toml" >&2
+        echo "klib-metadata-diff.sh: cannot read the kotlin version from library.module-template.yaml" >&2
         exit 1
     }
     case "$(uname -s)/$(uname -m)" in
@@ -93,11 +95,17 @@ else
         Linux/x86_64)  KONAN_HOST="linux-x86_64" ;;
         *) echo "klib-metadata-diff.sh: unsupported host $(uname -s)/$(uname -m)" >&2; exit 1 ;;
     esac
-    KLIB_TOOL="$HOME/.konan/kotlin-native-prebuilt-$KONAN_HOST-$KOTLIN_VERSION/bin/klib"
+    # The Kotlin Toolchain extracts Kotlin/Native into its own cache. ~/.konan is the older place.
+    case "$(uname -s)" in
+        Darwin) TOOLCHAIN_CACHE="$HOME/Library/Caches/JetBrains/Kotlin" ;;
+        *)      TOOLCHAIN_CACHE="$HOME/.cache/JetBrains/Kotlin" ;;
+    esac
+    KLIB_TOOL="$(ls -d "$TOOLCHAIN_CACHE"/extract.cache/*kotlin-native-prebuilt-"$KOTLIN_VERSION"-"$KONAN_HOST"*/bin/klib 2>/dev/null | head -1)"
+    [ -n "$KLIB_TOOL" ] || KLIB_TOOL="$HOME/.konan/kotlin-native-prebuilt-$KONAN_HOST-$KOTLIN_VERSION/bin/klib"
 fi
 [ -x "$KLIB_TOOL" ] || {
     echo "klib-metadata-diff.sh: no klib tool at $KLIB_TOOL" >&2
-    echo "  it appears once Gradle has downloaded the Kotlin/Native distribution, or set" >&2
+    echo "  it appears once the Kotlin Toolchain has downloaded Kotlin/Native, or set" >&2
     echo "  KC_KLIB_TOOL to another one." >&2
     exit 1
 }

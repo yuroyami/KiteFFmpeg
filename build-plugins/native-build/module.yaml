@@ -1,0 +1,15 @@
+# The native build logic of KiteFFmpeg: the FFmpeg, dav1d and libass builds, the C helper layer, the JNI
+# links, the web codec modules and the consistency checks. The plugins in this folder call it, and its
+# tests run with `./kotlin test -m native-build`.
+product: jvm/lib
+
+settings:
+  kotlin:
+    version: 2.4.21
+  jvm:
+    jdk:
+      version: 21
+    test:
+      # A few tests read the real repository, which is two folders up from this module.
+      systemProperties:
+        kiteffmpeg.repo.root: ../..

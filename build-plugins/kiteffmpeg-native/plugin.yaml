@@ -1,0 +1,714 @@
+# Tasks of the kiteffmpeg module. The build tasks read the FFmpeg trees in native-libs/ and never build them.
+# `./kotlin do buildFFmpegFor<Target>` builds a tree. The repository layout fixes the paths.
+
+tasks:
+  ffmpegInteropMacosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: macos_arm64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/macos-arm64
+      archiveDir: ${taskOutputDir}/macos_arm64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropMacosX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: macos_x64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/macos-x64
+      archiveDir: ${taskOutputDir}/macos_x64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropIosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: ios_arm64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/ios-arm64
+      archiveDir: ${taskOutputDir}/ios_arm64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropIosSimulatorArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: ios_simulator_arm64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/ios-simulator-arm64
+      archiveDir: ${taskOutputDir}/ios_simulator_arm64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropIosX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: ios_x64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/ios-x64
+      archiveDir: ${taskOutputDir}/ios_x64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropLinuxX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: linux_x64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/linux-x64
+      archiveDir: ${taskOutputDir}/linux_x64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropLinuxArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: linux_arm64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/linux-arm64
+      archiveDir: ${taskOutputDir}/linux_arm64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropMingwX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: mingw_x64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/mingw-x64
+      archiveDir: ${taskOutputDir}/mingw_x64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropAndroidNativeArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: android_arm64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/android-arm64
+      archiveDir: ${taskOutputDir}/android_arm64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropAndroidNativeArm32:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: android_arm32
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/android-arm32
+      archiveDir: ${taskOutputDir}/android_arm32
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropAndroidNativeX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: android_x64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/android-x64
+      archiveDir: ${taskOutputDir}/android_x64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  jniMacosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkDesktopJni
+      platformDirectory: macos-arm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/macos-arm64
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
+  jniLinuxX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkDesktopJni
+      platformDirectory: linux-x64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/linux-x64
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
+  jniLinuxArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkDesktopJni
+      platformDirectory: linux-arm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/linux-arm64
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
+  jniWindowsX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkDesktopJni
+      platformDirectory: windows-x64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/mingw-x64
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
+  jniHarness:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkJniHarness
+      repoRoot: ${project.rootDir}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      fakeHeaders: ${project.rootDir}/native/kitecodec-c/tests/fake_headers
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/macos-arm64
+      workDir: ${taskOutputDir}/work
+      resourcesDir: ${taskOutputDir}/resources
+
+  # Checks. They read the repository and always run.
+  cinteropCoupling:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkCinteropCoupling
+      moduleDir: ${module.rootDir}
+      repoRoot: ${project.rootDir}
+
+  releaseTargetMirror:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkReleaseTargetMirror
+      repoRoot: ${project.rootDir}
+
+  wasmBindingMirror:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkWasmBindingMirror
+      moduleDir: ${module.rootDir}
+      repoRoot: ${project.rootDir}
+
+  jniRegistration:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkJniRegistrationTable
+      repoRoot: ${project.rootDir}
+
+  ffmpegRefs:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkFFmpegRefs
+      repoRoot: ${project.rootDir}
+
+  ffmpegRecipes:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkFFmpegRecipes
+      repoRoot: ${project.rootDir}
+
+  codecContract:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.compareCodecContract
+      transcriptDir: ${project.rootDir}/build/contract-transcripts
+
+  desktopJni:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkDesktopJni
+      platforms: [ macos-arm64, linux-x64, linux-arm64, windows-x64 ]
+      resourcesDirs:
+        - ${tasks.jniMacosArm64.action.resourcesDir}
+        - ${tasks.jniLinuxX64.action.resourcesDir}
+        - ${tasks.jniLinuxArm64.action.resourcesDir}
+        - ${tasks.jniWindowsX64.action.resourcesDir}
+
+  # Bakes of native-libs/. Only the commands below run them.
+  bakeDav1dMacosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: MacosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/macos-arm64/dav1d
+
+  bakeFFmpegMacosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: MacosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dMacosArm64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/macos-arm64
+
+  bakeAssChainMacosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: MacosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/macos-arm64/ass-chain
+
+  bakeDav1dMacosX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: MacosX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/macos-x64/dav1d
+
+  bakeFFmpegMacosX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: MacosX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dMacosX64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/macos-x64
+
+  bakeDav1dIosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: IosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/ios-arm64/dav1d
+
+  bakeFFmpegIosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: IosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dIosArm64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/ios-arm64
+
+  bakeAssChainIosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: IosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/ios-arm64/ass-chain
+
+  bakeDav1dIosSimulatorArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: IosSimulatorArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/ios-simulator-arm64/dav1d
+
+  bakeFFmpegIosSimulatorArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: IosSimulatorArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dIosSimulatorArm64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/ios-simulator-arm64
+
+  bakeAssChainIosSimulatorArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: IosSimulatorArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/ios-simulator-arm64/ass-chain
+
+  bakeDav1dIosX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: IosX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/ios-x64/dav1d
+
+  bakeFFmpegIosX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: IosX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dIosX64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/ios-x64
+
+  bakeDav1dLinuxX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: LinuxX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/linux-x64/dav1d
+
+  bakeFFmpegLinuxX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: LinuxX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dLinuxX64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/linux-x64
+
+  bakeAssChainLinuxX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: LinuxX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/linux-x64/ass-chain
+
+  bakeDav1dLinuxArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: LinuxArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/linux-arm64/dav1d
+
+  bakeFFmpegLinuxArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: LinuxArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dLinuxArm64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/linux-arm64
+
+  bakeAssChainLinuxArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: LinuxArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/linux-arm64/ass-chain
+
+  bakeDav1dMingwX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: MingwX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/mingw-x64/dav1d
+
+  bakeFFmpegMingwX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: MingwX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dMingwX64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/mingw-x64
+
+  bakeAssChainMingwX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: MingwX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/mingw-x64/ass-chain
+
+  bakeDav1dAndroidArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: AndroidArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/android-arm64/dav1d
+
+  bakeFFmpegAndroidArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: AndroidArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dAndroidArm64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/android-arm64
+
+  bakeAssChainAndroidArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: AndroidArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/android-arm64/ass-chain
+
+  bakeDav1dAndroidArm32:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: AndroidArm32
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/android-arm32/dav1d
+
+  bakeFFmpegAndroidArm32:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: AndroidArm32
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dAndroidArm32.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/android-arm32
+
+  bakeAssChainAndroidArm32:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: AndroidArm32
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/android-arm32/ass-chain
+
+  bakeDav1dAndroidX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: AndroidX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/android-x64/dav1d
+
+  bakeFFmpegAndroidX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: AndroidX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dAndroidX64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/android-x64
+
+  bakeAssChainAndroidX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChain
+      target: AndroidX64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/android-x64/ass-chain
+
+  bakeAllFFmpeg:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAllFFmpeg
+      trees:
+        - ${tasks.bakeFFmpegMacosArm64.action.outputDir}
+        - ${tasks.bakeFFmpegMacosX64.action.outputDir}
+        - ${tasks.bakeFFmpegIosArm64.action.outputDir}
+        - ${tasks.bakeFFmpegIosSimulatorArm64.action.outputDir}
+        - ${tasks.bakeFFmpegIosX64.action.outputDir}
+        - ${tasks.bakeFFmpegLinuxX64.action.outputDir}
+        - ${tasks.bakeFFmpegLinuxArm64.action.outputDir}
+        - ${tasks.bakeFFmpegMingwX64.action.outputDir}
+        - ${tasks.bakeFFmpegAndroidArm64.action.outputDir}
+        - ${tasks.bakeFFmpegAndroidArm32.action.outputDir}
+        - ${tasks.bakeFFmpegAndroidX64.action.outputDir}
+  bakeAssChainWasm32:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeAssChainWasm
+      repoRoot: ${project.rootDir}
+      outputDir: ${project.rootDir}/native-libs/deps/wasm32/ass-chain
+
+  bakeFFmpegWasm:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpegWasm
+      variant: base
+      repoRoot: ${project.rootDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/wasm32
+
+  bakeFFmpegWasmSimd:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpegWasm
+      variant: simd
+      repoRoot: ${project.rootDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/wasm32-simd
+
+  bakeFFmpegWasmMt:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpegWasm
+      variant: mt
+      repoRoot: ${project.rootDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/wasm32-mt
+
+  # The web codec modules.
+  wasmBinding:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.generateWasmBinding
+      signatureBaseline: ${project.rootDir}/native/kitecodec-c/signature-baseline.txt
+      outputDir: ${project.rootDir}/native-libs/deps/wasm32/binding
+
+  wasmHelper:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.compileWasmHelper
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      ffmpegTree: ${tasks.bakeFFmpegWasm.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/deps/wasm32/kiteffmpeg
+
+  wasmModule:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkWasmModule
+      helperDir: ${tasks.wasmHelper.action.outputDir}
+      ffmpegTree: ${tasks.bakeFFmpegWasm.action.outputDir}
+      signatureBaseline: ${project.rootDir}/native/kitecodec-c/signature-baseline.txt
+      outputDir: ${project.rootDir}/build/kite-web
+
+  asyncWasmModules:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkAsyncWasmModules
+      helperDir: ${tasks.wasmHelper.action.outputDir}
+      ffmpegTree: ${tasks.bakeFFmpegWasm.action.outputDir}
+      signatureBaseline: ${project.rootDir}/native/kitecodec-c/signature-baseline.txt
+      bridgeSource: ${project.rootDir}/native/kitecodec-web/kite_async_bridge.c
+      importsLibrary: ${project.rootDir}/native/kitecodec-web/kite_async_imports.js
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      outputDir: ${project.rootDir}/build/kite-web-async
+
+  asyncWasmModulesCheck:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.checkAsyncWasmModules
+      modulesDir: ${tasks.asyncWasmModules.action.outputDir}
+      testsDir: ${project.rootDir}/native/kitecodec-web/tests
+
+  webZip:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.zipWebModule
+      moduleDir: ${tasks.wasmModule.action.outputDir}
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/wasm32
+      licenseFiles:
+        - ${module.rootDir}/resources@jvm/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1
+        - ${module.rootDir}/web/licenses/THIRD-PARTY.txt
+      version: ${module.settings.publishing.version}
+      classifier: web
+      zipDir: ${project.rootDir}/build/kite-web-zip/web
+
+  webAsyncZip:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.zipWebModule
+      moduleDir: ${tasks.asyncWasmModules.action.outputDir}
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/wasm32
+      licenseFiles:
+        - ${module.rootDir}/resources@jvm/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1
+        - ${module.rootDir}/web/licenses/THIRD-PARTY.txt
+      version: ${module.settings.publishing.version}
+      classifier: web-async
+      zipDir: ${project.rootDir}/build/kite-web-zip/web-async
+
+generated:
+  cinteropDefinitions:
+    - defFile: ${tasks.ffmpegInteropMacosArm64.action.defFile}
+      fragment: "@macosArm64"
+    - defFile: ${tasks.ffmpegInteropMacosX64.action.defFile}
+      fragment: "@macosX64"
+    - defFile: ${tasks.ffmpegInteropIosArm64.action.defFile}
+      fragment: "@iosArm64"
+    - defFile: ${tasks.ffmpegInteropIosSimulatorArm64.action.defFile}
+      fragment: "@iosSimulatorArm64"
+    - defFile: ${tasks.ffmpegInteropIosX64.action.defFile}
+      fragment: "@iosX64"
+    - defFile: ${tasks.ffmpegInteropLinuxX64.action.defFile}
+      fragment: "@linuxX64"
+    - defFile: ${tasks.ffmpegInteropLinuxArm64.action.defFile}
+      fragment: "@linuxArm64"
+    - defFile: ${tasks.ffmpegInteropMingwX64.action.defFile}
+      fragment: "@mingwX64"
+    - defFile: ${tasks.ffmpegInteropAndroidNativeArm64.action.defFile}
+      fragment: "@androidNativeArm64"
+    - defFile: ${tasks.ffmpegInteropAndroidNativeArm32.action.defFile}
+      fragment: "@androidNativeArm32"
+    - defFile: ${tasks.ffmpegInteropAndroidNativeX64.action.defFile}
+      fragment: "@androidNativeX64"
+  resources:
+    - directory: ${tasks.jniMacosArm64.action.resourcesDir}
+      fragment: "@jvm"
+    - directory: ${tasks.jniLinuxX64.action.resourcesDir}
+      fragment: "@jvm"
+    - directory: ${tasks.jniLinuxArm64.action.resourcesDir}
+      fragment: "@jvm"
+    - directory: ${tasks.jniWindowsX64.action.resourcesDir}
+      fragment: "@jvm"
+    - directory: ${tasks.jniHarness.action.resourcesDir}
+      fragment:
+        modifier: "@jvm"
+        isTest: true
+
+checks:
+  - cinteropCoupling
+  - releaseTargetMirror
+  - wasmBindingMirror
+  - jniRegistration
+  - ffmpegRefs
+
+commands:
+  - name: checkFFmpegRecipes
+    performedBy: ffmpegRecipes
+  - name: compareCodecContract
+    performedBy: codecContract
+  - name: checkDesktopJni
+    performedBy: desktopJni
+  - name: buildDav1dForMacosArm64
+    performedBy: bakeDav1dMacosArm64
+  - name: buildFFmpegForMacosArm64
+    performedBy: bakeFFmpegMacosArm64
+  - name: buildAssChainForMacosArm64
+    performedBy: bakeAssChainMacosArm64
+  - name: buildDav1dForMacosX64
+    performedBy: bakeDav1dMacosX64
+  - name: buildFFmpegForMacosX64
+    performedBy: bakeFFmpegMacosX64
+  - name: buildDav1dForIosArm64
+    performedBy: bakeDav1dIosArm64
+  - name: buildFFmpegForIosArm64
+    performedBy: bakeFFmpegIosArm64
+  - name: buildAssChainForIosArm64
+    performedBy: bakeAssChainIosArm64
+  - name: buildDav1dForIosSimulatorArm64
+    performedBy: bakeDav1dIosSimulatorArm64
+  - name: buildFFmpegForIosSimulatorArm64
+    performedBy: bakeFFmpegIosSimulatorArm64
+  - name: buildAssChainForIosSimulatorArm64
+    performedBy: bakeAssChainIosSimulatorArm64
+  - name: buildDav1dForIosX64
+    performedBy: bakeDav1dIosX64
+  - name: buildFFmpegForIosX64
+    performedBy: bakeFFmpegIosX64
+  - name: buildDav1dForLinuxX64
+    performedBy: bakeDav1dLinuxX64
+  - name: buildFFmpegForLinuxX64
+    performedBy: bakeFFmpegLinuxX64
+  - name: buildAssChainForLinuxX64
+    performedBy: bakeAssChainLinuxX64
+  - name: buildDav1dForLinuxArm64
+    performedBy: bakeDav1dLinuxArm64
+  - name: buildFFmpegForLinuxArm64
+    performedBy: bakeFFmpegLinuxArm64
+  - name: buildAssChainForLinuxArm64
+    performedBy: bakeAssChainLinuxArm64
+  - name: buildDav1dForMingwX64
+    performedBy: bakeDav1dMingwX64
+  - name: buildFFmpegForMingwX64
+    performedBy: bakeFFmpegMingwX64
+  - name: buildAssChainForMingwX64
+    performedBy: bakeAssChainMingwX64
+  - name: buildDav1dForAndroidArm64
+    performedBy: bakeDav1dAndroidArm64
+  - name: buildFFmpegForAndroidArm64
+    performedBy: bakeFFmpegAndroidArm64
+  - name: buildAssChainForAndroidArm64
+    performedBy: bakeAssChainAndroidArm64
+  - name: buildDav1dForAndroidArm32
+    performedBy: bakeDav1dAndroidArm32
+  - name: buildFFmpegForAndroidArm32
+    performedBy: bakeFFmpegAndroidArm32
+  - name: buildAssChainForAndroidArm32
+    performedBy: bakeAssChainAndroidArm32
+  - name: buildDav1dForAndroidX64
+    performedBy: bakeDav1dAndroidX64
+  - name: buildFFmpegForAndroidX64
+    performedBy: bakeFFmpegAndroidX64
+  - name: buildAssChainForAndroidX64
+    performedBy: bakeAssChainAndroidX64
+  - name: buildFFmpegForAll
+    performedBy: bakeAllFFmpeg
+  - name: buildAssChainForWasm32
+    performedBy: bakeAssChainWasm32
+  - name: buildFFmpegForWasm
+    performedBy: bakeFFmpegWasm
+  - name: buildFFmpegForWasmSimd
+    performedBy: bakeFFmpegWasmSimd
+  - name: buildFFmpegForWasmMt
+    performedBy: bakeFFmpegWasmMt
+  - name: generateWasmBinding
+    performedBy: wasmBinding
+  - name: compileKiteFFmpegCForWasm
+    performedBy: wasmHelper
+  - name: linkKiteFFmpegWasmModule
+    performedBy: wasmModule
+  - name: linkKiteFFmpegAsyncWasmModules
+    performedBy: asyncWasmModules
+  - name: checkKiteFFmpegAsyncWasmModules
+    performedBy: asyncWasmModulesCheck
+  - name: kiteffmpegWebZip
+    performedBy: webZip
+  - name: kiteffmpegWebAsyncZip
+    performedBy: webAsyncZip

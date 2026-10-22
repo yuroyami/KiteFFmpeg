@@ -51,6 +51,9 @@ concurrency:
   group: release-ffmpeg-${{ github.event.inputs.release_tag }}
   cancel-in-progress: false
 
+env:
+  KOTLIN_CLI_NO_WELCOME_BANNER: 1
+
 jobs:
   android:
     name: android ${{ matrix.abi }} (lgpl)
@@ -66,11 +69,6 @@ jobs:
           - { abi: x64,   triple: android-x64,   task: AndroidX64 }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       # meson + ninja + nasm are dav1d's build system and assembler (nasm for the x64 ABI).
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y meson ninja-build nasm
@@ -78,12 +76,15 @@ jobs:
         run: git clone --depth 1 --branch ${{ github.event.inputs.ffmpeg_version }} https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
-      # The bake depends on the dav1d task since FFmpeg was embedded, so one Gradle call builds both.
+      # The bake builds dav1d first since FFmpeg was embedded, so one command builds both.
       - name: Build FFmpeg (NDK, dav1d inside)
+        env:
+          KITEFFMPEG_FFMPEG_SELF_CONTAINED: true
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} \
-            -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
+          # `do` is a command of the kotlin script here, not the shell keyword.
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegFor${{ matrix.task }}
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
       - name: Upload build artifact
@@ -112,11 +113,6 @@ jobs:
           - { triple: macos-x64,            task: MacosX64 }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       # meson/ninja are dav1d's build system; nasm assembles the x86_64 asm for BOTH dav1d and
       # FFmpeg on the two Intel triples, so it is installed unconditionally.
       - name: Install build deps
@@ -125,13 +121,16 @@ jobs:
         run: git clone --depth 1 --branch ${{ github.event.inputs.ffmpeg_version }} https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
-      # The bake depends on the dav1d task since FFmpeg was embedded, so one Gradle call builds both.
-      # -Pkiteffmpeg.ffmpeg.selfContained=true: a Release asset must link on a machine that has
+      # The bake builds dav1d first since FFmpeg was embedded, so one command builds both.
+      # KITEFFMPEG_FFMPEG_SELF_CONTAINED=true: a Release asset must link on a machine that has
       # nothing installed; with the portable profile the only bundleable archive is dav1d itself.
       - name: Build FFmpeg (dav1d inside)
+        env:
+          KITEFFMPEG_FFMPEG_SELF_CONTAINED: true
         run: |
-          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} \
-            -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
+          # `do` is a command of the kotlin script here, not the shell keyword.
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegFor${{ matrix.task }}
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
       - name: Upload build artifact
@@ -145,9 +144,8 @@ jobs:
           retention-days: 7
 
   # linux-x64, linux-arm64 and mingw-x64 all cross-build with konan's clang over konan's sysroot
-  # (decision W-D3), so one ubuntu job family covers all three. The warmup compile is what
-  # downloads that toolchain into ~/.konan/dependencies; it may itself fail (no FFmpeg tree yet,
-  # chicken-and-egg), which is fine, the dependencies land before the compiler runs.
+  # (decision W-D3), so one ubuntu job family covers all three. The bake downloads that toolchain
+  # into ~/.konan/dependencies before it compiles anything.
   linux-portable:
     name: ${{ matrix.triple }} (lgpl)
     runs-on: ubuntu-24.04
@@ -162,11 +160,6 @@ jobs:
           - { triple: mingw-x64,   task: MingwX64 }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       # nasm assembles FFmpeg's and dav1d's x86 asm; meson/ninja are dav1d's build system.
       # clang is the --host-cc that compiles configure's host-side probe tools.
       - name: Install build deps
@@ -177,14 +170,15 @@ jobs:
         run: git clone --depth 1 --branch ${{ github.event.inputs.ffmpeg_version }} https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
       - name: Clone dav1d ${{ github.event.inputs.dav1d_version }}
         run: git clone --depth 1 --branch ${{ github.event.inputs.dav1d_version }} https://code.videolan.org/videolan/dav1d.git vendor/dav1d
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.task }} --stacktrace || true
-      # The bake depends on the dav1d task since FFmpeg was embedded, so one Gradle call builds both
-      # (dav1d cross-compiles with the same konan toolchain the warmup just provisioned).
+      # The bake builds dav1d first since FFmpeg was embedded, so one command builds both
+      # (dav1d cross-compiles with the same konan toolchain).
       - name: Build FFmpeg (dav1d inside)
+        env:
+          KITEFFMPEG_FFMPEG_SELF_CONTAINED: true
         run: |
-          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} \
-            -Pkiteffmpeg.ffmpeg.selfContained=true --stacktrace
+          # `do` is a command of the kotlin script here, not the shell keyword.
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegFor${{ matrix.task }}
       - name: Package
         run: bash .github/scripts/package-ffmpeg.sh "${{ github.event.inputs.ffmpeg_version }}" lgpl ${{ matrix.triple }}
       - name: Upload build artifact

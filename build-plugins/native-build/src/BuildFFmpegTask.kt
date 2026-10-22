@@ -1,0 +1,1315 @@
+package io.github.yuroyami.kiteffmpeg.buildtools
+
+import java.io.File
+import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.UUID
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.deleteRecursively
+
+private val TargetTriple.isIos: Boolean
+    get() = this == TargetTriple.IosArm64 ||
+        this == TargetTriple.IosSimulatorArm64 ||
+        this == TargetTriple.IosX64
+
+/**
+ * Cross-compiles a minimal FFmpeg from source for one [target] under one [license] and writes the
+ * resulting static archives + headers into `native-libs/<license>/<target.dirName>/{include,lib}`.
+ * The Kotlin cinterop step picks them up via [FFmpegPaths].
+ *
+ * Every profile is LGPL and PORTABLE (owner decision 2026-08-22): the shared software playback
+ * core plus platform services only, no third-party desktop stack. macOS gets SDK zlib and
+ * VideoToolbox/AudioToolbox exactly like iOS, and macOS and the iPhone also get the VideoToolbox
+ * encoders, which do not exist on the simulator; Linux and Windows get the reduced W-D4 profile.
+ * The fat macOS profile (vpx/aom/opus/lame/webp encoders, freetype/harfbuzz/fribidi/libass,
+ * drawtext) is GONE: every one of those had to come from Homebrew, Homebrew ships graphite2
+ * shared-only, and a Release asset that only links on a machine with Homebrew is not an asset.
+ * Decoding is untouched; the read side is wide by class in [sharedCoreArgs]. Software AV1 is
+ * dav1d, MANDATORY in every bake since 2026-08-22: the on/off axis is dead.
+ *
+ * The **Android** profile: nothing GPL, nothing external;
+ * hardware video encode/decode via MediaCodec (`h264_mediacodec`, `hevc_mediacodec`) plus FFmpeg's
+ * native software decoders and aac encoder. Cross-compiled with the NDK toolchain (env
+ * `ANDROID_NDK_HOME` / `ANDROID_NDK_ROOT` / `ANDROID_NDK_LATEST_HOME`, falling back to the SDK's
+ * newest `ndk/<version>`).
+ * The **iOS** profile is also LGPL-only: the shared software playback core plus SDK zlib, with no
+ * desktop encoder/text stack and no VideoToolbox profile.
+ *
+ * Every flavour shares the same demuxer/decoder/filter core: the editor-relevant subset, ~75%
+ * smaller than a "full" build (25 MB vs 110 MB per ABI).
+ *
+ * Expects a git checkout of FFmpeg at [sourceDir] (`vendor/ffmpeg` by convention), a clone or a
+ * submodule, at exactly [sourceCommit], the commit the tag [sourceRef] names:
+ * `git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg`.
+ * Before it compiles anything the task refuses a checkout at any other commit and one that git
+ * does not call clean, counting untracked and ignored files (#145); a change to FFmpeg belongs in
+ * a patch under [sourcePatches]. Up-to-date checking is input/output based, and the pin, the
+ * checkout's state ([sourceState]) and the patches are inputs beside the target and the licence,
+ * so moving or editing the checkout runs the task again, which then refuses it, while an untouched
+ * checkout keeps a built tree UP-TO-DATE.
+ */
+open class BuildFFmpegTask : BuildStep() {
+
+    val target = Property<TargetTriple>("target")
+
+    /** Licence flavour. Android and iOS are LGPL-only; only desktop targets honour [FFmpegLicense.GPL]. */
+    val license = Property<FFmpegLicense>("license")
+
+    /** The FFmpeg tag this task builds (for example `n9.0.2`), the name its output carries. */
+    val sourceRef = Property<String>("sourceRef")
+
+    /** The full commit [sourceRef] names upstream, the only one the [sourceDir] checkout may hold. */
+    val sourceCommit = Property<String>("sourceCommit")
+
+    /**
+     * The FFmpeg source checkout, `<repoRoot>/vendor/ffmpeg`. Not hashed as an input directory,
+     * which would read its ten thousand files on every build; [sourceState] stands for it.
+     */
+    val sourceDir = DirectoryProperty()
+
+    /**
+     * The commit [sourceDir] holds, followed by a digest of every change when git does not call it
+     * clean, as [VendoredCheckout.state] reads it. Git finds the changed files by comparing each
+     * one's recorded size and time, so this costs what `git status` costs rather than a read of
+     * every file.
+     */
+    val sourceState: String
+        get() = VendoredCheckout.state(sourceDir.get().asFile)
+
+    /**
+     * Committed source patches from `native/patches/ffmpeg`, applied in name order to the SCRATCH
+     * copy of the source before configure. The vendored checkout itself stays pristine at
+     * [sourceCommit], which the task checks before it builds. Content-tracked, so
+     * editing a patch rebuilds. Each application is `patch -p1` with `--forward` and a rejected
+     * hunk fails the build loudly. The applied list and each patch's SHA-256 are written beside
+     * the configure evidence in the install tree (`lib/kiteffmpeg/ffmpeg-patches.txt`), so a
+     * provenance question about a prebuilt tree has a one-file answer. First patch and the reason
+     * it exists: the h264_mp4toannexb 4-byte start codes the Goldfish
+     * API 36 MediaCodec decoder requires (measured 2026-08-12).
+     */
+    val sourcePatches = ConfigurableFileCollection()
+
+    /**
+     * Whether the produced tree must be fully self-contained: every third-party archive FFmpeg
+     * links present as a `.a` inside it. False (the default) for local development, where linking
+     * a dependency from the host is fine. True for anything that becomes a Release asset, where a
+     * missing archive means the zip cannot link on a consumer's machine.
+     *
+     * Set with the environment variable `KITEFFMPEG_FFMPEG_SELF_CONTAINED=true`.
+     */
+    val requireSelfContained = Property<Boolean>("requireSelfContained")
+
+    val outputDir = DirectoryProperty()
+
+    init {
+        group = "kiteffmpeg"
+        description = "Cross-compile FFmpeg for the given Kotlin/Native target."
+        license.convention(FFmpegLicense.LGPL)
+    }
+
+    fun run() {
+        val target = target.get()
+        val license = license.get()
+        val sourceDir = sourceDir.get().asFile
+        val outputDir = outputDir.get().asFile
+
+        require(license != FFmpegLicense.GPL) {
+            if (target.isIos) IOS_GPL_REFUSAL else LGPL_ONLY_REFUSAL
+        }
+        VendoredCheckout.requirePristine(
+            sourceDir,
+            PinnedSource("FFmpeg", SOURCE_URL, sourceRef.get(), sourceCommit.get()),
+            PATCH_ADVICE,
+        )
+        val scratch = createScratchWorkspace(Path.of(System.getProperty("java.io.tmpdir")))
+        var succeeded = false
+        try {
+            val scratchSource = scratch.resolve("source")
+            val scratchBuild = scratch.resolve("build").also(Files::createDirectories)
+            val scratchInstall = scratch.resolve("install")
+            copySourceTree(sourceDir.toPath(), scratchSource)
+
+            val patches = orderedPatches(sourcePatches.files)
+            patches.forEach { patchFile -> runIn(scratchSource.toFile(), patchCommand(patchFile)) }
+
+            // The deps tree rides to the scratch exactly like the FFmpeg source does: this
+            // checkout path can contain a '#', and pkg-config shell-escapes it in emitted -I/-L
+            // flags while configure hands them to the compiler unevaluated, which no compiler
+            // survives. Inside the scratch there is no '#' to escape.
+            val dav1dRoot = dav1dRoot(target).let { real ->
+                val copied = scratch.resolve("deps").toFile()
+                real.copyRecursively(copied, overwrite = true)
+                copied
+            }
+            val configureArgs = configureArguments(
+                target = target,
+                license = license,
+                installPrefix = scratchInstall.toAbsolutePath().toString(),
+                dav1dRoot = dav1dRoot,
+            )
+            val env = configureEnv(target, dav1dRoot)
+            runIn(
+                scratchBuild.toFile(),
+                listOf(scratchSource.resolve("configure").toAbsolutePath().toString()) + configureArgs,
+                env,
+            )
+            runIn(scratchBuild.toFile(), listOf("make", "-j${Runtime.getRuntime().availableProcessors()}"), env)
+            runIn(scratchBuild.toFile(), listOf("make", "install"), env)
+
+            writeConfigureEvidence(scratchBuild.resolve("ffbuild/config.log"), scratchInstall)
+            writePatchEvidence(patches, scratchInstall)
+            verifyInstall(scratchInstall, target)
+            bundleThirdPartyArchives(target, license, scratchInstall.toFile())
+            verifyInstall(scratchInstall, target)
+            replaceOutputTree(scratchInstall, outputDir.toPath(), target)
+            succeeded = true
+            logger.lifecycle(
+                "[KiteFFmpeg] FFmpeg ${sourceRef.get()} (${license.dirName}) installed into $outputDir",
+            )
+        } catch (failure: Throwable) {
+            logger.error("[KiteFFmpeg] FFmpeg scratch retained after failure: $scratch")
+            throw failure
+        } finally {
+            if (succeeded) deleteScratch(scratch)
+        }
+    }
+
+    /**
+     * The capability fingerprint this task WOULD bake right now, for [staleReason] to compare a
+     * tree's stamp against.
+     *
+     * Every machine-specific input is stubbed rather than resolved: `xcrun`, the NDK lookup and the
+     * konan toolchain all shell out or touch the filesystem, and none of their answers survive
+     * [recipeFingerprint] anyway. Stubbing them is what lets a check run without a toolchain
+     * present, and without the "starting an external process during configuration" refusal that
+     * already bit the system-FFmpeg check.
+     */
+    public fun expectedRecipeFingerprint(): Set<String> {
+        val stubKonan = KonanTools(
+            clang = "clang", toolchainBin = "/stub/bin", runtimeDir = null,
+            ar = "ar", nm = "nm", ranlib = "ranlib", triple = "stub", sysroot = "/stub/sysroot",
+        )
+        val args = configureArguments(
+            target = target.get(),
+            license = license.get(),
+            installPrefix = "/stub/install",
+            sdkPath = { "/stub/sdk" },
+            ndkToolchainBin = { stubNdkToolchainBin() },
+            dav1dRoot = File("/stub/dav1d"),
+            konanBin = { stubKonan },
+        )
+        return recipeFingerprint(args)
+    }
+
+    /**
+     * A throwaway NDK bin directory holding empty files named as the three Android profiles expect.
+     *
+     * `androidArgs` asserts its compiler EXISTS, which is a guard worth keeping for real bakes and
+     * an obstacle for a fingerprint that discards every toolchain path anyway. Touching the names
+     * satisfies it without weakening it, and reuses [ANDROID_API] rather than repeating the number,
+     * so an API bump moves this with it instead of leaving a stale literal behind.
+     */
+    private fun stubNdkToolchainBin(): File {
+        val dir = Files.createTempDirectory("kiteffmpeg-recipe-stub-ndk").toFile()
+        dir.deleteOnExit()
+        listOf("aarch64-linux-android", "armv7a-linux-androideabi", "x86_64-linux-android").forEach {
+            dir.resolve("$it$ANDROID_API-clang").apply { createNewFile(); deleteOnExit() }
+        }
+        return dir
+    }
+
+    internal fun configureArguments(
+        target: TargetTriple,
+        license: FFmpegLicense,
+        installPrefix: String,
+        sdkPath: (String) -> String = ::xcrunSdkPath,
+        ndkToolchainBin: () -> File = ::ndkToolchainBin,
+        dav1dRoot: File,
+        konanBin: (TargetTriple) -> KonanTools = ::konanCrossTools,
+    ): List<String> {
+        require(license != FFmpegLicense.GPL) {
+            if (target.isIos) IOS_GPL_REFUSAL else LGPL_ONLY_REFUSAL
+        }
+        val profileArgs = when {
+            target.isAndroid -> androidArgs(target, ndkToolchainBin())
+            target.isIos -> mobileAppleArgs(target, sdkPath)
+            target.isPortableDesktop -> portableDesktopArgs(target) + desktopTargetArgs(target, konanBin)
+            // macOS desktop: the portable Apple profile plus VideoToolbox encode.
+            else -> desktopAppleArgs() + desktopTargetArgs(target, konanBin)
+        }
+        // dav1d is MANDATORY (2026-08-22): the parameter is required so no caller can
+        // forget it. configure discovers dav1d ONLY through pkg-config, so the host pkg-config is
+        // forced even on cross builds; configureEnv points it at the deps tree and nothing else.
+        // The decoder pin makes the intent survive class policy changes like the hwaccel pins do.
+        val dav1dArgs = listOf("--enable-libdav1d", "--enable-decoder=libdav1d", "--pkg-config=pkg-config")
+        return sharedCoreArgs() + profileArgs + dav1dArgs + listOf("--prefix=$installPrefix")
+    }
+
+    /**
+     * The cross-built dav1d install for [target]. MANDATORY since the axis died (owner decision
+     * 2026-08-22): every KiteFFmpeg FFmpeg carries the dav1d AV1 software decoder,
+     * because FFmpeg has no native software AV1 decoder and a build without one plays zero AV1.
+     */
+    private fun dav1dRoot(target: TargetTriple): File {
+        val root = outputDir.get().asFile.parentFile.parentFile.resolve("deps/${target.dirName}/dav1d")
+        require(root.resolve("lib/libdav1d.a").isFile) {
+            "native-libs/deps/${target.dirName}/dav1d/lib/libdav1d.a does not exist, and dav1d is " +
+                "mandatory in every KiteFFmpeg FFmpeg. Run `./kotlin do buildDav1dFor${target.commandSuffix}` first."
+        }
+        return root
+    }
+
+    /**
+     * Copy the third-party static archives FFmpeg was linked against into the vendored tree's
+     * `lib/`, so `native-libs/<license>/<target>` is self-contained and has exactly the layout the
+     * published release zip does.
+     *
+     * Since the portable profiles this means exactly one archive: the cross-built `libdav1d.a`
+     * from the deps tree, mandatory in every bake. `make install` only installs FFmpeg's own
+     * libraries, so without this copy the tree links only on the machine that baked the dav1d
+     * build.
+     */
+    private fun bundleThirdPartyArchives(target: TargetTriple, license: FFmpegLicense, outputDir: File) {
+        val wanted = StaticLinkFlags.thirdPartyArchives(target, license)
+        if (wanted.isEmpty()) return
+
+        val libDir = outputDir.resolve("lib").also { it.mkdirs() }
+        val searchDirs = thirdPartySearchDirs(target).filter { it.isDirectory }
+        val missing = mutableListOf<String>()
+        wanted.forEach { archive ->
+            if (libDir.resolve(archive).isFile) return@forEach
+            val found = searchDirs.map { it.resolve(archive) }.firstOrNull { it.isFile }
+            if (found == null) missing += archive else found.copyTo(libDir.resolve(archive), overwrite = true)
+        }
+        if (missing.isEmpty()) {
+            logger.lifecycle("[KiteFFmpeg] bundled ${wanted.size} third-party static archives into $libDir")
+            return
+        }
+
+        // Some package managers ship a few of these as shared libraries only. Homebrew's svt-av1
+        // is the standing example. A dev build can still link against the host's dylib, so warn
+        // rather than block; a build destined for a Release asset cannot, so make it fatal there.
+        val explanation =
+            "These static third-party archives are not installed on this machine: " +
+                "${missing.joinToString()}.\n" +
+                "They are linked INTO libavcodec.a. Searched: ${searchDirs.joinToString()}.\n" +
+                "Their package likely ships shared libraries only; the fix is to build those " +
+                "dependencies statically from source. Never substitute the shared library into " +
+                "the tree, which silently stops it being self-contained."
+        if (requireSelfContained.getOrElse(false)) {
+            throw BuildFailure(
+                "$explanation\n" +
+                    "KITEFFMPEG_FFMPEG_SELF_CONTAINED=true was set (a distributable build), so " +
+                    "this is fatal: the resulting zip would not link on a consumer's machine.",
+            )
+        }
+        logger.warn(
+            "warning: [KiteFFmpeg] $outputDir is NOT self-contained.\n" +
+                "$explanation\n" +
+                "Local builds link these from the host instead, which is fine for development. " +
+                "Set KITEFFMPEG_FFMPEG_SELF_CONTAINED=true to make this a hard failure.",
+        )
+    }
+
+    /** Where the static archives live: the cross-built deps tree, nothing host-managed. */
+    private fun thirdPartySearchDirs(target: TargetTriple): List<File> = listOf(
+        outputDir.get().asFile.parentFile.parentFile.resolve("deps/${target.dirName}/dav1d/lib"),
+    ) + when (target) {
+        TargetTriple.LinuxX64 -> listOf(
+            File("/usr/lib/x86_64-linux-gnu"), File("/usr/lib"), File("/usr/local/lib"),
+        )
+        TargetTriple.LinuxArm64 -> listOf(
+            File("/usr/lib/aarch64-linux-gnu"), File("/usr/lib"), File("/usr/local/lib"),
+        )
+        else -> emptyList()
+    }
+
+    /**
+     * Environment for configure/make. PKG_CONFIG_LIBDIR (not PATH) so the host's own .pc files
+     * can never leak into any target's link, macOS included: the only pkg-config lookup any
+     * profile makes is dav1d, and its deps tree is the whole pkg-config universe.
+     */
+    private fun configureEnv(target: TargetTriple, dav1dRoot: File): Map<String, String> =
+        mapOf("PKG_CONFIG_LIBDIR" to dav1dRoot.resolve("lib/pkgconfig").absolutePath)
+
+    /** The codec/filter core both profiles share. */
+    private fun sharedCoreArgs(): List<String> = listOf(
+        // Static-only, no shared, no programs (`ffmpeg`/`ffprobe`/`ffplay`).
+        "--enable-static", "--disable-shared",
+        "--disable-programs", "--disable-doc", "--disable-debug",
+        "--disable-htmlpages", "--disable-manpages", "--disable-podpages", "--disable-txtpages",
+
+        // The READ side is wide by class (the plan, owner order 2026-08-13):
+        // decoders, demuxers, parsers, bitstream filters and hwaccels compile whole, so a
+        // consumer plays what FFmpeg can play and an FFmpeg bump widens coverage without
+        // touching this file. Bitstream filters ride whole with the demuxers because
+        // libavformat inserts them ITSELF during stream copy; leaving one out corrupts output
+        // silently instead of failing loudly. Only the WRITE side and the protocol list stay
+        // curated: encoders, muxers and filters are the deliberate editor subset re-enabled by
+        // name below, and protocols stay small because they are the attack surface (playlist
+        // demuxers dial out through whatever protocols exist). Capture and playback devices
+        // stay off entirely.
+        "--disable-encoders", "--disable-muxers", "--disable-filters",
+        "--disable-devices", "--disable-protocols",
+        // file/pipe/data always; http+tcp so MediaSource.open() can actually take the URLs its
+        // KDoc advertises. https is deliberately absent: it needs a TLS backend (openssl/gnutls/
+        // mbedtls) cross-built for every target, which is a dependency escalation this profile
+        // does not take on. See docs/platforms.md. --enable-network is explicit rather than
+        // inherited so a target whose configure probe defaults it off fails loudly here. The
+        // wide demuxer class includes members that SELECT network protocols (rtsp and its
+        // relatives), and a select beats the class disable above, so the configure banner's
+        // protocol line is checked against exactly this nine-name list after every profile change.
+        // `fd` is what makes an Android content:// URI playable. The picker hands back a
+        // descriptor, and the usual escape of re-opening `/proc/self/fd/N` through the `file`
+        // protocol fails with EACCES on a modern device, because re-opening rechecks permissions
+        // against the PATH while the descriptor itself stays perfectly valid (measured on a real
+        // phone, 2026-08-13). The `fd` protocol takes the descriptor as a pre-open option and
+        // `dup()`s it, so nothing is re-opened, and its fstat sets is_streamed correctly, which
+        // keeps a regular file SEEKABLE. `pipe:<fd>` is not a substitute: it dups too, but hard
+        // codes is_streamed = 1, so seeking dies and with it any sync.
+        //
+        // udp, rtp and rtmp joined on 2026-10-03 (#124), so an IP camera on rtsp://, a udp:// or
+        // rtp:// stream, an SDP file that describes an RTP session and an rtmp:// feed all open.
+        // None needs a library. udp and rtp were named off until then, and that named disable is
+        // what dropped the rtsp and sdp demuxers, which select them; with the two back, the wide
+        // demuxer class carries rtsp, sdp, rtp and sap again. rtmp is FFmpeg's own client over tcp.
+        // rtmps stays out for the reason https does, and SRT needs libsrt, a new native library.
+        // A wider list does not widen what a playlist reaches: FFmpeg's HLS reader opens only
+        // file, http and data, and an input opened from a file may reach only file, crypto and
+        // data unless DemuxOptions.protocolWhitelist names more.
+        "--enable-network",
+        "--enable-protocol=file,fd,pipe,data,http,tcp,udp,rtp,rtmp",
+        // Several everyday extensions map to their OWN muxer rather than to the obvious one, and
+        // `avformat_alloc_output_context2` simply fails to find a format when that muxer is absent:
+        //   .mka → matroska_audio (not matroska)   .m4a → ipod (not mp4)
+        // mpegts is what every "trim a broadcast capture" path needs, and it is the format whose
+        // nonzero container start time the timestamp code is written against.
+        // srt, ass and webvtt joined on 2026-09-28 (#86), so a text subtitle track can be written
+        // to its own file. They need no other library.
+        "--enable-muxer=mp4,mov,ipod,webm,matroska,matroska_audio,mp3,wav,flac,ogg,opus,mpegts,image2,srt,ass,webvtt",
+        // Encoders that need no third-party library, so every profile (desktop LGPL, desktop GPL,
+        // Android) has them. mpeg4 is the dependency-free video baseline: without it an LGPL build
+        // can only encode video via libsvtav1 (slow) or mjpeg (intra-only), and the library's own
+        // round-trip tests and sample have nothing portable to write with. flac and the pcm_* set
+        // are what make the already-enabled flac/wav MUXERS able to write anything at all.
+        //
+        // aac JOINED THIS LIST 2026-08-24, and its absence here was a real shipped defect. It was
+        // named only in desktopAppleArgs() and in the Android profile, so macOS and Android had it
+        // while LINUX AND WINDOWS DID NOT: measured on the released trees, ff_aac_encoder is
+        // present in macos-arm64 and absent from linux-x64 and mingw-x64. A consumer calling
+        // Transcoder.transcode with default audio settings therefore got "No encoder named 'aac'"
+        // on those two platforms, in 0.1.1 and 0.1.2. Nothing justified the split: the native aac
+        // encoder is dependency-free, which is the same reason every other name on this line is
+        // here. The flag had simply landed in an Apple-only block. mp4/mov without an AAC encoder
+        // is also the odd combination, since that is the pairing the format is usually written with.
+        //
+        // The text subtitle encoders joined on 2026-09-28 (#86): movtext is how MP4 stores
+        // subtitles, and srt and subrip are two names for the one SubRip encoder. They are native
+        // FFmpeg code under the LGPL, like everything else on this line.
+        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg,movtext,srt,subrip,ass,webvtt",
+
+        // buffer/buffersink/abuffer/abuffersink are how KiteFFmpeg feeds and drains every graph.
+        // Without them ffkmp_graph_build_* returns AVERROR_FILTER_NOT_FOUND.
+        // Only filters EVERY profile can actually provide. Two kinds of exception live elsewhere,
+        // because configure silently drops a filter whose dependencies are unmet. Listing one
+        // here would make this a promise some builds quietly break:
+        //   - drawtext needs libfreetype/libharfbuzz → desktopBaseArgs (Android links neither).
+        //   - eq and boxblur are `deps="gpl"` in FFmpeg's own configure → desktopGplArgs.
+        // `hue` (which has a brightness parameter), `colorlevels` and `curves` cover most of what
+        // `eq` is reached for, and are available everywhere.
+        // setparams added 2026-08-17 (phase W): the project's own P010 alignment test declares an
+        // input link's colour space and range with it, and it had never been enabled. Nobody saw
+        // that because the macOS host gate resolves FFmpeg from Homebrew, which carries every
+        // filter, so the VENDORED profile was only ever exercised on phones. The Linux run is what
+        // found it, which is the point of running on more than one surface.
+        // yadif and bwdif (deinterlacing) and loudnorm, ebur128 and alimiter (loudness) are
+        // ordinary player features, and the filter DSL offers deinterlace() and loudnorm().
+        // FFmpeg's configure puts none of the five behind --enable-gpl, so every profile here
+        // can carry them. The web list in BuildFFmpegWasmTask stays minimal on purpose.
+        // crop, transpose, hflip, vflip, fps, drawbox, fade, setsar, setdar and pan joined on
+        // 2026-09-28 (#77): the filter DSL offers crop(), transpose(), fps(), drawBox() and pan(),
+        // and every published build refused them. None is GPL-only in FFmpeg's configure, and pan
+        // needs only libswresample, which aresample already needs.
+        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter,crop,transpose,hflip,vflip,fps,drawbox,fade,setsar,setdar,pan",
+
+        "--enable-pthreads",
+        "--enable-pic",
+        "--enable-runtime-cpudetect",
+    )
+
+    /**
+     * macOS desktop profile: the portable Apple set (owner decision 2026-08-22).
+     *
+     * Structurally [mobileAppleArgs] plus VideoToolbox ENCODE, which the simulator lacks. No
+     * Homebrew stack at all: the old fat profile (vpx/aom/opus/lame/webp encoders, the
+     * freetype/harfbuzz/fribidi/libass text stack, drawtext) could never produce a
+     * self-contained Release asset because Homebrew ships graphite2 shared-only, and KitePlayer
+     * renders subtitles through its own libass chain anyway. Decoding is untouched: the read
+     * side is wide by class in [sharedCoreArgs], and software AV1 is the dav1d switch's job.
+     * aac is no longer named here: it moved to the shared encoder list on 2026-08-24, because
+     * being dependency-free is a reason EVERY profile should carry it, not just this one.
+     */
+    private fun desktopAppleArgs(): List<String> = listOf(
+        "--disable-autodetect",
+        "--enable-zlib",
+        "--enable-audiotoolbox",
+    ) + appleHardwareArgs()
+
+    /**
+     * VideoToolbox hardware encode on macOS desktop targets.
+     *
+     * `--enable-videotoolbox` alone only turns on the framework dependency. Under
+     * `--disable-encoders` every encoder must additionally be named in `--enable-encoder=`, or
+     * the resulting build advertises VideoToolbox support and then has no `h264_videotoolbox`
+     * encoder to find at runtime. The Android profile avoids that mistake by listing
+     * `h264_mediacodec` explicitly. The iPhone profile names the same two encoders in
+     * [mobileAppleArgs], and the simulators get none, because VideoToolbox encode is not available
+     * there.
+     */
+    private fun appleHardwareArgs(): List<String> = listOf(
+        "--enable-videotoolbox",
+        "--enable-encoder=h264_videotoolbox,hevc_videotoolbox",
+    ) + appleHwaccelDecodeArgs()
+
+    /**
+     * VideoToolbox hardware DECODE. Unlike MediaCodec
+     * there is no named decoder to enable: VideoToolbox decode is an hwaccel behind the ordinary
+     * `h264`/`hevc` decoders. Since the 17.4.9 wide profile the hwaccel class compiles whole, so
+     * this list is a PIN rather than the sole source: it guarantees the two hwaccels a player's
+     * hardware route depends on exist even if the class policy above ever changes. Decode is enabled
+     * for EVERY Apple target including the simulator (decode works there on Apple silicon; it is
+     * encode that does not), and a runtime refusal on any particular machine is FFmpeg's own
+     * typed answer through `ffkmp_codecctx_use_videotoolbox`, which a player's fallback treats
+     * as one more fallback cause.
+     */
+    private fun appleHwaccelDecodeArgs(): List<String> = listOf(
+        "--enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox",
+    )
+
+    /*
+     * AV1 note, and it is a warning as much as a pin.
+     *
+     * `av1_videotoolbox` is pinned above so the hwaccel exists on every Apple target that has AV1
+     * silicon (A17 Pro, M3 and newer). configure's `av1_videotoolbox_hwaccel_select="av1_decoder"`
+     * means this also compiles FFmpeg's NATIVE av1 decoder into every Apple build, which is the
+     * cost: hwaccels attach to a decoder, and libdav1d is an external decoder that carries none.
+     *
+     * PINNING IT IS NOT ENOUGH TO GET HARDWARE AV1, and nothing here should be read as claiming
+     * otherwise. `avcodec_find_decoder(AV_CODEC_ID_AV1)` walks `codec_list` in the order
+     * `allcodecs.c` declares, where `ff_libdav1d_decoder` sits ahead of `ff_av1_decoder`. So on
+     * any build that also carries dav1d, which is every KitePlayer consumer build, the lookup
+     * returns libdav1d and VideoToolbox is never offered a format to negotiate.
+     *
+     * The missing half is a decoder chosen BY NAME plus a policy: open native `av1` with
+     * VideoToolbox attached, and fall back to `libdav1d` in software when the hardware refuses.
+     * KiteFFmpeg has no by-name decoder path today. Until it does, this pin only guarantees the
+     * hwaccel is present for that work to use.
+     */
+
+    /**
+     * One Kotlin/Native cross toolchain: konan's clang, its binutils, the triple and the sysroot.
+     *
+     * Injected as a lambda so the configure goldens can pin the flag SHAPE without pinning this
+     * machine's absolute paths, exactly as the Android arm injects its NDK bin directory.
+     */
+    internal data class KonanTools(
+        val clang: String,
+        /** `-B<dir>`: where clang finds `ld.lld`. Apple's own `ld` cannot link ELF or PE. */
+        val toolchainBin: String,
+        /** The gcc runtime directory (crtbegin/crtend, libgcc), which sits OUTSIDE the sysroot. */
+        val runtimeDir: String?,
+        val ar: String,
+        val nm: String,
+        val ranlib: String,
+        val triple: String,
+        val sysroot: String,
+    )
+
+    private fun konanCrossTools(target: TargetTriple): KonanTools {
+        val konanRoot = System.getenv("KONAN_DATA_DIR")?.let(::File)
+            ?: File(System.getProperty("user.home"), ".konan")
+        val dependencies = konanRoot.resolve("dependencies")
+        require(dependencies.isDirectory) {
+            "No konan dependencies at ${dependencies.absolutePath}. They arrive with the " +
+                "Kotlin/Native distribution, so a build that has already compiled Kotlin/Native " +
+                "code has them."
+        }
+        val llvmBin = CompileKiteFFmpegCTask.resolveLlvmBinDir(
+            dependencies,
+            CompileKiteFFmpegCTask.DEFAULT_LLVM_PACKAGE,
+        ) { message -> logger.lifecycle("[KiteFFmpeg] $message") }
+        fun tool(name: String): String = (CompileKiteFFmpegCTask.resolveTool(llvmBin, name)
+            ?: throw BuildFailure(
+                "Cannot cross-build FFmpeg for $target: no $name under ${llvmBin.absolutePath}.",
+            )).absolutePath
+        // The konan LLVM package is the "essentials" set: clang, lld, llvm-ar and little else.
+        // ranlib is llvm-ar's own `s` operation, and Xcode's nm is LLVM's and reads ELF and PE
+        // as happily as Mach-O (verified against a cross-linked linuxX64 binary). Stripping is
+        // turned off in the configure args instead of hunting for a strip that can do it: these
+        // are static archives, and a consumer's own link strips what it does not use.
+        val archiver = tool("llvm-ar")
+        val spec = CompileKiteFFmpegCTask.specFor(target.konanTargetName)
+        val sysrootRelative = requireNotNull(spec.konanSysroot) { "$target has no konan sysroot" }
+        val sysroot = dependencies.resolve(sysrootRelative)
+        require(sysroot.isDirectory) {
+            "Cannot cross-build FFmpeg for $target: no sysroot at ${sysroot.absolutePath}."
+        }
+        // konan's linux packages keep the gcc runtime beside the sysroot, not inside it, so lld
+        // finds neither crtbeginS.o nor libgcc without being told. The version directory is not
+        // hardcoded: the package pins its own gcc version and a konan bump would change it.
+        val packageRoot = dependencies.resolve(sysrootRelative.substringBefore('/'))
+        val runtimeDir = packageRoot.resolve("lib/gcc").listFiles().orEmpty()
+            .filter { it.isDirectory }
+            .flatMap { it.listFiles().orEmpty().filter { version -> version.isDirectory } }
+            .firstOrNull { it.resolve("libgcc.a").isFile }
+        return KonanTools(
+            clang = tool("clang"),
+            toolchainBin = llvmBin.absolutePath,
+            runtimeDir = runtimeDir?.absolutePath,
+            ar = archiver,
+            nm = "/usr/bin/nm",
+            ranlib = "$archiver s",
+            triple = spec.triple,
+            sysroot = sysroot.absolutePath,
+        )
+    }
+
+    private fun desktopTargetArgs(
+        target: TargetTriple,
+        konanBin: (TargetTriple) -> KonanTools,
+    ): List<String> = when (target) {
+        // The floor is PASSED, never inherited. Without it clang takes the SDK's, which
+        // measured 26.0 on the committed archives while Kotlin/Native links these objects at 12.0.
+        TargetTriple.MacosArm64 -> listOf(
+            "--arch=arm64", "--target-os=darwin",
+            "--cc=clang -arch arm64 -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET",
+            "--enable-cross-compile",
+        )
+        TargetTriple.MacosX64 -> listOf(
+            "--arch=x86_64", "--target-os=darwin",
+            "--cc=clang -arch x86_64 -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET",
+            "--enable-cross-compile",
+        )
+        // Linux and Windows cross-build with the SAME toolchain Kotlin/Native links against:
+        // konan's own clang, aimed by -target, over the sysroot konan ships for that triple.
+        // This is not a preference. FFmpeg built by any other
+        // toolchain can reference a glibc symbol the konan sysroot does not carry, and the failure
+        // arrives at LINK time in a consumer's build, which is the worst place to find it.
+        //
+        // The konan "gcc" packages are not compilers on this host: their binaries are Linux ELF
+        // and Windows PE respectively, shipped for their headers and libraries. Only the sysroot
+        // is used, exactly as CompileKiteFFmpegCTask already does for the C helper layer.
+        TargetTriple.LinuxX64, TargetTriple.LinuxArm64, TargetTriple.MingwX64 -> {
+            val tools = konanBin(target)
+            val arch = when (target) {
+                TargetTriple.LinuxArm64 -> "aarch64"
+                else -> "x86_64"
+            }
+            val targetOs = if (target == TargetTriple.MingwX64) "mingw32" else "linux"
+            listOf(
+                "--arch=$arch", "--target-os=$targetOs",
+                "--enable-cross-compile",
+                // -fuse-ld=lld with -B is not optional: without it clang hands the objects to
+                // Apple's ld, which answers "unknown options: --sysroot ... --hash-style=gnu"
+                // because it only links Mach-O.
+                "--cc=${tools.clang} -target ${tools.triple} --sysroot=${tools.sysroot} " +
+                    "-fuse-ld=lld -B${tools.toolchainBin}" +
+                    (tools.runtimeDir?.let { " -B$it -L$it" } ?: ""),
+                "--ar=${tools.ar}", "--nm=${tools.nm}", "--ranlib=${tools.ranlib}",
+                "--disable-stripping",
+                // configure builds a few tools that must run HERE, so they need the host compiler.
+                "--host-cc=/usr/bin/clang",
+            ) + if (target == TargetTriple.MingwX64) {
+                listOf(
+                    // mingw's headers need the GNU dialect, and konan's clang defaults to a newer
+                    // C standard than the msys2 headers were written for.
+                    "--extra-cflags=-std=gnu11",
+                    // Windows threading is w32threads, not pthreads. sharedCoreArgs asks for
+                    // pthreads for everyone else, and configure REFUSES a requested library it
+                    // cannot find, so the request is withdrawn here rather than made conditional
+                    // up there: configure takes the last word on a flag, so this pair wins.
+                    "--disable-pthreads", "--enable-w32threads",
+                )
+            } else {
+                emptyList()
+            }
+        }
+        else -> error("desktopTargetArgs called for non-desktop target $target")
+    }
+
+    /**
+     * The reduced desktop profile for Linux and Windows (decision W-D4).
+     *
+     * Software codecs, the desktop compression libraries the sysroots actually carry, and nothing
+     * that needs a cross-built third-party library. What it costs against the macOS desktop
+     * profile, stated rather than hidden: no libsvtav1/libvpx/libaom/libopus/libmp3lame ENCODERS,
+     * no libwebp, no libass and no drawtext. Decoding is untouched, because the read side is wide
+     * by class in [sharedCoreArgs] and needs no third-party library at all, so the 17.5 conformance
+     * matrix plays in full.
+     *
+     * The compression libraries are per sysroot, measured rather than assumed: all three sysroots
+     * carry zlib (msys2 keeps its copy at the package root rather than under the triple directory,
+     * which is what made a first reading of this call it absent), and none of them carries bzlib or
+     * lzma. FFmpeg REFUSES a configure that requests a library it cannot find, so asking for bzlib
+     * would fail the build rather than silently drop it. zlib is REQUESTED rather than left to
+     * autodetect for the opposite reason: an autodetected zlib compiles its symbols in while the
+     * consumer's link line, which is written from this list, never learns to name -lz, and the
+     * failure lands as `undefined symbol: inflate` in a downstream link. Asking makes the flag and
+     * the link agree by construction. What zlib buys is matroska and mov compressed headers; bzlib
+     * and lzma buy only rarely used matroska compression.
+     */
+    private fun portableDesktopArgs(target: TargetTriple): List<String> = listOf("--enable-zlib") +
+        if (target == TargetTriple.MingwX64) windowsHwaccelDecodeArgs() else emptyList()
+
+    /**
+     * Direct3D 11 hardware DECODE on Windows, which `HardwareAccel.D3d11va` attaches.
+     *
+     * `--enable-d3d11va` is requested rather than left to autodetect, so a Windows build that lost
+     * it fails at configure instead of shipping without it. The hwaccel class compiles whole, so
+     * the list is a PIN, like the VideoToolbox one. It names the d3d11va2 hwaccels because those
+     * allocate their own surfaces from the attached device. AV1 is not among them: its hwaccel
+     * needs `DXVA_PicParams_AV1`, and the MinGW headers of konan's sysroot predate it.
+     */
+    private fun windowsHwaccelDecodeArgs(): List<String> = listOf(
+        "--enable-d3d11va",
+        "--enable-hwaccel=h264_d3d11va2,hevc_d3d11va2,vp9_d3d11va2,mpeg2_d3d11va2,vc1_d3d11va2,wmv3_d3d11va2",
+    )
+
+    /** Mobile Apple playback profile: shared software codecs plus SDK zlib, and no desktop stack. */
+    private fun mobileAppleArgs(target: TargetTriple, sdkPath: (String) -> String): List<String> {
+        val crossArgs = when (target) {
+            TargetTriple.IosArm64 -> {
+                val sdk = sdkPath("iphoneos")
+                listOf(
+                    "--arch=arm64", "--target-os=darwin",
+                    "--cc=clang -arch arm64 -isysroot $sdk -mios-version-min=$IOS_DEPLOYMENT_TARGET",
+                    "--enable-cross-compile",
+                )
+            }
+            TargetTriple.IosSimulatorArm64 -> {
+                val sdk = sdkPath("iphonesimulator")
+                listOf(
+                    "--arch=arm64", "--target-os=darwin",
+                    "--cc=clang -arch arm64 -isysroot $sdk -mios-simulator-version-min=$IOS_DEPLOYMENT_TARGET",
+                    "--enable-cross-compile",
+                )
+            }
+            TargetTriple.IosX64 -> {
+                val sdk = sdkPath("iphonesimulator")
+                listOf(
+                    "--arch=x86_64", "--target-os=darwin",
+                    "--cc=clang -arch x86_64 -isysroot $sdk -mios-simulator-version-min=$IOS_DEPLOYMENT_TARGET",
+                    "--enable-cross-compile",
+                    "--disable-asm",
+                )
+            }
+            else -> error("mobileAppleArgs called for non-iOS target $target")
+        }
+        // aarch64 asm is ON for the two arm64 iOS targets and stays off for IosX64, for exactly the
+        // reason the Android profile states: x86_64 inline asm needs nasm in the env, arm64 asm does
+        // not and it is what makes software decode fast. The arm64 iOS targets carried
+        // `--disable-asm` for a long time with no recorded reason, which shipped every iPhone a
+        // C-only libavcodec while the macOS tree built from the same clang carried ~1360 NEON
+        // symbols. Measured after the change: ios-arm64 went 0 -> non-zero NEON symbols.
+        //
+        // AudioToolbox is REQUESTED rather than left to autodetect, for the same reason zlib is in
+        // [portableDesktopArgs]: `--disable-autodetect` above means an unasked framework is simply
+        // absent. Without it the iOS trees carried none of the `*_at` decoders the macOS tree gets
+        // for free, so AAC, ALAC and both Dolby formats decoded on the CPU with no platform path
+        // available at all. Enabling the framework compiles the `*_at` decoder class; naming one at
+        // open is the player's decision, not this build's.
+        //
+        // VideoToolbox ENCODE is on for the iPhone only (#78). VTCompressionSession exists from
+        // iOS 8, and FFmpeg's videotoolboxenc supports iOS. The simulators stay without it, because
+        // VideoToolbox encode is not available there.
+        val encodeArgs = if (target == TargetTriple.IosArm64) {
+            listOf("--enable-encoder=h264_videotoolbox,hevc_videotoolbox")
+        } else {
+            emptyList()
+        }
+        return listOf(
+            "--disable-autodetect",
+            "--enable-zlib",
+            "--enable-videotoolbox",
+            "--enable-audiotoolbox",
+        ) + encodeArgs + appleHwaccelDecodeArgs() + crossArgs
+    }
+
+    /** Resolves an Apple SDK sysroot via `xcrun`, so the path tracks the installed Xcode. */
+    private fun xcrunSdkPath(sdkName: String): String {
+        val proc = ProcessBuilder("xcrun", "--sdk", sdkName, "--show-sdk-path")
+            .redirectErrorStream(true)
+            .start()
+        val output = proc.inputStream.bufferedReader().readText().trim()
+        check(proc.waitFor() == 0 && output.isNotEmpty()) {
+            "xcrun --sdk $sdkName --show-sdk-path failed: $output"
+        }
+        return output
+    }
+
+    /**
+     * Android profile: LGPL (no `--enable-gpl`, no third-party libs), NDK clang toolchain,
+     * MediaCodec hardware video encode/decode. `--enable-jni` is required by the MediaCodec
+     * wrapper; at runtime the app must hand FFmpeg its JavaVM via `av_jni_set_java_vm` before
+     * using `*_mediacodec` codecs (the surrounding KiteFFmpeg Android substrate will own that call).
+     */
+    private fun androidArgs(target: TargetTriple, toolchainBin: File): List<String> {
+        val (arch, cpu, ccPrefix) = when (target) {
+            TargetTriple.AndroidArm64 -> Triple("aarch64", "armv8-a", "aarch64-linux-android")
+            TargetTriple.AndroidArm32 -> Triple("arm", "armv7-a", "armv7a-linux-androideabi")
+            TargetTriple.AndroidX64 -> Triple("x86_64", null, "x86_64-linux-android")
+            else -> error("androidArgs called for non-android target $target")
+        }
+        val cc = toolchainBin.resolve("$ccPrefix$ANDROID_API-clang")
+        require(cc.exists()) { "NDK compiler not found: $cc" }
+
+        return listOf(
+            "--target-os=android", "--arch=$arch",
+            "--enable-cross-compile",
+            "--cc=${cc.absolutePath}",
+            "--cxx=${cc.absolutePath}++",
+            "--ar=${toolchainBin.resolve("llvm-ar").absolutePath}",
+            "--ranlib=${toolchainBin.resolve("llvm-ranlib").absolutePath}",
+            "--nm=${toolchainBin.resolve("llvm-nm").absolutePath}",
+            "--strip=${toolchainBin.resolve("llvm-strip").absolutePath}",
+            "--enable-mediacodec", "--enable-jni",
+            // Adds to the dependency-free encoder set in sharedCoreArgs.
+            "--enable-encoder=h264_mediacodec,hevc_mediacodec",
+            // Adds to the shared sw set. av1/vp9/vp8 ride along because FFmpeg has NO native
+            // software AV1 decoder (av1dec.c is a hwaccel shell): on Android the MediaCodec
+            // wrappers are the only AV1 route this profile can offer, and most devices carry
+            // an AV1 MediaCodec from Android 10 on. Software AV1 needs vendored dav1d, which
+            // is recorded in the plan rather than pretended here.
+            "--enable-decoder=h264_mediacodec,hevc_mediacodec,av1_mediacodec,vp9_mediacodec,vp8_mediacodec",
+            "--enable-zlib",
+        ) +
+            // Every Android ABI keeps its assembly, which is what makes software decode fast;
+            // --disable-asm would also turn off every SIMD extension. x86_64 assembles with nasm,
+            // the same nasm the dav1d build already needs, and 32-bit ARM builds its NEON with the
+            // NDK's clang. FFmpeg picks its NEON functions at run time, from the CPU it finds.
+            (cpu?.let { listOf("--cpu=$it") } ?: emptyList())
+    }
+
+    private fun ndkToolchainBin(): File {
+        val fromEnv = sequenceOf("ANDROID_NDK_HOME", "ANDROID_NDK_ROOT", "ANDROID_NDK_LATEST_HOME")
+            .mapNotNull { System.getenv(it) }
+            .map(::File)
+            .firstOrNull { it.isDirectory }
+        val ndk = fromEnv ?: run {
+            val sdkNdk = File(System.getProperty("user.home"), "Library/Android/sdk/ndk")
+                .takeIf { it.isDirectory }
+                ?: File(System.getProperty("user.home"), "Android/Sdk/ndk").takeIf { it.isDirectory }
+            sdkNdk?.let(::newestNdk)
+                ?: error(
+                    "Android NDK not found. Set ANDROID_NDK_HOME or install one via the SDK manager."
+                )
+        }
+        val prebuilt = ndk.resolve("toolchains/llvm/prebuilt")
+        val hostDir = prebuilt.listFiles { f: File -> f.isDirectory }?.firstOrNull()
+            ?: error("No prebuilt toolchain under $prebuilt")
+        return hostDir.resolve("bin")
+    }
+
+    private fun runIn(workDir: File, command: List<String>, env: Map<String, String> = emptyMap()) {
+        logger.lifecycle("[KiteFFmpeg build] " + command.joinToString(" "))
+        val builder = ProcessBuilder(command).directory(workDir).redirectErrorStream(true)
+        builder.environment().putAll(env)
+        val proc = builder.start()
+        proc.inputStream.bufferedReader().useLines { lines ->
+            lines.forEach { logger.lifecycle("  $it") }
+        }
+        val code = proc.waitFor()
+        check(code == 0) { "Command exited with $code: ${command.joinToString(" ")}" }
+    }
+
+    /**
+     * One place where the expected FFmpeg release is written down, and where that is.
+     *
+     * The `n8.0` expectation lives in three files bound only by a comment in the
+     * third one asking the reader to keep them in sync. Nothing enforced it, and nothing checked any of
+     * them against the vendored checkout. [assertFFmpegRefsAgree] is the enforcement, and this is what
+     * it compares. Declared at class level and not inside the companion, because a class nested in a
+     * companion is spelled `BuildFFmpegTask.Companion.FFmpegRefSite` at the call site, which is not a
+     * name anyone should have to write.
+     */
+    data class FFmpegRefSite(val where: String, val ref: String)
+
+    companion object {
+        /**
+         * NDK API level the native libs are built against. The published minSdk is 26 (Android
+         * 8.0), but the FFmpeg trees deliberately stay at 24: binaries built against a lower API
+         * level run unchanged on newer devices, and raising this forces a full rebuild of every
+         * Android FFmpeg tree for zero functional gain. Raise it only when a libav feature
+         * actually needs a newer NDK symbol.
+         */
+        const val ANDROID_API = 24
+
+        /**
+         * The macOS deployment floor for every vendored tree, and the ONE place it is written.
+         *
+         * Three floors used to disagree in one product, measured 2026-08-25: the archives
+         * carried `minos 26.0` because the macOS branches passed no `-mmacosx-version-min` at all
+         * and inherited the SDK's, the C helper layer compiled at 11.0, and Kotlin/Native links at
+         * 12.0. The archive was the dangerous one: an object built for a NEWER floor than the
+         * binary linking it means the product claims 12.0 support while carrying code that asks
+         * for 26.
+         *
+         * 12.0 is not a preference. It is `minVersion.macos` from konan.properties for the Kotlin
+         * this repository pins, so it is the floor the linker imposes whatever anything else says.
+         * `CompileKiteFFmpegCTask`, the dav1d and libass chain builds ([macosDeploymentEnv]) and the
+         * macOS JNI link read this same constant; raising it means raising konan first.
+         */
+        const val MACOS_DEPLOYMENT_TARGET = "12.0"
+
+        /** The iOS floor of every C build: FFmpeg, dav1d, the libass chain and the helper layer. */
+        const val IOS_DEPLOYMENT_TARGET = "15.0"
+
+        /**
+         * The environment that holds a meson or autotools build for [target] to
+         * [MACOS_DEPLOYMENT_TARGET], or an empty map for any target that is not macOS.
+         *
+         * clang and the Apple linker read `MACOSX_DEPLOYMENT_TARGET` whenever no
+         * `-mmacosx-version-min` is given, so one variable reaches the C, C++, assembly and link
+         * steps of every member of a build, including the probes meson and configure run first.
+         * Without it the dav1d and libass chain archives took the floor of the SDK that built them,
+         * measured at `minos 26.0`.
+         */
+        fun macosDeploymentEnv(target: TargetTriple): Map<String, String> = when (target) {
+            TargetTriple.MacosArm64, TargetTriple.MacosX64 ->
+                mapOf("MACOSX_DEPLOYMENT_TARGET" to MACOS_DEPLOYMENT_TARGET)
+            else -> emptyMap()
+        }
+
+        /** The FFmpeg tag `vendor/ffmpeg` is expected to be checked out at. */
+        const val DEFAULT_SOURCE_REF = "n9.0.2"
+
+        /**
+         * The commit [DEFAULT_SOURCE_REF] names upstream, read with `git ls-remote` on 2026-10-04.
+         * Moving the tag means moving this with it, after reading what the new commit holds.
+         */
+        const val DEFAULT_SOURCE_COMMIT = "946fcce07b6dcd0331c8cc609192aeff5e1924f8"
+
+        /** Where FFmpeg's tags are cloned from. */
+        const val SOURCE_URL = "https://github.com/FFmpeg/FFmpeg.git"
+
+        /** Where a change to FFmpeg goes instead of the checkout, for the refusal to say. */
+        const val PATCH_ADVICE =
+            "A change to FFmpeg belongs in a patch under native/patches/ffmpeg, which every build " +
+                "applies to its own copy of the source and lists in lib/kiteffmpeg/ffmpeg-patches.txt."
+
+        /**
+         * Normalises an FFmpeg release reference so a git tag and a release file can be compared.
+         *
+         * FFmpeg's git tags are `n8.0`; the `RELEASE` file in a checkout of that tag says `8.0`. Both
+         * name the same release, so the leading `n` is dropped and the string is trimmed. Nothing else
+         * is normalised: `8.0` and `8.0.1` must stay different, because they are.
+         */
+        fun normaliseFFmpegRef(ref: String): String = ref.trim().removePrefix("n")
+
+        /**
+         * Fails when the places that record the expected FFmpeg release do not agree.
+         *
+         * Pure, so `BuildFFmpegRefsTest` can hand it agreeing and disagreeing inputs without a build.
+         * The message names every site and its value rather than only the mismatch, because the question
+         * a reader has at that moment is "which one is wrong", and that needs all of them.
+         *
+         * [vendorRelease] is the `RELEASE` file of `vendor/ffmpeg` when the checkout is present, and null
+         * when it is not. A missing checkout is not a failure: the vendored path is optional and most
+         * builds use a prebuilt or system FFmpeg. A PRESENT checkout at the wrong release is a failure,
+         * because that is the case where a build would compile against headers nobody declared.
+         */
+        fun assertFFmpegRefsAgree(sites: List<FFmpegRefSite>, vendorRelease: String?) {
+            require(sites.isNotEmpty()) { "assertFFmpegRefsAgree needs at least one site" }
+            val all = sites + listOfNotNull(
+                vendorRelease?.let { FFmpegRefSite("vendor/ffmpeg/RELEASE", it) },
+            )
+            val distinct = all.map { normaliseFFmpegRef(it.ref) }.distinct()
+            if (distinct.size == 1) return
+            throw BuildFailure(
+                buildString {
+                    appendLine(
+                        "The expected FFmpeg release is recorded in ${all.size} place(s) and they do " +
+                            "not agree. Found ${distinct.size} distinct values:",
+                    )
+                    for (site in all) {
+                        appendLine("  ${site.where}: ${site.ref} (normalised ${normaliseFFmpegRef(site.ref)})")
+                    }
+                    appendLine()
+                    append(
+                        "A consumer that downloads one release and links it against a klib whose C was " +
+                            "compiled against another gets a successful static link and wrong struct " +
+                            "field offsets, which is what the identity gate is for. Make all of them name one " +
+                            "release, or check the vendored tree out at the release they name.",
+                    )
+                },
+            )
+        }
+
+        /**
+         * Reads `FFMPEG_VERSION: <ref>` out of a GitHub Actions workflow's `env:` block.
+         *
+         * Returns null when the key is absent, which the caller reports as its own failure: a workflow
+         * that stopped pinning the release is a drift this check exists to catch, and silently treating
+         * it as agreement would be the wrong answer.
+         */
+        /**
+         * Every FFmpeg ref a workflow CLONES, in order of appearance.
+         *
+         * Distinct from [readWorkflowFFmpegVersion], and the distinction is the whole point. A
+         * workflow's `FFMPEG_VERSION:` names the PREBUILT zips a job downloads, so it is keyed to
+         * binaries that already exist on a release. A `git clone --branch <ref>` names the SOURCE a
+         * job compiles, so it has to equal what the bake recipe expects or the build meets the wrong
+         * headers. The 8.1.2 bump moved the env vars and left these literals at n8.0, and the
+         * existing check could not see them because it only ever read the env.
+         */
+        fun readWorkflowFFmpegCloneRefs(workflowText: String): List<String> =
+            Regex("""git\s+clone\b[^\n]*--branch\s+(\S+)[^\n]*FFmpeg\.git""")
+                .findAll(workflowText)
+                .map { it.groupValues[1] }
+                .toList()
+
+        fun readWorkflowFFmpegVersion(workflowText: String): String? =
+            workflowText.lineSequence()
+                .map { it.trim() }
+                .firstOrNull { it.startsWith("FFMPEG_VERSION:") }
+                ?.substringAfter(':')
+                ?.trim()
+                ?.trim('"', '\'')
+                ?.takeIf { it.isNotEmpty() }
+
+
+        /** Reads `LIBAVUTIL_VERSION_MAJOR` out of a vendored `libavutil/version.h`, or null. */
+        fun readVendoredAvutilMajor(versionHeaderText: String): Int? =
+            Regex("""^\s*#define\s+LIBAVUTIL_VERSION_MAJOR\s+(\d+)""", RegexOption.MULTILINE)
+                .find(versionHeaderText)
+                ?.groupValues
+                ?.get(1)
+                ?.toIntOrNull()
+
+        /** Homebrew's prefix on Apple silicon; Intel Macs use /usr/local (override via the property). */
+        const val DEFAULT_HOMEBREW_PREFIX = "/opt/homebrew"
+
+        /** The six libav* archives every profile must produce; a partial install must never ship. */
+        val REQUIRED_LIBS = listOf(
+            "libavcodec", "libavformat", "libavutil",
+            "libavfilter", "libswscale", "libswresample",
+        )
+
+        /** Stable installed provenance path consumed by packaging and release evidence. */
+        const val CONFIGURE_EVIDENCE_RELATIVE_PATH = "lib/kiteffmpeg/ffmpeg-configure.txt"
+
+        /**
+         * Configure keys whose values describe THIS MACHINE rather than the recipe.
+         *
+         * A tree baked on a laptop with Xcode 17 carries a different `--cc` sysroot than the same
+         * recipe baked after an Xcode update, and `--prefix` is a fresh scratch directory on every
+         * single run. Comparing those would make [staleReason] cry wolf constantly, which is worse
+         * than not checking at all: a check nobody believes gets disabled.
+         */
+        private val MACHINE_SPECIFIC_CONFIGURE_KEYS = setOf(
+            "--prefix", "--cc", "--cxx", "--ar", "--nm", "--ranlib", "--strip", "--as", "--ld",
+            "--sysroot", "--pkg-config", "--extra-cflags", "--extra-ldflags", "--extra-libs",
+            "--toolchain", "--cross-prefix", "--host-cc",
+        )
+
+        // No toggle-controlled flags remain: the dav1d switch died on 2026-08-22,
+        // so --enable-libdav1d and --enable-decoder=libdav1d are RECIPE, and a tree without
+        // them is genuinely stale. --pkg-config=pkg-config is filtered by key above.
+
+        /**
+         * A deployment floor, wherever it rides.
+         *
+         * The platform name may itself carry a hyphen (`ios-simulator`), so device and simulator
+         * floors stay distinguishable rather than collapsing onto one token.
+         */
+        private val DEPLOYMENT_FLOOR = Regex("""-m([a-z][a-z-]*)-version-min=([0-9][0-9.]*)""")
+
+        /**
+         * The synthetic key the extracted floor is filed under, and it is `--` prefixed ON PURPOSE.
+         *
+         * [recipeFingerprint] must be IDEMPOTENT: `CheckFFmpegRecipesTask` stores an already
+         * fingerprinted set as its `@Input` and hands it back to [staleReason], which fingerprints
+         * it again. Every other token survives that because every other token is a real `--flag`.
+         * A bare `deployment-floor=...` did not survive the `--` filter, so the expected side lost
+         * it while the installed side kept it, and every iOS tree was reported stale for a floor
+         * that had never moved. This is never passed to configure; it exists only in the set.
+         */
+        private const val DEPLOYMENT_FLOOR_KEY = "--deployment-floor"
+
+        /**
+         * The CAPABILITY half of a configure command, as a comparable set.
+         *
+         * Everything that decides what the resulting FFmpeg can DO (which decoders, demuxers,
+         * hwaccels, filters and features it carries) and nothing that decides where it was built.
+         * Two renderings of one recipe must produce equal sets, so this also unquotes: FFmpeg's own
+         * `config.log` echo writes `--enable-hwaccel='a,b'` where the task passes
+         * `--enable-hwaccel=a,b`.
+         *
+         * Splitting a `config.log` line on spaces shreds multi-word values such as
+         * `--cc=clang -arch arm64 ...` into fragments; the fragments do not start with `--` and are
+         * dropped, and the `--cc=clang` head is dropped by key, so the shredding cannot invent a
+         * difference.
+         *
+         * **The deployment floor is the one exception, and it is read back OUT of that shredding**
+         * Which OS version a tree runs on is a capability, not a build location,
+         * but it rides inside `--cc`, which is machine-specific by key and therefore stripped. The
+         * floor was invisible on both sides: the task's unsplit `--cc=...` string is dropped by key,
+         * and the installed side's `-mmacosx-version-min=12.0'` fragment starts with ONE dash, so
+         * the `--` filter dropped it too. The macOS floor was pinned on 2026-08-25 and this check
+         * could not have noticed if a tree ignored the pin. Scanning every token for the floor
+         * pattern catches it from either rendering, and quoting is handled by the value pattern
+         * stopping before the quote rather than by trimming.
+         */
+        public fun recipeFingerprint(args: List<String>): Set<String> {
+            val capabilities = args.asSequence()
+                .map { it.trim() }
+                .filter { it.startsWith("--") }
+                .map { arg ->
+                    val equals = arg.indexOf('=')
+                    if (equals < 0) arg else {
+                        arg.substring(0, equals) + "=" + arg.substring(equals + 1).trim('\'', '"')
+                    }
+                }
+                .filterNot { it.substringBefore('=') in MACHINE_SPECIFIC_CONFIGURE_KEYS }
+                .filterNot { '/' in it.substringAfter('=', "") }
+            val floors = args.asSequence()
+                .flatMap { DEPLOYMENT_FLOOR.findAll(it) }
+                .map { "$DEPLOYMENT_FLOOR_KEY=${it.groupValues[1]}:${it.groupValues[2]}" }
+            return (capabilities + floors).toSet()
+        }
+
+        /**
+         * Why an installed tree no longer matches the recipe this checkout describes, or null when
+         * it does.
+         *
+         * THE HOLE THIS CLOSES. A baked tree is a dead artifact: nothing rebuilds it, and no gate
+         * compared it against anything. Measured on 2026-08-19: `av1_videotoolbox` was pinned into
+         * the Apple hwaccel list, every Apple tree on this machine still lacked it a day later, and
+         * not one check anywhere was red. The recipe and the artifact drifted in silence, which is
+         * the same failure shape the register keeps recording in prose.
+         *
+         * [installedConfigureLine] is the tree's own stamp, written by [writeConfigureEvidence].
+         */
+        public fun staleReason(
+            installedConfigureLine: String,
+            expectedArgs: List<String>,
+        ): String? {
+            val installed = recipeFingerprint(installedConfigureLine.split(" "))
+            val expected = recipeFingerprint(expectedArgs)
+            if (installed == expected) return null
+            val dropped = (installed - expected).sorted()
+            val gained = (expected - installed).sorted()
+            return buildString {
+                append("it was baked with a different recipe than this checkout now describes")
+                if (gained.isNotEmpty()) {
+                    append("\n    now asked for, but NOT in the tree: ")
+                    append(gained.joinToString("\n                                  "))
+                }
+                if (dropped.isNotEmpty()) {
+                    append("\n    in the tree, but no longer asked for: ")
+                    append(dropped.joinToString("\n                                          "))
+                }
+            }
+        }
+
+        /** Creates the unique hash-free workspace that is the only path configure and make see. */
+        internal fun createScratchWorkspace(temporaryRoot: Path): Path {
+            Files.createDirectories(temporaryRoot)
+            val workspace = Files.createTempDirectory(temporaryRoot, "kiteffmpeg-ffmpeg-")
+            require('#' !in workspace.toAbsolutePath().toString()) {
+                "java.io.tmpdir must resolve to a path without '#': $workspace"
+            }
+            return workspace
+        }
+
+        /** Copies FFmpeg source while excluding repository metadata and every stale build subtree. */
+        internal fun copySourceTree(source: Path, destination: Path) {
+            copyTree(source, destination, excludeBuildState = true)
+        }
+
+        /**
+         * Deletes a scratch tree without following a symbolic link anywhere in it, so a link inside
+         * takes only itself with it. `File.deleteRecursively` follows a link to a directory and
+         * deletes what it points at, which once emptied a linked FFmpeg clone (#162). A cleanup
+         * that fails leaves the rest behind and throws nothing, as `File.deleteRecursively` did, so
+         * it never hides the failure of the build it follows.
+         */
+        @OptIn(ExperimentalPathApi::class)
+        internal fun deleteScratch(scratch: Path) {
+            runCatching { scratch.deleteRecursively() }
+        }
+
+        /**
+         * Copies the tree at [source], whose root is followed if it is a link, so a linked checkout
+         * is copied like any other rather than as the link (#162). Links inside the tree are copied
+         * as links.
+         */
+        private fun copyTree(source: Path, destination: Path, excludeBuildState: Boolean) {
+            val root = source.toRealPath()
+            Files.walkFileTree(
+                root,
+                object : SimpleFileVisitor<Path>() {
+                    override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+                        if (
+                            dir != root &&
+                            excludeBuildState &&
+                            (dir.fileName.toString() == ".git" || dir.fileName.toString() == "build")
+                        ) {
+                            return FileVisitResult.SKIP_SUBTREE
+                        }
+                        Files.createDirectories(destination.resolve(root.relativize(dir)))
+                        return FileVisitResult.CONTINUE
+                    }
+
+                    override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                        val target = destination.resolve(root.relativize(file))
+                        Files.createDirectories(target.parent)
+                        Files.copy(
+                            file,
+                            target,
+                            StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.COPY_ATTRIBUTES,
+                            java.nio.file.LinkOption.NOFOLLOW_LINKS,
+                        )
+                        return FileVisitResult.CONTINUE
+                    }
+                },
+            )
+        }
+
+        /**
+         * Installs the first configure invocation recorded by FFmpeg into the output tree.
+         *
+         * FFmpeg prefixes that line with `# ` in `ffbuild/config.log`; only that exact marker is
+         * removed. The command itself is otherwise byte-for-byte stable and the installed record
+         * is always one UTF-8 line terminated by exactly one newline.
+         */
+        /** The `.patch` files of [files], in the name order they are applied. */
+        internal fun orderedPatches(files: Set<File>): List<File> =
+            files.filter { it.name.endsWith(".patch") }.sortedBy { it.name }
+
+        /** Applies [patch] to the current directory; a rejected hunk fails the build loudly. */
+        internal fun patchCommand(patch: File): List<String> =
+            listOf("/usr/bin/patch", "-p1", "--forward", "--fuzz=0", "-i", patch.absolutePath)
+
+        /**
+         * Writes `lib/kiteffmpeg/<fileName>` under [install]: the patches applied to [library], in
+         * order, each with its SHA-256, or `(none)`. For FFmpeg that is `ffmpeg-patches.txt`, which
+         * the bill of materials checks against the repository; the libass chain writes
+         * `libass-patches.txt`, which `scripts/package-ass-chain.sh` checks the same way.
+         */
+        internal fun writePatchEvidence(
+            patches: List<File>,
+            install: Path,
+            fileName: String = "ffmpeg-patches.txt",
+            library: String = "FFmpeg",
+        ) {
+            val evidenceDir = install.resolve("lib/kiteffmpeg").also(Files::createDirectories)
+            val lines = buildString {
+                appendLine("# Source patches applied to the scratch $library before configure, in order.")
+                if (patches.isEmpty()) appendLine("(none)")
+                patches.forEach { p ->
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    val sha = digest.digest(p.readBytes()).joinToString("") { "%02x".format(it) }
+                    appendLine("${p.name}  sha256=$sha")
+                }
+            }
+            Files.writeString(evidenceDir.resolve(fileName), lines, UTF_8)
+        }
+
+        internal fun writeConfigureEvidence(configLog: Path, install: Path) {
+            check(Files.isRegularFile(configLog)) {
+                "FFmpeg configure provenance is missing: $configLog"
+            }
+            val firstLine = Files.newBufferedReader(configLog, UTF_8).use { reader -> reader.readLine() }
+                ?.removePrefix("# ")
+            check(!firstLine.isNullOrBlank()) {
+                "FFmpeg configure provenance has no nonblank first line: $configLog"
+            }
+            val evidence = install.resolve(CONFIGURE_EVIDENCE_RELATIVE_PATH)
+            Files.createDirectories(evidence.parent)
+            Files.writeString(evidence, "$firstLine\n", UTF_8)
+        }
+
+        internal fun verifyInstall(install: Path, target: TargetTriple) {
+            val missing = REQUIRED_LIBS.filterNot { Files.isRegularFile(install.resolve("lib/$it.a")) }
+            check(missing.isEmpty()) {
+                "FFmpeg reported a successful install but $install is missing " +
+                    "${missing.joinToString { "lib/$it.a" }}. Check the configure/make output; " +
+                    "the scratch install prefix may not have been honoured."
+            }
+            // Present is not the same as usable. See ArchiveProbe for the failures a name check
+            // reports as success, all of which surface much later as an unresolved symbol.
+            val wrong = REQUIRED_LIBS.mapNotNull { ArchiveProbe.verifyReason(install.resolve("lib/$it.a"), target) }
+            check(wrong.isEmpty()) {
+                "FFmpeg installed into $install but the archives are not usable for " +
+                    "${target.dirName}: ${wrong.joinToString("; ")}"
+            }
+            check(Files.isRegularFile(install.resolve("include/libavformat/avformat.h"))) {
+                "FFmpeg installed libraries into $install but no headers; cinterop needs both."
+            }
+            val evidence = install.resolve(CONFIGURE_EVIDENCE_RELATIVE_PATH)
+            check(Files.isRegularFile(evidence)) {
+                "FFmpeg installed libraries into $install but no configure provenance record at " +
+                    CONFIGURE_EVIDENCE_RELATIVE_PATH + "."
+            }
+            val evidenceText = Files.readString(evidence, UTF_8)
+            check(
+                evidenceText.endsWith('\n') &&
+                    evidenceText.count { it == '\n' } == 1 &&
+                    '\r' !in evidenceText &&
+                    evidenceText.removeSuffix("\n").isNotBlank()
+            ) {
+                "FFmpeg configure provenance at $evidence must be one nonblank UTF-8 line " +
+                    "terminated by exactly one newline."
+            }
+        }
+
+        /** Verifies a sibling staging copy before swapping it into the declared output location. */
+        internal fun replaceOutputTree(scratchInstall: Path, output: Path, target: TargetTriple) {
+            val absoluteOutput = output.toAbsolutePath().normalize()
+            val parent = requireNotNull(absoluteOutput.parent) {
+                "FFmpeg output has no parent directory: $output"
+            }
+            Files.createDirectories(parent)
+            val nonce = UUID.randomUUID().toString()
+            val staging = parent.resolve(".${absoluteOutput.fileName}.staging-$nonce")
+            val backup = parent.resolve(".${absoluteOutput.fileName}.backup-$nonce")
+            var movedOldOutput = false
+            try {
+                copyTree(scratchInstall, staging, excludeBuildState = false)
+                verifyInstall(staging, target)
+                if (Files.exists(absoluteOutput)) {
+                    moveDirectory(absoluteOutput, backup)
+                    movedOldOutput = true
+                }
+                try {
+                    moveDirectory(staging, absoluteOutput)
+                } catch (failure: Throwable) {
+                    if (movedOldOutput) moveDirectory(backup, absoluteOutput)
+                    throw failure
+                }
+                if (movedOldOutput) deleteScratch(backup)
+            } finally {
+                deleteScratch(staging)
+                if (!Files.exists(absoluteOutput) && movedOldOutput && Files.exists(backup)) {
+                    moveDirectory(backup, absoluteOutput)
+                }
+            }
+        }
+
+        private fun moveDirectory(source: Path, destination: Path) {
+            try {
+                Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE)
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(source, destination)
+            }
+        }
+    }
+}

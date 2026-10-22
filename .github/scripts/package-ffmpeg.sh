@@ -7,7 +7,7 @@
 # lib/libdav1d.a and the packaging refuses a tree without it.
 #
 # Zips the {include,lib} tree at native-libs/<license>/<triple> (NOT the parent dir, so the archive
-# root is {include,lib}, exactly what the kiteffmpeg Gradle plugin's unzip expects) into
+# root is {include,lib}, which is the layout the build reads from native-libs/<license>/<triple>) into
 # dist/ffmpeg-<version>-<license>-<triple>.zip plus a matching .sha256. Every profile
 # is portable (2026-08-22): nothing is bundled from the runner; the mandatory dav1d archive is
 # already inside the tree, put there by BuildFFmpegTask.

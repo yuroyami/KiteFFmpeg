@@ -4,7 +4,7 @@
 
 ## How was it tested
 
-- [ ] `./gradlew :kiteffmpeg:macosArm64Test` (or your host target's test task) passes
+- [ ] `./kotlin test -m kiteffmpeg -p macosArm64` (or your host platform) passes
 - [ ] `scripts/e2e.sh` passes (required for pipeline-affecting changes)
 - **Platform tested on**: <!-- e.g. macOS arm64 -->
 - **FFmpeg used**: <!-- system / vendored lgpl / vendored gpl, and version -->

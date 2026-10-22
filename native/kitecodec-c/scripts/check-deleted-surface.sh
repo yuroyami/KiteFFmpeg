@@ -7,8 +7,9 @@
 # anywhere refers to them, and "nothing" has to mean both repositories and every file type, not
 # just the ones a Kotlin developer thinks to grep.
 #
-# Why it must run with kiteffmpeg/src/nativeInterop/cinterop/archived/ already deleted. That
-# directory held six def files that no build file referenced and that redefined the same helper
+# Why it must run with the archived/ folder of def files already deleted. That folder (once
+# kiteffmpeg/src/nativeInterop/cinterop/archived/, beside the def files that now live in
+# kiteffmpeg/interop/) held six def files that no build file referenced and that redefined the same helper
 # names. A grep run while it still existed reported a definition for almost every deleted name and
 # would have masked a real reference behind duplicate noise, which is why this script fails outright
 # if the directory is back.
@@ -85,13 +86,14 @@ native/kitecodec-c/README.md
 # Every excluded directory is gitignored in one repository or the other: build output, the Gradle
 # and Kotlin caches, the vendored study clones, the generated test clips, and the scratch worktrees.
 # `.kotlin` earns its place for a reason worth naming: the commonizer keeps binary `.knm` metadata
-# there, and those files carry the old helper names as text until Gradle regenerates them, so
+# there, and those files carry the old helper names as text until a build regenerates them, so
 # without this exclusion the check reports seven stale cache files and buries the answer.
 EXCLUDES="--exclude-dir=build --exclude-dir=.claude --exclude-dir=.git --exclude-dir=vendor \
 --exclude-dir=.gradle --exclude-dir=.kotlin --exclude-dir=testmedia --exclude-dir=native-libs \
 --exclude-dir=node_modules"
 
-ARCHIVED="$REPO/kiteffmpeg/src/nativeInterop/cinterop/archived"
+ARCHIVED="$REPO/kiteffmpeg/interop/archived"
+[ -e "$REPO/kiteffmpeg/src/nativeInterop/cinterop/archived" ] && ARCHIVED="$REPO/kiteffmpeg/src/nativeInterop/cinterop/archived"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

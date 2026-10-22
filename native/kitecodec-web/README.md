@@ -13,10 +13,10 @@ call that asked is paused while JavaScript works, and it continues when the answ
 ## Build and check
 
 ```bash
-./gradlew :kiteffmpeg:checkKiteFFmpegAsyncWasmModules -Pkiteffmpeg.hostTargetsOnly=true
+./kotlin do checkKiteFFmpegAsyncWasmModules
 ```
 
-The task links both modules into `kiteffmpeg/build/kite-web-async` and runs the check on each.
+The command links both modules into `build/kite-web-async` and runs the check on each.
 It needs `emcc` and a Node with JavaScript Promise Integration on PATH.
 
 ## What a host gives a module

@@ -1,3 +1,6 @@
 # FFmpeg patches stay byte for byte on every OS. A Windows checkout would otherwise turn them
 # into CRLF files, and check-tree-patches.sh would then hash other bytes than the tree records.
 native/patches/** -text
+# Windows cmd needs CRLF line endings in batch files. Shells need LF in the kotlin script.
+*.bat text eol=crlf
+kotlin text eol=lf

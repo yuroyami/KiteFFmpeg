@@ -134,9 +134,12 @@ is files that the user picked.
 A browser cannot link FFmpeg into the Kotlin binary, so the page serves it as a separate
 WebAssembly module:
 
-1. Download `kiteffmpeg-wasm-js-<version>-web.zip`. It sits beside the `wasmJs` artifact on Maven
-   Central, for the version you depend on.
+1. Download `kiteffmpeg-web-<version>.jar` from Maven Central (`io.github.yuroyami:kiteffmpeg-web`)
+   for the version you depend on. A jar is a zip file. For 0.5.1 and older, download
+   `kiteffmpeg-wasm-js-<version>-web.zip` instead, which sits beside the `kiteffmpeg-wasm-js`
+   artifact.
 2. Unpack it beside your page, so that the page serves `kite.mjs`, `kite.wasm` and `licenses/`.
+   The page does not need the `META-INF/` folder of the jar.
 3. Call `KiteFFmpegWeb.load()` once, before any other KiteFFmpeg call. Under a bundler,
    instantiate the module from a plain `<script type="module">` and pass it to
    `KiteFFmpegWeb.attach()` instead.
@@ -157,7 +160,8 @@ That opener has to answer at once, either from bytes the page already holds or f
 request in a web worker.
 
 A source that answers later, such as a Fetch response, needs the asynchronous runtime. Its two
-codec modules come in `kiteffmpeg-wasm-js-<version>-web-async.zip`, beside the first zip.
+codec modules come in `kiteffmpeg-web-async-<version>.jar` (`io.github.yuroyami:kiteffmpeg-web-async`),
+or for 0.5.1 in `kiteffmpeg-wasm-js-0.5.1-web-async.zip`.
 [Asynchronous byte sources](docs/async-byte-io.md) shows how to load them.
 
 </details>

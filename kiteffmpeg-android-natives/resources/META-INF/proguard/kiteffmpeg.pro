@@ -1,0 +1,48 @@
+# The R8 rules of kiteffmpeg for Android apps. R8 reads them from META-INF/proguard/ in the jar of
+# kiteffmpeg-android-natives, which every Android app that uses kiteffmpeg gets.
+
+-keep class io.github.yuroyami.kiteffmpeg.Internals {
+    native <methods>;
+}
+
+# kj_abi.c resolves this with GetStaticMethodID when the first log level is set, and calls it for
+# every FFmpeg log line. Renamed or stripped, the log sink receives nothing.
+-keep class io.github.yuroyami.kiteffmpeg.Internals {
+    private static void onNativeLog(int, java.lang.String, java.lang.String);
+}
+
+# kj_util.c resolves these binary names with FindClass and explicitly invokes the exact
+# (Ljava/lang/String;)V constructor. Neither lookup is visible to R8's ordinary reachability
+# analysis, so both the class names and constructors are part of the JNI ABI.
+-keep class io.github.yuroyami.kiteffmpeg.JniHandleException {
+    <init>(java.lang.String);
+}
+
+-keep class io.github.yuroyami.kiteffmpeg.JniNativeException {
+    <init>(java.lang.String);
+}
+
+# kj_format.c resolves these two by GetMethodID on the object's class at custom-io open time
+# (M1, the AVIO bridge). Renamed or stripped members break the bridge at open, so both method
+# shapes are part of the JNI ABI exactly like the exception constructors above.
+-keep class io.github.yuroyami.kiteffmpeg.JniByteIo {
+    int read(byte[], int);
+    long seek(long, int);
+    long size();
+    boolean seekable();
+    java.lang.String location();
+    java.lang.String[] tags();
+}
+
+# The nested opener: kj_format.c resolves these two on the opener's class, and size, seekable and
+# location above on JniByteIo's, when a byte-source open has a nested opener.
+-keep class io.github.yuroyami.kiteffmpeg.JniByteOpener {
+    io.github.yuroyami.kiteffmpeg.JniByteIo open(java.lang.String);
+    void close(io.github.yuroyami.kiteffmpeg.JniByteIo);
+}
+
+# The output twin: kj_format.c resolves these two the same way at custom-io output open time.
+-keep class io.github.yuroyami.kiteffmpeg.JniByteSink {
+    int write(byte[], int);
+    long seek(long);
+}

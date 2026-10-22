@@ -1,0 +1,40 @@
+# Settings that the published modules share: kiteffmpeg, kiteffmpeg-android-natives, kiteffmpeg-web and
+# kiteffmpeg-web-async. Each module.yaml applies this file and adds its own product, POM name and licences.
+# A module adds to a list of this file, so the licences are not here.
+
+# `./kotlin publish mavenLocal -m <module>` puts a build into ~/.m2 for tests in other projects.
+repositories:
+  - url: mavenLocal
+    publish: true
+    resolve: false
+
+settings:
+  kotlin:
+    version: 2.4.21
+  jvm:
+    jdk:
+      version: 21
+    # Built with JDK 21, published as Java 11 bytecode against the Java 11 API,
+    # so an app on Java 11 or 17 can load the jar.
+    release: 11
+  publishing:
+    enabled: true
+    group: io.github.yuroyami
+    version: 0.5.1
+    pom:
+      url: https://github.com/yuroyami/KiteFFmpeg
+      developers:
+        - id: yuroyami
+          name: yuroyami
+          url: https://github.com/yuroyami
+      scm:
+        url: https://github.com/yuroyami/KiteFFmpeg
+        connection: scm:git:git://github.com/yuroyami/KiteFFmpeg.git
+        developerConnection: scm:git:ssh://git@github.com/yuroyami/KiteFFmpeg.git
+    signArtifacts: true
+    publishSources: true
+    mavenCentral:
+      enabled: true
+      # The deployment waits on the Central Portal, and a person presses Publish.
+      # The publish workflow switches this to auto when its release input is on.
+      publishingMode: manual

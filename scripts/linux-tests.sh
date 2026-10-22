@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # Runs KiteFFmpeg's Kotlin/Native test binaries on real Linux, from a macOS host.
 #
-# Gradle creates linuxX64Test / linuxArm64Test and then permanently disables them on a macOS host,
-# so a gate that names those tasks is green by definition. Kotlin/Native CROSS-LINKS the binaries
-# here; this script EXECUTES them, in a Linux container, against the cross-built FFmpeg under
-# native-libs/lgpl/linux-*.
+# A macOS host cannot run the Linux test binaries. Kotlin/Native CROSS-LINKS them here; this script
+# EXECUTES them, in a Linux container, against the cross-built FFmpeg under native-libs/lgpl/linux-*.
 #
 #   ./scripts/linux-tests.sh                # linuxArm64, native speed on Apple silicon
 #   ./scripts/linux-tests.sh linuxX64       # linuxX64, emulated, slow
@@ -21,7 +19,6 @@ esac
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="${KITE_LINUX_IMAGE:-debian:bookworm-slim}"
-SCOPE=(-Pkiteffmpeg.phoneTargetsOnly=true -Pkiteffmpeg.withDesktopTargets=true)
 
 # Docker Desktop's credential helper blocks on the login keychain in a headless session, which
 # hangs every pull. An empty config skips it; these are public images and need no credentials.
@@ -29,10 +26,10 @@ DOCKER_CONFIG="${DOCKER_CONFIG:-$(mktemp -d)}"
 [ -f "$DOCKER_CONFIG/config.json" ] || echo '{}' > "$DOCKER_CONFIG/config.json"
 export DOCKER_CONFIG
 
-echo "== linking :kiteffmpeg:linkDebugTest$LINK_SUFFIX"
-"$ROOT/gradlew" -p "$ROOT" ":kiteffmpeg:linkDebugTest$LINK_SUFFIX" "${SCOPE[@]}"
+echo "== linking :kiteffmpeg:link${LINK_SUFFIX}TestDebug"
+(cd "$ROOT" && KOTLIN_CLI_NO_WELCOME_BANNER=1 ./kotlin task ":kiteffmpeg:link${LINK_SUFFIX}TestDebug")
 
-BINARY="kiteffmpeg/build/bin/$TARGET/debugTest/test.kexe"
+BINARY="build/tasks/_kiteffmpeg_link${LINK_SUFFIX}TestDebug/kiteffmpeg_test.kexe"
 [ -f "$ROOT/$BINARY" ] || { echo "MISSING $BINARY" >&2; exit 1; }
 
 # TMPDIR is not set in a bare container, and the suite's own temp-file helper refuses to guess.

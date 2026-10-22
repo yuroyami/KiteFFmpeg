@@ -1,0 +1,30 @@
+# The Android JNI library of kiteffmpeg, libkitecodec_jni.so for each ABI, in a plain jar at lib/<abi>/.
+# The toolchain AAR has no jni/ folder, and AGP drops .so files that sit in the AAR's own jar. AGP does take
+# lib/<abi>/*.so out of a plain jar dependency and packages them as native libraries of the app.
+# kiteffmpeg depends on this module for Android only, so an app needs no extra dependency line.
+product: jvm/lib
+
+description: >-
+  The Android JNI libraries of KiteFFmpeg (libkitecodec_jni.so for arm64-v8a, armeabi-v7a and x86_64), with FFmpeg
+  (LGPL) and dav1d linked in. Apps get it through the kiteffmpeg dependency.
+
+apply:
+  - ../library.module-template.yaml
+
+settings:
+  publishing:
+    pom:
+      name: KiteFFmpeg Android natives
+      # The Android JNI libraries embed compiled FFmpeg (LGPL) and dav1d (BSD).
+      # The complete corresponding source is attached to the matching v-tag GitHub release.
+      licenses:
+        - name: The Apache License, Version 2.0
+          url: https://www.apache.org/licenses/LICENSE-2.0.txt
+        - name: GNU Lesser General Public License, Version 2.1 or later (bundled FFmpeg)
+          url: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+        - name: BSD 2-Clause License (bundled dav1d)
+          url: https://code.videolan.org/videolan/dav1d/-/blob/master/COPYING
+
+plugins:
+  # Links libkitecodec_jni.so for each ABI with the NDK into lib/<abi>/ of this jar. See build-plugins/android-jni.
+  android-jni: enabled

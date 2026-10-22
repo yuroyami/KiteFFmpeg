@@ -1,0 +1,251 @@
+product:
+  type: kmp/lib
+  platforms:
+    - jvm
+    - android
+    - js
+    - wasmJs
+    - macosArm64
+    - macosX64
+    - iosArm64
+    - iosSimulatorArm64
+    - iosX64
+    - linuxX64
+    - linuxArm64
+    - mingwX64
+    - androidNativeArm64
+    - androidNativeArm32
+    - androidNativeX64
+
+description: >-
+  KiteFFmpeg: a coroutine-first Kotlin Multiplatform API for video and audio: demux, decode, filter, encode,
+  mux, transcode and remux, over FFmpeg's libav* libraries. FFmpeg (LGPL) and the dav1d AV1 decoder are
+  embedded in the published native artifacts, so no FFmpeg install, Gradle plugin or linker setup is needed.
+  Hardware video via VideoToolbox and MediaCodec.
+
+apply:
+  - ../library.module-template.yaml
+
+# Source folders that the default hierarchy does not have.
+aliases:
+  # The asynchronous runtime of every backend that has threads: the JVM, Android and native.
+  - hostAsync: [ jvm, android, macosArm64, macosX64, iosArm64, iosSimulatorArm64, iosX64, linuxX64, linuxArm64, mingwX64, androidNativeArm64, androidNativeArm32, androidNativeX64 ]
+  # The JNI adapter that the JVM and Android share.
+  - jvmAndAndroid: [ jvm, android ]
+  # The codec contract suite. Each real backend that this host can test runs it.
+  - codecContract: [ jvm, macosArm64 ]
+
+dependencies:
+  - $libs.kotlinx.coroutines.core
+  - $libs.kotlinx.atomicfu
+
+# The Android JNI libraries ride a plain jar, so AGP packages them as native libraries (see that module).
+dependencies@android:
+  - //kiteffmpeg-android-natives
+
+test-dependencies:
+  # The decode paths are flows. Collecting one in a test needs a coroutine runner that also works on the web.
+  - $libs.kotlinx.coroutines.test
+
+settings:
+  kotlin:
+    explicitApi: strict
+    freeCompilerArgs: [ -Xexpect-actual-classes ]
+    optIns:
+      - kotlin.RequiresOptIn
+      - kotlin.experimental.ExperimentalNativeApi
+      - kotlin.uuid.ExperimentalUuidApi
+      - kotlin.ExperimentalUnsignedTypes
+      - kotlin.ExperimentalStdlibApi
+      - kotlin.time.ExperimentalTime
+      - kotlinx.cinterop.ExperimentalForeignApi
+      - kotlinx.cinterop.BetaInteropApi
+  jvm:
+    test:
+      systemProperties:
+        # The codec contract suite writes its transcript here, and `./kotlin check codecContract` compares it
+        # with the macOS one. The path is relative to this folder, the working directory of the JVM tests.
+        kiteffmpeg.contract.transcript: ../build/contract-transcripts/jvm.txt
+  android:
+    namespace: io.github.yuroyami.kiteffmpeg
+    compileSdk:
+      apiLevel: 37
+      minorApiLevel: 2
+    minSdk: 26
+  publishing:
+    pom:
+      name: KiteFFmpeg
+      # The native klibs and the JVM native libraries embed compiled FFmpeg (LGPL) and dav1d (BSD).
+      # The complete corresponding source is attached to the matching v-tag GitHub release.
+      licenses:
+        - name: The Apache License, Version 2.0
+          url: https://www.apache.org/licenses/LICENSE-2.0.txt
+        - name: GNU Lesser General Public License, Version 2.1 or later (bundled FFmpeg)
+          url: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+        - name: BSD 2-Clause License (bundled dav1d)
+          url: https://code.videolan.org/videolan/dav1d/-/blob/master/COPYING
+
+# -Xexport-kdoc keeps the KDoc in the native klibs, as the Gradle build did.
+settings@native:
+  kotlin:
+    freeCompilerArgs: [ -Xexport-kdoc ]
+
+# Gradle named the klib "io.github.yuroyami:kiteffmpeg". Keep that name, or libraries built against
+# earlier releases fail to link on Kotlin/Native. Set it per platform: on @native, it also
+# renames the klibs of shared native code, which must keep their own names.
+# On the JVM and Android, the same name sets META-INF/io.github.yuroyami_kiteffmpeg.kotlin_module and the JVM names
+# of internal members, as in earlier releases.
+settings@jvm:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg ]
+
+settings@android:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg ]
+
+settings@js:
+  kotlin:
+    freeCompilerArgs: [ -Xir-module-name=io.github.yuroyami:kiteffmpeg ]
+
+settings@wasmJs:
+  kotlin:
+    freeCompilerArgs: [ -Xir-module-name=io.github.yuroyami:kiteffmpeg ]
+
+settings@macosArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@macosX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@iosArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@iosSimulatorArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@iosX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@linuxX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@linuxArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@mingwX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@androidNativeArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@androidNativeArm32:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+settings@androidNativeX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=io.github.yuroyami:kiteffmpeg, -Xshort-module-name=kiteffmpeg ]
+
+# Tests compile into their own klib, which needs a different name. The test blocks name the
+# same platforms as the blocks above, so the toolchain applies them last.
+test-settings@jvm:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test ]
+
+test-settings@android:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test ]
+
+test-settings@js:
+  kotlin:
+    freeCompilerArgs: [ -Xir-module-name=kiteffmpeg_test ]
+
+test-settings@wasmJs:
+  kotlin:
+    freeCompilerArgs: [ -Xir-module-name=kiteffmpeg_test ]
+
+test-settings@macosArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@macosX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@iosArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@iosSimulatorArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@iosX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@linuxX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@linuxArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@mingwX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@androidNativeArm64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@androidNativeArm32:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+test-settings@androidNativeX64:
+  kotlin:
+    freeCompilerArgs: [ -module-name=kiteffmpeg_test, -Xshort-module-name=kiteffmpeg_test ]
+
+plugins:
+  # The ffmpeg cinterop of each native platform, the desktop JNI libraries in the JVM jar,
+  # the FFmpeg builds and the checks. See build-plugins/kiteffmpeg-native.
+  kiteffmpeg-native: enabled
+  abi-check:
+    enabled: true
+    # The `// Targets:` header of api/kiteffmpeg.klib.api.
+    klibPlatforms:
+      - androidNativeArm32
+      - androidNativeArm64
+      - androidNativeX64
+      - iosArm64
+      - iosSimulatorArm64
+      - iosX64
+      - js
+      - linuxArm64
+      - linuxX64
+      - macosArm64
+      - macosX64
+      - mingwX64
+      - wasmJs
+  dokka:
+    enabled: true
+    moduleName: kiteffmpeg
+    includes: [ Module.md ]
+    customStyleSheets: [ ../docs/api-theme/kite.css ]
+    templatesDir: ../dokka-templates
+    footerMessage: Apache-2.0 · KiteFFmpeg is part of the Kite family.
+    # The public declarations that only these platforms have.
+    platformSourceDirs: [ src@native, src@wasmJs ]
+    siteName: KiteFFmpeg
+    siteModules: [ kiteffmpeg ]

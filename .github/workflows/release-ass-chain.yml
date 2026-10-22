@@ -30,6 +30,7 @@ concurrency:
 # Each tag must be the one BuildAssChainTask.SOURCES pins beside its commit: the build refuses a
 # checkout at any other commit, so a tag changed here alone stops the run before it compiles.
 env:
+  KOTLIN_CLI_NO_WELCOME_BANNER: 1
   FRIBIDI_TAG: v1.0.17
   FREETYPE_TAG: VER-2-14-3
   HARFBUZZ_TAG: 14.6.0
@@ -71,17 +72,15 @@ jobs:
           - { target: wasm32,               task: Wasm32 }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+      # The Kotlin Toolchain downloads, and the konan toolchains that the Linux and Windows chains use.
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-ass-chain-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/Library/Caches/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-ass-chain-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-ass-chain-
+            kotlin-toolchain-ass-chain-
       - name: Install build deps
         run: brew install meson ninja autoconf automake libtool pkg-config nasm
       # The web chain compiles with emscripten; the konan targets never touch it.
@@ -94,15 +93,14 @@ jobs:
           git clone --depth 1 --branch "$FREETYPE_TAG" https://gitlab.freedesktop.org/freetype/freetype.git vendor/freetype
           git clone --depth 1 --branch "$HARFBUZZ_TAG" https://github.com/harfbuzz/harfbuzz.git vendor/harfbuzz
           git clone --depth 1 --branch "$LIBASS_TAG" https://github.com/libass/libass.git vendor/libass
-      # The Linux and Windows chains compile with konan's clang and link with its sysroots, which
-      # arrive when Kotlin/Native compiles for those targets once. Cheap, and it cannot be skipped.
-      - name: Warm the Kotlin/Native toolchains the chain needs
-        if: startsWith(matrix.target, 'linux') || startsWith(matrix.target, 'mingw')
-        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.task }} --stacktrace || true
+      # The Linux and Windows chains compile with konan's clang and link with its sysroots. The bake
+      # downloads them first, through one Kotlin/Native compile for the target.
       - name: Build the chain
         run: |
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          ./gradlew :kiteffmpeg:buildAssChainFor${{ matrix.task }} --stacktrace
+          # `do` is a command of the kotlin script here, not the shell keyword.
+          # shellcheck disable=SC1010
+          ./kotlin do buildAssChainFor${{ matrix.task }}
       # The one chain this runner can execute is tested before it is packaged; linux-x64 is tested
       # from its zip in its own job below.
       - name: Test the glyph fallback

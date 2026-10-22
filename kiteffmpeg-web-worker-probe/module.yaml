@@ -1,0 +1,11 @@
+# The program that a Web Worker loads in the test of kiteffmpeg-web-worker-test. Nothing here is published.
+# It opens a runtime on kite-jspi or kite-asyncify, reads an HLS stream through it and posts what it saw.
+product: wasm-js/app
+
+dependencies:
+  - //kiteffmpeg
+  - $libs.kotlinx.coroutines.core
+
+settings:
+  kotlin:
+    version: 2.4.21

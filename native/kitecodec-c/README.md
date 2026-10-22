@@ -132,15 +132,16 @@ The cinterop API has its own check, which needs a klib instead of a host binary.
 definition parses only the three public headers. The libav headers are private to the C archive:
 
 ```bash
-../../gradlew :kiteffmpeg:cinteropFfmpegMacosArm64
+(cd ../.. && ./kotlin build -m kiteffmpeg -p macosArm64)
 ./scripts/klib-metadata-diff.sh --check  # exits non-zero on any difference
 ./scripts/klib-metadata-diff.sh --update # re-baseline after reading and accepting a change
 ```
 
-Editing a `.c` body reaches the klib only because `kiteffmpeg/build.gradle.kts` declares the archive
-an input of the cinterop task. The cinterop task runs its own up-to-date check over the definition
-and the headers, and without that declaration it would keep the previous archive. If a local change
-to a helper body seems to have no effect, check that declaration before suspecting the compiler.
+Editing a `.c` body reaches the klib because the `ffmpegInterop<Platform>` task of
+`build-plugins/kiteffmpeg-native` takes the C sources as an input. It rebuilds the archive and writes
+a fingerprint of the archive into the generated definition file, so the cinterop step runs again.
+If a local change to a helper body seems to have no effect, check that fingerprint before suspecting
+the compiler.
 
 ## The three variants
 
@@ -153,7 +154,7 @@ ASan and TSan cannot be combined, which is why there are three variants rather t
 | `tsan` | `-fsanitize=thread -O1` | The threaded cases, starting with `ffkmp_strerror`. |
 
 The helper units also get `-fvisibility=hidden`, matching the shipped compile in
-`buildSrc/src/main/kotlin/CompileKiteFFmpegCTask.kt`, so the host archive exports the same set as the shipped one.
+`build-plugins/native-build/src/CompileKiteFFmpegCTask.kt`, so the host archive exports the same set as the shipped one.
 
 `-Werror` matters here. Every unit includes the public header, so this compile checks that all
 the public declarations agree with their definitions. Separate compilation adds a second proof: a

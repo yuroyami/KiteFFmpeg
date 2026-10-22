@@ -1,0 +1,17 @@
+# A test of the asynchronous runtime in a Web Worker. Nothing here is published.
+# The test is the page: it starts a Worker on the kiteffmpeg-web-worker-probe program and checks its answer.
+# scripts/web-tests/browser.py serves the probe and the codec modules, and runs this test in Chrome.
+product:
+  type: kmp/lib
+  platforms: [ wasmJs ]
+
+dependencies:
+  - //kiteffmpeg
+  - $libs.kotlinx.coroutines.core
+
+test-dependencies:
+  - $libs.kotlinx.coroutines.test
+
+settings:
+  kotlin:
+    version: 2.4.21

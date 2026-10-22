@@ -11,7 +11,11 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - '**/*.kt'
-      - '**/build.gradle.kts'
+      - '**/module.yaml'
+      - 'project.yaml'
+      - 'build-plugins/**'
+      - 'dokka-templates/**'
+      - 'kiteffmpeg/Module.md'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -44,45 +48,18 @@ jobs:
       - name: Build the docs site
         run: mkdocs build --strict --site-dir site
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4
+      # The Kotlin Toolchain downloads its own JDK, Kotlin/Native and Node into this folder.
+      - name: Cache the Kotlin Toolchain downloads
+        uses: actions/cache@v4
         with:
-          distribution: temurin
-          java-version: '21'
+          path: |
+            ~/.cache/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-docs-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
+          restore-keys: kotlin-toolchain-docs-
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-
-      # ~/.konan holds the Kotlin/Native distribution AND the per-target LLVM and sysroots konan
-      # downloads on demand. Without this the job re-fetches all of it every run; with it, a warm
-      # runner skips the download entirely. Every other Kotlin/Native job here already cached it,
-      # these two were simply missed.
-      - uses: actions/cache@v4
-        with:
-          path: ~/.konan
-          key: konan-docs-${{ hashFiles('gradle/libs.versions.toml') }}
-          restore-keys: |
-            konan-docs-
-
-      # BEFORE the FFmpeg trees exist, and that ordering is the whole point. konan fetches its LLVM
-      # into ~/.konan/dependencies only when a Kotlin/Native task actually runs. Once a tree IS
-      # present, compileKotlin<Target> depends on the ffmpeg cinterop, which depends on our C helper
-      # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
-      # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
-      # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
-      # references, which is what the `|| true` is for. Warm first, fetch second.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinLinuxX64 --stacktrace || true
-
-      # The HOST triple only, and scoped to match. Fetching all eleven was a mistake: it gave the
-      # iOS and macOS targets FFmpeg trees, which registered their C helper tasks, which then tried
-      # to run `xcrun` on an Ubuntu runner and failed with "A problem occurred starting process
-      # 'command 'xcrun''". A Linux box cannot build Apple targets no matter what it is handed.
-      #
-      # dokkaGenerate below therefore runs with -Pkiteffmpeg.hostTargetsOnly=true, so only linuxX64
-      # is registered and the shared nativeMain metadata compiles against that one. The documented
-      # native API is the same either way: it lives in nativeMain, which is shared across every
-      # native target. What is lost is per-target ABI detail, not documentation.
+      # The HOST triple only. A Linux runner cannot build the Apple platforms, and the documented
+      # native API lives in the shared src@native folder, so one native platform is enough.
       - name: Fetch the prebuilt static FFmpeg (linux-x64)
         env:
           FFMPEG_VERSION: n9.0.2
@@ -101,13 +78,24 @@ jobs:
           test -f native-libs/lgpl/linux-x64/lib/libavformat.a
           rm -f "${asset}" "${asset}.sha256"
 
+      # Dokka reads the standard libraries of the documented platform folders (src@native and
+      # src@wasmJs) from the toolchain cache, so one build of each kind comes first.
+      - name: Build linuxX64 and wasmJs
+        run: ./kotlin build -m kiteffmpeg -p linuxX64 -p wasmJs
+        env:
+          KOTLIN_CLI_NO_WELCOME_BANNER: 1
+
       # The Dokka generation + merge is required: the deployed site must never
       # silently lose its /api/ reference.
       - name: Generate the Dokka API reference and merge it into the site
         run: |
-          ./gradlew dokkaGenerate -Pkiteffmpeg.hostTargetsOnly=true --no-configuration-cache
+          # `do` is a command of the kotlin script here, not the shell keyword.
+          # shellcheck disable=SC1010
+          ./kotlin do dokka && ./kotlin do dokkaSite
           mkdir -p site/api
           cp -r build/dokka/html/. site/api/
+        env:
+          KOTLIN_CLI_NO_WELCOME_BANNER: 1
 
       - name: Disable Jekyll processing
         run: touch site/.nojekyll

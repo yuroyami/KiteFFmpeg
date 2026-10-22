@@ -1,0 +1,26 @@
+# The web codec module of kiteffmpeg, kite.mjs and kite.wasm, at the root of a plain jar, with the build record
+# under build-info/ and the licence texts under licenses/. A web app unpacks the jar beside its page.
+# Up to 0.5.1 the same files came in kiteffmpeg-wasm-js-<version>-web.zip.
+product: jvm/lib
+
+description: >-
+  The web codec module of KiteFFmpeg (kite.mjs and kite.wasm), with FFmpeg (LGPL) linked in, at the root of the
+  jar beside build-info/ and licenses/. A web app unpacks the jar beside its page.
+
+apply:
+  - ../library.module-template.yaml
+
+settings:
+  publishing:
+    pom:
+      name: KiteFFmpeg web codec module
+      # The web build links FFmpeg alone, without dav1d.
+      licenses:
+        - name: The Apache License, Version 2.0
+          url: https://www.apache.org/licenses/LICENSE-2.0.txt
+        - name: GNU Lesser General Public License, Version 2.1 or later (bundled FFmpeg)
+          url: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+
+plugins:
+  # Links the codec module with emscripten into the root of this jar. See build-plugins/web-package.
+  web-package: enabled

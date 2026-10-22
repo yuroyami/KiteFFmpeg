@@ -18,7 +18,7 @@
 /* Pass 1: forward-declare every manifest row's C function. Only the SYMBOL matters here; the
  * real JNI signatures differ per row and JNINativeMethod's fnPtr holds an opaque pointer. A
  * descriptor that names no Kotlin method fails at RegisterNatives. A C function whose signature
- * differs from its descriptor would build and corrupt the call, so buildSrc's
+ * differs from its descriptor would build and corrupt the call, so the build plugins'
  * CheckJniRegistrationTask compares the two before every JNI build. The declaration deliberately
  * has an empty parameter list, the one C form that accepts any signature at the definition site. */
 typedef void (*kj_fnptr)(void);

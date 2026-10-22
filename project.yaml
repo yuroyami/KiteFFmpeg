@@ -1,0 +1,25 @@
+modules:
+  - build-plugins/abi-check
+  - build-plugins/android-jni
+  - build-plugins/dokka
+  - build-plugins/kiteffmpeg-native
+  - build-plugins/native-build
+  - build-plugins/web-package
+  - kiteffmpeg
+  - kiteffmpeg-android-check
+  - kiteffmpeg-android-natives
+  - kiteffmpeg-sample
+  - kiteffmpeg-sample-linux
+  - kiteffmpeg-sample-macos
+  - kiteffmpeg-sample-windows
+  - kiteffmpeg-web
+  - kiteffmpeg-web-async
+  - kiteffmpeg-web-worker-probe
+  - kiteffmpeg-web-worker-test
+
+plugins:
+  - //build-plugins/abi-check
+  - //build-plugins/android-jni
+  - //build-plugins/dokka
+  - //build-plugins/kiteffmpeg-native
+  - //build-plugins/web-package

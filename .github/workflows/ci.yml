@@ -1,34 +1,25 @@
-# Builds + tests kiteffmpeg and runs an end-to-end transcode on every desktop K/N target
-# that can get an FFmpeg toolchain in CI:
+# Builds + tests kiteffmpeg and runs an end-to-end transcode on every desktop Kotlin/Native target
+# that can get an FFmpeg tree in CI. The build uses the Kotlin Toolchain (`./kotlin`), which downloads
+# its own JDK, Kotlin/Native and Node, so no job sets up Java or Gradle.
 #
 #   - macOS arm64  → the VENDORED LGPL profile, built from source. This job carries the ratchets
-#                    (public API, cinterop coupling, klib metadata, deleted surface), and as of
-#                    2026-08-23 it reads the vendored tree rather than Homebrew. It used to assert
-#                    an exact Homebrew libavutil version, which is a calendar rather than a gate:
-#                    the formula moved and the job went red. The vendored tree is pinned at n9.0.2 by
-#                    the build, so the frozen metadata constants now describe the FFmpeg the
-#                    project actually ships.
-#   - Linux x64    → the prebuilt static tree from this repo's own companion release. It used to
-#                    use apt, which CANNOT work: Ubuntu's libav* .so files need glibc 2.29/2.34
-#                    while Kotlin/Native links its own 2.19 sysroot, so ld.lld refuses. The old
-#                    claim that this job proved "the oldest supported headers" was never true
-#                    either; it proved whatever Ubuntu shipped that week.
-#   - Windows x64  → the prebuilt static mingw-x64 tree from the same release. BtbN is gone: its
-#                    builds are SHARED, so there is no libavformat.a for the embed to take, and it
-#                    prunes old autobuilds so any pin 404s within weeks.
+#                    (public API, cinterop coupling, klib metadata, deleted surface). The vendored
+#                    tree is pinned at n9.0.2 by the build, so the frozen metadata constants describe
+#                    the FFmpeg the project actually ships.
+#   - Linux x64    → the prebuilt static tree from this repo's own companion release. A distro
+#                    FFmpeg cannot work: Ubuntu's libav* .so files need glibc 2.29/2.34, while
+#                    Kotlin/Native links its own 2.19 sysroot, so ld.lld refuses.
+#   - Windows x64  → the prebuilt static mingw-x64 tree from the same release.
 #   - macOS arm64  → the same VENDORED LGPL profile again, in the vendored-lgpl job, which runs the
 #                    full suite and e2e against it. It is the only job that can catch the suite
-#                    depending on codecs, muxers or protocols the released artifact does not
-#                    contain. It now shares a cache key with the ratchets job above; merging the
-#                    two is the obvious follow-up and has deliberately not been done yet.
+#                    depending on codecs, muxers or protocols the released artifact does not contain.
 #
 # Android NDK targets get compile checks: each ABI builds its (self-contained, cached) LGPL
 # FFmpeg and compiles the klib.
 #
 # Not covered (yet): no job runs the tests of iosArm64, iosSimulatorArm64, iosX64, linuxArm64 or
 # macosX64. The ratchets job compiles their klibs for the public API check, which is a compile
-# claim only. There are no iOS GPL build tasks. linuxArm64 needs an arm64 runner with K/N host
-# support; macosX64 is deprecated by Kotlin 2.3.20.
+# claim only. linuxArm64 needs an arm64 runner with Kotlin/Native host support.
 name: CI
 
 on:
@@ -49,80 +40,49 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  KOTLIN_CLI_NO_WELCOME_BANNER: 1
   # The FFmpeg version the PREBUILT ZIPS were built from; asset filenames carry it. This is NOT the
-  # version this repository builds from source, and the two are allowed to differ: jobs that clone
-  # FFmpeg pin it in their own `git clone --branch`, and the root build compares those against
-  # buildSrc. This one is keyed to binaries that already exist on FFMPEG_ASSET_TAG, so it moves only
-  # when a new companion release is published. Conflating the two is what broke CI from 2026-08-29:
-  # the 8.1.2 bump moved buildSrc and publish.yml, the clone literals here stayed at n8.0, and the
-  # drift check could not see them because it only read this line.
+  # version this repository builds from source, and the two may differ: jobs that clone FFmpeg pin
+  # it in their own `git clone --branch`, and `./kotlin check ffmpegRefs` compares those clones with
+  # the build recipe. This line moves only when a new companion release is published.
   FFMPEG_VERSION: n9.0.2
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
-  # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0 and 0.5.1. ffmpeg-n9.0.2-r2 stays
-  # as the binaries and source offer of 0.4.0, and ffmpeg-n9.0.2 as those of 0.3.0. The ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as
-  # the LGPL source offer for kitecodec-core artifacts already on Maven Central, and Central cannot
-  # withdraw a version. What follows is the record of why they parted in 2026-08.
-  #
-  # because on 2026-08-24 they stopped being the same thing. The aac encoder was missing from the
-  # Linux and Windows profiles, so those binaries had to be rebuilt; they went to a NEW tag rather
-  # than over ffmpeg-n8.0, because NOTICE names that release as the LGPL source offer for artifacts
-  # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
-  # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
+  # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0 and 0.5.1. ffmpeg-n9.0.2-r2
+  # stays as the binaries and source offer of 0.4.0, and ffmpeg-n9.0.2 as those of 0.3.0. The
+  # ffmpeg-n8.0 and ffmpeg-n8.0-r2 releases stay published forever: NOTICE names them as the LGPL
+  # source offer for kitecodec-core artifacts already on Maven Central, and Central cannot withdraw a
+  # version. Asset FILENAMES carry the FFmpeg version, which is what they are keyed to.
   FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r3
 
 jobs:
   macos-arm64:
     name: macOS arm64 (vendored LGPL FFmpeg, the ratchets)
     runs-on: macos-latest
-    # 90, not the old 45: that was sized for `brew install ffmpeg`, and a cold-cache build of the
-    # vendored tree from source is a different order of work. Matches the vendored-lgpl job.
+    # Sized for a cold-cache build of the vendored tree from source. Matches the vendored-lgpl job.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-      - uses: actions/cache@v4
-        with:
-          path: ~/.konan
-          key: konan-macos-arm64-${{ hashFiles('gradle/libs.versions.toml') }}
-          restore-keys: |
-            konan-macos-arm64-
-      # This job runs wasmJsTest, and Kotlin/Wasm fetches its own node and yarn into ~/.gradle then
-      # installs node_modules from the committed lockfile. Uncached that is a download plus an
-      # install on every run.
+      # The Kotlin Toolchain keeps its JDK, Kotlin/Native and Node in the first folder. Kotlin/Native
+      # keeps its LLVM and per-target sysroots in ~/.konan.
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/nodejs
-            ~/.gradle/yarn
-            build/js/node_modules
-          key: kotlin-js-${{ hashFiles('kotlin-js-store/yarn.lock', 'gradle/libs.versions.toml') }}
+            ~/Library/Caches/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-macos-arm64-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            kotlin-js-
-      # THE VENDORED TREE, not Homebrew. This job used to `brew install ffmpeg` and then assert the
-      # installed libavutil was exactly 60.8.100, because klib-metadata-baseline.txt freezes 24
-      # FFmpeg version constants down to their micro values. That assert did its
-      # job and then became the problem: Homebrew moved to 60.26.102 and this job went red, and it
-      # would have gone red again on every future bump, because a pin against a moving formula is a
-      # calendar, not a gate. Homebrew has no formula pinned to one release (ffmpeg@8 is an alias of
-      # the moving main formula, checked 2026-08-10).
-      #
-      # The vendored LGPL tree is pinned at n9.0.2 by the build itself, and its libavutil version is what the frozen metadata records,
-      # so the committed baseline matches it with zero drift (verified: all six counters read 0).
-      # It is also the FFmpeg this project actually ships, which is what the frozen constants ought
-      # to have been describing all along. FFmpegPaths prefers native-libs/ over any system install,
-      # so no flag is needed to select it: building the tree is selecting it.
+            kotlin-toolchain-macos-arm64-
+      # THE VENDORED TREE, not Homebrew. klib-metadata-baseline.txt freezes 24 FFmpeg version
+      # constants down to their micro values, and a pin against the moving Homebrew formula is a
+      # calendar, not a gate. The vendored LGPL tree is pinned at n9.0.2 by the build, and the
+      # committed baseline matches it with zero drift. FFmpegPaths prefers native-libs/ over any
+      # system install, so building the tree is selecting it.
       #
       # Same cache key as the vendored-lgpl job, so whichever runs first pays for the build and the
-      # other restores it. On a cold cache both build, which is the accepted cost of keeping the two
-      # jobs independent. Merging them is the obvious follow-up and is deliberately not done here.
+      # other restores it.
       #
-      # Every FFmpeg cache key in this file carries the source patches as well as the build tasks,
-      # because the build applies them and the recipe check never reads them. A key without them
-      # restores a tree built before a new patch, and the tests that need the patch then read it.
+      # Every FFmpeg cache key in this file carries the source patches as well as the build recipes,
+      # because the build applies them and the recipe check never reads them.
       - name: Install build deps + the ffmpeg CLI (for e2e assertions only)
         run: brew install nasm meson ninja svt-av1 aom libvpx opus lame webp freetype harfbuzz fribidi libass ffmpeg jq
       - name: Cache the vendored FFmpeg and dav1d builds
@@ -132,30 +92,19 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
-          ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 --stacktrace
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegForMacosArm64
       # The ratchets below read this tree. If it is missing they would silently fall back to the
-      # brew install above, which is the drift this job just stopped having.
+      # brew install above.
       - name: Confirm the ratchets will read the vendored tree
         run: test -f native-libs/lgpl/macos-arm64/lib/libavformat.a
-      # Warm the Kotlin/Native toolchain before anything reaches the C helper task. konan fetches
-      # its LLVM and per-target sysroots into ~/.konan/dependencies ON DEMAND, when a Kotlin/Native
-      # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
-      # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
-      # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result.
-      #
-      # No target flag: every native target is registered, so the download covers every sysroot
-      # that the public API check compiles against. --continue lets the download finish when the
-      # macOS C helper task loses the race above.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 --continue --stacktrace || true
-      # The public API check compiles the klib of every native target, so each one needs an FFmpeg
+      # The public API check reads the klib of every native platform, so each one needs an FFmpeg
       # tree. The other ten come from this repository's prebuilt release, checksum verified, as in
       # publish.yml. macos-arm64 is not fetched: this job built it above, and the ratchets read it.
       - name: Fetch the prebuilt static FFmpeg for the other ten native targets
@@ -175,142 +124,102 @@ jobs:
             ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
             rm -f "${asset}" "${asset}.sha256"
           done
-      # The two ratchets. apiCheck compares kiteffmpeg's klib against the committed dump in
-      # kiteffmpeg/api, so a public API change fails here instead of shipping.
-      # checkCinteropCoupling recounts the Kotlin-to-FFmpeg coupling and fails when it grew.
-      #
-      # The committed dump covers all thirteen klib targets, and apiCheck runs with the flag that
-      # wrote it. -Pkiteffmpeg.requireAllTargets=true turns a missing FFmpeg tree into a
-      # configuration failure that names the target, instead of a skipped target. A narrower scope,
-      # such as -Pkiteffmpeg.hostTargetsOnly=true, presents three targets and fails on the dump's
-      # target lines alone. Re-dump with the same flag:
-      #   ./gradlew :kiteffmpeg:apiDump -Pkiteffmpeg.requireAllTargets=true
-      # check-deleted-surface.sh runs in this step: it needs no build
-      # output, only the tree, and it holds the fifteen deleted ffkmp_ names dead in both
-      # repositories. Here it can only scan this one; KitePlayer got its own CI on 2026-08-24 and
-      # this script is not in it yet.
-      #
-      # checkWasmBindingMirror joined on 2026-08-24. generateWasmBinding writes
-      # into gitignored native-libs/, so the file that actually COMPILES is a committed copy under
-      # wasmJsMain. Two copies with nothing comparing them drift, and the drift only shows up at
-      # runtime in a browser. It regenerates in memory from signature-baseline.txt and compares; it
-      # needs no build output, which is why it sits with the other cheap gates.
-      #
-      # checkReleaseTargetMirror joined on 2026-08-30. release-binaries.yml repeats every triple by
-      # hand in three matrices, and a release ships one prebuilt per triple per licence flavour. A
-      # target added to the TargetTriple enum and forgotten there is a binary nobody builds, and
-      # nothing else notices: the build compiles, the tests pass, and no gate reads a workflow. It
-      # needs no build output either, so it sits with the other cheap gates.
+      # The ratchets.
+      # - `./kotlin build -m kiteffmpeg` compiles every platform and every shared native folder
+      #   (src@native, src@apple and the others). A publish compiles them too, and the 0.3.0 publish
+      #   once failed there, before any upload.
+      # - abi and klibAbi compare the JVM and klib API with the committed dumps in kiteffmpeg/api, so
+      #   a public API change fails here instead of shipping. Re-dump with `./kotlin do updateAbi`
+      #   and `./kotlin do updateKlibAbi` after a full build.
+      # - cinteropCoupling recounts the Kotlin-to-FFmpeg coupling and fails when it grew.
+      # - wasmBindingMirror regenerates the web binding in memory from signature-baseline.txt and
+      #   compares it with the committed copy that compiles.
+      # - releaseTargetMirror fails when release-binaries.yml forgets a target of the TargetTriple enum.
+      # - jniRegistration and ffmpegRefs check the JNI registration table and the FFmpeg release pins.
+      # check-deleted-surface.sh holds the fifteen deleted ffkmp_ names dead. It needs no build output.
       - name: Public API baseline + coupling + deleted surface + wasm mirror + dependency hygiene
         run: |
-          ./gradlew :kiteffmpeg:apiCheck -Pkiteffmpeg.requireAllTargets=true --stacktrace
-          # The shared native source sets compile only as metadata, which apiCheck never builds and
-          # a publish does. The 0.3.0 publish once failed there, before any upload.
-          ./gradlew -Pkiteffmpeg.requireAllTargets=true --stacktrace \
-            :kiteffmpeg:compileHostAsyncMainKotlinMetadata \
-            :kiteffmpeg:compileNativeMainKotlinMetadata :kiteffmpeg:compileAppleMainKotlinMetadata \
-            :kiteffmpeg:compileIosMainKotlinMetadata :kiteffmpeg:compileMacosMainKotlinMetadata \
-            :kiteffmpeg:compileLinuxMainKotlinMetadata :kiteffmpeg:compileAndroidNativeMainKotlinMetadata
-          ./gradlew checkCinteropCoupling --stacktrace
-          ./gradlew :kiteffmpeg:checkWasmBindingMirror --stacktrace
-          ./gradlew checkReleaseTargetMirror --stacktrace
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          ./kotlin build -m kiteffmpeg
+          ./kotlin check abi klibAbi cinteropCoupling wasmBindingMirror releaseTargetMirror jniRegistration ffmpegRefs
           ./native/kitecodec-c/scripts/check-deleted-surface.sh
           ./native/kitecodec-jni/scripts/source-discipline.sh
           ./scripts/check-dependency-hygiene.sh
-      # The third ratchet, and the only guard on the cinterop klib: apiCheck covers kiteffmpeg's
-      # own klib, and the cinterop klib is a separate artifact holding every FFmpeg binding and every
-      # ffkmp_ helper. klib-metadata-diff.sh --check dumps its metadata and fails when it differs
-      # from the committed baseline. Deliberate changes re-baseline with --update in the same commit.
+      # The third ratchet, and the only guard on the cinterop klib: the klib API check covers
+      # kiteffmpeg's own klib, and the cinterop klib holds every FFmpeg binding and every ffkmp_
+      # helper. klib-metadata-diff.sh --check dumps its metadata and fails when it differs from the
+      # committed baseline. Deliberate changes re-baseline with --update in the same commit.
       #
-      # The archive listing is the producer-side half of the architecture guard. The C compile task
-      # asserts each object's architecture before archiving, which is what actually prevents a
-      # wrong-architecture library reaching a consumer; this prints what was built, per target
-      # directory, so the log says which targets got one. `file` on an ar archive names the format
-      # and not the architecture, so the objects are listed too, where it does.
+      # The archive listing prints what the C helper compile built, per target, so the log says which
+      # targets got one. `file` on an ar archive names the format and not the architecture, so the
+      # objects are listed too.
       - name: Cinterop metadata baseline + the C archives that were built
         run: |
-          ./gradlew :kiteffmpeg:cinteropFfmpegMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
           ./native/kitecodec-c/scripts/klib-metadata-diff.sh --check
-          for archive in kiteffmpeg/build/kitecodec-c/*/libkitecodec.a; do
+          find build/tasks -path '*_kiteffmpeg_ffmpegInterop*' -name libkitecodec.a | sort | while read -r archive; do
             echo "$archive: $(file -b "$archive")"
           done
-          for object in kiteffmpeg/build/kitecodec-c/*/obj/*.o; do
+          find build/tasks -path '*_kiteffmpeg_ffmpegInterop*' -path '*/obj/*' -name '*.o' | sort | while read -r object; do
             echo "$object: $(file -b "$object")"
           done
+      # The macOS tests write the codec-contract transcript that the comparison below reads.
       - name: Unit + native tests
-        run: ./gradlew :kiteffmpeg:macosArm64Test --stacktrace
-      # The JVM and JNI boundary harness, and the byte-for-byte comparison of the JVM and macOS
-      # codec contract transcripts, exist only in the phone target scope, so this step sets the flag
-      # for itself. That scope needs the macOS, iOS and Android trees fetched above, and an NDK.
+        run: KITECODEC_CONTRACT_TRANSCRIPT="$PWD/build/contract-transcripts/macosArm64.txt" ./kotlin test -m kiteffmpeg -p macosArm64
+      # The JVM tests include the JNI boundary harness. Then the JVM and macOS codec-contract
+      # transcripts must agree byte for byte.
       - name: JNI boundary tests + JVM and native contract comparison
         run: |
-          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
-          ./gradlew -Pkiteffmpeg.phoneTargetsOnly=true --stacktrace \
-            :kiteffmpeg:jniJvmTest :kiteffmpeg:compareJvmNativeContract
-      # buildSrc's tests are not in the main build's task graph, so they need naming. They cover the
-      # coupling ratchet and the C compile task, including its wrong-architecture refusal.
+          ./kotlin test -m kiteffmpeg -p jvm
+          # shellcheck disable=SC1010
+          ./kotlin do compareCodecContract
+      # The tests of the build plugins. They cover the coupling ratchet and the C compile task,
+      # including its wrong-architecture refusal.
       - name: Build-logic tests
-        run: ./gradlew :buildSrc:test --stacktrace
+        run: ./kotlin test -m native-build
       - name: Link sample
-        run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
+        run: ./kotlin build -m kiteffmpeg-sample-macos -p macosArm64
       - name: End-to-end transcode
-        run: scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
+        run: scripts/e2e.sh "$(find build/tasks -name 'kiteffmpeg-sample-macos.kexe' -type f | head -1)"
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports-macos-arm64
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            build/test-results/**
           retention-days: 7
           if-no-files-found: ignore
 
   ffmpeg-identity-gate:
-    # ---------------------------------------------------------------------------------------------
     # Deliberately its own job and not steps inside macos-arm64, so that this block can be moved,
     # reordered or merged without touching another job.
-    # ---------------------------------------------------------------------------------------------
     name: Host C suites and the FFmpeg identity gate
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-      # ~/.konan holds the Kotlin/Native distribution AND the per-target LLVM and sysroots konan
-      # downloads on demand. Without this the job re-fetches all of it every run; with it, a warm
-      # runner skips the download entirely. Every other Kotlin/Native job here already cached it,
-      # these two were simply missed.
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-identity-gate-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/Library/Caches/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-identity-gate-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-identity-gate-
+            kotlin-toolchain-identity-gate-
       - name: Install FFmpeg
         run: brew install ffmpeg
-      # ALL EIGHT suites, not one. Until 2026-08-23 both steps below passed `test_identity` as an
-      # explicit argument, so test_ownership, test_buffers, test_rescale, test_strerror_thread,
-      # test_convert, test_args and test_append ran only on a developer's laptop. Every "C suites
-      # green" line in the log was then a true statement about one machine and a false impression
-      # about this gate. Passing no suite name runs the whole list, which is
-      # what run-c-tests.sh documents as gate behaviour.
+      # ALL EIGHT suites. Passing no suite name runs the whole list, which is what run-c-tests.sh
+      # documents as gate behaviour.
       #
-      # test_identity is still the reason this job is separate, and what it does is worth keeping
-      # written down: it compiles src/kitecodec_abi.c five more times against the doctored header
-      # trees under tests/fake_headers/ and asserts one case per verdict, including the TRUE build,
-      # which is the case that fails if the policy is too strict. It also asserts that the
-      # diagnostic bypass is not a silent default, that it works when set, and that its warning is
-      # printed exactly once per process.
+      # test_identity is the reason this job is separate: it compiles src/kitecodec_abi.c five more
+      # times against the doctored header trees under tests/fake_headers/ and asserts one case per
+      # verdict, including the TRUE build, which is the case that fails if the policy is too strict.
+      # It also asserts that the diagnostic bypass is not a silent default, that it works when set,
+      # and that its warning is printed exactly once per process.
       #
-      # What each variant is for. ASan catches the class the identity gate exists to prevent, an
-      # out-of-bounds read through a struct field offset that moved. Plain compiles the doctored
-      # objects at -O2, so a shim that only worked at -O1 is a shim that only worked under a
-      # sanitizer. Both are needed; neither replaces the other.
+      # ASan catches an out-of-bounds read through a struct field offset that moved. Plain compiles
+      # the doctored objects at -O2, so a shim that only worked at -O1 fails. Both are needed.
       - name: Host C suites under ASan
         working-directory: native/kitecodec-c
         run: |
@@ -321,134 +230,108 @@ jobs:
         run: |
           ./scripts/build-host.sh plain
           ./scripts/run-c-tests.sh plain
-      # What the archive promises. The six kc_ functions must be exported and nothing else new must
-      # be, the identity gate's undefined symbols must all be on the measured allowlist, and it must
-      # be the ONLY unit in the library that writes to a stream: that permission exists for the
-      # bypass warning alone.
+      # The six kc_ functions must be exported and nothing else new must be, the identity gate's
+      # undefined symbols must all be on the measured allowlist, and it must be the ONLY unit in the
+      # library that writes to a stream: that permission exists for the bypass warning alone.
       - name: Symbol audit of the host archive
         working-directory: native/kitecodec-c
         run: ./scripts/symbol-audit.sh --host
       # The Kotlin end of the gate: the report crossing into Kotlin with both version columns, the
       # typed FFmpegError a consumer can catch, and the entry points letting a healthy runtime
-      # through. Plus the build-side checks of the FFmpeg release pins.
-      # Warm the Kotlin/Native toolchain before anything reaches the C helper task. konan fetches
-      # its LLVM and per-target sysroots into ~/.konan/dependencies ON DEMAND, when a Kotlin/Native
-      # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
-      # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
-      # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
+      # through. With no vendored tree, the build links the Homebrew FFmpeg installed above. Then
+      # the tests of the build plugins, which include the FFmpeg release pin checks.
       - name: Kotlin surface and build-side checks
         run: |
-          ./gradlew :kiteffmpeg:macosArm64Test --tests '*FFmpegIdentityTest*' \
-            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
-          ./gradlew :buildSrc:test --stacktrace
-      # The web backend, which until now NO job here ran a single test against. 2,316 lines of
-      # wasmJsMain shipped on the strength of "it compiles": the register carried twelve rows marked
-      # done with nothing that could fail if they regressed, and three Wasm fixes landed on
-      # 2026-08-23 with no source set to test them.
+          ./kotlin test -m kiteffmpeg -p macosArm64 --include-classes='*FFmpegIdentityTest'
+          ./kotlin test -m native-build
+      # The web backend. The tests drive it through a FAKE emscripten module, which works because
+      # every generated external takes the codec module as its first argument. So this path needs
+      # no FFmpeg, no Kotlin/Native and no web codec module.
       #
-      # It runs here because it needs nothing this job does not already have. There is no FFmpeg,
-      # no konan and no native toolchain in this path: the tests drive the backend through a FAKE
-      # emscripten module, which works because every generated external takes the codec module as
-      # its first argument. That seam is why this was testable all along without building FFmpeg
-      # for the web first.
-      #
-      # BOTH halves, node and headless browser. This was node only while the browser path was
-      # unproven, because KitePlayer's browser task was dying inside webpack with
-      # "RangeError: Invalid array length" and claiming browser coverage from a node run would be
-      # the exact kind of untrue green this suite exists to stop. That failure stopped happening on
-      # 2026-08-30 and did not come back across four attempts, so the honest move is to run the
-      # browser half and let it say so if it returns, rather than keep skipping it on a stale reason.
-      - name: Web backend tests (wasmJs, node and browser)
-        run: ./gradlew :kiteffmpeg:wasmJsTest -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+      # Node and headless Chrome. `./kotlin test` cannot run JS tests, and its Chrome page cannot
+      # reach the codec modules, so scripts/web-tests/run.py links the tests with the toolchain and
+      # runs them. The JS tests run here too.
+      - name: Web backend tests (js and wasmJs, node and browser)
+        run: python3 scripts/web-tests/run.py --platform js --platform wasmJs --platform wasmJsBrowser
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports-ffmpeg-identity-gate
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            build/test-results/**
           retention-days: 7
           if-no-files-found: ignore
 
   # The web backend against the codec module it ships with. The identity gate runs the web tests
   # against a fake module; this job links the real one, from a web FFmpeg built here, and runs the
-  # same tests under Node. -Pkiteffmpeg.web.requireModule=true makes the decode contract fail
-  # instead of skip when the module is missing, so this job cannot pass without decoding real
-  # media. Node only, because a browser test cannot read the module's path from the environment.
+  # same tests. --require-modules makes the decode contract fail instead of skip when the module is
+  # missing, so this job cannot pass without decoding real media.
   web-codec-module:
-    name: Web backend against the linked codec module (node)
+    name: Web backend against the linked codec module (node and browser)
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-web-codec-module-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/Library/Caches/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-web-codec-module-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-web-codec-module-
+            kotlin-toolchain-web-codec-module-
       - name: Install emscripten
         id: emscripten
         run: |
           brew install emscripten
           echo "version=$(emcc --version | head -1 | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
       # A web FFmpeg is only as good as the compiler that built it, so the key carries the emcc
-      # version as well as the build task, the source patches and the FFmpeg tag.
+      # version as well as the build recipe, the source patches and the FFmpeg tag.
       - name: Cache the web FFmpeg build
         id: ffmpeg-web
         uses: actions/cache@v4
         with:
           path: native-libs/lgpl/wasm32
-          key: ffmpeg-wasm32-lgpl-n9.0.2-emcc-${{ steps.emscripten.outputs.version }}-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-wasm32-lgpl-n9.0.2-emcc-${{ steps.emscripten.outputs.version }}-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the web FFmpeg from source
         if: steps.ffmpeg-web.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-          ./gradlew :kiteffmpeg:buildFFmpegForWasm --stacktrace
-      # -x keeps a restored tree: a fresh runner has no task history, so Gradle would rebuild it.
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegForWasm
+      # The bake skips itself when the restored tree is complete, so this links the module only.
       - name: Link the codec module
-        run: ./gradlew :kiteffmpeg:linkKiteFFmpegWasmModule -x buildFFmpegForWasm --stacktrace
+        run: |
+          # shellcheck disable=SC1010
+          ./kotlin do linkKiteFFmpegWasmModule
       # JSPI needs a recent engine, and the runner's own Node may be older.
       - uses: actions/setup-node@v4
         with:
           node-version: 26
       - name: Check the asynchronous codec modules (node)
         run: |
-          ./gradlew :kiteffmpeg:checkKiteFFmpegAsyncWasmModules -x buildFFmpegForWasm \
-            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+          # shellcheck disable=SC1010
+          ./kotlin do checkKiteFFmpegAsyncWasmModules
       - name: Web tests against the linked module (node)
-        run: |
-          ./gradlew :kiteffmpeg:wasmJsNodeTest -Pkiteffmpeg.web.requireModule=true \
-            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+        run: python3 scripts/web-tests/run.py --platform wasmJs --require-modules
       # The same tests in a page of headless Chrome, which loads the modules over HTTP as a site
-      # does. karma.config.d/modules.js serves them.
+      # does. scripts/web-tests/browser.mjs serves them.
       - name: Web tests against the linked module (headless browser)
-        run: |
-          ./gradlew :kiteffmpeg:wasmJsBrowserTest -Pkiteffmpeg.web.requireModule=true \
-            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+        run: python3 scripts/web-tests/run.py --platform wasmJsBrowser --require-modules
       # The asynchronous runtime in a Web Worker: a second wasm binary reads a real HLS stream on
       # both modules, and the page checks what it posts.
       - name: Asynchronous runtime in a Web Worker (headless browser)
-        run: |
-          ./gradlew :kiteffmpeg-web-worker-test:wasmJsBrowserTest -Pkiteffmpeg.web.requireModule=true \
-            -Pkiteffmpeg.hostTargetsOnly=true --stacktrace
+        run: python3 scripts/web-tests/run.py --platform worker --require-modules
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports-web-codec-module
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            build/test-results/**
           retention-days: 7
           if-no-files-found: ignore
 
@@ -458,37 +341,20 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-linux-x64-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/.cache/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-linux-x64-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-linux-x64-
-      # BEFORE the FFmpeg trees exist, and that ordering is the whole point. konan fetches its LLVM
-      # into ~/.konan/dependencies only when a Kotlin/Native task actually runs. Once a tree IS
-      # present, compileKotlin<Target> depends on the ffmpeg cinterop, which depends on our C helper
-      # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
-      # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
-      # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
-      # references, which is what the `|| true` is for. Warm first, fetch second.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinLinuxX64 --stacktrace || true
-      # NOT apt. A distro FFmpeg cannot be linked by Kotlin/Native on a modern Ubuntu, and this
-      # is not a flag problem: Ubuntu 24.04's libav* .so files reference glibc 2.29 and 2.34
-      # symbols, while Kotlin/Native links against its own glibc 2.19 sysroot for portability, so
-      # ld.lld refuses with `undefined reference: exp@GLIBC_2.29 ... referenced by libswscale.so`.
-      # Headers could be worked around; a shared library's glibc floor cannot.
+            kotlin-toolchain-linux-x64-
+      # NOT apt. Ubuntu 24.04's libav* .so files reference glibc 2.29 and 2.34 symbols, while
+      # Kotlin/Native links against its own glibc 2.19 sysroot, so ld.lld refuses with
+      # `undefined reference: exp@GLIBC_2.29 ... referenced by libswscale.so`.
       #
-      # So this job now reads the same prebuilt STATIC tree the published artifact is built from,
-      # fetched from this repository's own companion release and checksum-verified. That also ends
-      # the older lie in this job's name: it was never testing "the oldest supported headers", it
-      # was testing whatever Ubuntu shipped that week. The plan asked for exactly
-      # this move.
+      # So this job reads the same prebuilt STATIC tree the published artifact is built from,
+      # fetched from this repository's own companion release and checksum-verified.
       #
       # The ffmpeg CLI still comes from apt, for scripts/e2e.sh's assertions only. It is not what
       # gets linked.
@@ -508,28 +374,26 @@ jobs:
           ./scripts/check-tree-patches.sh native-libs/lgpl/linux-x64
           rm -f "${asset}" "${asset}.sha256"
       - name: Unit + native tests
-        run: ./gradlew :kiteffmpeg:linuxX64Test --stacktrace
+        run: ./kotlin test -m kiteffmpeg -p linuxX64
       - name: Link sample
-        run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableLinuxX64
+        run: ./kotlin build -m kiteffmpeg-sample-linux -p linuxX64
       - name: End-to-end transcode
-        run: scripts/e2e.sh kiteffmpeg-sample/build/bin/linuxX64/debugExecutable/kiteffmpeg-sample.kexe
+        run: scripts/e2e.sh "$(find build/tasks -name 'kiteffmpeg-sample-linux.kexe' -type f | head -1)"
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports-linux-x64
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            build/test-results/**
           retention-days: 7
           if-no-files-found: ignore
 
   replay-corpus:
     # The committed corpus replayed under ASan and UBSan. This is a REGRESSION TEST, not a fuzz
-    # run: it is a couple of minutes and it belongs on every push. The 30-minute fuzzer that GROWS
-    # the corpus moved to fuzz.yml on 2026-08-24, because a deliberate half-hour of fuzzing was the
-    # only reason a full CI run took 31 minutes when every other job finishes inside four, and it
-    # was therefore standing between every push and the answer to "does this build".
+    # run: it takes a couple of minutes and it belongs on every push. The 30-minute fuzzer that
+    # GROWS the corpus is in fuzz.yml.
     name: Replay the committed corpus (ASan + UBSan, ubuntu-24.04)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -562,44 +426,37 @@ jobs:
 
   # THE job that keeps the library honest about what it ships.
   #
-  # Every other desktop job links the runner's brew/apt FFmpeg, a full GPL build with every codec
-  # compiled in. What users actually get is the vendored LGPL profile from BuildFFmpegTask: no
-  # libx264, a deliberately small codec/muxer/protocol set. Testing only against the system build
-  # means the test suite and the sample can drift into depending on codecs the shipped artifact
-  # does not contain, and nothing notices. So: build the real profile from source, put it under
-  # native-libs/ (where FFmpegPaths prefers it over any system install), and run the whole suite
-  # against that: unit tests, native tests, and the full e2e.
+  # The identity gate links the runner's brew FFmpeg, a full GPL build with every codec compiled in.
+  # What users actually get is the vendored LGPL profile of the FFmpeg bake: no libx264, a
+  # deliberately small codec/muxer/protocol set. Testing only against the system build means the
+  # test suite and the sample can drift into depending on codecs the shipped artifact does not
+  # contain, and nothing notices. So: build the real profile from source, put it under native-libs/
+  # (where FFmpegPaths prefers it over any system install), and run the whole suite against that:
+  # unit tests, native tests, and the full e2e.
   vendored-lgpl:
     name: macOS arm64 (vendored LGPL FFmpeg, the shipped profile)
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-vendored-lgpl-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/Library/Caches/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-vendored-lgpl-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-vendored-lgpl-
+            kotlin-toolchain-vendored-lgpl-
       # The desktop LGPL profile links these; several (lame above all) ship no pkg-config file,
-      # which is why BuildFFmpegTask passes an explicit -I/-L for the Homebrew prefix.
+      # which is why the FFmpeg bake passes an explicit -I/-L for the Homebrew prefix.
       # `ffmpeg` itself is for scripts/e2e.sh's CLI generation + ffprobe assertions only. KiteFFmpeg
-      # links the vendored tree, not this one.
-      # meson and ninja are for dav1d, which BuildDav1dTask drives and which became a mandatory
-      # dependency of the FFmpeg build when FFmpeg was embedded. Its own preflight says "brew install meson
-      # ninja nasm"; nasm was already here for FFmpeg's x86 asm, the other two were not.
+      # links the vendored tree, not this one. meson and ninja are for dav1d, which the FFmpeg build
+      # needs.
       - name: Install build deps + the ffmpeg CLI (for e2e assertions)
         run: brew install nasm meson ninja svt-av1 aom libvpx opus lame webp freetype harfbuzz fribidi libass ffmpeg jq
-      # BOTH output trees, because since FFmpeg was embedded the FFmpeg build depends on a dav1d build and
-      # dav1d installs to native-libs/deps/<triple>/dav1d, NOT under native-libs/lgpl/. Caching only
-      # the lgpl path meant a cache hit restored FFmpeg, left dav1d missing, and the dav1d task then
-      # ran and demanded a source tree the workflow never cloned. The key also hashes BuildDav1dTask
-      # so a change to either build task invalidates both trees together.
+      # BOTH output trees: the FFmpeg build depends on a dav1d build, and dav1d installs to
+      # native-libs/deps/<triple>/dav1d, NOT under native-libs/lgpl/. The key hashes both recipes, so
+      # a change to either invalidates both trees together.
       - name: Cache the vendored FFmpeg and dav1d builds
         id: ffmpeg-vendored
         uses: actions/cache@v4
@@ -607,43 +464,35 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
-          ./gradlew :kiteffmpeg:buildFFmpegForMacosArm64 --stacktrace
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegForMacosArm64
       - name: Confirm the vendored tree is what gets linked
         run: test -f native-libs/lgpl/macos-arm64/lib/libavformat.a
-      # No -Pkiteffmpeg.ffmpeg.license=gpl anywhere below: LGPL is the shipping default.
-      # Warm the Kotlin/Native toolchain before anything reaches the C helper task. konan fetches
-      # its LLVM and per-target sysroots into ~/.konan/dependencies ON DEMAND, when a Kotlin/Native
-      # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
-      # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
-      # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 --stacktrace || true
+      # No KITEFFMPEG_FFMPEG_LICENSE=gpl anywhere below: LGPL is the shipping default.
       - name: Unit + native tests against the vendored build
-        run: ./gradlew :kiteffmpeg:macosArm64Test --stacktrace
-      # The JVM backend runs the JNI adapter over the same vendored tree, and no other job runs its
-      # tests: the shared contract suite, the byte-source and close-race tests and the dispatch tests
-      # had only ever run on a developer's machine.
+        run: ./kotlin test -m kiteffmpeg -p macosArm64
+      # The JVM backend runs the JNI adapter over the same vendored tree: the shared contract suite,
+      # the byte-source and close-race tests and the dispatch tests.
       - name: JVM tests against the vendored build
-        run: ./gradlew :kiteffmpeg:jvmTest --stacktrace
+        run: ./kotlin test -m kiteffmpeg -p jvm
       - name: Link sample
-        run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableMacosArm64
+        run: ./kotlin build -m kiteffmpeg-sample-macos -p macosArm64
       - name: End-to-end transcode against the vendored build
-        run: scripts/e2e.sh kiteffmpeg-sample/build/bin/macosArm64/debugExecutable/kiteffmpeg-sample.kexe
+        run: scripts/e2e.sh "$(find build/tasks -name 'kiteffmpeg-sample-macos.kexe' -type f | head -1)"
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports-vendored-lgpl
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            build/test-results/**
           retention-days: 7
           if-no-files-found: ignore
 
@@ -655,35 +504,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { abi: arm64, triple: android-arm64, task: AndroidArm64, kotlinTarget: AndroidNativeArm64 }
-          - { abi: arm32, triple: android-arm32, task: AndroidArm32, kotlinTarget: AndroidNativeArm32 }
-          - { abi: x64,   triple: android-x64,   task: AndroidX64,   kotlinTarget: AndroidNativeX64 }
+          - { abi: arm64, triple: android-arm64, task: AndroidArm64, platform: androidNativeArm64 }
+          - { abi: arm32, triple: android-arm32, task: AndroidArm32, platform: androidNativeArm32 }
+          - { abi: x64,   triple: android-x64,   task: AndroidX64,   platform: androidNativeX64 }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-android-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/.cache/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-android-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-android-
+            kotlin-toolchain-android-
       # The NDK cross-compile of FFmpeg takes ~6 min per ABI, so cache the resulting static libs
-      # and only rebuild when the build-task definition (codec set, flags) changes.
-      # Both trees and both sources, for the reason spelled out on the macOS vendored job above:
-      # dav1d became mandatory when FFmpeg was embedded, it installs to native-libs/deps/<triple>/dav1d, and
-      # nothing here ever cloned it. That is why every Android ABI died in under a minute on
-      # buildDav1dFor<Target> with "dav1d source not found".
+      # and only rebuild when the build recipes (codec set, flags) or the patches change.
+      # Both trees and both sources: dav1d installs to native-libs/deps/<triple>/dav1d.
       - uses: actions/cache@v4
         id: ffmpeg-android
         with:
           path: |
             native-libs/lgpl/${{ matrix.triple }}
             native-libs/deps/${{ matrix.triple }}
-          key: ffmpeg-${{ matrix.triple }}-lgpl-n9.0.2-api24-${{ hashFiles('buildSrc/src/main/kotlin/BuildFFmpegTask.kt', 'buildSrc/src/main/kotlin/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-${{ matrix.triple }}-lgpl-n9.0.2-api24-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Install the dav1d build tools
         if: steps.ffmpeg-android.outputs.cache-hit != 'true'
         run: |
@@ -695,39 +538,28 @@ jobs:
           git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          ./gradlew :kiteffmpeg:buildFFmpegFor${{ matrix.task }} --stacktrace
-      # Warm the Kotlin/Native toolchain before anything reaches the C helper task. konan fetches
-      # its LLVM and per-target sysroots into ~/.konan/dependencies ON DEMAND, when a Kotlin/Native
-      # task actually runs, so on a fresh runner compileKiteFFmpegCFor<Target> gets there first and
-      # dies with "No LLVM package with a usable clang". That single race was SIX of the ten failing
-      # jobs on c4e2a58. `|| true` because this warmup exists for its side effect: the real step
-      # below reports the real result.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.kotlinTarget }} --stacktrace || true
-      - name: Compile kiteffmpeg klib (${{ matrix.kotlinTarget }})
-        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.kotlinTarget }} --stacktrace
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegFor${{ matrix.task }}
+      - name: Compile kiteffmpeg klib (${{ matrix.platform }})
+        run: ./kotlin build -m kiteffmpeg -p ${{ matrix.platform }}
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports-android-${{ matrix.abi }}
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            build/test-results/**
           retention-days: 7
           if-no-files-found: ignore
 
-  # Consumer end-to-end smoke: publishes kiteffmpeg + the Gradle plugin to mavenLocal from
-  # this checkout (host desktop target only, via -Pkiteffmpeg.hostTargetsOnly=true, see
-  # kiteffmpeg/build.gradle.kts), generates a throwaway consumer project, and builds + RUNS a
-  # real executable that calls into FFmpeg. This proves the full consumer chain end to end:
-  # plugin resolution from mavenLocal, klib + bundled cinterop compile, final native link, and
-  # runtime symbol resolution.
+  # Consumer end-to-end smoke: publishes kiteffmpeg to mavenLocal from this checkout, generates a
+  # throwaway Gradle consumer project, and builds + RUNS a real executable that calls into FFmpeg.
+  # This proves the full consumer chain end to end: resolution from mavenLocal, klib + bundled
+  # cinterop compile, final native link, and runtime symbol resolution.
   #
-  # With FFmpeg embedded this is a ONE-DEPENDENCY-LINE smoke: no plugin, no FFmpeg source selection, no
-  # kiteffmpeg { } block, because none of those exist any more. FFmpeg rides inside the klib. The
-  # sentence that stood here described FFmpegSource.System and a Prebuilt variant to add later;
-  # both were the deleted plugin's vocabulary.
+  # This is a ONE-DEPENDENCY-LINE smoke: no plugin and no FFmpeg source selection. FFmpeg rides
+  # inside the klib. The consumer stays a Gradle project, because that is what most consumers write.
   consumer-e2e:
     name: Consumer e2e smoke (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
@@ -736,72 +568,71 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, label: macos-arm64, target: macosArm64, taskSuffix: MacosArm64, triple: macos-arm64 }
-          - { os: ubuntu-24.04, label: linux-x64,   target: linuxX64,   taskSuffix: LinuxX64,   triple: linux-x64 }
+          - os: macos-latest
+            label: macos-arm64
+            target: macosArm64
+            taskSuffix: MacosArm64
+            toolchainCache: ~/Library/Caches/JetBrains/Kotlin
+            triples: macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64
+          - os: ubuntu-24.04
+            label: linux-x64
+            target: linuxX64
+            taskSuffix: LinuxX64
+            toolchainCache: ~/.cache/JetBrains/Kotlin
+            triples: linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ matrix.toolchainCache }}
+            ~/.konan
+          key: kotlin-toolchain-consumer-${{ matrix.label }}-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
+          restore-keys: |
+            kotlin-toolchain-consumer-${{ matrix.label }}-
+      # THE PREBUILT STATIC TREES, and this is the whole validity of the job. A system, dynamic
+      # FFmpeg would give a klib that does not embed FFmpeg, and the generated consumer would then
+      # fail to link with `ld: library 'avformat' not found`. The prebuilt static trees make the klib
+      # self-contained, which is what a consumer actually gets from Maven Central.
+      #
+      # A toolchain publish builds every platform that the host can build, so the job fetches the
+      # tree of each of them. A Linux runner cannot build the Apple platforms.
+      - name: Fetch the prebuilt static FFmpeg trees
+        run: |
+          set -euo pipefail
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
+          for triple in ${{ matrix.triples }}; do
+            asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
+            curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
+            curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
+            shasum -a 256 -c "${asset}.sha256"
+            mkdir -p "native-libs/lgpl/${triple}"
+            unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
+            test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
+            ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
+            rm -f "${asset}" "${asset}.sha256"
+          done
+      - name: Publish the library to mavenLocal
+        run: |
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          # The toolchain signs a mavenLocal publish too. This job has no release key, so it uses a throwaway one.
+          . scripts/test-signing-key.sh
+          ./kotlin publish mavenLocal -m kiteffmpeg -m kiteffmpeg-android-natives
+      # The consumer is a Gradle project, so this job installs Gradle for it. The library build
+      # itself does not use Gradle.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-      - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-consumer-${{ matrix.label }}-${{ hashFiles('gradle/libs.versions.toml') }}
-          restore-keys: |
-            konan-consumer-${{ matrix.label }}-
-      # BEFORE the FFmpeg trees exist, and that ordering is the whole point. konan fetches its LLVM
-      # into ~/.konan/dependencies only when a Kotlin/Native task actually runs. Once a tree IS
-      # present, compileKotlin<Target> depends on the ffmpeg cinterop, which depends on our C helper
-      # task, so the C task runs FIRST and dies with "No LLVM package with a usable clang" before
-      # the Kotlin/Native compiler has ever run. With NO tree, the cinterop is skipped, the compiler
-      # runs on the Kotlin sources, LLVM lands, and the compile then fails on unresolved `ffmpeg`
-      # references, which is what the `|| true` is for. Warm first, fetch second.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlin${{ matrix.taskSuffix }} -Pkiteffmpeg.hostTargetsOnly=true --stacktrace || true
-      # THE PREBUILT STATIC TREE, and this is the whole validity of the job.
-      #
-      # It used to brew/apt install FFmpeg. FFmpegPaths then resolved a SYSTEM, DYNAMIC install, so
-      # isStaticVendored was false and the klib this job published did not embed FFmpeg at all. The
-      # generated consumer then failed to link with `ld: library 'avformat' not found`, because it
-      # builds in a different directory with none of those library paths. In other words the "one
-      # dependency line" smoke test was publishing and consuming the ONE configuration that is
-      # never shipped, and could not have passed.
-      #
-      # Fetching the same prebuilt static tree publish.yml uses makes the klib self-contained, which
-      # is what a consumer actually gets from Maven Central. Only the host triple is needed, because
-      # the publish below is scoped with hostTargetsOnly.
-      - name: Fetch the prebuilt static FFmpeg (${{ matrix.triple }})
-        run: |
-          set -euo pipefail
-          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
-          asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${{ matrix.triple }}.zip"
-          curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-          curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-          shasum -a 256 -c "${asset}.sha256"
-          mkdir -p "native-libs/lgpl/${{ matrix.triple }}"
-          unzip -q "${asset}" -d "native-libs/lgpl/${{ matrix.triple }}"
-          test -f "native-libs/lgpl/${{ matrix.triple }}/lib/libavformat.a"
-          ./scripts/check-tree-patches.sh "native-libs/lgpl/${{ matrix.triple }}"
-          rm -f "${asset}" "${asset}.sha256"
-      # The publish guard accepts hostTargetsOnly for publishToMavenLocal only, so this works with
-      # just the runner's system FFmpeg (no android/vendored trees needed).
-      #
-      # noAndroid too, and it is load bearing. The Android AAR is a first-class artifact
-      # so the Android plugin applies by default, which drags in the JNI adapter's C compile for
-      # androidArm64. That task needs konan's Android NDK dependency package, and on a host-only run
-      # no Android Kotlin/Native target is registered, so nothing ever provisions it: the job died
-      # with "no sysroot at .../target-toolchain-2-osx-android_ndk/sysroot". This job is a SMOKE test
-      # that a consumer can resolve and link the host desktop target; the AAR is not part of that
-      # question and is covered by the android jobs above.
-      - name: Publish library + plugin to mavenLocal
-        run: ./gradlew publishToMavenLocal -Pkiteffmpeg.hostTargetsOnly=true -Pkiteffmpeg.noAndroid=true --no-configuration-cache --stacktrace
+          gradle-version: 9.8.1
       - name: Generate throwaway consumer project
         run: |
           set -euo pipefail
-          VERSION="$(grep '^VERSION=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
-          KOTLIN_VERSION="$(grep -E '^kotlin = ' gradle/libs.versions.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          # The publishing version and the Kotlin version are the `version:` lines of the two blocks.
+          VERSION="$(awk '/^  publishing:/ { p = 1 } p && /^    version:/ { print $2; exit }' library.module-template.yaml)"
+          KOTLIN_VERSION="$(awk '/^  kotlin:/ { p = 1 } p && /^    version:/ { print $2; exit }' library.module-template.yaml)"
           consumer="$RUNNER_TEMP/kiteffmpeg-smoke"
           mkdir -p "$consumer/src/commonMain/kotlin"
           cat > "$consumer/settings.gradle.kts" <<EOF
@@ -823,17 +654,8 @@ jobs:
           rootProject.name = "kiteffmpeg-smoke"
           EOF
           cat > "$consumer/build.gradle.kts" <<EOF
-          // ONE DEPENDENCY LINE, and no plugin. That is the whole point of this smoke test.
-          //
-          // Until 2026-08-24 this generated consumer applied id("io.github.yuroyami.kiteffmpeg"),
-          // imported FFmpegLicense and FFmpegSource, and configured a kiteffmpeg { ffmpeg { } }
-          // block. Embedding FFmpeg deleted every one of those: FFmpeg now lives inside the klibs and the
-          // Gradle plugin was removed entirely (commit aae752e, "plugin plumbing deleted"). So this
-          // job had been asking mavenLocal for a plugin that no longer exists and failing with
-          // "Plugin [id: 'io.github.yuroyami.kiteffmpeg'] was not found", which nobody noticed
-          // because every other job was red too. What it tests now is what a real consumer actually
-          // writes, which is also the product claim being made: add the dependency, get a working
-          // FFmpeg.
+          // ONE DEPENDENCY LINE, and no plugin. That is what a real consumer writes, and it is also
+          // the product claim: add the dependency, get a working FFmpeg.
           plugins {
               id("org.jetbrains.kotlin.multiplatform") version "$KOTLIN_VERSION"
           }
@@ -859,9 +681,8 @@ jobs:
               println("KITECODEC_SMOKE avutil=${FFmpeg.versions.avutil} avcodec=${FFmpeg.versions.avcodec}")
           }
           EOF
-      # The repo's wrapper drives the consumer build via -p (the consumer ships no wrapper).
       - name: Build consumer executable
-        run: ./gradlew -p "$RUNNER_TEMP/kiteffmpeg-smoke" linkDebugExecutable${{ matrix.taskSuffix }} --stacktrace
+        run: gradle -p "$RUNNER_TEMP/kiteffmpeg-smoke" linkDebugExecutable${{ matrix.taskSuffix }} --stacktrace
       - name: Run consumer executable
         run: |
           set -euo pipefail
@@ -874,8 +695,8 @@ jobs:
         with:
           name: reports-consumer-e2e-${{ matrix.label }}
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            ${{ runner.temp }}/kiteffmpeg-smoke/build/reports/**
           retention-days: 7
           if-no-files-found: ignore
 
@@ -888,35 +709,19 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-windows-x64-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/AppData/Local/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-windows-x64-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-windows-x64-
-      # Warm before the tree exists; see the note on the Linux job for why the order matters.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinMingwX64 --stacktrace || true
-      # BtbN is GONE from this job, and both reasons it had to go were proven on CI.
-      #
-      # 1. Its builds are SHARED: DLLs plus import libraries, no libavformat.a. Since FFmpeg was embedded the
-      #    build embeds STATIC archives into the klib, so this job failed with "Could not find
-      #    'libavformat.a' binary in neither of [native-libs\lgpl\mingw-x64\lib, ...]".
-      # 2. BtbN prunes old autobuild releases, so any pin 404s after a few weeks and the job goes
-      #    red on a schedule nobody set. That is exactly what happened on 2026-08-23.
-      #
-      # This project publishes its own static mingw-x64 tree, so the job now reads that: same asset
+            kotlin-toolchain-windows-x64-
+      # This project publishes its own static mingw-x64 tree, so the job reads that: same asset
       # publish.yml uses, checksum-verified, and it is what a Windows consumer actually links.
+      # Shared FFmpeg builds (DLLs plus import libraries) have no libavformat.a to embed.
       - name: Fetch the prebuilt static FFmpeg (mingw-x64)
         shell: pwsh
-        env:
-          FFMPEG_VERSION: n9.0.2
-          FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r3
         run: |
           $base = "https://github.com/${{ github.repository }}/releases/download/$env:FFMPEG_ASSET_TAG"
           $asset = "ffmpeg-$env:FFMPEG_VERSION-lgpl-mingw-x64.zip"
@@ -933,25 +738,27 @@ jobs:
           Remove-Item $asset, "$asset.sha256"
       # The same patch check as the other fetch steps (#175), in the runner's Git Bash.
       - name: Check the tree carries every committed patch
-        shell: bash
         run: ./scripts/check-tree-patches.sh native-libs/lgpl/mingw-x64
       # The ffmpeg CLI for scripts/e2e.sh's assertions only; not what gets linked.
       - name: Install the ffmpeg CLI (for e2e assertions only)
         shell: pwsh
         run: choco install ffmpeg -y --no-progress
+      # kotlin.bat is the Windows wrapper of the Kotlin Toolchain.
       - name: Unit + native tests
-        run: ./gradlew :kiteffmpeg:mingwX64Test --stacktrace
+        shell: cmd
+        run: kotlin.bat test -m kiteffmpeg -p mingwX64
       - name: Link sample
-        run: ./gradlew :kiteffmpeg-sample:linkDebugExecutableMingwX64
+        shell: cmd
+        run: kotlin.bat build -m kiteffmpeg-sample-windows -p mingwX64
       - name: End-to-end transcode
-        run: scripts/e2e.sh kiteffmpeg-sample/build/bin/mingwX64/debugExecutable/kiteffmpeg-sample.exe ffmpeg ffprobe
+        run: scripts/e2e.sh "$(find build/tasks -name 'kiteffmpeg-sample-windows.exe' -type f | head -1)" ffmpeg ffprobe
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: reports-windows-x64
           path: |
-            **/build/reports/**
-            **/build/test-results/**
+            build/reports/**
+            build/test-results/**
           retention-days: 7
           if-no-files-found: ignore

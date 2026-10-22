@@ -1,0 +1,28 @@
+# The asynchronous web codec modules of kiteffmpeg, kite-jspi and kite-asyncify (.mjs and .wasm), at the root of
+# a plain jar, with the build record under build-info/ and the licence texts under licenses/.
+# Up to 0.5.1 the same files came in kiteffmpeg-wasm-js-<version>-web-async.zip.
+product: jvm/lib
+
+description: >-
+  The asynchronous web codec modules of KiteFFmpeg (kite-jspi and kite-asyncify), with FFmpeg (LGPL) linked in, at
+  the root of the jar beside build-info/ and licenses/. A web app unpacks the jar beside its page.
+
+apply:
+  - ../library.module-template.yaml
+
+settings:
+  publishing:
+    pom:
+      name: KiteFFmpeg asynchronous web codec modules
+      # The web build links FFmpeg alone, without dav1d.
+      licenses:
+        - name: The Apache License, Version 2.0
+          url: https://www.apache.org/licenses/LICENSE-2.0.txt
+        - name: GNU Lesser General Public License, Version 2.1 or later (bundled FFmpeg)
+          url: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+
+plugins:
+  # Links the two codec modules with emscripten into the root of this jar. See build-plugins/web-package.
+  web-package:
+    enabled: true
+    variant: web-async

@@ -10,9 +10,6 @@ captures/
 *.hprof
 **/.kotlin-build-tools/
 
-# Intentionally do not ignore kotlin-js-store/yarn.lock. Kotlin/JS and Wasm use it as the
-# reproducible dependency lock for their Node/browser build and test tooling.
-
 # Source tarballs / submodule build artefacts.
 # The whole vendor/ tree: the docs tell you to `git clone ... vendor/ffmpeg`, which is ~10k
 # files of someone else's source, and it must never show up in `git status` as untracked noise.

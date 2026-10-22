@@ -1,0 +1,18 @@
+# The code of the sample command-line program, which transcodes one file with kiteffmpeg.
+# The kiteffmpeg-sample-macos, -linux and -windows app modules link it into executables.
+product:
+  type: kmp/lib
+  platforms: [ macosArm64, macosX64, linuxX64, linuxArm64, mingwX64 ]
+
+dependencies:
+  - //kiteffmpeg
+  - $libs.kotlinx.coroutines.core
+
+settings:
+  kotlin:
+    version: 2.4.21
+    optIns:
+      - kotlin.RequiresOptIn
+      - kotlin.experimental.ExperimentalNativeApi
+      - kotlin.time.ExperimentalTime
+      - kotlinx.cinterop.ExperimentalForeignApi

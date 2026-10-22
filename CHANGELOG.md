@@ -8,6 +8,65 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+The build moved from Gradle to the Kotlin Toolchain. The Kotlin API, the C ABI and the published
+group and version line did not change. The Android, Wasm and web distribution changed, as listed
+below.
+
+### Changed
+
+- Android: the AAR no longer has a `jni/` folder. The JNI library `libkitecodec_jni.so` of each ABI
+  (`arm64-v8a`, `armeabi-v7a`, `x86_64`) is in a new artifact,
+  `io.github.yuroyami:kiteffmpeg-android-natives`, a plain jar with the libraries at `lib/<abi>/`.
+  The Android variant of `kiteffmpeg` depends on it, and the Android Gradle plugin packages the
+  libraries into the app as before. `System.loadLibrary` does not change. The 64-bit libraries
+  keep their 16 KB page alignment.
+- Android: the consumer R8 keep rules moved from the AAR to `META-INF/proguard/kiteffmpeg.pro` in
+  the `kiteffmpeg-android-natives` jar. R8 reads them from there.
+- Wasm: the artifact id of the `wasmJs` platform is `kiteffmpeg-wasmjs`. It was
+  `kiteffmpeg-wasm-js`. Gradle consumers that depend on `kiteffmpeg` get the right one without a
+  change.
+- Web: the `web` and `web-async` zips (`kiteffmpeg-wasm-js-<version>-web.zip` and
+  `kiteffmpeg-wasm-js-<version>-web-async.zip`) became two jars on Maven Central,
+  `io.github.yuroyami:kiteffmpeg-web` and `io.github.yuroyami:kiteffmpeg-web-async`. Each jar holds
+  the files of its zip at its root: `kite.mjs` and `kite.wasm` (or the `kite-jspi` and
+  `kite-asyncify` modules), `build-info/` and `licenses/`. A jar is a zip file, so a web app
+  downloads `kiteffmpeg-web-<version>.jar` and unpacks it beside its page. The page does not need
+  the `META-INF/` folder of the jar.
+- iOS: the FFmpeg, dav1d and libass builds target iOS 15.0. They targeted iOS 14.0. The prebuilt
+  iOS trees of the current FFmpeg release keep 14.0 until they are built again.
+- Contributors build with `./kotlin` (`kotlin.bat` on Windows), which downloads the toolchain, a
+  JDK and Kotlin/Native. [Building from source](docs/building-from-source.md) and
+  [CONTRIBUTING.md](CONTRIBUTING.md) have the commands. The Gradle properties of the build became
+  environment variables or `-p` platform flags:
+  - `kiteffmpeg.ffmpeg.license=gpl` is `KITEFFMPEG_FFMPEG_LICENSE=gpl`.
+  - `kiteffmpeg.ffmpeg.selfContained` is `KITEFFMPEG_FFMPEG_SELF_CONTAINED=true`.
+  - `kiteffmpeg.emscripten.llvmBin` is `KITEFFMPEG_EMSCRIPTEN_LLVM_BIN`.
+  - `kiteffmpeg.ffmpeg.autoBake` is `KITEFFMPEG_AUTO_BAKE=true`.
+  - `kiteffmpeg.web.requireModule` is the `--require-modules` option of `scripts/web-tests/run.py`.
+  - `kiteffmpeg.macos.homebrew.prefix` is the `homebrewPrefix` setting of the `kiteffmpeg-native`
+    plugin in `kiteffmpeg/module.yaml`.
+  - The target scopes (`hostTargetsOnly`, `phoneTargetsOnly` and the others) are `-p` flags.
+  - The desktop JNI switches are gone: the build links the JNI library of each desktop platform
+    whose FFmpeg tree exists, and `./kotlin do checkDesktopJni` fails while one is missing.
+- The sample program builds through three app modules, `kiteffmpeg-sample-macos`,
+  `kiteffmpeg-sample-linux` and `kiteffmpeg-sample-windows`.
+
+### Fixed
+
+- Android native (`androidNativeArm32`, `androidNativeArm64`, `androidNativeX64`): an executable that uses
+  `kiteffmpeg` could fail to link with undefined `av_*`, `stderr` or `__aarch64_*` symbols. The cinterop klib
+  of each Android native platform now embeds one archive. That archive also holds the `stdout` and
+  `stderr` variables, which the API 21 libc of Kotlin/Native lacks, and on arm64 the outline atomics
+  helpers of the NDK compiler runtime.
+
+### Removed
+
+- The Android device tests (`androidDeviceTest`). The Kotlin Toolchain cannot run Android
+  instrumented tests. The shared suites run as Android host tests and on the JVM, and
+  `scripts/android-device-check.sh` runs the device check of the JNI library in a small app.
+- A Gradle composite build (`includeBuild("../KiteFFmpeg")`) no longer works, because the repository
+  is not a Gradle build. Publish to `~/.m2` with `./kotlin publish mavenLocal` instead.
+
 ## [0.5.1] - 2026-10-08
 
 Byte sources that answer later, on every platform and on the web through two new codec modules.

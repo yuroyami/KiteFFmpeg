@@ -4,9 +4,8 @@
 #
 # There is no make, no cmake and no ninja here, and that is deliberate:
 # cmake is not installed on the proving machine, and GNU make starts a comment at an
-# unescaped '#' while both repositories live under a path containing '#Kite'. Driving clang
-# directly is the only form that is both available and safe under this path, and it is proven
-# to work here.
+# unescaped '#', and a checkout path can contain one. Driving clang directly is the only form
+# that is both available and safe under such a path, and it is proven to work here.
 #
 # Usage:  ./scripts/build-host.sh <variant>
 #         variant is one of: plain asan tsan
@@ -106,8 +105,8 @@ case "$VARIANT" in
 esac
 
 # What the artifact was built for, carried into the identity report of src/kitecodec_abi.c. The
-# shipped archive gets the same three from kiteffmpeg/build.gradle.kts through
-# CompileKiteFFmpegCTask.buildDefines; here they describe the host tree the tests link against.
+# shipped archive gets the same three from the ffmpegInterop<Platform> tasks of the build plugin
+# build-plugins/kiteffmpeg-native, through CompileKiteFFmpegCTask.buildDefines; here they describe the host tree the tests link against.
 KC_BUILD_REF="${KC_BUILD_REF:-n8.0}"
 KC_BUILD_LICENSE="${KC_BUILD_LICENSE:-lgpl}"
 if [ -n "${KC_FFMPEG_PREFIX:-}" ]; then
@@ -119,7 +118,7 @@ BUILD_DEFINES=(
     # Host test builds only. Compiles the forced-gate-verdict seam kc_init carries, which is the
     # only way a suite can drive the refusal every constructor helper owes: the real verdict is
     # computed once from the FFmpeg this process linked, and a host build links a compatible one
-    # by construction. Never defined by the Gradle cross-build, so no shipped archive has it.
+    # by construction. Never defined by the cross-build, so no shipped archive has it.
     "-DKC_TESTING"
     "-DKC_BUILD_FFMPEG_REF=\"$KC_BUILD_REF\""
     "-DKC_BUILD_FFMPEG_LICENSE=\"$KC_BUILD_LICENSE\""

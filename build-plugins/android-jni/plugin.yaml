@@ -1,0 +1,56 @@
+# Tasks of the kiteffmpeg-android-natives module: one NDK link per Android ABI.
+
+tasks:
+  jniArm64:
+    action: !io.github.yuroyami.kiteffmpeg.androidjni.linkAndroidJni
+      abi: arm64-v8a
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/android-arm64
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
+  jniArm32:
+    action: !io.github.yuroyami.kiteffmpeg.androidjni.linkAndroidJni
+      abi: armeabi-v7a
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/android-arm32
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
+  jniX64:
+    action: !io.github.yuroyami.kiteffmpeg.androidjni.linkAndroidJni
+      abi: x86_64
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/android-x64
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
+  checkJni:
+    action: !io.github.yuroyami.kiteffmpeg.androidjni.checkAndroidJni
+      abis: [ arm64-v8a, armeabi-v7a, x86_64 ]
+      libraries:
+        - ${tasks.jniArm64.action.resourcesDir}
+        - ${tasks.jniArm32.action.resourcesDir}
+        - ${tasks.jniX64.action.resourcesDir}
+
+generated:
+  resources:
+    - directory: ${tasks.jniArm64.action.resourcesDir}
+    - directory: ${tasks.jniArm32.action.resourcesDir}
+    - directory: ${tasks.jniX64.action.resourcesDir}
+
+checks:
+  - name: androidJni
+    performedBy: checkJni

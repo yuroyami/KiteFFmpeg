@@ -1,0 +1,32 @@
+# Tasks of kiteffmpeg-web and kiteffmpeg-web-async: one emscripten link of the web codec modules,
+# whose files go to the root of the jar.
+
+tasks:
+  webPackage:
+    action: !io.github.yuroyami.kiteffmpeg.webpackage.packageWebModules
+      variant: ${pluginSettings.variant}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      signatureBaseline: ${project.rootDir}/native/kitecodec-c/signature-baseline.txt
+      bridgeSource: ${project.rootDir}/native/kitecodec-web/kite_async_bridge.c
+      importsLibrary: ${project.rootDir}/native/kitecodec-web/kite_async_imports.js
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/wasm32
+      licenseFiles:
+        - ${project.rootDir}/kiteffmpeg/resources@jvm/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1
+        - ${project.rootDir}/kiteffmpeg/web/licenses/THIRD-PARTY.txt
+      workDir: ${taskOutputDir}/work
+      resourcesDir: ${taskOutputDir}/resources
+
+  checkWebPackage:
+    action: !io.github.yuroyami.kiteffmpeg.webpackage.checkWebPackage
+      variant: ${pluginSettings.variant}
+      resourcesDir: ${tasks.webPackage.action.resourcesDir}
+
+generated:
+  resources:
+    - directory: ${tasks.webPackage.action.resourcesDir}
+
+checks:
+  - name: webPackage
+    performedBy: checkWebPackage

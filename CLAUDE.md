@@ -28,20 +28,19 @@ Each line is something that bit someone. Delete a line when it stops being true.
 
 ### Build and toolchain
 
-- `apiCheck` and `apiDump` run with `-Pkiteffmpeg.requireAllTargets=true` and all eleven native
-  trees present, because the dump covers thirteen targets. Dumping with `hostTargetsOnly` writes a
-  three-target dump and CI fails on the target lines alone, which looks exactly like a real break.
-  Cinterop on a machine with one FFmpeg tree still wants `-Pkiteffmpeg.hostTargetsOnly=true`.
-- Publishing for the sibling player needs all three flags together,
-  `-Pkiteffmpeg.phoneTargetsOnly=true -Pkiteffmpeg.withDesktopTargets=true -Pkiteffmpeg.jni.linux=true`,
-  because a publish regenerates the root module metadata and a host-only publish deletes the
-  ios, linux and mingw variants from it.
-- `-Pkiteffmpeg.jni.linux=true` and `-Pkiteffmpeg.jni.windows=true` cross-link the desktop JNI
-  libraries with konan and write the small platform JNI header themselves, so Docker is not
-  needed; a Maven Central publish refuses to run without both switches, and the jar then carries
-  Linux x64, Linux arm64 and Windows x64 libraries beside the macOS one.
-- FFmpeg's configure cannot handle a `#` anywhere in its path, so the build tasks build in the
-  system temp directory; Gradle's own `temporaryDir` is inside the project and fails.
+- `./kotlin check klibAbi` reads the klibs of all thirteen platforms in `klibPlatforms`, so run
+  `./kotlin build -m kiteffmpeg` with all eleven native trees present first. A machine with one
+  FFmpeg tree builds with `-p` for that platform only.
+- A toolchain publish builds every platform in one run, so a `./kotlin publish mavenLocal -m
+  kiteffmpeg -m kiteffmpeg-android-natives` for the sibling player needs every FFmpeg tree, and an
+  arm64 Mac for the Apple platforms. The web codec module is the `kiteffmpeg-web` jar: add
+  `-m kiteffmpeg-web` (and `-m kiteffmpeg-web-async`) when the player needs it from `~/.m2`.
+- The desktop JNI libraries for Linux x64, Linux arm64 and Windows x64 are cross-linked with konan
+  whenever their FFmpeg trees exist, and the build writes the small platform JNI header itself, so
+  Docker is not needed. `./kotlin do checkDesktopJni` fails unless the jar carries all four
+  libraries, and the publish workflow runs it before the upload.
+- FFmpeg's configure cannot handle a `#` anywhere in its path, so the bakes build in the system
+  temp directory, never inside the project.
 - `--disable-postproc` does not exist in the vendored FFmpeg line and makes configure fail
   outright; postproc is already off by default.
 - `--disable-asm` also disables SIMD, because SIMD is gated as an architecture extension, so a
@@ -50,30 +49,22 @@ Each line is something that bit someone. Delete a line when it stops being true.
   `ANDROID_NDK_LATEST_HOME` and two default directories only, never from `sdk.dir` in
   `local.properties`, so an SDK outside the standard paths fails every Android target with
   "Android NDK not found" until the variable is exported.
-- A rebaked FFmpeg tree does invalidate its consumers, and an earlier note claimed the
-  opposite: the wiring is deliberate, documented beside the cinterop block, and reading a
-  second invocation's UP-TO-DATE as evidence of a break is how the wrong claim was made.
-- `symbol-audit.sh` prefers the Gradle-built archive and only falls back to the host one when
-  Gradle produced nothing, so running `build-host.sh` and then the tool reports on whatever
-  Gradle last built, which can be days old.
+- A rebaked FFmpeg tree does invalidate its consumers: the `ffmpegInterop<Platform>` task reads
+  the tree and writes a fingerprint of the embedded archives into the generated def file, so the
+  cinterop runs again.
+- `symbol-audit.sh` prefers the build's archive under `build/tasks/` and only falls back to the
+  host one when the build produced nothing, so running `build-host.sh` and then the tool reports
+  on whatever the build last made, which can be days old.
 - `run-c-tests.sh` never builds anything, so on its own it proves nothing about a source
   change; run `build-host.sh <variant>` first, every time.
 - Moving or renaming the checkout breaks the prebuilt C test binaries: they carry an absolute
   rpath to their interpose library from link time, so every suite aborts naming the old path,
   which reads like a broken test and is a stale binary.
-- A Gradle compile task with no sources prints `NO-SOURCE` and exits zero, so "the target
-  compiles now" can mean "there was never anything there to compile".
 - Adding a dependency can poison Kotlin's incremental-compilation cache, and the failure names
   a stdlib function and reads like a compiler bug in your own code; delete the module's
   `build/kotlin` and build again.
-- `./gradlew ... | tail` reports the exit code of `tail`, so a failed build can look like a
-  successful one; pipe to a file and check the log for BUILD FAILED.
-- Scraping every Gradle configuration gives a load-dependent answer, because which
-  configurations are realised depends on the rest of the task graph; only `api`,
-  `implementation`, `compileOnly` and `runtimeOnly` can reach a POM.
-- The atomicfu Gradle plugin is banned in every module: its bytecode transform registers a task
-  depending on `androidMainClasses`, which the Android plugin's multiplatform library variant
-  does not create. The library dependency itself is fine.
+- `./kotlin ... | tail` reports the exit code of `tail`, so a failed build can look like a
+  successful one; pipe to a file and check the exit code of `./kotlin`.
 - The two macOS CI jobs deliberately both build FFmpeg on a cold cache, one running the
   ratchets and one building the real reduced permissive profile users get; merging them was
   refused because independent failure signal is the point.
@@ -111,7 +102,7 @@ Each line is something that bit someone. Delete a line when it stops being true.
   cinterop klib and grep it for the expected FFmpeg version string.
 - A Kotlin bump can change the cinterop metadata with no C change, and only
   `klib-metadata-diff.sh --check` notices: Kotlin 2.4.20 added a low-priority overload beside
-  every C function that takes a string. Host tests and `apiCheck` stay green, and CI's ratchets
+  every C function that takes a string. Host tests and `klibAbi` stay green, and CI's ratchets
   job goes red. Run the check after every Kotlin bump and re-baseline with `--update`.
 - Never edit `klib-metadata-baseline.txt` by hand. Kotlin/Native cuts the dump into fragments of
   128 declarations, so a declaration added by hand leaves a fragment too long and the ratchets
@@ -119,7 +110,7 @@ Each line is something that bit someone. Delete a line when it stops being true.
   dump of the linuxX64 klib matches the macOS one once each `CCall.Direct(name = "` gains the
   leading underscore that macOS symbols carry; the script itself refuses the Linux spelling.
 - The generated wasm binding has two copies, the generator's output and the committed one, and
-  `checkWasmBindingMirror` keeps them identical; if it fires, regenerate and commit both rather
+  `./kotlin check wasmBindingMirror` keeps them identical; if it fires, regenerate and commit both rather
   than hand-editing the committed copy.
 - `publish.yml` runs the whole of `ci.yml` on the commit it publishes, and the upload waits for it,
   so a release run takes as long as CI plus the upload and one flaky test stops a release (#90).
@@ -135,13 +126,8 @@ Each line is something that bit someone. Delete a line when it stops being true.
 - A backtick test name containing a comma compiles on the JVM and breaks every Kotlin/Native
   target with "Name contains illegal characters", so a green JVM run says nothing; it has bitten
   twice.
-- A test name with a space stops the Android device test APK at the dex step, because D8 takes a
-  space in a method name only from minimum SDK 30 and this module's is 26. The device tests
-  include `commonTest` and `codecContractTest`, and neither the host tests nor CI dex, so name
-  those tests in camel case and check with `assembleAndroidDeviceTest`.
-- Kotlin/Native creates and then permanently disables the Linux test tasks on a macOS host, so
-  naming them is green by definition; Linux evidence is the container script or the CI Linux
-  job, and Windows native evidence on a Mac is a link claim only.
+- A macOS host cannot run the Linux test binaries, so Linux evidence is the container script or
+  the CI Linux job, and Windows native evidence on a Mac is a link claim only.
 
 ### The web target
 
@@ -180,12 +166,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
   shared test written with it will not compile there; the fix is `runTest`, not moving the test
   to a narrower source set, because narrowing silently removes it from every target that no
   longer sees it.
-- A browser test that runs longer than two seconds is killed rather than failed, because the
-  test runner's per-test default is 2000 ms and Kotlin does not raise it; every module running
-  browser tests needs a timeout config file copied from the one that has it.
-- The browser half dies under concurrent load and reports "Test running process exited
-  unexpectedly", naming whichever test was in flight, which reads like that test crashed;
-  re-run it alone before believing it.
+- `./kotlin test` cannot run the JS tests, and its browser page cannot reach the codec modules,
+  so `scripts/web-tests/run.py` links the web tests with the toolchain and runs them in Node or
+  headless Chrome. `browser.mjs` serves the modules and fills `__karma__.config`, which the tests
+  still read.
 
 ### Media behaviour
 
@@ -246,16 +230,13 @@ Do not reopen these without new evidence.
 - The C surface keeps the Java bridge adapter, the ABI and identity probe, the `get_format`
   callback, and FFmpeg itself. Everything that is a one-line forward becomes direct interop. The
   goal is no redundant C, not no C.
-- Gradle artifact checksum verification is off, and the reason is measured: generating the
-  metadata recorded 486 components from one JVM compile and the next task failed on a detached
-  configuration that Kotlin/Native and the Node setup resolve through and the generator never
-  sees. CI also runs on three operating systems, each resolving its own toolchain artifacts, so
-  a file written on one host cannot carry the other two. `scripts/check-dependency-hygiene.sh`
-  guards what can be guarded instead. Reopen only with a way to merge metadata per host.
+- The Kotlin Toolchain has no artifact checksum verification and no lockfile.
+  `scripts/check-dependency-hygiene.sh` guards what can be guarded instead.
 - Native Linux and Windows have no https: those targets have no operating-system TLS to
   delegate to and no output backend. Desktop rides the JVM, which has https.
-- A composite Gradle build was declined. The twin repositories resolve through published pins,
-  or through an explicit opt-in to the local Maven repository.
+- A composite Gradle build is not possible, because this repository is not a Gradle build. The
+  twin repositories resolve through published pins, or through an explicit opt-in to the local
+  Maven repository.
 - A diagnostic bypass of the FFmpeg identity gate exists on purpose: opt-in only, it warns once
   naming the exact mismatch and records itself in diagnostics. An unbypassable gate turns a
   false rejection into an outage inside a consumer's product.
@@ -273,8 +254,8 @@ Do not reopen these without new evidence.
 - Release tags carry all 22 prebuilts, eleven triples times two flavours. macOS uses the
   portable profile. Deleted release pages keep their tags.
 - Two artifact names are served publicly. The old `kitecodec-core` line is finished and receives
-  nothing further. This repository's artifact is `kiteffmpeg`, and the Gradle module is
-  `:kiteffmpeg`; the artifact id lost its `-core` suffix in the rename.
+  nothing further. This repository's artifact is `kiteffmpeg`, and the toolchain module is
+  `kiteffmpeg`; the artifact id lost its `-core` suffix in the rename.
 - The version went backwards on purpose. `kiteffmpeg` 0.1.0 is strictly newer than
   `kitecodec-core` 0.1.3, because a new artifact id is a new artifact and the line restarted
   with the name. Never "fix" the number by bumping past the old line, and keep saying this in

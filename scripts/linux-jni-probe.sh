@@ -20,8 +20,13 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/cp"
 cp "$JAR" "$WORK/cp/"
+# The Maven cache of the Kotlin Toolchain, which has the dependencies after any JVM build.
+case "$(uname -s)" in
+  Darwin) M2_CACHE="$HOME/Library/Caches/JetBrains/Kotlin/.m2.cache" ;;
+  *) M2_CACHE="$HOME/.cache/JetBrains/Kotlin/.m2.cache" ;;
+esac
 for pattern in "kotlin-stdlib-2.*.jar" "kotlinx-coroutines-core-jvm-*.jar" "atomicfu-jvm-*.jar"; do
-  found=$(find "$HOME/.gradle/caches" -name "$pattern" 2>/dev/null | grep -v sources | head -1)
+  found=$(find "$M2_CACHE" "$HOME/.m2/repository" -name "$pattern" 2>/dev/null | grep -v sources | head -1)
   [ -n "$found" ] || { echo "missing dependency matching $pattern" >&2; exit 1; }
   cp "$found" "$WORK/cp/"
 done

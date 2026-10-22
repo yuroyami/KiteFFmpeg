@@ -1,0 +1,9 @@
+# The sample command-line program for macOS. scripts/e2e.sh runs it.
+product: macos/app
+
+dependencies:
+  - //kiteffmpeg-sample
+
+settings:
+  kotlin:
+    version: 2.4.21

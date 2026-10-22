@@ -1,0 +1,16 @@
+# The plugin that links libkitecodec_jni.so for each Android ABI with the NDK, and puts the libraries at
+# lib/<abi>/ in the jar of kiteffmpeg-android-natives. The logic is in native-build.
+product: jvm/amper-plugin
+
+dependencies:
+  - //build-plugins/native-build
+
+settings:
+  kotlin:
+    version: 2.4.21
+  jvm:
+    jdk:
+      version: 21
+
+pluginInfo:
+  settingsClass: io.github.yuroyami.kiteffmpeg.androidjni.AndroidJniSettings

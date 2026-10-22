@@ -37,9 +37,12 @@ picked.
 A browser cannot link FFmpeg into the Kotlin binary, so `wasmJs` loads FFmpeg as a separate
 WebAssembly module:
 
-1. Download `kiteffmpeg-wasm-js-<version>-web.zip`. It sits beside the `wasmJs` artifact on Maven
-   Central, for the version you depend on.
+1. Download `kiteffmpeg-web-<version>.jar` from Maven Central (`io.github.yuroyami:kiteffmpeg-web`)
+   for the version you depend on. A jar is a zip file. For 0.5.1 and older, download
+   `kiteffmpeg-wasm-js-<version>-web.zip` instead, which sits beside the `kiteffmpeg-wasm-js`
+   artifact.
 2. Unpack it beside your page, so that the page serves `kite.mjs`, `kite.wasm` and `licenses/`.
+   The page does not need the `META-INF/` folder of the jar.
 3. Call `KiteFFmpegWeb.load()` once, before any other KiteFFmpeg call.
 
 ```kotlin

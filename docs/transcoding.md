@@ -162,7 +162,7 @@ An encoder that writes another format than `codec` is refused with `FFmpegError.
     val format = FFmpeg.codecOf(EncoderId.H264VideoToolbox) // CodecId.H264, or null when absent
     ```
 
-    `libx264` and `libx265` exist only in a GPL-flavour FFmpeg, and no published KiteFFmpeg artifact carries one, so asking for either throws `FFmpegException` from `addVideoEncoder` before a frame is read. There is no task that will build one for you: point the build at your own GPL tree under `native-libs/gpl/<target>/` with `-Pkiteffmpeg.ffmpeg.license=gpl`. Read [Licensing](licensing.md) first, because that choice makes your whole application GPL.
+    `libx264` and `libx265` exist only in a GPL-flavour FFmpeg, and no published KiteFFmpeg artifact carries one, so asking for either throws `FFmpegException` from `addVideoEncoder` before a frame is read. There is no task that will build one for you: point the build at your own GPL tree under `native-libs/gpl/<target>/` with the environment variable `KITEFFMPEG_FFMPEG_LICENSE=gpl`. Read [Licensing](licensing.md) first, because that choice makes your whole application GPL.
 
 ## Audio encoding, copy, or drop
 

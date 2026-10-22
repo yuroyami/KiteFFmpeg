@@ -150,7 +150,7 @@ commercial, closed-source app can ship under the [LGPL duties](licensing.md). St
 iOS App Store is the hardest case of those.
 
 The build makes only LGPL trees. A GPL tree is one that you build and own, and
-`-Pkiteffmpeg.ffmpeg.license=gpl` selects it. The iOS targets refuse a GPL tree. The
+the environment variable `KITEFFMPEG_FFMPEG_LICENSE=gpl` selects it. The iOS targets refuse a GPL tree. The
 [Licensing guide](licensing.md) has the full guidance.
 
 ## Acknowledgments

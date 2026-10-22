@@ -21,8 +21,8 @@ You choose the license when FFmpeg is built, not in Kotlin code:
 
 `buildFFmpegFor<Target>` produces the LGPL flavor, and every published artifact carries it.
 There is no GPL task, because shipping a GPL binary decides the license of every app that links
-it, and that is not a library's decision to make. `-Pkiteffmpeg.ffmpeg.license=gpl` selects
-`native-libs/gpl/<target>/`, so the GPL route is a tree that you build and own.
+it, and that is not a library's decision to make. The environment variable `KITEFFMPEG_FFMPEG_LICENSE=gpl`
+selects `native-libs/gpl/<target>/`, so the GPL route is a tree that you build and own.
 [Building from source](building-from-source.md#use-a-gpl-ffmpeg-of-your-own) shows how to select it.
 
 ## LGPL obligations when you distribute
@@ -76,6 +76,7 @@ self-contained artifact can only bundle what cross-compiles for all eleven targe
 | FFmpeg (libav\*) | LGPL-2.1+ | bundled in every published artifact |
 | dav1d | BSD-2-Clause | bundled in every published artifact; it is the software AV1 decoder |
 | zlib | zlib license | linked from the platform SDK or the system, not bundled |
+| compiler-rt (LLVM) | Apache-2.0 WITH LLVM-exception | bundled in the `androidNativeArm64` klib: the outline atomics helpers of the NDK compiler runtime |
 
 **Nothing else is linked into the FFmpeg archives.** No SVT-AV1, libvpx, libaom, libopus,
 libmp3lame, libwebp, FreeType, HarfBuzz, FriBidi or libass.
@@ -107,7 +108,7 @@ A practical summary for a commercial product: use hardware decode where you can,
 
 Before you ship an app that embeds KiteFFmpeg:
 
-- [ ] Know your flavor: LGPL (default) or GPL (`-Pkiteffmpeg.ffmpeg.license=gpl`). If GPL, confirm your whole app is GPL-3.0-compatible. If it is not, switch flavors.
+- [ ] Know your flavor: LGPL (default) or GPL (`KITEFFMPEG_FFMPEG_LICENSE=gpl`). If GPL, confirm your whole app is GPL-3.0-compatible. If it is not, switch flavors.
 - [ ] Bundle the license texts: `COPYING.LGPLv2.1`, FFmpeg's `LICENSE.md`, and notices for the third-party components above. Add `COPYING.GPLv3` for the GPL flavor.
 - [ ] State in your app's about or licenses screen that it uses FFmpeg and the listed components.
 - [ ] Provide the source offer. Link or host the exact FFmpeg source your build used. `BUILD-INFO.txt` in the release zips records the tag, the commit, and the configure line.

@@ -30,10 +30,11 @@ val runtime = KiteFFmpegWeb.loadAsyncRuntime(
 )
 ```
 
-The two modules come in `kiteffmpeg-wasm-js-<version>-web-async.zip`, beside the `web` zip of the
-`wasmJs` artifact on Maven Central. Unpack it beside your page. `kite-jspi` needs JavaScript
-Promise Integration in the browser. `kite-asyncify` runs in every browser, and it is larger. The
-loader picks one module like this:
+The two modules come in `kiteffmpeg-web-async-<version>.jar` on Maven Central
+(`io.github.yuroyami:kiteffmpeg-web-async`). For 0.5.1 they come in
+`kiteffmpeg-wasm-js-0.5.1-web-async.zip`, beside the `kiteffmpeg-wasm-js` artifact. Unpack the
+file beside your page. `kite-jspi` needs JavaScript Promise Integration in the browser.
+`kite-asyncify` runs in every browser, and it is larger. The loader picks one module like this:
 
 | Promise Integration | Addresses given | Module |
 | --- | --- | --- |

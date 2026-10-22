@@ -1,35 +1,33 @@
-# Publishes kiteffmpeg to Maven Central (Central Portal, via the vanniktech plugin).
-# Since 2026-08-22 there is no Gradle plugin: FFmpeg is embedded INSIDE the native
-# klibs, so the fetch step below unpacks ALL 11 triples' zips (dav1d inside every one) into
-# native-libs/ before publishing, and cinterop embeds them.
+# Publishes kiteffmpeg, kiteffmpeg-android-natives, kiteffmpeg-web and kiteffmpeg-web-async to Maven
+# Central (Central Portal, with the Kotlin Toolchain). Since 2026-08-22 there is no Gradle plugin:
+# FFmpeg is embedded INSIDE the native klibs, so the fetch step below unpacks ALL 11 triples' zips
+# (dav1d inside every one) into native-libs/ before publishing, and cinterop embeds them.
 #
 # ON DEMAND ONLY (owner order 2026-08-22): workflow_dispatch is the single trigger; pushing a
-# v-tag no longer publishes anything by itself. The five repository secrets below were set on
+# v-tag no longer publishes anything by itself. The repository secrets below were set on
 # 2026-08-22, so this workflow IS runnable; publishing from the maintainer's machine remains
-# equally valid (same credentials in ~/.gradle/gradle.properties):
-#   ./gradlew :kiteffmpeg:publishAllPublicationsToMavenCentralRepository --no-configuration-cache \
-#     -Pkiteffmpeg.jni.linux=true -Pkiteffmpeg.jni.windows=true
-# Either path leaves the deployment staged as USER_MANAGED on the Central Portal; the final
-# Publish click stays human.
+# equally valid, with the same credentials in the four KOTLIN_TOOLCHAIN_* variables:
+#   ./kotlin publish mavenCentral -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async
+# Either path leaves the deployment staged on the Central Portal (publishingMode: manual in
+# library.module-template.yaml); the final Publish click stays human.
 #
 # PREREQUISITES:
 #   Secrets (set 2026-08-22):
 #     MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD: Central Portal user token
-#     SIGNING_IN_MEMORY_KEY / SIGNING_IN_MEMORY_KEY_ID / SIGNING_IN_MEMORY_KEY_PASSWORD:
-#       ASCII-armored GPG key, its key id, and the passphrase
+#     SIGNING_IN_MEMORY_KEY / SIGNING_IN_MEMORY_KEY_PASSWORD: ASCII-armored GPG key and its
+#       passphrase. The toolchain reads no key id, so SIGNING_IN_MEMORY_KEY_ID is unused.
 #   Release assets:
 #     The `v<VERSION>` release (created by release-binaries.yml) must exist with all 11 LGPL
 #     zips + .sha256 files: ffmpeg-<ffversion>-lgpl-<triple>.zip for every supported triple.
 #
-# VERSIONING: the library version is static in gradle.properties (VERSION=…). The tag is the
-# trigger, not the source of truth: the check-version job asserts `v<VERSION>` == the pushed tag
-# (or the workflow_dispatch input) and fails on mismatch, so a stale gradle.properties can never
-# publish under the wrong tag.
+# VERSIONING: the library version is static in library.module-template.yaml (publishing.version).
+# The tag is the trigger, not the source of truth: the check-version job asserts `v<version>` ==
+# the pushed tag (or the workflow_dispatch input) and fails on mismatch, so a stale template can
+# never publish under the wrong tag.
 #
 # kiteffmpeg publishes ALL 11 native targets plus the always-present JVM, JS and WasmJs
-# variants. JS/WasmJs are invariant unsupported placeholders. The publish guard in
-# kiteffmpeg/build.gradle.kts hard-fails if any configured native target is missing its
-# FFmpeg tree, which is why the fetch step must cover all 11.
+# variants. The build of a native target fails when its FFmpeg tree is missing, which is why the
+# fetch step must cover all 11.
 #
 # BILL OF MATERIALS. Before the upload, the run writes an SPDX document of the FFmpeg and dav1d
 # that the artifacts embed (scripts/native-sbom.sh), from the archives the fetch step kept, and
@@ -46,7 +44,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to publish (must match VERSION in gradle.properties), e.g. 0.1.0"
+        description: "Version to publish (must match publishing.version in library.module-template.yaml), e.g. 0.1.0"
         required: true
       release:
         description: "Also press Publish on the Central Portal. Off leaves the deployment staged for a human to finish."
@@ -57,8 +55,8 @@ permissions:
   contents: read
 
 env:
-  # FFmpeg release whose prebuilt assets kiteffmpeg compiles against and embeds. Keep in
-  # sync with BuildFFmpegTask.DEFAULT_SOURCE_REF (buildSrc); the root build asserts they agree.
+  # FFmpeg release whose prebuilt assets kiteffmpeg compiles against and embeds. Keep in sync
+  # with BuildFFmpegTask.DEFAULT_SOURCE_REF; `./kotlin check ffmpegRefs` asserts they agree.
   FFMPEG_VERSION: n9.0.2
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
   # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0 and 0.5.1. ffmpeg-n9.0.2-r2 stays
@@ -72,27 +70,30 @@ env:
   # already published to Maven Central, and Central is immutable. The old tag stays exactly as it
   # was. Asset FILENAMES still carry the FFmpeg version, which is what they are keyed to.
   FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r3
+  KOTLIN_CLI_NO_WELCOME_BANNER: 1
 
 jobs:
   check-version:
-    name: tag matches gradle.properties
+    name: tag matches the publishing version
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - name: Assert version match
         run: |
-          gradle_version="$(grep '^VERSION=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
+          # The `version:` line under `publishing:` (the one under `kotlin:` is the Kotlin version).
+          library_version="$(awk '/^  publishing:/ { inside = 1; next } /^  [a-z]/ { inside = 0 }
+            inside && /^    version:/ { print $2 }' library.module-template.yaml | tr -d '[:space:]')"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             expected="${{ github.event.inputs.version }}"
           else
             expected="${GITHUB_REF_NAME#v}"
           fi
-          if [ "${gradle_version}" != "${expected}" ]; then
-            echo "::error::version mismatch: gradle.properties has VERSION=${gradle_version} but the release asked for ${expected}" >&2
+          if [ "${library_version}" != "${expected}" ]; then
+            echo "::error::version mismatch: library.module-template.yaml has version ${library_version} but the release asked for ${expected}" >&2
             exit 1
           fi
-          echo "Publishing version ${gradle_version}"
+          echo "Publishing version ${library_version}"
 
   # ci.yml, called on this commit. Its jobs appear in this run under this job's name, and the upload
   # waits for all of them, so a commit whose tests fail cannot reach Central, which cannot withdraw
@@ -103,25 +104,23 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   publish-library:
-    name: kiteffmpeg → Maven Central
+    name: kiteffmpeg, its Android natives and its web jars → Maven Central
     needs: [check-version, tests]
     # Apple klibs (macosArm64) can only be produced on a macOS host.
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+      # The Kotlin Toolchain downloads (JDK, Kotlin/Native, Node), and konan's LLVM and sysroots.
       - uses: actions/cache@v4
         with:
-          path: ~/.konan
-          key: konan-publish-${{ hashFiles('gradle/libs.versions.toml') }}
+          path: |
+            ~/Library/Caches/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-publish-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
-            konan-publish-
-      # The publish guard requires an FFmpeg tree for EVERY configured target, and cinterop
+            kotlin-toolchain-publish-
+      # The build requires an FFmpeg tree for EVERY native target, and cinterop
       # EMBEDS these archives into the published klibs. Fetch this repo's own prebuilt
       # LGPL assets from the release tag being published and unpack into the exact layout
       # FFmpegPaths.resolve() expects: native-libs/<license>/<triple>/{include,lib}. The archives
@@ -147,39 +146,37 @@ jobs:
             unzip -q "${kept}/${asset}" -d "native-libs/lgpl/${triple}"
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
             # Before anything is built: a tree without every committed patch stops the run here,
-            # naming what it lacks, instead of at the web zip's bill of materials (#175).
+            # naming what it lacks, instead of at the web jars' bill of materials (#175).
             ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
           done
       # Written from the archives the step above kept, and before anything is built or uploaded,
-      # so a refusal stops the run early. It is written again once the web zips exist.
+      # so a refusal stops the run early. It is written again once the web jars exist.
       - name: Bill of materials for the embedded FFmpeg and dav1d
         run: ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg
-      # The C helper tasks compile with konan's own LLVM, which only lands in
-      # ~/.konan/dependencies once a Kotlin/Native compile has run; on a fresh runner the C task
-      # can race it and die with "No LLVM package with a usable clang", measured on this
-      # workflow's first armed run. One warmup compile provisions everything.
-      - name: Warm the Kotlin/Native toolchain
-        run: ./gradlew :kiteffmpeg:compileKotlinMacosArm64 --stacktrace || true
       # The JVM jar carries a JNI library for macOS arm64, Linux x64, Linux arm64 and Windows x64.
       # The last three are cross-linked here with konan's toolchain from the linux-x64, linux-arm64
-      # and mingw-x64 trees fetched above; the two switches turn them on, and the build refuses a
-      # Maven Central publication without them. The jar is read back before anything is uploaded.
-      - name: Link the desktop JNI libraries and check the JVM jar
+      # and mingw-x64 trees fetched above. The Android natives jar carries one library per ABI,
+      # linked with the NDK from the Android trees. Both checks fail while a library is missing,
+      # and the JVM jar is read back before anything is uploaded.
+      - name: Link the JNI libraries and check the jars
         run: |
           set -euo pipefail
-          ./gradlew :kiteffmpeg:jvmJar -Pkiteffmpeg.jni.linux=true -Pkiteffmpeg.jni.windows=true --stacktrace
-          jar="kiteffmpeg/build/libs/kiteffmpeg-jvm-${{ inputs.version }}.jar"
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          ./kotlin build -m kiteffmpeg -m kiteffmpeg-android-natives -p jvm
+          # `do` is a command of the kotlin script here, not the shell keyword.
+          # shellcheck disable=SC1010
+          ./kotlin do checkDesktopJni && ./kotlin check androidJni
+          jar="$(find build/tasks -name 'kiteffmpeg-jvm*.jar' -not -name '*sources*' | head -1)"
           for lib in macos-arm64/libkitecodec_jni.dylib linux-x64/libkitecodec_jni.so \
                      linux-arm64/libkitecodec_jni.so windows-x64/kitecodec_jni.dll; do
             unzip -l "${jar}" "kiteffmpeg-native/${lib}" > /dev/null \
               || { echo "::error::${jar} carries no kiteffmpeg-native/${lib}" >&2; exit 1; }
           done
       # The web codec module, kite.mjs and kite.wasm, links with emscripten against a web FFmpeg
-      # built here from the tag being published, with the same patches as the native trees. The
-      # publish step's -Pkiteffmpeg.web.module=true attaches it to the wasmJs publication as the
-      # `web` zip, and refuses to publish without it. The two modules whose byte sources may answer
-      # later, kite-jspi and kite-asyncify, link from the same tree and ride as the `web-async`
-      # zip. Emscripten comes from emsdk at a pinned
+      # built here from the tag being published, with the same patches as the native trees, and
+      # goes to the root of the kiteffmpeg-web jar. The two modules whose byte sources may answer
+      # later, kite-jspi and kite-asyncify, link from the same tree and go to the root of the
+      # kiteffmpeg-web-async jar. Emscripten comes from emsdk at a pinned
       # version, and the FFmpeg clone must be the commit the native archives were built from, so a
       # later publish cannot ship different bytes from the same inputs.
       - name: Build the web codec module
@@ -199,51 +196,58 @@ jobs:
             echo "::error::FFmpeg ${FFMPEG_VERSION} cloned as ${actual}, but the native archives were built from ${expected}" >&2
             exit 1
           fi
-          ./gradlew :kiteffmpeg:kiteffmpegWebZip :kiteffmpeg:kiteffmpegWebAsyncZip \
-            -Pkiteffmpeg.emscripten.llvmBin="${EMSDK}/upstream/bin" --stacktrace
-          zips="kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}"
-          for entry in kite.mjs kite.wasm build-info/web-build-info.txt build-info/ffmpeg-patches.txt; do
-            unzip -l "${zips}-web.zip" "${entry}" > /dev/null \
-              || { echo "::error::the web zip carries no ${entry}" >&2; exit 1; }
+          export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
+          # shellcheck disable=SC1010
+          ./kotlin build -m kiteffmpeg-web -m kiteffmpeg-web-async
+          ./kotlin check webPackage
+          # Copies under the published file names, for the bill of materials.
+          mkdir -p build/web-jars
+          web="build/web-jars/kiteffmpeg-web-${{ inputs.version }}.jar"
+          web_async="build/web-jars/kiteffmpeg-web-async-${{ inputs.version }}.jar"
+          cp build/tasks/_kiteffmpeg-web_jarJvm/kiteffmpeg-web-jvm.jar "${web}"
+          cp build/tasks/_kiteffmpeg-web-async_jarJvm/kiteffmpeg-web-async-jvm.jar "${web_async}"
+          for entry in kite.mjs kite.wasm build-info/web-build-info.txt build-info/ffmpeg-patches.txt \
+                       licenses/COPYING.LGPLv2.1 licenses/THIRD-PARTY.txt; do
+            unzip -l "${web}" "${entry}" > /dev/null \
+              || { echo "::error::the kiteffmpeg-web jar carries no ${entry}" >&2; exit 1; }
           done
           for entry in kite-jspi.mjs kite-jspi.wasm kite-asyncify.mjs kite-asyncify.wasm \
                        build-info/web-build-info.txt build-info/ffmpeg-patches.txt; do
-            unzip -l "${zips}-web-async.zip" "${entry}" > /dev/null \
-              || { echo "::error::the web-async zip carries no ${entry}" >&2; exit 1; }
+            unzip -l "${web_async}" "${entry}" > /dev/null \
+              || { echo "::error::the kiteffmpeg-web-async jar carries no ${entry}" >&2; exit 1; }
           done
-      # Now with the web zips: their digests, FFmpeg commit and patches, and emscripten version.
-      - name: Bill of materials for the embedded code, with the web zips
+      # Now with the web jars: their digests, FFmpeg commit and patches, and emscripten version.
+      # A jar is a zip file, so the script reads it through --web-zip.
+      - name: Bill of materials for the embedded code, with the web jars
         run: |
-          zips="kiteffmpeg/build/kite-web-zip/kiteffmpeg-wasm-js-${{ inputs.version }}"
           ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg \
-            --web-zip "${zips}-web.zip" --web-zip "${zips}-web-async.zip"
+            --web-zip "build/web-jars/kiteffmpeg-web-${{ inputs.version }}.jar" \
+            --web-zip "build/web-jars/kiteffmpeg-web-async-${{ inputs.version }}.jar"
       - name: Keep the bill of materials
         uses: actions/upload-artifact@v4
         with:
           name: native-sbom-${{ inputs.version }}
           path: build/sbom/
           if-no-files-found: error
-      # Uploads to the Central Portal. By default it stops there: the deployment lands as
-      # USER_MANAGED and a human presses Publish. With the release input on, the plugin presses it,
-      # which is the same click made by the run rather than by a person. Central is immutable
-      # either way, so the version gate above is what protects a wrong number, not this switch.
+      # Uploads to the Central Portal. By default it stops there: the deployment waits and a human
+      # presses Publish. With the release input on, the run switches publishingMode to auto in its
+      # own checkout, which is the same click made by the run rather than by a person. Central is
+      # immutable either way, so the version gate above is what protects a wrong number, not this
+      # switch.
       - name: Publish to Maven Central
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_IN_MEMORY_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+          KOTLIN_TOOLCHAIN_MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          KOTLIN_TOOLCHAIN_MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          KOTLIN_TOOLCHAIN_SIGNING_KEY: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+          KOTLIN_TOOLCHAIN_SIGNING_KEY_PASSPHRASE: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
         run: |
-          # The Android AAR's JNI libraries link with the NDK.
+          # The Android natives jar links with the NDK. The web jars link with emscripten if
+          # their earlier link is out of date.
           export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          # Each step starts a new shell, so load the emsdk of the web step again and pass the same
-          # llvmBin. Without both, Gradle sees a changed input, rebuilds the web FFmpeg and finds no emcc.
           source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
-          task=publishToMavenCentral
-          if [ "${{ inputs.release }}" = "true" ]; then task=publishAndReleaseToMavenCentral; fi
-          ./gradlew ":kiteffmpeg:$task" \
-            -Pkiteffmpeg.jni.linux=true -Pkiteffmpeg.jni.windows=true -Pkiteffmpeg.web.module=true \
-            -Pkiteffmpeg.emscripten.llvmBin="${EMSDK}/upstream/bin" \
-            --no-configuration-cache \
-            --stacktrace
+          export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
+          if [ "${{ inputs.release }}" = "true" ]; then
+            sed -i '' 's/publishingMode: manual/publishingMode: auto/' library.module-template.yaml
+            grep -q 'publishingMode: auto' library.module-template.yaml
+          fi
+          ./kotlin publish mavenCentral -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async

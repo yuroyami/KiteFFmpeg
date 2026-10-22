@@ -13,10 +13,10 @@
 #   ./scripts/native-sbom.sh                  # writes build/sbom/kiteffmpeg-<VERSION>-native.spdx.json
 #   ./scripts/native-sbom.sh --out FILE       # writes FILE
 #   ./scripts/native-sbom.sh --archives DIR   # reads the archives from DIR, and downloads the missing ones into it
-#   ./scripts/native-sbom.sh --web-zip FILE   # also records a web zip of the wasmJs publication; give it once for each zip
+#   ./scripts/native-sbom.sh --web-zip FILE   # also records a web jar (kiteffmpeg-web-<VERSION>.jar) or an older web zip; once for each file
 #
 # The archives are the ones that FFMPEG_VERSION and FFMPEG_ASSET_TAG in .github/workflows/publish.yml
-# name, one for each target of the TargetTriple enum in buildSrc. Each archive needs its .sha256
+# name, one for each target of the TargetTriple enum in build-plugins/native-build. Each archive needs its .sha256
 # file beside it. The script refuses:
 #
 #   - an archive whose SHA-256 digest differs from its .sha256 file,
@@ -67,16 +67,19 @@ single() {
     printf '%s' "$value"
 }
 
-version=$(sed -n 's/^VERSION=//p' "$ROOT/gradle.properties" | tr -d ' \t\r' | single "VERSION in gradle.properties")
+# The `version:` line under `publishing:` (the one under `kotlin:` is the Kotlin version).
+version=$(awk '/^  publishing:/ { inside = 1; next } /^  [a-z]/ { inside = 0 }
+    inside && /^    version:/ { print $2 }' "$ROOT/library.module-template.yaml" | tr -d '\r' |
+    single "the publishing version in library.module-template.yaml")
 ffmpeg_version=$(sed -n 's/^  FFMPEG_VERSION: *//p' "$WORKFLOW" | tr -d '\r' | single "FFMPEG_VERSION in publish.yml")
 asset_tag=$(sed -n 's/^  FFMPEG_ASSET_TAG: *//p' "$WORKFLOW" | tr -d '\r' | single "FFMPEG_ASSET_TAG in publish.yml")
 dav1d_tag=$(sed -n 's/^ *const val DEFAULT_SOURCE_REF = "\(.*\)"$/\1/p' \
-    "$ROOT/buildSrc/src/main/kotlin/BuildDav1dTask.kt" | single "the dav1d tag in BuildDav1dTask")
+    "$ROOT/build-plugins/native-build/src/BuildDav1dTask.kt" | single "the dav1d tag in BuildDav1dTask")
 # The dirName of each TargetTriple entry, for example MacosArm64("macos-arm64", "MacosArm64").
 triples=$(awk '/^enum class TargetTriple/ { inside = 1; next }
     inside && /^    ;/ { exit }
     inside && /^    [A-Za-z0-9]+\("[a-z0-9-]+"/ { split($0, part, "\""); print part[2] }' \
-    "$ROOT/buildSrc/src/main/kotlin/FFmpegPaths.kt")
+    "$ROOT/build-plugins/native-build/src/FFmpegPaths.kt")
 [ -n "$triples" ] || refuse "could not read the TargetTriple enum"
 out="${out:-$ROOT/build/sbom/kiteffmpeg-$version-native.spdx.json}"
 
@@ -236,7 +239,7 @@ jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" --slu
                 copyrightText: "NOASSERTION",
                 filesAnalyzed: false,
                 comment: ("Its klibs, the native library in its JVM jar and the JNI libraries in its Android AAR link the libraries below statically. "
-                    + (if ($web | length) > 0 then "Each web zip of its wasmJs publication links FFmpeg alone. " else "" end)
+                    + (if ($web | length) > 0 then "Each web jar (or web zip, up to 0.5.1) links FFmpeg alone. " else "" end)
                     + "Each package names its own licence.")
             }]
             + [libraries[] | {
@@ -268,7 +271,9 @@ jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" --slu
                 SPDXID: "SPDXRef-\(.id)",
                 name: .name,
                 versionInfo: $version,
-                downloadLocation: "https://repo1.maven.org/maven2/io/github/yuroyami/kiteffmpeg-wasm-js/\($version)/\(.name)",
+                downloadLocation: (if (.name | endswith(".jar"))
+                    then "https://repo1.maven.org/maven2/io/github/yuroyami/\(.name | rtrimstr("-\($version).jar"))/\($version)/\(.name)"
+                    else "https://repo1.maven.org/maven2/io/github/yuroyami/kiteffmpeg-wasm-js/\($version)/\(.name)" end),
                 checksums: [{algorithm: "SHA256", checksumValue: .digest}],
                 licenseDeclared: "NOASSERTION",
                 licenseConcluded: "NOASSERTION",

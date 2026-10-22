@@ -6,30 +6,30 @@ An app that uses the published artifacts needs nothing but the dependency line, 
 
 `FFmpegPaths.resolve` looks for a static tree under `native-libs/<license>/<target>/{include,lib}` first, then falls back to a system install. This error means that neither exists. Fix it in one of these ways:
 
-- Build a static tree with `./gradlew :kiteffmpeg:buildFFmpegFor<Target>` (see the [prerequisites](#vendored-build-prerequisites) below), or download the release tree as [Building from source](building-from-source.md#download-a-prebuilt-tree) shows.
+- Build a static tree with `./kotlin do buildFFmpegFor<Target>` (see the [prerequisites](#vendored-build-prerequisites) below), or download the release tree as [Building from source](building-from-source.md#download-a-prebuilt-tree) shows.
 - Install FFmpeg with Homebrew (`brew install ffmpeg`). A system FFmpeg works only for the host's own desktop target, never for a cross target. On Linux, use the release tree instead, because a Kotlin/Native link against the apt packages fails.
 
-Note the `<license>` path segment: if you put your own GPL tree under `native-libs/gpl/<target>/` but did not pass `-Pkiteffmpeg.ffmpeg.license=gpl`, the build looks under `native-libs/lgpl/` and misses your libraries. The folder and the property must match. KiteFFmpeg itself builds only LGPL trees.
+Note the `<license>` path segment: if you put your own GPL tree under `native-libs/gpl/<target>/` but did not set the environment variable `KITEFFMPEG_FFMPEG_LICENSE=gpl`, the build looks under `native-libs/lgpl/` and misses your libraries. The folder and the variable must match. KiteFFmpeg itself builds only LGPL trees.
 
-## "requires its complete vendored ... FFmpeg tree"
+## "FFmpeg reported a successful install but ... is missing ..."
 
-`-Pkiteffmpeg.phoneTargetsOnly=true` checks the tree of each Apple and Android target before it
-builds. Each tree under `native-libs/lgpl/<target>/` must hold `include/libavformat/avformat.h`,
-the six libraries `libavcodec.a`, `libavformat.a`, `libavutil.a`, `libavfilter.a`, `libswscale.a`
-and `libswresample.a`, and the configure record `lib/kiteffmpeg/ffmpeg-configure.txt`. Run the
-`buildFFmpegFor<Target>` task that the message names. Nothing is downloaded to fill a gap.
+A bake stops with this message when it finishes without one of the files that every tree under
+`native-libs/lgpl/<target>/` must hold: `include/libavformat/avformat.h`, the six libraries
+`libavcodec.a`, `libavformat.a`, `libavutil.a`, `libavfilter.a`, `libswscale.a` and
+`libswresample.a`, and the configure record `lib/kiteffmpeg/ffmpeg-configure.txt`. Check the
+configure and make output that the command printed. Nothing is downloaded to fill a gap.
 
-A bake that finishes without one of those libraries stops with "FFmpeg reported a successful
-install but ... is missing ...". Check the configure and make output that the task printed.
-
-An app that uses the published artifacts never sees either message, because FFmpeg is compiled in.
+An app that uses the published artifacts never sees this message, because FFmpeg is compiled in.
 
 ## macOS: Homebrew in a non-standard prefix
 
-On macOS the build probes `/opt/homebrew` (Apple Silicon) and `/usr/local` (Intel) for `include/libavformat/avformat.h`. If your Homebrew is elsewhere, or you want to point at a custom FFmpeg prefix, set the override in `gradle.properties`:
+On macOS the build probes `/opt/homebrew` (Apple Silicon) and `/usr/local` (Intel) for `include/libavformat/avformat.h`. If your Homebrew is elsewhere, or you want to point at a custom FFmpeg prefix, set the `homebrewPrefix` setting of the `kiteffmpeg-native` plugin in `kiteffmpeg/module.yaml`:
 
-```properties
-kiteffmpeg.macos.homebrew.prefix=/custom/prefix
+```yaml
+plugins:
+  kiteffmpeg-native:
+    enabled: true
+    homebrewPrefix: /custom/prefix
 ```
 
 The prefix must contain `include/libavformat/avformat.h` and the FFmpeg dylibs under `lib/`.
@@ -88,7 +88,7 @@ packaging does not consult a vendor build log. On success, the verified install 
 sibling staging directory and replaces the output. On failure, the old output remains and the
 retained scratch path is printed for diagnosis.
 
-**4. When a build runs again.** Gradle runs a bake again when its output tree changed or one of its inputs differs from the last successful run: the build logic, the target, the license, the pinned tag and commit, the commit the checkout holds and any change in it, the patches, or the self-contained switch. Otherwise it reports UP-TO-DATE. A machine with no record of an earlier run, such as a fresh CI runner with a restored tree, builds again. To force a rebuild, pass `--rerun` to the task or delete its output directory.
+**4. When a build runs again.** A bake writes a record of its inputs, `.kiteffmpeg-bake-inputs.txt`, into its output tree. It runs again when the tree misses a required file, when the configure record no longer matches the recipe of this checkout, or when the input record differs: the target, the pinned tag and commit, the patches, the deployment floors, or the self-contained switch. Otherwise it prints that the tree is up to date. A tree without an input record, such as one built before the record existed, is reused. To force a rebuild, delete its output directory.
 
 ## Android: "Android NDK not found"
 
@@ -96,7 +96,7 @@ The NDK cross-compile resolves its toolchain from, in order: the `ANDROID_NDK_HO
 
 ```bash
 export ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/<version>
-./gradlew :kiteffmpeg:buildFFmpegForAndroidArm64
+./kotlin do buildFFmpegForAndroidArm64
 ```
 
 The vendored `vendor/ffmpeg` clone is required here too. The repository's Android FFmpeg builds
@@ -106,15 +106,15 @@ with an explanatory error.
 ## Android: regular AAR/JNI versus `androidNative*`
 
 These are separate target models. `buildFFmpegForAndroid*` plus
-`compileKotlinAndroidNative*` produces Kotlin/Native klibs. The regular Android KMP source model
-uses a dynamically registered JNI bridge, is `minSdk 26`, and packages only `arm64-v8a`,
-`armeabi-v7a` and `x86_64` inputs, with 16 KiB ELF/app-packaging checks on the two 64-bit ABIs.
-To build it locally on its own, pass
-`-Pkiteffmpeg.phoneTargetsOnly=true`, which needs `ANDROID_SDK_ROOT`, `ANDROID_NDK_HOME` and the
-complete local FFmpeg trees.
+`./kotlin build -m kiteffmpeg -p androidNative<Abi>` produces Kotlin/Native klibs. The regular
+Android platform uses a dynamically registered JNI bridge, is `minSdk 26`, and packages only
+`arm64-v8a`, `armeabi-v7a` and `x86_64` libraries, linked with 16 KiB pages on the two 64-bit ABIs.
+To build it locally on its own, run `./kotlin build -m kiteffmpeg -p android`, which needs
+`ANDROID_HOME`, `ANDROID_NDK_HOME` and the three Android FFmpeg trees.
 
-The Android AAR is on Maven Central. It declares `minSdkVersion 26` and carries the three ABIs
-above.
+The Android AAR is on Maven Central. It declares `minSdkVersion 26`. The JNI libraries of the three
+ABIs above are in a second artifact, `kiteffmpeg-android-natives`, which the AAR depends on. The
+Android Gradle plugin packages them into the app.
 FFmpeg's MediaCodec wrapper is selected only by an FFmpeg codec name after
 the Android loader accepts the linked FFmpeg identity and attaches the VM; KiteFFmpeg does not call
 the platform codec API directly.
@@ -131,7 +131,7 @@ Two ways forward:
   Android, or the universal `mpeg4`
   baseline, which every build carries. No Android hardware encoder has run on a device yet.
 - **Link an FFmpeg tree you built.** Put it under `native-libs/gpl/<target>/` and select it with
-  `-Pkiteffmpeg.ffmpeg.license=gpl`. Read the [license consequences](licensing.md) first: it makes
+  the environment variable `KITEFFMPEG_FFMPEG_LICENSE=gpl`. Read the [license consequences](licensing.md) first: it makes
   your whole application GPL.
 
 Either way, probe at runtime with `FFmpeg.hasEncoder("libx264")` before committing to a codec.

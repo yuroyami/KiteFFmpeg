@@ -13,11 +13,11 @@
 set -euo pipefail
 PORT="${1:-8713}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODULE="$ROOT/kiteffmpeg/build/kite-web"
+MODULE="$ROOT/build/kite-web"
 OUT="$ROOT/build/wasm-browser-demo"
 
-# The same module the web backend loads, linked by the same task that ships it.
-"$ROOT/gradlew" -p "$ROOT" :kiteffmpeg:linkKiteFFmpegWasmModule
+# The same module the web backend loads, linked by the same command that ships it.
+(cd "$ROOT" && ./kotlin do linkKiteFFmpegWasmModule)
 
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp "$MODULE/kite.mjs" "$MODULE/kite.wasm" "$OUT/"
