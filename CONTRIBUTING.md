@@ -22,6 +22,8 @@ KiteFFmpeg is a Kotlin Multiplatform binding to FFmpeg's libav\* libraries, with
   [Binary compatibility](#binary-compatibility).
 - **When the tree contradicts an issue or a document, stop and say so.** Do not improvise the
   document back into truth.
+- Before you file a finding, search the trackers of both KiteFFmpeg and KitePlayer: open and
+  closed issues, with their comments. File it only when no issue covers it yet.
 
 ### What we may and may not copy
 

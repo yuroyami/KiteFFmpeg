@@ -264,3 +264,8 @@ Do not reopen these without new evidence.
   because published versions can never be withdrawn from the public repository.
 - The consumer application pins the player in its own version catalog and picks it on a
   home-screen selector; another engine is its default on Android.
+- The goal for both libraries is every Kotlin Multiplatform target, a simple Kotlin API that apps
+  outside Kotlin Multiplatform can also use, broad rendering options, strong debugging, and high
+  performance and fidelity for video, audio, subtitles, chapters and metadata. KitePlayer aims to
+  match or beat mpv and VLC wherever they apply. This is the goal, not a claim of current support
+  or of measured parity.
