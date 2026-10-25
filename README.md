@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="art/kiteffmpeg-logo.svg" width="200" height="200" alt="KiteFFmpeg logo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="art/kiteffmpeg-feature-graphic.png">
+    <img src="art/kiteffmpeg-feature-graphic-light.png" width="100%" alt="KiteFFmpeg, FFmpeg for Kotlin Multiplatform as plain Kotlin calls. On the left, an ffmpeg command line that scales a video and re-encodes its sound. On the right, the same job as one Transcoder.transcode call in Kotlin. Convert, cut, filter, read every frame, grab one frame, read bytes from your own code. Android, iOS, macOS, JVM, Linux, Windows and web.">
+  </picture>
 </p>
-
-<h1 align="center">KiteFFmpeg</h1>
 
 <p align="center">
   FFmpeg for Kotlin Multiplatform, as plain Kotlin calls: convert, cut, filter and read video and
