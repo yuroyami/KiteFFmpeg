@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="art/kiteffmpeg-feature-graphic.png">
-    <img src="art/kiteffmpeg-feature-graphic-light.png" width="100%" alt="KiteFFmpeg, FFmpeg for Kotlin Multiplatform as plain Kotlin calls. On the left, an ffmpeg command line that scales a video and re-encodes its sound. On the right, the same job as one Transcoder.transcode call in Kotlin. Convert, cut, filter, read every frame, grab one frame, read bytes from your own code. Android, iOS, macOS, JVM, Linux, Windows and web.">
+    <img src="art/kiteffmpeg-feature-graphic-light.png" width="100%" alt="KiteFFmpeg, FFmpeg for Kotlin Multiplatform as plain Kotlin calls, with FFmpeg inside the artifact. The ffmpeg command line that copies movie.mkv into movie.mp4 becomes one Remuxer.remux call in Kotlin. Convert, cut, filter, read every frame, grab one frame, read bytes from your own code. Android, iOS, macOS, JVM, Linux, Windows and web.">
   </picture>
 </p>
 
