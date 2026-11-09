@@ -397,6 +397,28 @@ jobs:
           LANG: C.UTF-8
           LC_ALL: C.UTF-8
         run: ./kotlin test -m kiteffmpeg -p jvm
+      # The desktop cross links run on macOS and Linux hosts only, so the Windows JNI library the
+      # jar ships is linked here, from the same prebuilt mingw-x64 tree, and the Windows job loads
+      # it in a JVM (#203).
+      - name: Link the Windows JNI library
+        run: |
+          set -euo pipefail
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
+          asset="ffmpeg-${FFMPEG_VERSION}-lgpl-mingw-x64.zip"
+          curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
+          curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
+          shasum -a 256 -c "${asset}.sha256"
+          mkdir -p native-libs/lgpl/mingw-x64
+          unzip -q "${asset}" -d native-libs/lgpl/mingw-x64
+          rm -f "${asset}" "${asset}.sha256"
+          ./kotlin task ':kiteffmpeg:jniWindowsX64@kiteffmpeg-native'
+          test -f 'build/tasks/_kiteffmpeg_jniWindowsX64@kiteffmpeg-native/resources/kiteffmpeg-native/windows-x64/kitecodec_jni.dll'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-jni
+          path: build/tasks/_kiteffmpeg_jniWindowsX64@kiteffmpeg-native/resources/kiteffmpeg-native/windows-x64/
+          if-no-files-found: error
+          retention-days: 3
       - name: Link sample
         run: ./kotlin build -m kiteffmpeg-sample-linux -p linuxX64
       - name: End-to-end transcode
@@ -722,6 +744,8 @@ jobs:
 
   windows-x64:
     name: Windows x64 (prebuilt static FFmpeg, the shipped profile)
+    # The Linux job links the Windows JNI library this job loads in a JVM.
+    needs: linux-x64
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
@@ -767,10 +791,18 @@ jobs:
       - name: Unit + native tests
         shell: cmd
         run: kotlin.bat test -m kiteffmpeg -p mingwX64
-      # The same for the windows-x64 JNI library (#203).
+      # The windows-x64 JNI library, which the Linux job linked from the same tree, loaded in a JVM
+      # with the JNI boundary harness and the contract suite (#203). A Windows host does not link
+      # the desktop libraries itself, so the tests take it through kiteffmpeg.jni.path.
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-jni
+          path: windows-x64-jni
       - name: JVM tests on the Windows JNI library
         shell: cmd
-        run: kotlin.bat test -m kiteffmpeg -p jvm
+        run: |
+          set "JAVA_TOOL_OPTIONS=-Dkiteffmpeg.jni.path=%CD%\windows-x64-jni\kitecodec_jni.dll"
+          kotlin.bat test -m kiteffmpeg -p jvm
       - name: Link sample
         shell: cmd
         run: kotlin.bat build -m kiteffmpeg-sample-windows -p mingwX64
