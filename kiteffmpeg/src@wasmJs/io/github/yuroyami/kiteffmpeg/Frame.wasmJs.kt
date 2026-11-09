@@ -92,6 +92,7 @@ public actual class Frame internal constructor(
                         chromaLocation = ChromaLocation.fromAv(ffkmp_frame_chroma_location(m, p)),
                         rangeSpecified = ffkmp_frame_color_range(m, p) != 0,
                     ),
+                    ffkmp_frame_width(m, p),
                     ffkmp_frame_height(m, p),
                 ),
                 sampleAspectRatio = if (type == MediaType.Video) {

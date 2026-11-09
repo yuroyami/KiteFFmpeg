@@ -64,7 +64,7 @@ class EncodeIdentityTest {
     @Test
     fun aGuessedColourAndASquarePixelAreNotCopied() {
         // What resolveDeclaredColor makes of a 120-line frame that declares nothing: all guesses.
-        val guessed = resolveDeclaredColor(ColorInfo.Unspecified, 120)
+        val guessed = resolveDeclaredColor(ColorInfo.Unspecified, 160, 120)
         val filled = spec.inheriting(frame(guessed), sdrStream)
         assertNull(filled.color)
         assertNull(filled.sampleAspectRatio)
@@ -72,7 +72,7 @@ class EncodeIdentityTest {
 
     @Test
     fun onlyTheDeclaredFieldsOfAColourAreCopied() {
-        val half = resolveDeclaredColor(ColorInfo(transfer = ColorTransfer.SmpteSt2084), 1080)
+        val half = resolveDeclaredColor(ColorInfo(transfer = ColorTransfer.SmpteSt2084), 1920, 1080)
         val filled = spec.inheriting(frame(half), sdrStream)
         assertEquals(ColorTransfer.SmpteSt2084, filled.color?.transfer)
         assertEquals(ColorPrimaries.Unspecified, filled.color?.primaries, "BT.2020 was a guess for a PQ stream")
@@ -83,7 +83,7 @@ class EncodeIdentityTest {
     fun anHdrTransferAloneIsGuessedAsBt2020() {
         for (transfer in listOf(ColorTransfer.SmpteSt2084, ColorTransfer.AribStdB67)) {
             for (height in listOf(480, 1080, 2160)) {
-                val resolved = resolveDeclaredColor(ColorInfo(transfer = transfer), height)
+                val resolved = resolveDeclaredColor(ColorInfo(transfer = transfer), 0, height)
                 assertEquals(ColorPrimaries.Bt2020, resolved.primaries, "$transfer at $height lines")
                 assertEquals(ColorMatrix.Bt2020Ncl, resolved.matrix, "$transfer at $height lines")
                 assertEquals(false, resolved.primariesSpecified)
@@ -93,9 +93,9 @@ class EncodeIdentityTest {
         // A declared field still wins, and an SDR stream is still guessed from its height.
         assertEquals(
             ColorPrimaries.Bt709,
-            resolveDeclaredColor(ColorInfo(primaries = ColorPrimaries.Bt709, transfer = ColorTransfer.AribStdB67), 2160).primaries,
+            resolveDeclaredColor(ColorInfo(primaries = ColorPrimaries.Bt709, transfer = ColorTransfer.AribStdB67), 3840, 2160).primaries,
         )
-        assertEquals(ColorPrimaries.Smpte170m, resolveDeclaredColor(ColorInfo.Unspecified, 480).primaries)
+        assertEquals(ColorPrimaries.Smpte170m, resolveDeclaredColor(ColorInfo.Unspecified, 720, 480).primaries)
     }
 
     @Test

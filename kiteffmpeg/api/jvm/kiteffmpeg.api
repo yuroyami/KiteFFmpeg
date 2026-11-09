@@ -359,6 +359,7 @@ public final class io/github/yuroyami/kiteffmpeg/ColorInfo {
 public final class io/github/yuroyami/kiteffmpeg/ColorInfo$Companion {
 	public final fun getUnspecified ()Lio/github/yuroyami/kiteffmpeg/ColorInfo;
 	public final fun guessFor (I)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
+	public final fun guessFor (II)Lio/github/yuroyami/kiteffmpeg/ColorInfo;
 }
 
 public final class io/github/yuroyami/kiteffmpeg/ColorMatrix : java/lang/Enum {

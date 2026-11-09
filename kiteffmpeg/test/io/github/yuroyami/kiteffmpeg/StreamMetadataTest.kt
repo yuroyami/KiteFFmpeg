@@ -102,6 +102,18 @@ class ColorGuessTest {
         assertEquals(ColorPrimaries.Bt709, ColorInfo.guessFor(2160).primaries)
     }
 
+    /** A scope film at 1280x536 is high definition by its width, as mpv and libplacebo read it (#194). */
+    @Test
+    fun aWidePictureIsHighDefinitionWhateverItsHeight() {
+        assertEquals(ColorMatrix.Bt709, ColorInfo.guessFor(1280, 536).matrix)
+        assertEquals(ColorPrimaries.Bt709, ColorInfo.guessFor(1920, 800).primaries)
+        assertEquals(ColorMatrix.Bt709, ColorInfo.guessFor(1024, 648).matrix, "more than 576 lines is HD at any width")
+        assertEquals(ColorMatrix.Smpte170m, ColorInfo.guessFor(720, 480).matrix)
+        assertEquals(ColorMatrix.Bt470bg, ColorInfo.guessFor(720, 576).matrix)
+        assertEquals(ColorMatrix.Bt709, resolveDeclaredColor(ColorInfo.Unspecified, 1280, 536).matrix)
+        assertEquals(ColorInfo.guessFor(536), ColorInfo.guessFor(0, 536), "an unknown width leaves the height to decide")
+    }
+
     @Test
     fun aHeightThatDescribesNothingIsGuessedAsNothing() {
         // Zero and negative used to fall through to the high definition branch and claim BT.709

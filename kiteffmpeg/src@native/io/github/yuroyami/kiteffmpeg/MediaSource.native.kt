@@ -1422,7 +1422,7 @@ private fun readCodecParameterColor(parameters: CPointer<kc_codec_par>): ColorIn
         chromaLocation = ChromaLocation.fromAv(ffkmp_codecpar_chroma_location(parameters)),
         rangeSpecified = range == 1 || range == 2,
     )
-    return resolveDeclaredColor(declared, ffkmp_codecpar_height(parameters))
+    return resolveDeclaredColor(declared, ffkmp_codecpar_width(parameters), ffkmp_codecpar_height(parameters))
 }
 
 private fun readVp9CodecInfo(parameters: CPointer<kc_codec_par>): Vp9CodecInfo = Vp9CodecInfo(

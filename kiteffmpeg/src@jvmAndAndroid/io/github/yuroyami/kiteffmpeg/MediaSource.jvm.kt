@@ -862,7 +862,7 @@ private fun readCodecParameterColor(parameters: Long): ColorInfo {
         chromaLocation = ChromaLocation.fromAv(Internals.codecParChromaLocation(parameters)),
         rangeSpecified = range == 1 || range == 2,
     )
-    return resolveDeclaredColor(declared, Internals.codecParHeight(parameters))
+    return resolveDeclaredColor(declared, Internals.codecParWidth(parameters), Internals.codecParHeight(parameters))
 }
 
 private fun readVp9CodecInfo(parameters: Long): Vp9CodecInfo = Vp9CodecInfo(

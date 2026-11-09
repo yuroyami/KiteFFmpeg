@@ -1420,6 +1420,7 @@ final class io.github.yuroyami.kiteffmpeg/ColorInfo { // io.github.yuroyami.kite
             final fun <get-Unspecified>(): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/ColorInfo.Companion.Unspecified.<get-Unspecified>|<get-Unspecified>(){}[0]
 
         final fun guessFor(kotlin/Int): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/ColorInfo.Companion.guessFor|guessFor(kotlin.Int){}[0]
+        final fun guessFor(kotlin/Int, kotlin/Int): io.github.yuroyami.kiteffmpeg/ColorInfo // io.github.yuroyami.kiteffmpeg/ColorInfo.Companion.guessFor|guessFor(kotlin.Int;kotlin.Int){}[0]
     }
 }
 

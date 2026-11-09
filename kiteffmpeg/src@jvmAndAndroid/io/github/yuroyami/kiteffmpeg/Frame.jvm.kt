@@ -68,7 +68,7 @@ public actual class Frame internal constructor(
             chromaLocation = ChromaLocation.fromAv(Internals.frameChromaLocation(open)),
             rangeSpecified = range == 1 || range == 2,
         )
-        return resolveDeclaredColor(declared, Internals.frameHeight(open))
+        return resolveDeclaredColor(declared, Internals.frameWidth(open), Internals.frameHeight(open))
     }
 
     @Throws(FFmpegException::class)

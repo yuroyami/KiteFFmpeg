@@ -1134,7 +1134,7 @@ private fun readParameterColor(m: kotlin.js.JsAny, par: Int): ColorInfo {
         chromaLocation = ChromaLocation.fromAv(ffkmp_codecpar_chroma_location(m, par)),
         rangeSpecified = range == 1 || range == 2,
     )
-    return resolveDeclaredColor(declared, ffkmp_codecpar_height(m, par))
+    return resolveDeclaredColor(declared, ffkmp_codecpar_width(m, par), ffkmp_codecpar_height(m, par))
 }
 
 /**

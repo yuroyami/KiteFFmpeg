@@ -76,8 +76,10 @@ public data class ColorInfo(
          * The conventional reading when a container declares nothing, which is common.
          *
          * Standard definition is BT.601 and high definition is BT.709, and every player applies
-         * that rule because using one default for both visibly wrongs half the world's video. Two
-         * refinements over a single 576-line split:
+         * that rule because using one default for both visibly wrongs half the world's video. A
+         * picture is high definition when it is at least 1280 wide or more than 576 lines tall,
+         * as mpv and libplacebo decide, so a 1280x536 film in a scope ratio is BT.709 (#194). Two
+         * refinements below that:
          *
          * - the two standard definition families do not share primaries. 525-line content (NTSC,
          *   480 lines and below) is SMPTE 170M; 625-line content (PAL and SECAM, up to 576 lines)
@@ -85,27 +87,35 @@ public data class ColorInfo(
          *   the same for the pair and only the primaries move.
          * - a height that is zero or negative describes nothing, so it is answered with
          *   [Unspecified] rather than being swept into the high definition branch. A guess made
-         *   from a size that does not exist is not a guess, it is noise.
+         *   from a size that does not exist is not a guess, it is noise. A [width] of zero or less
+         *   is unknown, and the height decides alone.
          *
-         * This stays a heuristic over one input. A caller that knows the frame rate, the container
-         * or the origin of the media can do better, and should: nothing here overrides a real
-         * declaration, it only fills a silence. [resolveDeclaredColor] reads the declared transfer
-         * first: a PQ or HLG stream is not filled in from its height.
+         * This stays a heuristic over the picture size. A caller that knows the frame rate, the
+         * container or the origin of the media can do better, and should: nothing here overrides a
+         * real declaration, it only fills a silence. The library's own readers read the declared
+         * transfer first: a PQ or HLG stream is not filled in from its size.
          */
-        public fun guessFor(height: Int): ColorInfo = when {
+        public fun guessFor(width: Int, height: Int): ColorInfo = when {
             height <= 0 -> Unspecified
+            width >= 1280 || height > 576 -> ColorInfo(ColorMatrix.Bt709, ColorPrimaries.Bt709, ColorTransfer.Bt709)
             height <= 480 -> ColorInfo(
                 ColorMatrix.Smpte170m,
                 ColorPrimaries.Smpte170m,
                 ColorTransfer.Bt709,
             )
-            height <= 576 -> ColorInfo(
+            else -> ColorInfo(
                 ColorMatrix.Bt470bg,
                 ColorPrimaries.Bt470bg,
                 ColorTransfer.Bt709,
             )
-            else -> ColorInfo(ColorMatrix.Bt709, ColorPrimaries.Bt709, ColorTransfer.Bt709)
         }
+
+        /**
+         * [guessFor] with the width unknown, so the height decides alone. A picture whose width
+         * is known should pass it: a 1280x536 film is high definition, which its height alone
+         * does not say.
+         */
+        public fun guessFor(height: Int): ColorInfo = guessFor(0, height)
     }
 }
 
@@ -244,11 +254,11 @@ public data class Disposition(
  * still guesses an HDR stream's matrix from its size; this does not, because no delivery format
  * pairs an HDR transfer with another matrix.
  */
-internal fun resolveDeclaredColor(declared: ColorInfo, height: Int): ColorInfo {
+internal fun resolveDeclaredColor(declared: ColorInfo, width: Int, height: Int): ColorInfo {
     val guessed = if (declared.isHdr) {
         ColorInfo(ColorMatrix.Bt2020Ncl, ColorPrimaries.Bt2020, declared.transfer)
     } else {
-        ColorInfo.guessFor(height)
+        ColorInfo.guessFor(width, height)
     }
     return declared.copy(
         matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,

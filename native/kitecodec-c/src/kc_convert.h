@@ -38,7 +38,7 @@
 #define KC_SWS_FAST SWS_BILINEAR
 
 /* Maps an AVColorSpace onto the SWS_CS_* table sws_getCoefficients understands. */
-static int kc_sws_cs_for(enum AVColorSpace spc, int height) {
+static int kc_sws_cs_for(enum AVColorSpace spc, int width, int height) {
     switch (spc) {
         case AVCOL_SPC_BT709:            return SWS_CS_ITU709;
         case AVCOL_SPC_SMPTE170M:
@@ -48,9 +48,10 @@ static int kc_sws_cs_for(enum AVColorSpace spc, int height) {
         case AVCOL_SPC_BT2020_NCL:
         case AVCOL_SPC_BT2020_CL:        return SWS_CS_BT2020;
         default:
-            /* Undeclared colour is normal; guess by the rule every player uses: SD is 601,
-               HD and above is 709. */
-            return height >= 720 ? SWS_CS_ITU709 : SWS_CS_ITU601;
+            /* Undeclared colour is normal; guess as mpv and libplacebo do, and as ColorInfo.guessFor
+               does on the Kotlin side: 709 from 1280 wide or above 576 lines, so a 1280x536 scope
+               film is HD, and 601 below that (#194). */
+            return width >= 1280 || height > 576 ? SWS_CS_ITU709 : SWS_CS_ITU601;
     }
 }
 
@@ -138,7 +139,7 @@ static AVFrame *kc_sws_convert(const AVFrame *src, int dst_fmt, int flags) {
     }
     if (!kc_sws_cache) return NULL;
     {
-        const int *coeffs = sws_getCoefficients(kc_sws_cs_for(src->colorspace, src->height));
+        const int *coeffs = sws_getCoefficients(kc_sws_cs_for(src->colorspace, src->width, src->height));
         /* Refuses (-1) for pure RGB<->RGB conversions, where there is nothing to configure. */
         (void)sws_setColorspaceDetails(kc_sws_cache, coeffs, src_full, coeffs, dst_full,
                                        0, 1 << 16, 1 << 16);

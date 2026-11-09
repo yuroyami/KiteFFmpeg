@@ -176,7 +176,7 @@ public actual class Frame internal constructor(
         // A container that declares nothing is common. Handing the renderer "unspecified" would make
         // it guess, and it would guess without knowing the height. Guess here, where the height is
         // known, and by the rule every player uses.
-        return resolveDeclaredColor(declared, ffkmp_frame_height(nativeFrame))
+        return resolveDeclaredColor(declared, ffkmp_frame_width(nativeFrame), ffkmp_frame_height(nativeFrame))
     }
 
     private fun readFrameSar(): Rational = memScoped {
