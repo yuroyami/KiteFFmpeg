@@ -66,8 +66,9 @@ fun requireKonanc(kotlinVersion: String): File {
  * Makes Kotlin/Native download the sysroot of [konanTarget] when it is missing.
  *
  * The C helper layer and the JNI links compile against konan's sysroots, but Kotlin/Native downloads a
- * sysroot only when it first compiles for that target. On a fresh machine the C compile runs first, so
- * this compiles an empty library for the target, which downloads what the target needs.
+ * sysroot only when it first links for that target. On a fresh machine the C compile runs first, so
+ * this compiles a one-line program for the target, which needs the linker and so downloads what the
+ * target needs. A library does not: Kotlin/Native 2.4.21 builds a klib without the sysroot (#235).
  */
 fun ensureKonanSysroot(konanTarget: String, kotlinVersion: String) {
     val sysroot = CompileKiteFFmpegCTask.specFor(konanTarget).konanSysroot ?: return
@@ -76,10 +77,10 @@ fun ensureKonanSysroot(konanTarget: String, kotlinVersion: String) {
     BuildLog.lifecycle("[KiteFFmpeg] downloading the Kotlin/Native dependencies for $konanTarget")
     val work = Files.createTempDirectory("kiteffmpeg-konan-sysroot").toFile()
     try {
-        val source = work.resolve("warmup.kt").apply { writeText("package warmup\n") }
+        val source = work.resolve("warmup.kt").apply { writeText("fun main() {}\n") }
         ExecOperations().exec {
             commandLine(
-                konanc.absolutePath, "-target", konanTarget, "-produce", "library",
+                konanc.absolutePath, "-target", konanTarget, "-produce", "program",
                 "-o", work.resolve("warmup").absolutePath, source.absolutePath,
             )
             environment("JAVA_HOME", System.getProperty("java.home"))
