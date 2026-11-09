@@ -113,8 +113,13 @@ internal object JniExtraction {
             }.getOrNull() ?: continue
             if (!attributes.isDirectory || attributes.isSymbolicLink) continue
             if (now - attributes.lastModifiedTime().toMillis() < STALE_AFTER_MILLIS) continue
-            val owner = runCatching { Files.getOwner(path, LinkOption.NOFOLLOW_LINKS).name }.getOrNull()
-            if (owner != null && owner != System.getProperty("user.name")) continue
+            // Only where the folder is shared between users, which is POSIX: Windows names an owner
+            // DOMAIN\user, or the Administrators group for an elevated process, never user.name,
+            // and its temporary folder is each user's own, so the check there kept every folder.
+            if (path.fileSystem.supportedFileAttributeViews().contains("posix")) {
+                val owner = runCatching { Files.getOwner(path, LinkOption.NOFOLLOW_LINKS).name }.getOrNull()
+                if (owner != null && owner != System.getProperty("user.name")) continue
+            }
             // A file that will not delete is a library another process has loaded; leave it all.
             val files = child.listFiles().orEmpty()
             val removable = files.all { Files.isRegularFile(it.toPath(), LinkOption.NOFOLLOW_LINKS) }
