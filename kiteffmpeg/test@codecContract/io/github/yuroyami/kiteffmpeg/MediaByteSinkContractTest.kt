@@ -152,6 +152,34 @@ internal class MediaByteSinkContractTest {
         assertEquals(1, memory.closes, "the sink is still closed once")
     }
 
+    /** FFmpeg answers a format it has no muxer for with EINVAL, which the open types as MuxerNotFound (#200). */
+    @Test
+    fun anOutputFormatTheBuildCannotWriteIsMuxerNotFound() {
+        val byExtension = assertFailsWith<FFmpegException> { MediaSink.open(path("kiteffmpegnone")).close() }
+        assertIs<FFmpegError.MuxerNotFound>(byExtension.error, "was ${byExtension.error}")
+        assertTrue(".kiteffmpegnone" in (byExtension.message ?: ""), "the refusal names the extension: ${byExtension.message}")
+        val byName = assertFailsWith<FFmpegException> { MediaSink.open(path("mkv"), "kiteffmpegnone").close() }
+        assertIs<FFmpegError.MuxerNotFound>(byName.error, "was ${byName.error}")
+        val memory = MemorySink(seekable = false)
+        val intoBytes = assertFailsWith<FFmpegException> { MediaSink.open(memory, "kiteffmpegnone").close() }
+        assertIs<FFmpegError.MuxerNotFound>(intoBytes.error, "was ${intoBytes.error}")
+    }
+
+    /**
+     * A container that cannot hold a stream's codec fails its header with EINVAL too, and only the
+     * log says why, so the refusal is MuxerNotFound and never the advice to seek back (#200).
+     */
+    @Test
+    fun aCodecTheContainerCannotHoldIsMuxerNotFoundAndNeverAboutSeeking() {
+        val input = fixture() ?: return println("byte sink contract degraded: no ffmpeg")
+        val memory = MemorySink(seekable = false)
+        val failure = assertFailsWith<FFmpegException> { remux(input, MediaSink.open(memory, "ogg")) }
+        assertIs<FFmpegError.MuxerNotFound>(failure.error, "was ${failure.error}")
+        assertTrue("seek" !in (failure.message ?: "").lowercase(), "the refusal is not about seeking: ${failure.message}")
+        val file = assertFailsWith<FFmpegException> { remux(input, MediaSink.open(path("ogg"))) }
+        assertIs<FFmpegError.MuxerNotFound>(file.error, "was ${file.error}")
+    }
+
     /** faststart needs the output read back, which a byte sink cannot give, so the open refuses it (#234). */
     @Test
     fun faststartIntoAByteSinkIsRefusedAtTheOpen() {

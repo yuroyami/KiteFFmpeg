@@ -43,7 +43,12 @@ public sealed class FFmpegError(public val code: Int, public val message: String
     /** No demuxer recognizes the input (`AVERROR_DEMUXER_NOT_FOUND`). */
     public class DemuxerNotFound(code: Int, message: String) : FFmpegError(code, message)
 
-    /** No muxer for the requested output format (`AVERROR_MUXER_NOT_FOUND`). */
+    /**
+     * No muxer for the requested output (`AVERROR_MUXER_NOT_FOUND`). [MediaSink.open] also reports
+     * it for a format or an extension the build has no muxer for, and the header write for a
+     * container that cannot hold one of the streams' codecs, both of which FFmpeg answers with
+     * `AVERROR(EINVAL)` (#200).
+     */
     public class MuxerNotFound(code: Int, message: String) : FFmpegError(code, message)
 
     /** The bound FFmpeg build has no such filter (`AVERROR_FILTER_NOT_FOUND`). */

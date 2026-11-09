@@ -197,7 +197,7 @@ This opens the source once, keeps only the primary video and audio, copies the k
 
 Failures surface as `FFmpegException`, carrying an `FFmpegError`:
 
-- Semantic subclasses (`FFmpegError.FileNotFound`, `FFmpegError.MuxerNotFound`, `FFmpegError.InvalidData`, and more) classify the common `AVERROR_*` codes. Two examples are a codec that cannot be muxed into the chosen container, and an input that cannot be opened.
+- Semantic subclasses (`FFmpegError.FileNotFound`, `FFmpegError.MuxerNotFound`, `FFmpegError.InvalidData`, and more) classify the common `AVERROR_*` codes. `MuxerNotFound` means the build has no muxer for the output format or extension asked for, which `MediaSink.open` reports, or that the chosen container cannot hold one of the streams' codecs, which the first write reports when it writes the header. An input that cannot be opened is `FileNotFound` or `InvalidData`. A container that has to seek back to finish its header, written to a `MediaByteSink` that cannot seek, is `InvalidArgument` with a message that names `movflags`.
 - `FFmpegError.AvError` carries any code without a dedicated category.
 - `FFmpegError.Internal` signals a library-side invariant failure.
 

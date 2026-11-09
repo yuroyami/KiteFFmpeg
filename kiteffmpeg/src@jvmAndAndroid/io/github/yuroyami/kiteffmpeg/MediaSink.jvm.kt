@@ -450,11 +450,17 @@ public actual class MediaSink internal constructor(
             sourceChapters = null
             addChapters(format, pending.placedAt(origin.micros))
         }
-        withLoggedReason {
-            // A byte sink's output is already open: its bytes go to the caller, not to a path.
-            outputPath?.let { path -> check0(Internals.fmtIoOpen(format, path), "avio_open") }
-            val rc = Internals.fmtWriteHeader(format)
-            if (rc < 0) throw explained(headerFailure(rc, byteSink?.seekable, avError(rc)))
+        // The log lines are attached when the capture ends, and the header's cause is read from
+        // them, so the failure is typed outside it (#200).
+        try {
+            withLoggedReason {
+                // A byte sink's output is already open: its bytes go to the caller, not to a path.
+                outputPath?.let { path -> check0(Internals.fmtIoOpen(format, path), "avio_open") }
+                val rc = Internals.fmtWriteHeader(format)
+                if (rc < 0) throw explained(FFmpegException(avError(rc)))
+            }
+        } catch (failure: FFmpegException) {
+            throw headerFailure(failure, byteSink?.seekable)
         }
         headerState = HeaderState.Written
         releaseHeld()
@@ -573,7 +579,11 @@ public actual class MediaSink internal constructor(
         private fun openByteSink(sink: MediaByteSink, format: String, options: Map<String, String>): MediaSink {
             Internals.requireCompatible()
             val bridge = JniByteSink(sink)
-            val token = Internals.fmtAllocOutputIo(bridge, format)
+            val token = try {
+                Internals.fmtAllocOutputIo(bridge, format)
+            } catch (failure: FFmpegException) {
+                throw outputAllocFailure(failure, format, null)
+            }
             try {
                 refuseSecondPassOnByteSink(options)
                 Internals.fmtAvoidNegativeTs(token)
@@ -593,7 +603,11 @@ public actual class MediaSink internal constructor(
 
         private fun openPath(path: String, format: String?, options: Map<String, String>): MediaSink {
             Internals.requireCompatible()
-            val token = Internals.fmtAllocOutput(path, format)
+            val token = try {
+                Internals.fmtAllocOutput(path, format)
+            } catch (failure: FFmpegException) {
+                throw outputAllocFailure(failure, format, path)
+            }
             try {
                 Internals.fmtAvoidNegativeTs(token)
                 options.forEach { (key, value) ->

@@ -580,11 +580,17 @@ public actual class MediaSink internal constructor(
             sourceChapters = null
             addChapters(pending.placedAt(origin.micros))
         }
-        withLoggedReason {
-            // A byte sink's output is already open: its bytes go to the caller, not to a path.
-            outputPath?.let { path -> check0(ffkmp_fmt_io_open(ctx, path), "avio_open") }
-            val rc = ffkmp_fmt_write_header(ctx)
-            if (rc < 0) throw explained(headerFailure(rc, byteSink?.sink?.seekable, avError(rc)).error)
+        // The log lines are attached when the capture ends, and the header's cause is read from
+        // them, so the failure is typed outside it (#200).
+        try {
+            withLoggedReason {
+                // A byte sink's output is already open: its bytes go to the caller, not to a path.
+                outputPath?.let { path -> check0(ffkmp_fmt_io_open(ctx, path), "avio_open") }
+                val rc = ffkmp_fmt_write_header(ctx)
+                if (rc < 0) throw explained(avError(rc))
+            }
+        } catch (failure: FFmpegException) {
+            throw headerFailure(failure, byteSink?.sink?.seekable)
         }
         headerState = HeaderState.Written
         releaseHeld()
@@ -703,7 +709,7 @@ public actual class MediaSink internal constructor(
                 allocOutputIo(state, format)
             } catch (error: Throwable) {
                 state.ref.dispose()
-                throw error
+                throw if (error is FFmpegException) outputAllocFailure(error, format, null) else error
             }
             ffkmp_fmt_avoid_negative_ts(ctx)
             try {
@@ -732,7 +738,7 @@ public actual class MediaSink internal constructor(
             val arena = kotlinx.cinterop.Arena()
             val ctxVar = arena.allocPointerTo<kc_fmt_ctx>()
             val rc = ffkmp_fmt_alloc_output2(ctxVar.ptr, path, format)
-            if (rc < 0) { arena.clear(); throw FFmpegException(avError(rc)) }
+            if (rc < 0) { arena.clear(); throw outputAllocFailure(FFmpegException(avError(rc)), format, path) }
             val ctx = ctxVar.value
             arena.clear()
             if (ctx == null) throw FFmpegException(FFmpegError.Internal("alloc_output returned NULL"))
