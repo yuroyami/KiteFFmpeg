@@ -13,7 +13,9 @@
 #include "kj_internal.h"
 #include "kj_append.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <pthread.h>
 #endif
 #include <stdio.h>
@@ -42,8 +44,8 @@ JNIEXPORT jint JNICALL kj_abi_init(JNIEnv *env, jclass cls)
  * Thread peer and the VM's thread list lock per line (#254). On POSIX a thread the JVM does not know
  * is attached once, as a daemon, and detached when it exits, through a thread-specific key whose
  * destructor runs then; Android aborts a thread that exits while attached, so the detach is not
- * optional. Windows keeps the attach for one call: its thread-exit hook needs <windows.h>, which
- * this adapter does not include. */
+ * optional. Windows does the same through a fiber-local slot, whose callback runs as each thread
+ * exits (#276); <windows.h> is included for that alone. */
 static JavaVM *kj_log_vm = NULL;
 static jclass kj_log_class = NULL;
 static jmethodID kj_log_method = NULL;
@@ -64,6 +66,22 @@ static void kj_log_key_create(void)
 {
     kj_log_key_ready = pthread_key_create(&kj_log_attached_key, kj_log_thread_exit) == 0;
 }
+#else
+static DWORD kj_log_fls = FLS_OUT_OF_INDEXES;
+static INIT_ONCE kj_log_fls_once = INIT_ONCE_STATIC_INIT;
+
+/* Runs as a thread exits that the log bridge marked, which is one it attached. */
+static void WINAPI kj_log_thread_exit(PVOID mark)
+{
+    if (mark != NULL && kj_log_vm != NULL) (*kj_log_vm)->DetachCurrentThread(kj_log_vm);
+}
+
+static BOOL CALLBACK kj_log_fls_create(PINIT_ONCE once, PVOID parameter, PVOID *context)
+{
+    (void)once; (void)parameter; (void)context;
+    kj_log_fls = FlsAlloc(kj_log_thread_exit);
+    return TRUE;
+}
 #endif
 
 /* The JNIEnv of this thread, attaching it when the JVM does not know it. *detach_after is set when
@@ -83,6 +101,14 @@ static JNIEnv *kj_log_env(int *detach_after)
 #endif
         /* Any non-NULL value: it is what makes the destructor run at the thread's exit. */
         if (pthread_setspecific(kj_log_attached_key, (void *)kj_log_vm) != 0) *detach_after = 1;
+        return env;
+    }
+#else
+    InitOnceExecuteOnce(&kj_log_fls_once, kj_log_fls_create, NULL, NULL);
+    if (kj_log_fls != FLS_OUT_OF_INDEXES) {
+        if ((*kj_log_vm)->AttachCurrentThreadAsDaemon(kj_log_vm, (void **)&env, NULL) != JNI_OK) return NULL;
+        /* Any non-NULL value: it is what makes the callback detach the thread at its exit. */
+        if (!FlsSetValue(kj_log_fls, (PVOID)kj_log_vm)) *detach_after = 1;
         return env;
     }
 #endif
