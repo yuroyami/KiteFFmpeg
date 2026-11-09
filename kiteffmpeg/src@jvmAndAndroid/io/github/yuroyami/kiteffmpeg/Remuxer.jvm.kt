@@ -126,7 +126,8 @@ public actual object Remuxer {
                     ),
                 )
             }
-            val leadIndex = (selected.firstOrNull { it.type == MediaType.Video } ?: selected.first()).index
+            // Each stream stops at its own end, and a cover picture is not waited for (#233).
+            val cut = CutEnd(CutEnd.waitingFor(selected), endMicros)
             if (startMicros > 0L) source.seekMicros(startMicros)
 
             output.open().use { sink ->
@@ -148,7 +149,7 @@ public actual object Remuxer {
                             source.toRelativeMicros(timestamp, info.timeBase)
                         } else Long.MIN_VALUE
                         if (micros != Long.MIN_VALUE && micros > endMicros) {
-                            if (info.index == leadIndex) throw StopDemux()
+                            if (cut.passed(info.index, micros)) throw StopDemux()
                         } else if (leading?.isLeading(info, Internals.packetPts(packet)) != true) {
                             copies.getValue(info.index).writeCopyPacket(packet)
                             written += 1L

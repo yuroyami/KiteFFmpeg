@@ -201,10 +201,9 @@ public actual object Transcoder {
             // audio, else the first copied subtitle. Subtitles were left out entirely, so asking
             // for subtitleCopy on its own failed here even though it is a perfectly good output:
             // extracting the subtitles from a film is exactly that request.
-            val leadStream = videoStream ?: audioStream ?: subtitleStreams.firstOrNull()
-                ?: throw FFmpegException(
-                    FFmpegError.Internal("Input has none of the requested streams"),
-                )
+            if (videoStream == null && audioStream == null && subtitleStreams.isEmpty()) {
+                throw FFmpegException(FFmpegError.Internal("Input has none of the requested streams"))
+            }
 
             // Progress denominator: trim window clamped by what the container declares.
             val totalWindowMicros: Long? = run {
@@ -357,6 +356,8 @@ public actual object Transcoder {
                                 audioStream?.takeIf { acopy != null },
                             ) + subtitleStreams
                             val leading = if (startMicros > 0L && vcopy != null) LeadingPictures() else null
+                            // Each stream stops at its own end (#233).
+                            val cut = CutEnd(listOfNotNull(videoStream?.index, audioStream?.index), endMicros)
 
                             source.demuxRouted(
                                 decode = decodeList,
@@ -364,11 +365,9 @@ public actual object Transcoder {
                                 onFrame = { frame ->
                                     when {
                                         trim.isPastEnd(frame) -> {
-                                            val isLead = frame.streamIndex == leadStream.index
+                                            val index = frame.streamIndex
                                             frame.close()
-                                            // Non-lead frames past the end are just dropped;
-                                            // the lead stream decides when to stop demuxing.
-                                            if (isLead) throw StopDemux()
+                                            if (cut.passed(index)) throw StopDemux()
                                         }
                                         frame.streamIndex == videoStream?.index -> when {
                                             // Decode-discard up to the exact start.
@@ -410,7 +409,7 @@ public actual object Transcoder {
                                     val beforeStart = !isVideoCopy && startMicros > 0 &&
                                         ptsMs != Long.MIN_VALUE && ptsMs < startMicros
                                     when {
-                                        pastEnd -> if (info.index == leadStream.index) throw StopDemux()
+                                        pastEnd -> if (cut.passed(info.index, gateMicros)) throw StopDemux()
                                         beforeStart -> {}  // drop
                                         // At a cut, the pictures no decoder can show from the keyframe it starts on.
                                         isVideoCopy -> if (leading?.isLeading(info, pktPts) != true) {

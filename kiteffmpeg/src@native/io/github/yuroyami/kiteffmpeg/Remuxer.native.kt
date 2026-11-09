@@ -126,9 +126,9 @@ public actual object Remuxer {
                     ),
                 )
             }
-            // Whoever carries video decides the stop point (sparse subtitle pts would stop late
-            // or never); otherwise the first selected stream does.
-            val leadIndex = (selected.firstOrNull { it.type == MediaType.Video } ?: selected.first()).index
+            // Each stream stops at its own end, and a cover picture or a sparse subtitle stream is
+            // not waited for (#233).
+            val cut = CutEnd(CutEnd.waitingFor(selected), endMicros)
 
             if (startMicros > 0) source.seekMicros(startMicros)
 
@@ -156,8 +156,7 @@ public actual object Remuxer {
                             source.toRelativeMicros(ts, info.timeBase)
                         } else Long.MIN_VALUE
                         if (micros != Long.MIN_VALUE && micros > endMicros) {
-                            if (info.index == leadIndex) throw StopDemux()
-                            // other streams: drop and wait for the lead to finish the window
+                            if (cut.passed(info.index, micros)) throw StopDemux()
                         } else if (leading?.isLeading(info, ffkmp_packet_pts(packet)) != true) {
                             copies.getValue(info.index).writeCopyPacket(packet)
                             written += 1
