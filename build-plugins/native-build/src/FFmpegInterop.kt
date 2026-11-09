@@ -149,5 +149,13 @@ object FFmpegInterop {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun quote(path: String): String = if (' ' in path) "\"$path\"" else path
+    /**
+     * [path] as a def file can hold it. A def file is read like a properties file, where a
+     * backslash is an escape, so a Windows path such as `D:\a\KiteFFmpeg` lost its separators and
+     * cinterop found no header. Forward slashes, which Windows tools accept, carry it intact.
+     */
+    private fun quote(path: String): String {
+        val portable = path.replace('\\', '/')
+        return if (' ' in portable) "\"$portable\"" else portable
+    }
 }
