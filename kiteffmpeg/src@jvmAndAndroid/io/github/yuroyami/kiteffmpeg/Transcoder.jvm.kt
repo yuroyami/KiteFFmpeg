@@ -220,6 +220,9 @@ public actual object Transcoder {
                 // Placed when the header is written, against the origin the copied or encoded media takes.
                 sink.setSourceChapters(SourceChapters.of(source, startMicros, endMicros))
                 val videoEncoder = videoSpec?.let(sink::addVideoEncoder)
+                if (videoEncoder != null && videoStream != null && keepsSourceOrientation(videoFilter)) {
+                    sink.inheritOrientation(videoEncoder, source, videoStream)
+                }
                 val audioEncoder = if (audioEncoderSpec != null && audioStream != null) {
                     sink.addAudioEncoder(audioEncoderSpec)
                 } else null

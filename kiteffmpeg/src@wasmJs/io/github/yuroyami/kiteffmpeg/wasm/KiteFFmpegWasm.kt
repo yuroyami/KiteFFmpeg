@@ -201,6 +201,9 @@ internal external fun ffkmp_codecpar_color_transfer(module: JsAny, a0: Int): Int
 @JsFun("(m, a0, a1, a2) => m._ffkmp_codecpar_content_light(a0, a1, a2)")
 internal external fun ffkmp_codecpar_content_light(module: JsAny, a0: Int, a1: Int, a2: Int): Int
 
+@JsFun("(m, a0, a1) => m._ffkmp_codecpar_copy_display_matrix(a0, a1)")
+internal external fun ffkmp_codecpar_copy_display_matrix(module: JsAny, a0: Int, a1: Int): Int
+
 @JsFun("(m, a0, a1) => m._ffkmp_codecpar_copy_for_mux(a0, a1)")
 internal external fun ffkmp_codecpar_copy_for_mux(module: JsAny, a0: Int, a1: Int): Int
 

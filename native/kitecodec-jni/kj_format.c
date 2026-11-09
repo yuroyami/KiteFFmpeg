@@ -690,6 +690,8 @@ JNIEXPORT jint JNICALL kj_codecpar_from_context(JNIEnv *env,jclass cls,jlong par
 {kc_codec_par*p=(kc_codec_par*)kj_handle_get(env,par_token,KJ_KIND_CODEC_PAR);kc_codec_ctx*c;(void)cls;if(!p)return-1;c=(kc_codec_ctx*)kj_handle_get(env,ctx_token,KJ_KIND_CODEC_CTX);return c?ffkmp_codecpar_from_context(p,c):-1;}
 JNIEXPORT jint JNICALL kj_codecpar_copy(JNIEnv *env,jclass cls,jlong dst_token,jlong src_token)
 {kc_codec_par*d=(kc_codec_par*)kj_handle_get(env,dst_token,KJ_KIND_CODEC_PAR);kc_codec_par*s;(void)cls;if(!d)return-1;s=(kc_codec_par*)kj_handle_get(env,src_token,KJ_KIND_CODEC_PAR);return s?ffkmp_codecpar_copy_for_mux(d,s):-1;}
+JNIEXPORT jint JNICALL kj_codecpar_copy_display_matrix(JNIEnv *env,jclass cls,jlong dst_token,jlong src_token)
+{kc_codec_par*d=(kc_codec_par*)kj_handle_get(env,dst_token,KJ_KIND_CODEC_PAR);kc_codec_par*s;(void)cls;if(!d)return-1;s=(kc_codec_par*)kj_handle_get(env,src_token,KJ_KIND_CODEC_PAR);return s?ffkmp_codecpar_copy_display_matrix(d,s):-1;}
 
 /* ── The custom input bridge ────────────────────────────────────────────────────────────────────
  * The bytes come from a Kotlin JniByteIo instead of a path. This unit parks the VM pointer,

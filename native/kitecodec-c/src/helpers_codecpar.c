@@ -80,6 +80,17 @@ KC_API int ffkmp_codecpar_from_context(AVCodecParameters *par, AVCodecContext *c
     if (!par || !ctx) return AVERROR(EINVAL);
     return avcodec_parameters_from_context(par, ctx);
 }
+KC_API int ffkmp_codecpar_copy_display_matrix(AVCodecParameters *dst, const AVCodecParameters *src) {
+    if (!dst || !src) return AVERROR(EINVAL);
+    const AVPacketSideData *sd = av_packet_side_data_get(src->coded_side_data, src->nb_coded_side_data,
+                                                         AV_PKT_DATA_DISPLAYMATRIX);
+    if (!sd || sd->size < 9 * sizeof(int32_t)) return 0;
+    AVPacketSideData *out = av_packet_side_data_new(&dst->coded_side_data, &dst->nb_coded_side_data,
+                                                    AV_PKT_DATA_DISPLAYMATRIX, sd->size, 0);
+    if (!out) return AVERROR(ENOMEM);
+    memcpy(out->data, sd->data, sd->size);
+    return 1;
+}
 /* Stream-copy parameter clone. The codec tag is kept: it is container-specific, so the header
    write keeps it only where the output maps it to the same codec and clears it otherwise, as
    ffmpeg.c does (#232). Clearing it here turned every hvc1 track into hev1. */

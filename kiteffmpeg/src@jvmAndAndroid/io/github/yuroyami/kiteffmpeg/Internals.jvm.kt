@@ -196,6 +196,7 @@ internal object Internals {
     private external fun nativeCodecParAudioFrameSamples(token: Long, frameBytes: Int): Int
     private external fun nativeCodecParFromContext(parameters: Long, context: Long): Int
     private external fun nativeCodecParCopy(destination: Long, source: Long): Int
+    private external fun nativeCodecParCopyDisplayMatrix(destination: Long, source: Long): Int
 
     private external fun nativeFindDecoderById(id: Int): Long
     private external fun nativeFindDecoderByName(name: String): Long
@@ -595,6 +596,7 @@ internal object Internals {
     internal fun codecParAudioFrameSamples(token: Long, frameBytes: Int) = checked { nativeCodecParAudioFrameSamples(token, frameBytes) }
     internal fun codecParFromContext(parameters: Long, context: Long) = checked { nativeCodecParFromContext(parameters, context) }
     internal fun codecParCopy(destination: Long, source: Long) = checked { nativeCodecParCopy(destination, source) }
+    internal fun codecParCopyDisplayMatrix(destination: Long, source: Long) = checked { nativeCodecParCopyDisplayMatrix(destination, source) }
 
     internal fun findDecoderById(id: Int) = checked { nativeFindDecoderById(id) }
     internal fun findDecoderByName(name: String) = checked { nativeFindDecoderByName(name) }

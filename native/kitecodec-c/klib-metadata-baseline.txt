@@ -684,6 +684,10 @@ library {
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecpar_copy_for_mux(dst: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecParameters /* = ffmpeg/kc_codec_par^ */>?, src: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecParameters /* = ffmpeg/kc_codec_par^ */>?): kotlin/Int
 
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecpar_copy_display_matrix")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_codecpar_copy_display_matrix(dst: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecParameters /* = ffmpeg/kc_codec_par^ */>?, src: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecParameters /* = ffmpeg/kc_codec_par^ */>?): kotlin/Int
+
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_alloc")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecctx_alloc(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodec /* = ffmpeg/kc_codec^ */>?): kotlinx/cinterop/CPointer<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?
@@ -776,10 +780,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_sample_aspect_ratio")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecctx_set_sample_aspect_ratio(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, num: kotlin/Int, den: kotlin/Int): kotlin/Int
-
-      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_ch_layout_mask")
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_codecctx_set_ch_layout_mask(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, mask: kotlin/Long /* = platform/posix/int64_t^ */): kotlin/Int
     }
   }
 
@@ -787,6 +787,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_ch_layout_mask")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_codecctx_set_ch_layout_mask(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, mask: kotlin/Long /* = platform/posix/int64_t^ */): kotlin/Int
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_ch_layout_mask")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1314,10 +1318,6 @@ library {
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_flush")
       @kotlinx/cinterop/ExperimentalForeignApi
       public final external fun ffkmp_codecctx_flush(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?): kotlin/Unit
-
-      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_threads")
-      @kotlinx/cinterop/ExperimentalForeignApi
-      public final external fun ffkmp_codecctx_set_threads(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, count: kotlin/Int, frame_level: kotlin/Int): kotlin/Unit
     }
   }
 
@@ -1325,6 +1325,10 @@ library {
     // package name: ffmpeg
 
     package {
+
+      @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_threads")
+      @kotlinx/cinterop/ExperimentalForeignApi
+      public final external fun ffkmp_codecctx_set_threads(c: kotlinx/cinterop/CValuesRef<cnames/structs/AVCodecContext /* = ffmpeg/kc_codec_ctx^ */>?, count: kotlin/Int, frame_level: kotlin/Int): kotlin/Unit
 
       @kotlinx/cinterop/internal/CCall.Direct(name = "_ffkmp_codecctx_set_low_delay")
       @kotlinx/cinterop/ExperimentalForeignApi
@@ -1531,7 +1535,7 @@ library {
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi
-      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 4 */
+      public final const val KITECODEC_C_ABI_MINOR: kotlin/Int /* = 5 */
         public final get
 
       @kotlinx/cinterop/ExperimentalForeignApi

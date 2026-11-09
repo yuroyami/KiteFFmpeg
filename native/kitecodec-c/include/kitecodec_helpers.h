@@ -306,10 +306,18 @@ KC_API void    ffkmp_codecpar_sample_aspect_ratio(kc_codec_par *p, int *num, int
 KC_API int ffkmp_codecpar_from_context(kc_codec_par *par, kc_codec_ctx *ctx);
 
 /* Ownership. Replaces the destination's contents with a copy of the source, freeing what the
- * destination held, then clears codec_tag so the muxer picks its own. The destination stays
- * owned by its stream. A NULL destination or source is refused with AVERROR(EINVAL).
+ * destination held, codec_tag included; the header write keeps that tag only where the output
+ * maps it to the same codec (#232). The destination stays owned by its stream. A NULL
+ * destination or source is refused with AVERROR(EINVAL).
  */
 KC_API int ffkmp_codecpar_copy_for_mux(kc_codec_par *dst, const kc_codec_par *src);
+
+/* Ownership. Copies the source's display matrix, the coded side data that turns a phone's
+ * landscape picture upright, into the destination's coded side data, replacing one it held, so
+ * an encoded stream keeps its source's orientation (#270). Answers 1 when it copied one, 0 when
+ * the source has none, and a negative AVERROR on failure. A NULL argument is AVERROR(EINVAL).
+ */
+KC_API int ffkmp_codecpar_copy_display_matrix(kc_codec_par *dst, const kc_codec_par *src);
 
 /* kc_codec / kc_codec_ctx */
 

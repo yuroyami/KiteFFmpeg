@@ -379,6 +379,23 @@ public actual class MediaSink internal constructor(
         }
     }
 
+    /**
+     * Gives [encoder]'s stream the display matrix of [stream] in [source], so an encoded picture
+     * keeps the source's orientation and a phone's portrait clip still plays upright (#270). Before
+     * the header; nothing happens when the source has no matrix.
+     */
+    internal fun inheritOrientation(encoder: VideoEncoder, source: MediaSource, stream: StreamInfo): Unit = synchronized(muxLock) {
+        check(!headerWritten) { "The orientation must be set before the muxer writes its header." }
+        source.withCodecParameters(stream) { _, sourceParameters ->
+            val parameters = Internals.streamCodecPar(encoder.core.outputStream)
+            try {
+                check0(Internals.codecParCopyDisplayMatrix(parameters, sourceParameters), "display matrix copy")
+            } finally {
+                Internals.borrowedRelease(parameters, Internals.KIND_CODEC_PAR)
+            }
+        }
+    }
+
     @Throws(FFmpegException::class)
     public actual fun setChapters(chapters: List<Chapter>): Unit = synchronized(muxLock) {
         check(!headerWritten) { "Chapters must be set before the muxer writes its header." }
@@ -629,6 +646,9 @@ internal class EncoderCore(
     private val codecTimeBase: Rational,
     private val audio: Boolean,
 ) {
+    /** The output stream this encoder writes, for a setting that must reach it before the header. */
+    internal val outputStream: Long get() = streamToken
+
     private val streamIndex = Internals.streamIndex(streamToken)
     private var lastPts = Long.MIN_VALUE
     private var basePts = Long.MIN_VALUE

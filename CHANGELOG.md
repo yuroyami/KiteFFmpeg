@@ -59,6 +59,10 @@ below.
   `stderr` variables, which the API 21 libc of Kotlin/Native lacks, and on arm64 the outline atomics
   helpers of the NDK compiler runtime.
 
+- `Transcoder` keeps the source's display matrix on an encoded video, so a phone's portrait clip
+  still plays upright, unless the video filter turns or flips the picture itself (#270). The C ABI
+  is 5.5 for it: `ffkmp_codecpar_copy_display_matrix` is new.
+
 ### Removed
 
 - The Android device tests (`androidDeviceTest`). The Kotlin Toolchain cannot run Android

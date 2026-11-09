@@ -1,11 +1,11 @@
 # The normalized public C declaration baseline of KiteFFmpeg.
 #
-# abi-version 5.4
+# abi-version 5.5
 #
-# Exact scope: 277 helper KC_API prototypes, eleven opaque handle typedefs, seven
+# Exact scope: 278 helper KC_API prototypes, eleven opaque handle typedefs, seven
 # ABI KC_API prototypes, three ABI enum definitions and the full kc_ffmpeg_report
 # typedef. Comments and preprocessor lines are absent; whitespace is normalized;
-# records are sorted without deduplication. There must be exactly 300 records.
+# records are sorted without deduplication. There must be exactly 301 records.
 #
 # THE MOVE, and this file is the only place it is written down: change the public
 # declaration deliberately, run ./scripts/symbol-audit.sh
@@ -72,6 +72,7 @@ KC_API int ffkmp_codecpar_color_range(kc_codec_par *p);
 KC_API int ffkmp_codecpar_color_space(kc_codec_par *p);
 KC_API int ffkmp_codecpar_color_transfer(kc_codec_par *p);
 KC_API int ffkmp_codecpar_content_light(kc_codec_par *p, int *max_cll, int *max_fall);
+KC_API int ffkmp_codecpar_copy_display_matrix(kc_codec_par *dst, const kc_codec_par *src);
 KC_API int ffkmp_codecpar_copy_for_mux(kc_codec_par *dst, const kc_codec_par *src);
 KC_API int ffkmp_codecpar_dovi_config(kc_codec_par *p, int *out);
 KC_API int ffkmp_codecpar_extradata(kc_codec_par *p, uint8_t *dst, int dst_size);

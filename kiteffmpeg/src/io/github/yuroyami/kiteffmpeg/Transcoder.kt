@@ -216,3 +216,13 @@ internal fun subtitleConversionFailure(
 
 /** AVERROR(EINVAL), which is -22 on every platform this library builds for. */
 private const val AVERROR_EINVAL = -22
+
+/**
+ * Whether an encoded video keeps its source's display matrix, the side data that turns a phone's
+ * landscape picture upright (#270). It does unless [videoFilter] turns or flips the picture
+ * itself, which would turn it twice.
+ */
+internal fun keepsSourceOrientation(videoFilter: String?): Boolean =
+    videoFilter == null || ORIENTING_FILTERS.none { it in videoFilter }
+
+private val ORIENTING_FILTERS = listOf("transpose", "rotate", "hflip", "vflip")

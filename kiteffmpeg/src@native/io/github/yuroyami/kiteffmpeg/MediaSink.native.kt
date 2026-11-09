@@ -24,6 +24,7 @@ import ffmpeg.ffkmp_codecctx_set_opt
 import ffmpeg.ffkmp_codecctx_set_video
 import ffmpeg.ffkmp_codecctx_time_base
 import ffmpeg.ffkmp_codecctx_width
+import ffmpeg.ffkmp_codecpar_copy_display_matrix
 import ffmpeg.ffkmp_codecpar_copy_for_mux
 import ffmpeg.ffkmp_codecpar_from_context
 import ffmpeg.ffkmp_find_encoder_by_name
@@ -271,6 +272,19 @@ public actual class MediaSink internal constructor(
         // Its first frame decides the origin with the copied streams, so they wait for it.
         origin.addLane(awaited = true)
         VideoEncoder(core)
+    }
+
+    /**
+     * Gives [encoder]'s stream the display matrix of [stream] in [source], so an encoded picture
+     * keeps the source's orientation and a phone's portrait clip still plays upright (#270). Before
+     * the header; nothing happens when the source has no matrix.
+     */
+    internal fun inheritOrientation(encoder: VideoEncoder, source: MediaSource, stream: StreamInfo): Unit = synchronized(muxLock) {
+        check(!headerWritten) { "The orientation must be set before the muxer writes its header." }
+        val sourcePar = source.codecparOf(stream) ?: return@synchronized
+        val par = ffkmp_stream_codecpar(encoder.core.outputStream)
+            ?: throw FFmpegException(FFmpegError.Internal("Encoded stream missing codecpar"))
+        check0(ffkmp_codecpar_copy_display_matrix(par, sourcePar), "display matrix copy")
     }
 
     /**
@@ -774,6 +788,9 @@ internal class EncoderCore(
     private val codecTimeBase: Rational,
     private val isAudio: Boolean,
 ) {
+    /** The output stream this encoder writes, for a setting that must reach it before the header. */
+    internal val outputStream: CPointer<kc_stream> get() = stream
+
     /**
      * Held for every codec call and every state change here, so [close], and the sink's close
      * through it, waits for an encode in flight instead of freeing the codec under it. Internal so

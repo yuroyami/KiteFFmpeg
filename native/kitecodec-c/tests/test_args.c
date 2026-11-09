@@ -122,6 +122,11 @@ static int invalid_codecpar_copy_for_mux(void)
     return ffkmp_codecpar_copy_for_mux(NULL, NULL);
 }
 
+static int invalid_codecpar_copy_display_matrix(void)
+{
+    return ffkmp_codecpar_copy_display_matrix(NULL, NULL);
+}
+
 static int invalid_fmt_open_input(void)
 {
     return ffkmp_fmt_open_input(NULL, "/definitely/not/a/kiteffmpeg-input");
@@ -538,6 +543,7 @@ static const invalid_case invalid_cases[] = {
     { "invalid_frame_get_buffer", "ffkmp_frame_get_buffer refuses a NULL frame", invalid_frame_get_buffer },
     { "invalid_codecpar_from_context", "ffkmp_codecpar_from_context refuses NULL arguments", invalid_codecpar_from_context },
     { "invalid_codecpar_copy_for_mux", "ffkmp_codecpar_copy_for_mux refuses NULL arguments", invalid_codecpar_copy_for_mux },
+    { "invalid_codecpar_copy_display_matrix", "ffkmp_codecpar_copy_display_matrix refuses NULL arguments", invalid_codecpar_copy_display_matrix },
     { "invalid_fmt_open_input", "ffkmp_fmt_open_input refuses a NULL output", invalid_fmt_open_input },
     { "invalid_fmt_find_stream_info", "ffkmp_fmt_find_stream_info refuses a NULL context", invalid_fmt_find_stream_info },
     { "invalid_fmt_open_input2", "ffkmp_fmt_open_input2 refuses a NULL output", invalid_fmt_open_input2 },
