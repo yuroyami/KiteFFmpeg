@@ -339,11 +339,12 @@ public actual class Frame internal constructor(
 
         // Image codecs are picky about input pixel format (png: rgb*, mjpeg: yuvj*), so
         // convert when the frame's own format isn't accepted.
-        val needsConvert = ffkmp_codec_supports_pix_fmt(encoder, format) == 0
+        val fullRange = imageConversionFor(codec, format, ffkmp_frame_color_range(nativeFrame))
+        val needsConvert = fullRange != null || ffkmp_codec_supports_pix_fmt(encoder, format) == 0
         val sendFrame: CPointer<kc_frame>
         var converted: CPointer<kc_frame>? = null
         if (needsConvert) {
-            val targetFmt = ffkmp_codec_first_pix_fmt(encoder)
+            val targetFmt = fullRange ?: ffkmp_codec_first_pix_fmt(encoder)
             if (targetFmt < 0) throw FFmpegException(FFmpegError.Internal("Encoder '${codec.name}' advertises no pixel formats"))
             converted = ffkmp_frame_convert_pixfmt(nativeFrame, targetFmt)
                 ?: throw FFmpegException(FFmpegError.Internal("Pixel format conversion failed"))

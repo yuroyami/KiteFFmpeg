@@ -103,6 +103,12 @@ static void kc_sws_key_create(void) {
     kc_sws_key_ready = pthread_key_create(&kc_sws_key, kc_sws_free) == 0;
 }
 
+/* The full-range-by-definition yuvj formats, which FFmpeg keeps for JPEG. */
+static int kc_pixfmt_is_jpeg(int fmt) {
+    return fmt == AV_PIX_FMT_YUVJ420P || fmt == AV_PIX_FMT_YUVJ422P || fmt == AV_PIX_FMT_YUVJ444P ||
+           fmt == AV_PIX_FMT_YUVJ440P || fmt == AV_PIX_FMT_YUVJ411P;
+}
+
 static AVFrame *kc_sws_convert(const AVFrame *src, int dst_fmt, int flags) {
     struct SwsContext *kc_sws_cache;
     if (!src || src->width <= 0 || src->height <= 0) return NULL;
@@ -112,9 +118,12 @@ static AVFrame *kc_sws_convert(const AVFrame *src, int dst_fmt, int flags) {
     if (!kc_pixfmt_convertible(src->format, 0)) return NULL;
     if (!kc_pixfmt_convertible(dst_fmt, 1)) return NULL;
     const AVPixFmtDescriptor *dst_desc = av_pix_fmt_desc_get((enum AVPixelFormat)dst_fmt);
-    int src_full = src->color_range == AVCOL_RANGE_JPEG;
+    /* A yuvj format is full range by its definition, whatever its tag says, so a yuvj source is
+       read full and a yuvj destination is written full. Without that, a limited frame converted
+       for a JPEG kept 16 to 235 under a format every reader takes as 0 to 255 (#193). */
+    int src_full = src->color_range == AVCOL_RANGE_JPEG || kc_pixfmt_is_jpeg(src->format);
     int dst_rgb = (dst_desc->flags & AV_PIX_FMT_FLAG_RGB) != 0;
-    int dst_full = dst_rgb ? 1 : src_full;
+    int dst_full = dst_rgb || kc_pixfmt_is_jpeg(dst_fmt) ? 1 : src_full;
     (void)pthread_once(&kc_sws_key_once, kc_sws_key_create);
     {
         /* Without a key there is nowhere to keep a context, so this call builds its own and the

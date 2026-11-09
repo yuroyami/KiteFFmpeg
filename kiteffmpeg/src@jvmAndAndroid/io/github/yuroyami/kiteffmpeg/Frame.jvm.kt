@@ -205,8 +205,9 @@ public actual class Frame internal constructor(
         }
         var converted = 0L
         try {
-            val sendFrame = if (!Internals.codecSupportsPixelFormat(encoder, format)) {
-                val target = Internals.codecFirstPixelFormat(encoder)
+            val fullRange = imageConversionFor(codec, format, Internals.frameColorRange(source))
+            val sendFrame = if (fullRange != null || !Internals.codecSupportsPixelFormat(encoder, format)) {
+                val target = fullRange ?: Internals.codecFirstPixelFormat(encoder)
                 if (target < 0) {
                     throw FFmpegException(
                         FFmpegError.Internal("Encoder '${codec.name}' advertises no pixel formats"),
