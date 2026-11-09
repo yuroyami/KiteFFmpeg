@@ -55,6 +55,13 @@ internal interface AsyncEngine {
     /** Runs codec work that never waits for a byte source. */
     suspend fun <T> immediate(block: () -> T): T
 
+    /**
+     * True when a frame that reached the caller may be read and freed on the caller's thread,
+     * under the frame's own lock, instead of in the lane (#249). The host engines can: such a
+     * frame is an AVFrame of its own. The web cannot enter its module while a call is parked.
+     */
+    val framesOffLane: Boolean
+
     /** Opens [request]'s input and reads its stream information. */
     suspend fun open(request: AsyncOpen): MediaSource
 
@@ -556,6 +563,27 @@ internal class AsyncLane(val engine: AsyncEngine) {
         }
     }
 
+    /**
+     * Runs [block], which reads a frame the caller holds, in the lane, or on the caller's thread
+     * when the engine allows it, so a read waiting for bytes does not hold it up (#249).
+     */
+    suspend fun <T> frameWork(block: () -> T): T {
+        if (!engine.framesOffLane) return immediate(block = block)
+        enter()
+        checkOpen()
+        return block()
+    }
+
+    /**
+     * Releases a frame's [handle], off the lane when the engine allows it. The runtime's close takes
+     * a handle out of the registry before it frees it, so one of the two frees it, and the frame's
+     * own lock makes its free wait for an operation in flight.
+     */
+    suspend fun releaseFrame(handle: AsyncHandle) {
+        if (!engine.framesOffLane) return release(handle)
+        if (synchronized(lock) { handles.remove(handle) }) handle.releaseNow()
+    }
+
     /** Forgets [handle], which was released with the lane held. */
     fun released(handle: AsyncHandle) {
         synchronized(lock) { handles -= handle }
@@ -823,5 +851,11 @@ internal class AsyncHandle(internal val lane: AsyncLane, private val what: Strin
     internal suspend fun close() {
         lane.enter()
         once.close { lane.release(this) }
+    }
+
+    /** Closes a frame's handle; see [AsyncLane.releaseFrame]. */
+    internal suspend fun closeFrame() {
+        lane.enter()
+        once.close { lane.releaseFrame(this) }
     }
 }

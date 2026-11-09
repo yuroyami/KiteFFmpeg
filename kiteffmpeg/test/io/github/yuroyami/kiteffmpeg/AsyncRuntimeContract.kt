@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestResult
@@ -377,5 +378,46 @@ abstract class AsyncRuntimeContract {
         val first = bytes.arrays.first()
         val others = bytes.arrays.count { it !== first }
         assertEquals(0, others, "$name: ${bytes.reads} reads were handed ${others + 1} or more arrays")
+    }
+
+    /**
+     * On the host engines a frame the caller holds is copied and closed without waiting for a
+     * read of another source that waits for bytes (#249). On the web both wait, which the
+     * runtime's KDoc says.
+     */
+    @Test
+    fun aHeldFrameIsCopiedAndClosedWhileAReadWaits() = eachRuntime { name, runtime ->
+        if (!runtime.lane.engine.framesOffLane) return@eachRuntime println("$name: frames wait for the lane here")
+        val stalled = AsyncBytes(clip, chunk = 256)
+        val stalledSource = runtime.open(stalled)
+        try {
+            val frameSource = runtime.open(AsyncBytes(clip))
+            try {
+                val frame = frameSource.decodedFrames(assertNotNull(frameSource.info.primaryVideo)).first()
+                val reading = CompletableDeferred<Unit>()
+                val release = CompletableDeferred<Unit>()
+                stalled.beforeRead = {
+                    reading.complete(Unit)
+                    release.await()
+                }
+                val reader = stalledSource.openPacketReader(stalledSource.info.streams)
+                val read = launch { runCatching { while (true) reader.read()?.close() ?: break } }
+                try {
+                    withTimeout(10_000) { reading.await() }
+                    withTimeout(2_000) {
+                        assertTrue(frame.copyPlanesToByteArray().isNotEmpty(), "$name: an empty copy")
+                        frame.close()
+                    }
+                } finally {
+                    release.complete(Unit)
+                    read.join()
+                    reader.close()
+                }
+            } finally {
+                frameSource.close()
+            }
+        } finally {
+            stalledSource.close()
+        }
     }
 }

@@ -31,6 +31,8 @@ internal var scopedModule: JsAny? = null
  * numbers from this engine's own table.
  */
 internal class WebAsyncEngine(private val module: JsAny) : AsyncEngine {
+
+    override val framesOffLane: Boolean get() = false
     lateinit var lane: AsyncLane
 
     /** The byte sources C knows, by the number it knows them by. */

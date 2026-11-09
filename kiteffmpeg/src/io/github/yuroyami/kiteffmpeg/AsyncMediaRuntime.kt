@@ -22,9 +22,11 @@ import kotlin.coroutines.cancellation.CancellationException
  * `KiteFFmpegWeb.loadAsyncRuntime`. Close it when every source is done: the close also closes
  * every source, reader, decoder, packet and frame that is still open.
  *
- * While one source waits for bytes, every other operation of the same runtime waits too, the copy
- * and the close of a frame included. Copy the pictures and the sound you need before you start a
- * read that may wait.
+ * While one source waits for bytes, every other operation of the same runtime waits too. On the
+ * JVM, Android and native, a frame that [AsyncStreamDecoder.receive] already returned is the
+ * exception: copying its planes, reading its side data and closing it run on the caller's thread
+ * and do not wait. On the web they wait too, so copy the pictures and the sound you need there
+ * before you start a read that may wait.
  */
 public class AsyncMediaRuntime internal constructor(internal val lane: AsyncLane) : AsyncCloseable {
 

@@ -335,7 +335,7 @@ public class AsyncFrame internal constructor(private val lane: AsyncLane, intern
 
     private suspend fun <T> read(block: (Frame) -> T): T {
         handle.requireOpen()
-        return lane.immediate { block(frame) }
+        return lane.frameWork { block(frame) }
     }
 
     private suspend fun derive(block: (Frame) -> Frame): AsyncFrame {
@@ -378,7 +378,7 @@ public class AsyncFrame internal constructor(private val lane: AsyncLane, intern
 
     @Throws(Exception::class)
     override suspend fun close() {
-        handle.close()
+        handle.closeFrame()
     }
 }
 

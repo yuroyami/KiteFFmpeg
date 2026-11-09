@@ -25,6 +25,8 @@ internal fun createHostAsyncRuntime(): AsyncMediaRuntime {
  */
 @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
 internal class HostAsyncEngine : AsyncEngine {
+
+    override val framesOffLane: Boolean get() = true
     lateinit var lane: AsyncLane
     private val thread = newSingleThreadContext("kiteffmpeg-async")
 
