@@ -1081,6 +1081,7 @@ struct kc_io_nested {
     int           plain_pos;
     int           plain_len;
     int           ended;        /* the source has no more bytes */
+    int           broken;       /* the final block's padding was invalid; every read fails */
     char         *location;     /* where the bytes came from, owned; NULL for the URL asked for */
 };
 
@@ -1117,6 +1118,7 @@ static int64_t kc_io_nested_seek(void *opaque, int64_t offset, int whence) {
 static int kc_io_crypt_read(void *opaque, uint8_t *buf, int len) {
     kc_io_nested *n = (kc_io_nested *)opaque;
     kc_io_bridge *p = n->parent;
+    if (n->broken) return AVERROR_INVALIDDATA;
     while (n->plain_pos == n->plain_len) {
         if (kc_cell_raised(p->cell)) return AVERROR_EXIT;
         while (!n->ended && n->cipher_len < 2 * KC_AES_BLOCK) {
@@ -1138,9 +1140,19 @@ static int kc_io_crypt_read(void *opaque, uint8_t *buf, int len) {
         n->plain_pos = 0;
         n->plain_len = used;
         if (n->ended && n->cipher_len == 0) {
-            /* The final block: its last byte says how many padding bytes to drop. */
+            /* The final block ends in PKCS#7 padding: N bytes that each hold N, from 1 to 16
+               (RFC 8216 5.2, RFC 5652 6.3). Anything else is a cut or wrongly keyed segment, and
+               fails loudly rather than ending cleanly on wrong bytes (#238). This is not
+               authentication; AES-CBC in HLS has none. */
             int pad = n->plain[used - 1];
-            if (pad >= 1 && pad <= KC_AES_BLOCK) n->plain_len -= pad;
+            int valid = pad >= 1 && pad <= KC_AES_BLOCK;
+            for (int i = 2; valid && i <= pad; i++) valid = n->plain[used - i] == pad;
+            if (!valid) {
+                n->broken = 1;
+                n->plain_pos = n->plain_len = 0;
+                return AVERROR_INVALIDDATA;
+            }
+            n->plain_len -= pad;
         }
     }
     int take = FFMIN(len, n->plain_len - n->plain_pos);
@@ -1148,6 +1160,60 @@ static int kc_io_crypt_read(void *opaque, uint8_t *buf, int len) {
     n->plain_pos += take;
     return take;
 }
+
+#ifdef KC_TESTING
+typedef struct {
+    const uint8_t *bytes;
+    int size;
+    int position;
+    int chunk;
+} kc_test_crypt_cursor;
+
+static int kc_test_crypt_cursor_read(void *source, uint8_t *buf, int len) {
+    kc_test_crypt_cursor *c = (kc_test_crypt_cursor *)source;
+    int n = FFMIN(FFMIN(len, c->chunk), c->size - c->position);
+    if (n <= 0) return KC_IO_EOF;
+    memcpy(buf, c->bytes + c->position, (size_t)n);
+    c->position += n;
+    return n;
+}
+
+int kc_test_crypt_read_all(const uint8_t *key, const uint8_t *iv, const uint8_t *cipher,
+                           int cipher_len, int source_chunk, int read_chunk, uint8_t *out, int cap) {
+    kc_test_crypt_cursor cursor = { cipher, cipher_len, 0, source_chunk };
+    kc_io_bridge bridge;
+    kc_io_nested n;
+    int total = 0, rc = 0;
+    memset(&bridge, 0, sizeof(bridge));
+    memset(&n, 0, sizeof(n));
+    bridge.cell = &bridge.interrupted;
+    bridge.opener.read_fn = kc_test_crypt_cursor_read;
+    n.parent = &bridge;
+    n.source = &cursor;
+    n.aes = av_aes_alloc();
+    n.cipher = av_malloc(KC_CRYPT_BUFFER);
+    n.plain = av_malloc(KC_CRYPT_BUFFER);
+    if (!n.aes || !n.cipher || !n.plain || av_aes_init(n.aes, key, 128, 1) < 0) {
+        rc = AVERROR(ENOMEM);
+    } else {
+        memcpy(n.iv, iv, KC_AES_BLOCK);
+        for (;;) {
+            int r = kc_io_crypt_read(&n, out + total, FFMIN(read_chunk, cap - total));
+            if (r == AVERROR_EOF) break;
+            if (r < 0) { rc = r; break; }
+            total += r;
+            if (total == cap) { rc = AVERROR(ENOSPC); break; }
+        }
+        /* A failure stays: the next read answers the same. */
+        if (rc == AVERROR_INVALIDDATA && kc_io_crypt_read(&n, out, 1) != AVERROR_INVALIDDATA)
+            rc = AVERROR_BUG;
+    }
+    av_free(n.aes);
+    av_free(n.cipher);
+    av_free(n.plain);
+    return rc < 0 ? rc : total;
+}
+#endif
 
 /* Releases one nested source: the caller's state through close_fn, then this layer's. */
 static void kc_io_nested_free(kc_io_nested *n) {

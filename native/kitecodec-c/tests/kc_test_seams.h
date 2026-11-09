@@ -27,6 +27,13 @@ void kc_test_force_gate_status(int32_t active, int32_t status);
  * (#155). Defined in src/helpers_format.c. */
 int kc_test_held_contexts(void);
 
+/* Decrypts cipher_len bytes of AES-128-CBC through the nested AES-128 reader, as an HLS segment,
+ * into out. The source hands at most source_chunk bytes per read, and each read of the reader
+ * asks for read_chunk. Answers the plain byte count, or the reader's error, which must answer
+ * again on the next read. Defined in src/helpers_format.c (#238). */
+int kc_test_crypt_read_all(const uint8_t *key, const uint8_t *iv, const uint8_t *cipher,
+                           int cipher_len, int source_chunk, int read_chunk, uint8_t *out, int cap);
+
 #ifdef __cplusplus
 }
 #endif

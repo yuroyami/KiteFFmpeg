@@ -31,6 +31,8 @@
 #include <libavutil/log.h>
 #include <stdarg.h>
 
+#include "kc_test_seams.h"
+
 #define KC_BASE "https://media.example/live/"
 /* One second of 48 kHz stereo 16-bit PCM: more than three reads of the AES reader's buffer. */
 #define KC_PCM_BYTES 192000
@@ -407,6 +409,83 @@ static void case_the_probe_needs_a_name_or_a_mime_type(void)
     KC_NULL(ctx);
     KC_EQ_INT(net.closed, net.opened);
     free(playlist);
+}
+
+/* AES-128-CBC of whole blocks, with no padding added: the caller writes the padding itself. */
+static void encrypt_blocks(const unsigned char *plain, int size, unsigned char *cipher)
+{
+    unsigned char iv[16];
+    struct AVAES *aes = av_aes_alloc();
+    KC_NOT_NULL(aes);
+    memcpy(iv, kc_iv, sizeof(iv));
+    KC_EQ_INT(av_aes_init(aes, kc_key, 128, 0), 0);
+    av_aes_crypt(aes, cipher, plain, size / 16, iv, 0);
+    av_free(aes);
+}
+
+/* Every valid PKCS#7 padding is dropped, and a final block whose padding is not N bytes of N
+   fails instead of ending cleanly on wrong bytes (#238). Reads the reader directly, so it runs on
+   any FFmpeg. */
+static void case_the_aes128_reader_checks_the_final_padding(void)
+{
+    enum { BLOCKS = 4000, SIZE = BLOCKS * 16 + 16 };
+    static const int chunks[][2] = { { 1 << 20, 1 << 20 }, { 7, 5 }, { 16, 16 }, { 4096, 333 } };
+    unsigned char *plain = malloc(SIZE);
+    unsigned char *cipher = malloc(SIZE);
+    unsigned char *out = malloc(SIZE + 16);
+    int rc;
+
+    kc_case("the AES-128 reader drops every valid padding length and refuses an invalid one");
+    KC_NOT_NULL(plain);
+    KC_NOT_NULL(cipher);
+    KC_NOT_NULL(out);
+    for (int i = 0; i < SIZE; i++) plain[i] = (unsigned char)(i * 13 + 1);
+
+    for (int c = 0; c < 4; c++) {
+        for (int pad = 1; pad <= 16; pad++) {
+            memset(plain + SIZE - pad, pad, (size_t)pad);
+            encrypt_blocks(plain, SIZE, cipher);
+            rc = kc_test_crypt_read_all(kc_key, kc_iv, cipher, SIZE, chunks[c][0], chunks[c][1],
+                                        out, SIZE + 16);
+            KC_CHECKF(rc == SIZE - pad, "padding %d through chunks %d/%d read %d bytes", pad,
+                      chunks[c][0], chunks[c][1], rc);
+            KC_CHECK(memcmp(out, plain, (size_t)(SIZE - pad)) == 0);
+        }
+    }
+
+    /* 02 02 is valid; ff 02, a last byte of 0, one above 16 and a mismatch deep in a 16 are not. */
+    for (int c = 0; c < 4; c++) {
+        static const int bad_last[] = { 0, 17, 0xff };
+        memset(plain + SIZE - 2, 0x02, 2);
+        plain[SIZE - 2] = 0xff;
+        encrypt_blocks(plain, SIZE, cipher);
+        rc = kc_test_crypt_read_all(kc_key, kc_iv, cipher, SIZE, chunks[c][0], chunks[c][1], out, SIZE + 16);
+        KC_CHECKF(rc == AVERROR_INVALIDDATA, "ff 02 answered %d", rc);
+
+        for (int b = 0; b < 3; b++) {
+            plain[SIZE - 2] = 0x41;
+            plain[SIZE - 1] = (unsigned char)bad_last[b];
+            encrypt_blocks(plain, SIZE, cipher);
+            rc = kc_test_crypt_read_all(kc_key, kc_iv, cipher, SIZE, chunks[c][0], chunks[c][1], out, SIZE + 16);
+            KC_CHECKF(rc == AVERROR_INVALIDDATA, "a last byte of %d answered %d", bad_last[b], rc);
+        }
+
+        memset(plain + SIZE - 16, 16, 16);
+        plain[SIZE - 16] = 15;
+        encrypt_blocks(plain, SIZE, cipher);
+        rc = kc_test_crypt_read_all(kc_key, kc_iv, cipher, SIZE, chunks[c][0], chunks[c][1], out, SIZE + 16);
+        KC_CHECKF(rc == AVERROR_INVALIDDATA, "a 16 with its first byte wrong answered %d", rc);
+    }
+
+    /* A ciphertext cut inside a block was already refused, and still is. */
+    memset(plain + SIZE - 2, 0x02, 2);
+    encrypt_blocks(plain, SIZE, cipher);
+    rc = kc_test_crypt_read_all(kc_key, kc_iv, cipher, SIZE - 1, 1 << 20, 1 << 20, out, SIZE + 16);
+    KC_CHECKF(rc == AVERROR_INVALIDDATA, "a cut ciphertext answered %d", rc);
+
+    free(out);
+    free(cipher);
+    free(plain);
 }
 
 static void case_an_aes128_segment_decrypts(int key_as_data_url)
@@ -1016,6 +1095,7 @@ int main(void)
     case_the_url_names_the_input();
     case_callers_cannot_set_trust_io_open();
     case_an_incomplete_opener_is_refused();
+    case_the_aes128_reader_checks_the_final_padding();
 
     if (!ffkmp_fmt_nested_io_available()) {
         kc_note("the linked FFmpeg lacks the trust_io_open patch, so the HLS cases did not run");
