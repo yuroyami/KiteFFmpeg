@@ -640,9 +640,9 @@ static void case_codecpar_copy_for_mux(int measure)
     /* A deep copy, not a shared pointer. Sharing would double free the moment either side is
      * released, and the helper's whole purpose is a stream copy across two contexts. */
     KC_CHECKF(dst->extradata != src->extradata, "extradata was shared, not copied");
-    /* The container specific tag is dropped on purpose, so the destination muxer picks its
-     * own. */
-    KC_EQ_INT((int)dst->codec_tag, 0);
+    /* The tag travels with the copy; the header write keeps it only where the output maps it
+     * to the same codec (#232). */
+    KC_EQ_INT((int)dst->codec_tag, 0x20776172);
     avcodec_parameters_free(&dst);
     avcodec_parameters_free(&src);
     OWN_LIVE_EXACTLY(measure, &before, 0, "net");

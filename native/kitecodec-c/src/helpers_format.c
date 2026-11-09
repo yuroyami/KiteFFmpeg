@@ -813,7 +813,38 @@ KC_API int ffkmp_fmt_io_open(AVFormatContext *ctx, const char *path) {
 KC_API void ffkmp_fmt_avoid_negative_ts(AVFormatContext *ctx) {
     if (ctx) ctx->avoid_negative_ts = AVFMT_AVOID_NEG_TS_AUTO;
 }
-KC_API int ffkmp_fmt_write_header(AVFormatContext *ctx)         { return ctx ? avformat_write_header(ctx, NULL) : AVERROR(EINVAL); }
+/* Whether the output is one of the ISO base media family, where Apple's players read the sample
+   entry and take an HEVC track only as hvc1. */
+static int kc_mux_is_iso(const AVFormatContext *ctx) {
+    const char *name = ctx->oformat ? ctx->oformat->name : NULL;
+    return name && (!strcmp(name, "mp4") || !strcmp(name, "mov") || !strcmp(name, "ipod"));
+}
+
+/* Settles each stream's codec tag before the header, as fftools/ffmpeg_mux_init.c does. A copied
+   stream keeps its source's tag when the output maps that tag to the same codec, so an hvc1 or a
+   dvh1 track stays one, and the tag is cleared only when the output has another tag for the codec
+   (#232). A tag left at zero is then the muxer's first, which for HEVC in MP4 and MOV is hev1,
+   a track QuickTime, Safari, Photos and AVPlayer refuse; so an HEVC stream with no tag and its
+   parameter sets in extradata, which every encoded stream has, is written as hvc1 there (#271). */
+static void kc_mux_settle_codec_tags(AVFormatContext *ctx) {
+    const struct AVCodecTag *const *table = ctx->oformat ? ctx->oformat->codec_tag : NULL;
+    for (unsigned int i = 0; i < ctx->nb_streams; i++) {
+        AVCodecParameters *par = ctx->streams[i]->codecpar;
+        unsigned int other = 0;
+        if (par->codec_tag && table && av_codec_get_id(table, par->codec_tag) != par->codec_id &&
+            av_codec_get_tag2(table, par->codec_id, &other))
+            par->codec_tag = 0;
+        if (!par->codec_tag && par->codec_id == AV_CODEC_ID_HEVC && par->extradata_size > 0 &&
+            kc_mux_is_iso(ctx) && table && av_codec_get_id(table, MKTAG('h', 'v', 'c', '1')) == AV_CODEC_ID_HEVC)
+            par->codec_tag = MKTAG('h', 'v', 'c', '1');
+    }
+}
+
+KC_API int ffkmp_fmt_write_header(AVFormatContext *ctx) {
+    if (!ctx) return AVERROR(EINVAL);
+    kc_mux_settle_codec_tags(ctx);
+    return avformat_write_header(ctx, NULL);
+}
 KC_API int ffkmp_fmt_write_frame(AVFormatContext *ctx, AVPacket *p) {
     return ctx ? av_interleaved_write_frame(ctx, p) : AVERROR(EINVAL);
 }

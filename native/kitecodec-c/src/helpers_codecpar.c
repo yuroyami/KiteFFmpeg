@@ -80,11 +80,10 @@ KC_API int ffkmp_codecpar_from_context(AVCodecParameters *par, AVCodecContext *c
     if (!par || !ctx) return AVERROR(EINVAL);
     return avcodec_parameters_from_context(par, ctx);
 }
-/* Stream-copy parameter clone. codec_tag is container-specific (mp4 'avc1' means nothing
-   to mkv), and zeroing it lets the destination muxer pick its own tag; ffmpeg.c does the same. */
+/* Stream-copy parameter clone. The codec tag is kept: it is container-specific, so the header
+   write keeps it only where the output maps it to the same codec and clears it otherwise, as
+   ffmpeg.c does (#232). Clearing it here turned every hvc1 track into hev1. */
 KC_API int ffkmp_codecpar_copy_for_mux(AVCodecParameters *dst, const AVCodecParameters *src) {
     if (!dst || !src) return AVERROR(EINVAL);
-    int rc = avcodec_parameters_copy(dst, src);
-    if (rc >= 0) dst->codec_tag = 0;
-    return rc;
+    return avcodec_parameters_copy(dst, src);
 }
