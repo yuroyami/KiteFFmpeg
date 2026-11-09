@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import java.io.File
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermissions
 import java.security.MessageDigest
@@ -94,15 +95,30 @@ internal object JniExtraction {
         }.getOrDefault(false)
     }
 
+    /**
+     * Deletes our old folders under [root]. The temporary folder is shared between users on Linux,
+     * so another account can plant a name that matches: a link to a folder of this user's, which a
+     * delete that follows links would empty. So a link is never followed, a folder another user owns
+     * is left alone, and inside a folder only regular files are deleted.
+     */
     private fun removeStale(root: File, keep: File, now: Long) {
         val children = root.listFiles() ?: return
         for (child in children) {
-            if (!child.isDirectory || child == keep) continue
+            if (child == keep) continue
             val ours = child.name.startsWith(PREFIX) || child.name.startsWith(LEGACY_PREFIX)
-            if (!ours || now - child.lastModified() < STALE_AFTER_MILLIS) continue
+            if (!ours) continue
+            val path = child.toPath()
+            val attributes = runCatching {
+                Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+            }.getOrNull() ?: continue
+            if (!attributes.isDirectory || attributes.isSymbolicLink) continue
+            if (now - attributes.lastModifiedTime().toMillis() < STALE_AFTER_MILLIS) continue
+            val owner = runCatching { Files.getOwner(path, LinkOption.NOFOLLOW_LINKS).name }.getOrNull()
+            if (owner != null && owner != System.getProperty("user.name")) continue
             // A file that will not delete is a library another process has loaded; leave it all.
             val files = child.listFiles().orEmpty()
-            if (files.all { it.delete() }) child.delete()
+            val removable = files.all { Files.isRegularFile(it.toPath(), LinkOption.NOFOLLOW_LINKS) }
+            if (removable && files.all { it.delete() }) child.delete()
         }
     }
 

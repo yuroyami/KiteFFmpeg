@@ -63,4 +63,25 @@ class JniExtractionTest {
         assertTrue(fresh.exists(), "a folder another launch may have just made was deleted")
         assertTrue(unrelated.exists(), "a folder that is not ours was deleted")
     }
+
+    /**
+     * Another account can plant a link named like one of our old folders in the shared /tmp. The
+     * cleanup must not follow it into the folder it names.
+     */
+    @Test
+    fun aPlantedLinkIsNotFollowedByTheCleanup() = withRoot { root ->
+        val victim = Files.createTempDirectory("jni-extraction-victim").toFile()
+        try {
+            val precious = File(victim, "precious.txt").apply { writeText("keep") }
+            val link = File(root, "kitecodec-jni-planted").toPath()
+            Files.createSymbolicLink(link, victim.toPath())
+            val old = System.currentTimeMillis() - JniExtraction.STALE_AFTER_MILLIS - 1_000L
+            Files.setLastModifiedTime(link, java.nio.file.attribute.FileTime.fromMillis(old))
+            victim.setLastModified(old)
+            JniExtraction.extract(root, bundle)
+            assertTrue(precious.exists(), "the cleanup followed a link and deleted what it named")
+        } finally {
+            victim.deleteRecursively()
+        }
+    }
 }
