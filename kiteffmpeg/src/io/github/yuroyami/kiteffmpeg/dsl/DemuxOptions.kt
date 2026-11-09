@@ -14,7 +14,7 @@ import io.github.yuroyami.kiteffmpeg.FFmpegException
  * ```
  *
  * Two keys are refused on every route, typed or raw, with [FFmpegError.InvalidArgument]: `usetoc`,
- * and an `fflags` value that names `fastseek`. MP3 seeking is correct only when both are left
+ * and an `fflags` value that sets `fastseek`. MP3 seeking is correct only when both are left
  * alone, and either one breaks seeking in a way that looks like a player bug.
  */
 public data class DemuxOptions(
@@ -91,13 +91,14 @@ public enum class DemuxFlag(internal val ff: String) {
 
 /**
  * Refuses the two option keys that break MP3 seeking, whichever route they came by: `usetoc`, and
- * an `fflags` value naming `fastseek`.
+ * an `fflags` value that sets `fastseek`. A value that clears it, such as `+genpts-fastseek`,
+ * asks for the state this guard wants and passes.
  */
 internal fun refuseSeekBreakingOptions(options: Map<String, String>) {
     val refused = buildList {
         if ("usetoc" in options) add("usetoc")
         val flags = options["fflags"]
-        if (flags != null && "fastseek" in flags) add("fflags=$flags")
+        if (flags != null && setsFastSeek(flags)) add("fflags=$flags")
     }
     if (refused.isEmpty()) return
     throw FFmpegException(
@@ -109,3 +110,17 @@ internal fun refuseSeekBreakingOptions(options: Map<String, String>) {
         ),
     )
 }
+
+/**
+ * Whether an FFmpeg flags value leaves `fastseek` set. FFmpeg reads `+name` as set, `-name` as
+ * clear and a bare name as set, in order, so the last mention of `fastseek` decides.
+ */
+internal fun setsFastSeek(flags: String): Boolean {
+    var set = false
+    for (match in FLAG_TOKEN.findAll(flags)) {
+        if (match.groupValues[2].trim() == "fastseek") set = match.groupValues[1] != "-"
+    }
+    return set
+}
+
+private val FLAG_TOKEN = Regex("([+-]?)([^+-]+)")

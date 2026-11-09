@@ -65,5 +65,14 @@ class DemuxOptionsTest {
         val fast = assertFailsWith<FFmpegException> { refuseSeekBreakingOptions(mapOf("fflags" to "+genpts+fastseek")) }
         assertTrue("fastseek" in (fast.message ?: ""))
         refuseSeekBreakingOptions(mapOf("fflags" to "+genpts", "probesize" to "32"))
+        assertFailsWith<FFmpegException> { refuseSeekBreakingOptions(mapOf("fflags" to "fastseek")) }
+        assertFailsWith<FFmpegException> { refuseSeekBreakingOptions(mapOf("fflags" to "-fastseek+fastseek")) }
+    }
+
+    @Test
+    fun anFflagsValueThatClearsFastSeekPasses() {
+        refuseSeekBreakingOptions(mapOf("fflags" to "+genpts-fastseek"))
+        refuseSeekBreakingOptions(mapOf("fflags" to "-fastseek"))
+        refuseSeekBreakingOptions(mapOf("fflags" to "+fastseek-fastseek"))
     }
 }
