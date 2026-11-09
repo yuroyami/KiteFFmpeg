@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.convert
 import kotlinx.cinterop.cstr
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
@@ -25,7 +26,9 @@ private fun privateTemporaryPath(): String = memScoped {
     val root = sequenceOf("TMPDIR", "TEMP", "TMP")
         .mapNotNull { getenv(it)?.toKString() }
         .firstOrNull { it.isNotBlank() }
-        ?: error("No private temporary directory")
+        // macOS gives each user a private TMPDIR; Linux usually sets none. mkstemp makes an
+        // owner-only file under a name nobody can guess, so the shared /tmp is safe for it.
+        ?: "/tmp"
     val template = "${root.trimEnd('/')}/kiteffmpeg-contract-XXXXXX".cstr.getPointer(this)
     val descriptor = mkstemp(template)
     check(descriptor >= 0) { "mkstemp failed" }
@@ -93,7 +96,7 @@ internal actual fun writeContractTranscript(text: String) {
         ?: return
     // The JVM writer creates the folder too. An existing folder makes mkdir fail, which is fine.
     destination.split('/').dropLast(1).runningReduce { parent, name -> "$parent/$name" }
-        .filter { it.isNotEmpty() }.forEach { platform.posix.mkdir(it, 0x1EDu.toUShort()) }
+        .filter { it.isNotEmpty() }.forEach { platform.posix.mkdir(it, 0x1EDu.convert()) }
     val temporary = "$destination.tmp"
     writePrivateBytes(temporary, text.encodeToByteArray())
     check(rename(temporary, destination) == 0) { "Cannot publish contract transcript" }
@@ -105,7 +108,7 @@ internal actual fun contractLiveHandleCount(): Long = 0L
 @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
 internal actual fun contractPausedInput(bytes: ByteArray, pauseAt: Int): ContractPausedInput {
     val path = contractOutputPath("pipe")
-    check(platform.posix.mkfifo(path, 0x180u.toUShort()) == 0) { "mkfifo failed for $path" }
+    check(platform.posix.mkfifo(path, 0x180u.convert()) == 0) { "mkfifo failed for $path" }
     // A reader that stops early breaks the pipe, which must end this writer and not the process.
     platform.posix.signal(platform.posix.SIGPIPE, platform.posix.SIG_IGN)
     val gate = kotlinx.coroutines.CompletableDeferred<Unit>()

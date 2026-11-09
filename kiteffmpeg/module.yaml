@@ -32,8 +32,11 @@ aliases:
   - hostAsync: [ jvm, android, macosArm64, macosX64, iosArm64, iosSimulatorArm64, iosX64, linuxX64, linuxArm64, mingwX64, androidNativeArm64, androidNativeArm32, androidNativeX64 ]
   # The JNI adapter that the JVM and Android share.
   - jvmAndAndroid: [ jvm, android ]
-  # The codec contract suite. Each real backend that this host can test runs it.
-  - codecContract: [ jvm, macosArm64 ]
+  # The codec contract suite. Each real backend that this host can test runs it: Linux too, which
+  # the Linux CI job tests against the shipped prebuilt profile (#204).
+  - codecContract: [ jvm, macosArm64, linuxX64, linuxArm64 ]
+  # The contract suite's file and process helpers, which are plain POSIX on macOS and Linux.
+  - posixContract: [ macosArm64, linuxX64, linuxArm64 ]
 
 dependencies:
   - $libs.kotlinx.coroutines.core
