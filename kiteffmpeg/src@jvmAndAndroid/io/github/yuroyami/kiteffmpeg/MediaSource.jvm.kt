@@ -702,7 +702,7 @@ private fun openMediaSourceIo(
         )
     } catch (error: Throwable) {
         if (error is FFmpegException) adapter.explain(error)
-        adapter.closeSource()
+        closeOnto(error) { adapter.closeSource() }
         throw error
     }
     unusedKeys = unusedSlot[0]?.takeIf { it.isNotEmpty() }?.split('\u001f') ?: emptyList()
@@ -725,9 +725,22 @@ private fun openMediaSourceIo(
         )
     } catch (error: Throwable) {
         if (error is FFmpegException) adapter.explain(error)
-        Internals.fmtCloseInputIo(context)
-        adapter.closeSource()
+        closeOnto(error) { Internals.fmtCloseInputIo(context) }
+        closeOnto(error) { adapter.closeSource() }
         throw error
+    }
+}
+
+/**
+ * Runs one cleanup step of a failed open. The open's failure stays the one the caller sees, and a
+ * step that throws too rides on it as suppressed, so a byte source whose close throws no longer
+ * hides why the open failed (#243).
+ */
+private inline fun closeOnto(failure: Throwable, step: () -> Unit) {
+    try {
+        step()
+    } catch (closeFailure: Throwable) {
+        failure.addSuppressed(closeFailure)
     }
 }
 

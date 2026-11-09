@@ -958,11 +958,21 @@ private fun assembleMediaSource(
         ioCleanup?.invoke()
     }
 
-    val infoRc = ffkmp_fmt_find_stream_info(ctx)
-    if (infoRc < 0) {
-        unwind()
-        throw FFmpegException(avError(infoRc), ioState?.takeFailure())
+    /**
+     * [unwind], then throws [failure]. The failure stays the one the caller sees, and a byte source
+     * close that throws too rides on it as suppressed, as in the open above (#243).
+     */
+    fun unwindAndThrow(failure: Throwable): Nothing {
+        try {
+            unwind()
+        } catch (closeFailure: Throwable) {
+            failure.addSuppressed(closeFailure)
+        }
+        throw failure
     }
+
+    val infoRc = ffkmp_fmt_find_stream_info(ctx)
+    if (infoRc < 0) unwindAndThrow(FFmpegException(avError(infoRc), ioState?.takeFailure()))
 
     // Everything from here to the constructor can throw, and until it was wrapped a probe that had
     // ALREADY succeeded left the format context and the caller's byte source stranded when reading
@@ -988,8 +998,7 @@ private fun assembleMediaSource(
         matroska = MatroskaReader.read(formatName) { readExportedBytes(ctx, it) }
         programs = readPrograms(ctx, streams)
     } catch (failure: Throwable) {
-        unwind()
-        throw failure
+        unwindAndThrow(failure)
     }
 
     return MediaSource(
