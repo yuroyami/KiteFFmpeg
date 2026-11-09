@@ -3219,6 +3219,14 @@ sealed class io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.k
         constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.AvError.<init>|<init>(kotlin.Int;kotlin.String){}[0]
     }
 
+    final class ConnectionRefused : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.ConnectionRefused|null[0]
+        constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.ConnectionRefused.<init>|<init>(kotlin.Int;kotlin.String){}[0]
+    }
+
+    final class ConnectionReset : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.ConnectionReset|null[0]
+        constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.ConnectionReset.<init>|<init>(kotlin.Int;kotlin.String){}[0]
+    }
+
     final class DecoderNotFound : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.DecoderNotFound|null[0]
         constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.DecoderNotFound.<init>|<init>(kotlin.Int;kotlin.String){}[0]
     }
@@ -3233,6 +3241,10 @@ sealed class io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.k
 
     final class EndOfFile : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.EndOfFile|null[0]
         constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.EndOfFile.<init>|<init>(kotlin.Int;kotlin.String){}[0]
+    }
+
+    final class External : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.External|null[0]
+        constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.External.<init>|<init>(kotlin.Int;kotlin.String){}[0]
     }
 
     final class FileNotFound : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.FileNotFound|null[0]
@@ -3292,6 +3304,10 @@ sealed class io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.k
 
     final class StreamNotFound : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.StreamNotFound|null[0]
         constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.StreamNotFound.<init>|<init>(kotlin.Int;kotlin.String){}[0]
+    }
+
+    final class TimedOut : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.TimedOut|null[0]
+        constructor <init>(kotlin/Int, kotlin/String) // io.github.yuroyami.kiteffmpeg/FFmpegError.TimedOut.<init>|<init>(kotlin.Int;kotlin.String){}[0]
     }
 
     final class Unsupported : io.github.yuroyami.kiteffmpeg/FFmpegError { // io.github.yuroyami.kiteffmpeg/FFmpegError.Unsupported|null[0]

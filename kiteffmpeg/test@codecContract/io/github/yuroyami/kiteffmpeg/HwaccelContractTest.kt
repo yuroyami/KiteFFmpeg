@@ -9,6 +9,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -128,6 +129,8 @@ class HwaccelContractTest {
                 src.openDecoder(stream, hardware = HardwareAccel.D3d11va).close()
             }
             println("d3d11va contract arm: refused at open with ${refusal.error::class.simpleName}")
+            // The same class on every platform, whatever number its C library gives ENOSYS (#245).
+            assertIs<FFmpegError.Unsupported>(refusal.error, "the refusal was ${refusal.error} (code ${refusal.error.code})")
         }
     }
 }

@@ -58,7 +58,10 @@ public sealed class FFmpegError(public val code: Int, public val message: String
     /** Unknown codec/format private option (`AVERROR_OPTION_NOT_FOUND`). */
     public class OptionNotFound(code: Int, message: String) : FFmpegError(code, message)
 
-    /** Feature not implemented in FFmpeg (`AVERROR_PATCHWELCOME`). */
+    /**
+     * Feature not implemented in FFmpeg (`AVERROR_PATCHWELCOME`), or not in this build
+     * (`AVERROR(ENOSYS)`), which is how a hardware decoder this build does not carry is refused.
+     */
     public class Unsupported(code: Int, message: String) : FFmpegError(code, message)
 
     /** Native allocation failure (`AVERROR(ENOMEM)`). */
@@ -69,6 +72,22 @@ public sealed class FFmpegError(public val code: Int, public val message: String
 
     /** Generic I/O failure (`AVERROR(EIO)`). */
     public class Io(code: Int, message: String) : FFmpegError(code, message)
+
+    /**
+     * A network read, write or connect waited longer than its timeout (`AVERROR(ETIMEDOUT)`),
+     * for example one set with `rw_timeout`. The server stopped answering; the media itself may
+     * be fine.
+     */
+    public class TimedOut(code: Int, message: String) : FFmpegError(code, message)
+
+    /** The server refused the connection (`AVERROR(ECONNREFUSED)`): nothing listens there. */
+    public class ConnectionRefused(code: Int, message: String) : FFmpegError(code, message)
+
+    /** The server closed the connection under a read or write (`AVERROR(ECONNRESET)`). */
+    public class ConnectionReset(code: Int, message: String) : FFmpegError(code, message)
+
+    /** A library FFmpeg called failed in a way it could not name (`AVERROR_EXTERNAL`). */
+    public class External(code: Int, message: String) : FFmpegError(code, message)
 
     /**
      * The call was interrupted through [MediaSource.interrupt] (`AVERROR_EXIT`).
@@ -125,6 +144,10 @@ public sealed class FFmpegError(public val code: Int, public val message: String
         is OutOfMemory -> OutOfMemory(code, message)
         is EndOfFile -> EndOfFile(code, message)
         is Io -> Io(code, message)
+        is TimedOut -> TimedOut(code, message)
+        is ConnectionRefused -> ConnectionRefused(code, message)
+        is ConnectionReset -> ConnectionReset(code, message)
+        is External -> External(code, message)
         is Interrupted -> Interrupted(code, message)
         is AvError -> AvError(code, message)
         is Internal -> Internal(message)
@@ -133,9 +156,12 @@ public sealed class FFmpegError(public val code: Int, public val message: String
 
     public companion object {
         // AVERROR_* tags are FFERRTAG('a','b','c','d') = -MKTAG(a,b,c,d); errno-style codes
-        // are -errno. The errno values below are the Linux, Apple and Windows numbers. The web
-        // codec module is built with Emscripten, whose errno is WASI's, so the web backend reads
-        // its codes with webFromCode instead (#206).
+        // are -errno. The errno constants below are the same on Linux, Apple and Windows. Those
+        // that differ, such as ENOSYS and ETIMEDOUT, are read from platformErrno, which each
+        // platform fills from its own C library (#245). On Windows FFmpeg's network code answers
+        // with the Winsock numbers, which are listed here too. The web codec module is built with
+        // Emscripten, whose errno is WASI's, so the web backend reads its codes with webFromCode
+        // first (#206).
         private fun tag(a: Int, b: Char, c: Char, d: Char): Int =
             -(a or (b.code shl 8) or (c.code shl 16) or (d.code shl 24))
         private fun tag(a: Char, b: Char, c: Char, d: Char): Int = tag(a.code, b, c, d)
@@ -152,6 +178,12 @@ public sealed class FFmpegError(public val code: Int, public val message: String
         internal val AVERROR_PROTOCOL_NOT_FOUND = tag(0xF8, 'P', 'R', 'O')
         internal val AVERROR_STREAM_NOT_FOUND   = tag(0xF8, 'S', 'T', 'R')
         internal val AVERROR_OPTION_NOT_FOUND   = tag(0xF8, 'O', 'P', 'T')
+        internal val AVERROR_EXTERNAL           = tag('E', 'X', 'T', ' ')
+
+        // Winsock's numbers, which FFmpeg's network.h puts in place of errno's on Windows.
+        private const val WSAECONNRESET = -10054
+        private const val WSAETIMEDOUT = -10060
+        private const val WSAECONNREFUSED = -10061
 
         private const val ENOENT = -2
         private const val EPERM = -1
@@ -174,11 +206,17 @@ public sealed class FFmpegError(public val code: Int, public val message: String
             AVERROR_PROTOCOL_NOT_FOUND  -> ProtocolNotFound(code, message)
             AVERROR_STREAM_NOT_FOUND    -> StreamNotFound(code, message)
             AVERROR_OPTION_NOT_FOUND    -> OptionNotFound(code, message)
+            AVERROR_EXTERNAL            -> External(code, message)
             ENOENT                      -> FileNotFound(code, message)
             EACCES, EPERM               -> PermissionDenied(code, message)
             ENOMEM                      -> OutOfMemory(code, message)
             EINVAL                      -> InvalidArgument(code, message)
             EIO                         -> Io(code, message)
+            // The hardware decoder refusal of a build without the device type (#245).
+            -platformErrno.ENOSYS       -> Unsupported(code, message)
+            -platformErrno.ETIMEDOUT, WSAETIMEDOUT -> TimedOut(code, message)
+            -platformErrno.ECONNREFUSED, WSAECONNREFUSED -> ConnectionRefused(code, message)
+            -platformErrno.ECONNRESET, WSAECONNRESET -> ConnectionReset(code, message)
             else                        -> AvError(code, message)
         }
     }
@@ -268,3 +306,12 @@ internal fun decoderNotFoundMessage(streamCodec: CodecId, requested: DecoderId?)
             "and FFmpeg.identity says which build is actually loaded. Omit the decoder to let " +
             "FFmpeg choose its default for '${streamCodec.name}'."
     }
+
+/**
+ * The errno numbers that differ between the C libraries FFmpeg is built against, positive as in
+ * `errno.h` (#245). Each platform gives its own in `platformErrno`.
+ */
+@Suppress("PropertyName")
+internal class PlatformErrno(val ENOSYS: Int, val ETIMEDOUT: Int, val ECONNREFUSED: Int, val ECONNRESET: Int)
+
+internal expect val platformErrno: PlatformErrno

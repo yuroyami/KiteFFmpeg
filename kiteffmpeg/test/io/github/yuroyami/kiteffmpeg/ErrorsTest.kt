@@ -34,6 +34,20 @@ class ErrorsTest {
         assertIs<FFmpegError.ProtocolNotFound>(FFmpegError.fromCode(FFmpegError.AVERROR_PROTOCOL_NOT_FOUND, "pro"))
     }
 
+    /** The numbers that differ by C library are read from this platform's own (#245). */
+    @Test
+    fun platformErrnoCodesClassify() {
+        assertIs<FFmpegError.Unsupported>(FFmpegError.fromCode(-platformErrno.ENOSYS, "enosys"))
+        assertIs<FFmpegError.TimedOut>(FFmpegError.fromCode(-platformErrno.ETIMEDOUT, "timeout"))
+        assertIs<FFmpegError.ConnectionRefused>(FFmpegError.fromCode(-platformErrno.ECONNREFUSED, "refused"))
+        assertIs<FFmpegError.ConnectionReset>(FFmpegError.fromCode(-platformErrno.ECONNRESET, "reset"))
+        assertIs<FFmpegError.TimedOut>(FFmpegError.fromCode(-10060, "winsock timeout"))
+        assertIs<FFmpegError.ConnectionRefused>(FFmpegError.fromCode(-10061, "winsock refused"))
+        assertIs<FFmpegError.External>(FFmpegError.fromCode(FFmpegError.AVERROR_EXTERNAL, "external"))
+        val numbers = listOf(platformErrno.ENOSYS, platformErrno.ETIMEDOUT, platformErrno.ECONNREFUSED, platformErrno.ECONNRESET)
+        assertEquals(numbers.size, numbers.toSet().size, "two errno names share a number: $numbers")
+    }
+
     @Test
     fun unmappedCodeFallsBackToAvError() {
         val e = FFmpegError.fromCode(-9999, "mystery")

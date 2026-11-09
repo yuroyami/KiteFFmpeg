@@ -10,8 +10,8 @@ package io.github.yuroyami.kiteffmpeg
  * a request here rather than a [CodecId].
  *
  * Capability honesty: requesting an acceleration the running FFmpeg does not carry fails
- * TYPED at open with FFmpeg's own error (ENOSYS on a build without the framework), never
- * silently. A build that carries it can still refuse a particular stream at decode time; that
+ * TYPED at open as [FFmpegError.Unsupported] (FFmpeg's ENOSYS on a build without the framework,
+ * whose number each platform's C library sets differently), never silently. A build that carries it can still refuse a particular stream at decode time; that
  * refusal arrives as software frames, visible per frame through [FrameInfo.isHardware], which is
  * what a player's fallback logic reads.
  */

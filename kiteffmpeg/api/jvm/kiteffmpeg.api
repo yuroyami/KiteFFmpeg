@@ -914,6 +914,14 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpegError$AvError : io/github
 public final class io/github/yuroyami/kiteffmpeg/FFmpegError$Companion {
 }
 
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$ConnectionRefused : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$ConnectionReset : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
 public final class io/github/yuroyami/kiteffmpeg/FFmpegError$DecoderNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
 	public fun <init> (ILjava/lang/String;)V
 }
@@ -927,6 +935,10 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpegError$EncoderNotFound : i
 }
 
 public final class io/github/yuroyami/kiteffmpeg/FFmpegError$EndOfFile : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$External : io/github/yuroyami/kiteffmpeg/FFmpegError {
 	public fun <init> (ILjava/lang/String;)V
 }
 
@@ -984,6 +996,10 @@ public final class io/github/yuroyami/kiteffmpeg/FFmpegError$ProtocolNotFound : 
 }
 
 public final class io/github/yuroyami/kiteffmpeg/FFmpegError$StreamNotFound : io/github/yuroyami/kiteffmpeg/FFmpegError {
+	public fun <init> (ILjava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteffmpeg/FFmpegError$TimedOut : io/github/yuroyami/kiteffmpeg/FFmpegError {
 	public fun <init> (ILjava/lang/String;)V
 }
 
