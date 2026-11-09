@@ -339,9 +339,10 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
      * ended; the frame the check stops is closed, never stranded.
      *
      * One shot: the graph takes [input] to its end and is closed when the flow ends, because a
-     * graph that has seen its end of stream cannot take more. A second call, or a [feedInput]
-     * after it, fails with [IllegalStateException] naming the graph as spent. Build a new graph
-     * for another stream.
+     * graph that has seen its end of stream cannot take more. A second call, a second collection
+     * of the returned flow, or a [feedInput] after it, fails with [IllegalStateException] naming
+     * the graph as spent. A second collection fails before it reads [input], and leaves a first
+     * one that is still running untouched. Build a new graph for another stream.
      *
      * @see Frame for the ownership rule every emitted frame is subject to
      */
@@ -362,11 +363,22 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
      * until the collector's own `emit` is called with it.
      */
     private inner class ProcessFlow(private val input: Flow<Frame>) : Flow<Frame> {
+        /** Set by the one collection this flow allows, under [lock]. */
+        private var collected = false
+
         override suspend fun collect(collector: FlowCollector<Frame>) {
             // The ledger without the lock across emits: a lock held across a suspension is a
             // deadlock waiting for a dispatcher. The ledger is what keeps a concurrent close from
             // freeing the graph mid-collection; the free waits for the finally below.
-            synchronized(lock) { enter() }
+            //
+            // One collection, claimed here before the input is read: a second one, even one that
+            // starts while the first is suspended, drove the same graph, flushed it at its own end
+            // and closed it under the first (#22). It fails before it touches the graph.
+            synchronized(lock) {
+                check(!collected) { SPENT_MESSAGE }
+                enter()
+                collected = true
+            }
             try {
                 input.collect { frame ->
                     try {

@@ -1,8 +1,12 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -77,6 +81,46 @@ internal class FilterGraphFeedResultContractTest {
                 val failure = assertFailsWith<IllegalStateException> { call() }
                 assertTrue("spent" in failure.message.orEmpty(), "after the first flow ran: ${failure.message}")
             }
+        } finally {
+            graph.close()
+        }
+    }
+
+    @Test
+    fun aSecondCollectionOfTheProcessFlowFailsAndLeavesTheFirstRunning() = runBlocking {
+        val graph = FilterGraph.buildAudio("anull", 48_000, SampleFormat.FltP, 1, micros)
+        try {
+            val gate = CompletableDeferred<Unit>()
+            val firstOut = CompletableDeferred<Unit>()
+            var upstreamCollections = 0
+            val processed = graph.process(
+                flow {
+                    upstreamCollections++
+                    emit(silence(0))
+                    gate.await()
+                    emit(silence(1))
+                },
+            )
+            var firstOutputs = 0
+            val first = async {
+                processed.collect {
+                    it.close()
+                    if (++firstOutputs == 1) firstOut.complete(Unit)
+                }
+            }
+            firstOut.await()
+            // A time limit, so a second collection that drives the graph and waits on the gate
+            // fails here instead of hanging the run.
+            val second = assertFailsWith<IllegalStateException> {
+                withTimeout(5_000) { processed.collect { it.close() } }
+            }
+            assertTrue("spent" in second.message.orEmpty(), "a second collection: ${second.message}")
+            assertEquals(1, upstreamCollections, "the second collection never read the input")
+            gate.complete(Unit)
+            first.await()
+            assertTrue(firstOutputs >= 2, "the first collection received its remaining frames: $firstOutputs")
+            val late = assertFailsWith<IllegalStateException> { processed.collect { it.close() } }
+            assertTrue("spent" in late.message.orEmpty(), "a collection after the end: ${late.message}")
         } finally {
             graph.close()
         }
