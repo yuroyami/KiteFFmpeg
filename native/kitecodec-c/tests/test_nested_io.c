@@ -69,6 +69,7 @@ typedef struct {
     int location_fails;         /* location_fn answers with a failure */
     int location_calls;
     const char *refuse;         /* a URL the opener declines, or NULL */
+    int forward_only;           /* the sources say they cannot seek */
     kc_interrupt *raise_on_open; /* a cell the opener raises before it serves, or NULL */
     char asked[KC_MAX_ASKED][512];
     int asked_count;
@@ -128,7 +129,7 @@ static int network_open(void *opaque, const char *url, void **source, int64_t *s
         if (net->raise_on_open) ffkmp_interrupt_raise(net->raise_on_open);
         *source = c;
         *size = c->at.size;
-        *seekable = 1;
+        *seekable = !net->forward_only;
         net->opened++;
         return 0;
     }
@@ -194,8 +195,18 @@ static unsigned char *make_wav(void)
     return wav;
 }
 
+/* AES-128-CBC with PKCS#7 padding under the given IV. */
+static unsigned char *encrypt_segment_with(const unsigned char *plain, int size, const unsigned char *with_iv,
+                                           int *out_size);
+
 /* AES-128-CBC with PKCS#7 padding, as an HLS packager encrypts a segment (RFC 8216, 5.2). */
 static unsigned char *encrypt_segment(const unsigned char *plain, int size, int *out_size)
+{
+    return encrypt_segment_with(plain, size, kc_iv, out_size);
+}
+
+static unsigned char *encrypt_segment_with(const unsigned char *plain, int size, const unsigned char *with_iv,
+                                           int *out_size)
 {
     int pad = 16 - size % 16;
     int total = size + pad;
@@ -208,7 +219,7 @@ static unsigned char *encrypt_segment(const unsigned char *plain, int size, int 
     KC_NOT_NULL(aes);
     memcpy(padded, plain, (size_t)size);
     memset(padded + size, pad, (size_t)pad);
-    memcpy(iv, kc_iv, sizeof(iv));
+    memcpy(iv, with_iv, sizeof(iv));
     KC_EQ_INT(av_aes_init(aes, kc_key, 128, 0), 0);
     av_aes_crypt(aes, cipher, padded, total / 16, iv, 0);
     av_free(aes);
@@ -1086,6 +1097,85 @@ static void case_a_rendition_the_reads_leave_stops_downloading(void)
     for (int i = 0; i < 3 * KC_RENDITION_SEGMENTS; i++) free(pieces[i]);
 }
 
+
+/* One file holding two segments, each cut out by EXT-X-BYTERANGE, as Apple's mediafilesegmenter
+   and Shaka Packager write a single-file rendition (#237). Encrypted, each piece has its own IV
+   and its own padding, so the reader must start at the range, with the segment's IV, and end
+   there. A forward-only source reaches the range by skipping, a seekable one by seeking. */
+static void case_byte_range_segments_read_their_own_bytes(int encrypted, int forward_only)
+{
+    static const unsigned char second_iv[16] = {
+        0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87, 0x78, 0x69, 0x5a, 0x4b, 0x3c, 0x2d, 0x1e, 0x0f,
+    };
+    const int split = 44 + KC_PCM_BYTES / 2 + 7;
+    unsigned char *wav = make_wav();
+    unsigned char *out = malloc(KC_WAV_BYTES);
+    unsigned char *joined = NULL;
+    int first_size = split, second_size = KC_WAV_BYTES - split;
+    if (encrypted) {
+        int a = 0, b = 0;
+        unsigned char *first = encrypt_segment_with(wav, split, kc_iv, &a);
+        unsigned char *second = encrypt_segment_with(wav + split, KC_WAV_BYTES - split, second_iv, &b);
+        joined = malloc((size_t)(a + b));
+        KC_NOT_NULL(joined);
+        memcpy(joined, first, (size_t)a);
+        memcpy(joined + a, second, (size_t)b);
+        free(first);
+        free(second);
+        first_size = a;
+        second_size = b;
+    } else {
+        joined = malloc(KC_WAV_BYTES);
+        KC_NOT_NULL(joined);
+        memcpy(joined, wav, KC_WAV_BYTES);
+    }
+    resource resources[] = {
+        { KC_BASE "all.wav", joined, (int64_t)first_size + second_size },
+        { KC_BASE "key.bin", kc_key, sizeof(kc_key) },
+    };
+    network net = { .resources = resources, .count = 2, .forward_only = forward_only };
+    kc_io_opener opener = opener_for(&net);
+    cursor top;
+    kc_fmt_ctx *ctx = NULL;
+    char playlist[2048];
+    int rc;
+
+    snprintf(playlist, sizeof(playlist),
+             "#EXTM3U\n"
+             "#EXT-X-VERSION:4\n"
+             "#EXT-X-TARGETDURATION:1\n"
+             "#EXT-X-MEDIA-SEQUENCE:0\n"
+             "#EXT-X-PLAYLIST-TYPE:VOD\n"
+             "%s"
+             "#EXTINF:0.5,\n"
+             "#EXT-X-BYTERANGE:%d@0\n"
+             "all.wav\n"
+             "%s"
+             "#EXTINF:0.5,\n"
+             "#EXT-X-BYTERANGE:%d@%d\n"
+             "all.wav\n"
+             "#EXT-X-ENDLIST\n",
+             encrypted ? "#EXT-X-KEY:METHOD=AES-128,URI=\"key.bin\",IV=" KC_IV_HEX "\n" : "",
+             first_size,
+             encrypted ? "#EXT-X-KEY:METHOD=AES-128,URI=\"key.bin\",IV=0xF0E1D2C3B4A5968778695A4B3C2D1E0F\n" : "",
+             second_size, first_size);
+
+    kc_case("%s byte-range segments of one %s file read exactly their own bytes",
+            encrypted ? "two AES-128" : "two plain", forward_only ? "forward-only" : "seekable");
+    KC_NOT_NULL(out);
+    rc = open_playlist(&ctx, &top, playlist, KC_BASE "index.m3u8", NULL, &opener, NULL, NULL);
+    kc_detail("rc=%d", rc);
+    KC_EQ_INT(rc, 0);
+    KC_NOT_NULL(ctx);
+    KC_EQ_I64(read_all(ctx, out, KC_WAV_BYTES), KC_PCM_BYTES);
+    KC_EQ_MEM(out, wav + 44, KC_PCM_BYTES);
+    ffkmp_fmt_close_input_io(&ctx);
+    KC_EQ_INT(net.closed, net.opened);
+    free(joined);
+    free(out);
+    free(wav);
+}
+
 int main(void)
 
 {
@@ -1109,6 +1199,10 @@ int main(void)
     case_the_probe_needs_a_name_or_a_mime_type();
     case_an_aes128_segment_decrypts(0);
     case_an_aes128_segment_decrypts(1);
+    case_byte_range_segments_read_their_own_bytes(1, 0);
+    case_byte_range_segments_read_their_own_bytes(1, 1);
+    case_byte_range_segments_read_their_own_bytes(0, 0);
+    case_byte_range_segments_read_their_own_bytes(0, 1);
     case_a_refused_segment_opens_nothing();
     case_an_interrupt_reaches_the_nested_reads();
     case_a_redirected_variant_resolves_against_its_location(1);

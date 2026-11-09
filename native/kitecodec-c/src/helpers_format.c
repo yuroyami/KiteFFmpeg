@@ -1081,6 +1081,7 @@ struct kc_io_nested {
     int           plain_pos;
     int           plain_len;
     int           ended;        /* the source has no more bytes */
+    int64_t       left;         /* bytes of the asked range still to read; -1 for no end (#237) */
     int           broken;       /* the final block's padding was invalid; every read fails */
     char         *location;     /* where the bytes came from, owned; NULL for the URL asked for */
 };
@@ -1104,7 +1105,11 @@ static const AVClass kc_io_nested_class = {
 
 static int kc_io_nested_read(void *opaque, uint8_t *buf, int len) {
     kc_io_nested *n = (kc_io_nested *)opaque;
-    return kc_io_read_through(n->parent->opener.read_fn, n->source, n->parent->cell, buf, len);
+    if (n->left == 0) return AVERROR_EOF;
+    if (n->left > 0 && len > n->left) len = (int)n->left;
+    int r = kc_io_read_through(n->parent->opener.read_fn, n->source, n->parent->cell, buf, len);
+    if (r > 0 && n->left > 0) n->left -= r;
+    return r;
 }
 
 static int64_t kc_io_nested_seek(void *opaque, int64_t offset, int whence) {
@@ -1122,10 +1127,20 @@ static int kc_io_crypt_read(void *opaque, uint8_t *buf, int len) {
     while (n->plain_pos == n->plain_len) {
         if (kc_cell_raised(p->cell)) return AVERROR_EXIT;
         while (!n->ended && n->cipher_len < 2 * KC_AES_BLOCK) {
+            /* A byte range ends the stream where it ends, so that its own padding is the one
+               stripped, not the file's (#237). */
+            if (n->left == 0) {
+                n->ended = 1;
+                break;
+            }
             int room = KC_CRYPT_BUFFER - n->cipher_len;
+            if (n->left > 0 && room > n->left) room = (int)n->left;
             int r = p->opener.read_fn(n->source, n->cipher + n->cipher_len, room);
             if (r > room) return AVERROR(EIO);
-            if (r > 0) n->cipher_len += r;
+            if (r > 0) {
+                n->cipher_len += r;
+                if (n->left > 0) n->left -= r;
+            }
             else if (r == KC_IO_EOF) n->ended = 1;
             else return AVERROR(EIO);
         }
@@ -1190,6 +1205,7 @@ int kc_test_crypt_read_all(const uint8_t *key, const uint8_t *iv, const uint8_t 
     bridge.opener.read_fn = kc_test_crypt_cursor_read;
     n.parent = &bridge;
     n.source = &cursor;
+    n.left = -1;
     n.aes = av_aes_alloc();
     n.cipher = av_malloc(KC_CRYPT_BUFFER);
     n.plain = av_malloc(KC_CRYPT_BUFFER);
@@ -1284,8 +1300,40 @@ static int kc_hex_block(const AVDictionary *options, const char *name, uint8_t o
     return 0;
 }
 
+/* The byte offset hls.c passes as the "offset" or "end_offset" option of an EXT-X-BYTERANGE
+   segment, or fallback when it passes none. */
+static int64_t kc_range_option(const AVDictionary *options, const char *name, int64_t fallback) {
+    const AVDictionaryEntry *e = av_dict_get(options, name, NULL, 0);
+    if (!e || !e->value[0]) return fallback;
+    char *end = NULL;
+    long long value = strtoll(e->value, &end, 10);
+    if (!end || *end || value < 0) return AVERROR(EINVAL);
+    return (int64_t)value;
+}
+
+/* Moves a source the opener just opened at byte 0 to start, by a seek when it can and by reading
+   past the bytes before it when it cannot. */
+static int kc_io_nested_skip_to(const kc_io_opener *opener, void *source, int seekable, int64_t start) {
+    if (start == 0) return 0;
+    if (seekable && opener->seek_fn) return opener->seek_fn(source, start, SEEK_SET) == start ? 0 : AVERROR(EIO);
+    uint8_t scratch[4096];
+    while (start > 0) {
+        int want = start < (int64_t)sizeof(scratch) ? (int)start : (int)sizeof(scratch);
+        int r = opener->read_fn(source, scratch, want);
+        if (r <= 0 || r > want) return AVERROR(EIO);
+        start -= r;
+    }
+    return 0;
+}
+
 /* The context's io_open while it has an opener. With the trust_io_open patch, the HLS demuxer
-   sends every playlist, segment and key URL here without checking its protocol first. */
+   sends every playlist, segment and key URL here without checking its protocol first.
+
+   A segment cut by EXT-X-BYTERANGE comes with its range as the "offset" and "end_offset" options,
+   and the opener opens the whole file. The source is moved to the range and reads end at its end,
+   and the context reads as if it stood at the range's start, so FFmpeg's seek to it right after
+   the open moves nothing. An encrypted range decrypts from its own first block with the IV FFmpeg
+   gives for it, and drops its own padding (#237). A ranged context cannot seek. */
 static int kc_io_open_nested(AVFormatContext *s, AVIOContext **pb, const char *url, int flags,
                              AVDictionary **options) {
     kc_io_bridge *p = s ? (kc_io_bridge *)s->opaque : NULL;
@@ -1303,11 +1351,15 @@ static int kc_io_open_nested(AVFormatContext *s, AVIOContext **pb, const char *u
     int encrypted = av_strstart(url, "crypto+", &inner) || av_strstart(url, "crypto:", &inner);
     uint8_t key[KC_AES_BLOCK];
     uint8_t iv[KC_AES_BLOCK];
+    const AVDictionary *given = options ? *options : NULL;
     if (encrypted) {
-        const AVDictionary *given = options ? *options : NULL;
         if (kc_hex_block(given, "key", key) < 0 || kc_hex_block(given, "iv", iv) < 0)
             return AVERROR(EINVAL);
     }
+    int64_t range_start = kc_range_option(given, "offset", 0);
+    int64_t range_end = kc_range_option(given, "end_offset", -1);
+    if (range_start < 0 || range_end < -1 || (range_end >= 0 && range_end < range_start)) return AVERROR(EINVAL);
+    int ranged = range_start > 0 || range_end >= 0;
 
     void *source = NULL;
     int64_t size = -1;
@@ -1325,12 +1377,18 @@ static int kc_io_open_nested(AVFormatContext *s, AVIOContext **pb, const char *u
     n->parent = p;
     n->source = source;
     n->size = size;
+    n->left = range_end >= 0 ? range_end - range_start : -1;
+    int skipped = kc_io_nested_skip_to(&p->opener, source, seekable, range_start);
+    if (skipped < 0) {
+        kc_io_nested_free(n);
+        return skipped;
+    }
     int located = kc_io_nested_location(&p->opener, source, &n->location);
     if (located < 0) {
         kc_io_nested_free(n);
         return located;
     }
-    int can_seek = !encrypted && seekable && p->opener.seek_fn;
+    int can_seek = !encrypted && !ranged && seekable && p->opener.seek_fn;
     unsigned char *buffer = av_malloc(KC_IO_BUFFER_SIZE);
     if (encrypted) {
         n->aes = av_aes_alloc();
@@ -1353,6 +1411,9 @@ static int kc_io_open_nested(AVFormatContext *s, AVIOContext **pb, const char *u
         return AVERROR(ENOMEM);
     }
     n->pb->seekable = can_seek ? AVIO_SEEKABLE_NORMAL : 0;
+    /* FFmpeg seeks a ranged segment to its offset after the open; at that position already, the
+       seek moves nothing. */
+    n->pb->pos = range_start;
     if (n->location) {
         n->av_class = &kc_io_nested_class;
         n->pb->av_class = &kc_io_context_class;
