@@ -163,4 +163,16 @@ class WebOpenFailureTypeTest {
         assertIs<FFmpegError.InvalidData>(webFromCode(FFmpegError.AVERROR_INVALIDDATA, "x"))
         assertIs<FFmpegError.EndOfFile>(webFromCode(FFmpegError.AVERROR_EOF, "x"))
     }
+
+    /** A thread count the web artifact cannot run is clamped to one, not refused (#246). */
+    @Test
+    fun aThreadCountAboveOneOpensOnOneThread() {
+        val module = fakeDecodeCodecModule()
+        useCodecModule(module)
+        setFakeDecodeScript(module, "g")
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            source.openDecoder(source.streams[0], threadCount = 8).use { }
+            assertEquals(1, fakeDecoderThreads(module), "the decoder was opened on one thread")
+        }
+    }
 }

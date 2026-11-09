@@ -526,17 +526,9 @@ public actual class MediaSource internal constructor(
                 ),
             )
         }
-        // Zero is FFmpeg's own "decide for me" and one is what this artifact can actually do.
-        // Anything above that is a request for threads the default web build has no pthreads for.
-        if (threadCount > 1) {
-            throw FFmpegException(
-                FFmpegError.Unsupported(
-                    0,
-                    "the web artifact is built without pthreads, so $threadCount decoding threads " +
-                        "cannot be honoured. Pass 0 to let FFmpeg decide, or 1 for single threaded.",
-                ),
-            )
-        }
+        // Zero is FFmpeg's own "decide for me", and one is all this artifact can run: it has no
+        // pthreads. A larger count is clamped to one, as FFmpeg clamps a count it cannot honour,
+        // so common code that passes the core count opens on the web too (#246).
         // The identity rule the other backends apply: a StreamInfo can be forged, and a forged one
         // with a valid index would decode this source's stream as another file's.
         table.requireOwn(stream)
@@ -576,7 +568,7 @@ public actual class MediaSource internal constructor(
                 val parRc = ffkmp_codecctx_from_par(m, ctx, par)
                 if (parRc < 0) throw FFmpegException(webAvError(m, parRc, "avcodec_parameters_to_context"))
                 if (lowDelay) ffkmp_codecctx_set_low_delay(m, ctx, 1)
-                if (threadCount == 1) ffkmp_codecctx_set_threads(m, ctx, 1, 0)
+                if (threadCount >= 1) ffkmp_codecctx_set_threads(m, ctx, 1, 0)
                 // Typed options through the same av_opt_set funnel the other backends use, between
                 // context creation and open, which is where FFmpeg wants them.
                 options?.compile()?.forEach { (key, value) ->

@@ -263,6 +263,11 @@ public expect class MediaSource : AutoCloseable {
      *
      * [hardware] requests an HWACCEL behind the chosen decoder ([HardwareAccel]); it is attached
      * between context creation and open and fails typed when the running FFmpeg cannot honour it.
+     *
+     * @param threadCount how many threads the decoder may use. 0 lets libavcodec choose, which is
+     *        usually the core count. A count the platform cannot run is clamped, as FFmpeg clamps
+     *        it: the default web artifact has no threads, so every count above 1 decodes on one
+     *        there.
      */
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)

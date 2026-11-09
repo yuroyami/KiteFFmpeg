@@ -349,7 +349,7 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
         m._ffkmp_codecctx_from_par = () => 0;
         m._ffkmp_codecctx_open = () => m.__codecOpenRc ?? 0;
         m._ffkmp_codecctx_set_low_delay = () => {};
-        m._ffkmp_codecctx_set_threads = () => {};
+        m._ffkmp_codecctx_set_threads = (c, n) => { m.__threads = n; };
         m._ffkmp_codecctx_set_opt = () => m.__setOptRc ?? 0;
         m._ffkmp_codecctx_flush = (c) => { pending.delete(c); draining.delete(c); };
         m._ffkmp_codecctx_free = (c) => {
@@ -394,6 +394,11 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
     }""",
 )
 private external fun installFakeDecodeSurface(module: JsAny): JsAny
+
+/** The thread count the last decoder open set, or -1 when none was set. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m.__threads ?? -1")
+internal external fun fakeDecoderThreads(module: JsAny): Int
 
 /** Sets the scripted packet run; see [fakeDecodeCodecModule] for the letters. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
