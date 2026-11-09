@@ -5,7 +5,10 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /** The one-call APIs read caller bytes, write caller bytes, and pass pre-open options to the input. */
 class MediaEndsContractTest {
@@ -55,8 +58,11 @@ class MediaEndsContractTest {
             this.position = position.toInt()
         }
 
+        var closeFailure: Throwable? = null
+
         override fun close() {
             closes++
+            closeFailure?.let { throw it }
         }
     }
 
@@ -125,5 +131,60 @@ class MediaEndsContractTest {
         val remuxed = path("wav")
         runBlocking { Remuxer.remux(wav, mapOf(FORCED_FORMAT_KEY to "wav"), remuxed) }
         assertEquals(4_800L, TranscodeFixtures.decodedSampleCount(remuxed))
+    }
+
+    /**
+     * [expected] as [thrown] carries it. Crossing a dispatcher, coroutines can hand the caller a
+     * copy of an exception with a recovered stack trace and the original as its cause.
+     */
+    private fun original(thrown: Throwable, expected: Throwable): Throwable? =
+        generateSequence(thrown) { it.cause }.firstOrNull { it === expected }
+
+    @Test
+    fun aFailingInputClosesTheCallersSinkOnce() {
+        val input = videoBytes()
+        val openFailure = IllegalStateException("input open failed")
+        // Each call that fails before the muxer exists: no input, a stream that is not there, the
+        // same stream twice, and a seek past the end of the file.
+        val calls: List<suspend (MemorySink) -> Unit> = listOf(
+            { sink -> Remuxer.remux(input = { throw openFailure }, output = sink, format = "matroska") },
+            { sink -> Transcoder.transcode(input = { throw openFailure }, output = sink, format = "matroska", spec = TranscodeFixtures.videoSpec(Rational(25, 1))) },
+            { sink -> Remuxer.remux(input = { BytesSource(input) }, output = sink, format = "matroska", streamIndices = listOf(7)) },
+            { sink -> Remuxer.remux(input = { BytesSource(input) }, output = sink, format = "matroska", streamIndices = listOf(0, 0)) },
+        )
+        for ((index, call) in calls.withIndex()) {
+            val sink = MemorySink(seekable = true)
+            val thrown = assertFails { runBlocking { call(sink) } }
+            if (index < 2) assertSame(openFailure, original(thrown, openFailure), "call $index keeps its own failure")
+            assertEquals(1, sink.closes, "call $index closes the sink it was given once")
+            assertEquals(0, sink.bytes.size, "call $index wrote nothing")
+        }
+    }
+
+    @Test
+    fun theInputFailureStaysFirstWhenTheSinkCloseThrowsToo() {
+        val openFailure = IllegalStateException("input open failed")
+        val closeFailure = IllegalStateException("sink close failed")
+        val sink = MemorySink(seekable = true).apply { this.closeFailure = closeFailure }
+        val thrown = assertFails {
+            runBlocking { Remuxer.remux(input = { throw openFailure }, output = sink, format = "matroska") }
+        }
+        val first = original(thrown, openFailure)
+        assertSame(openFailure, first, "the input's failure is the one the caller sees")
+        assertTrue(
+            generateSequence(thrown) { it.cause }.any { closeFailure in it.suppressedExceptions },
+            "the close failure rides on the input's",
+        )
+        assertEquals(1, sink.closes)
+    }
+
+    @Test
+    fun aFailedOutputOpenClosesTheCallersSinkOnce() {
+        val input = videoBytes()
+        val sink = MemorySink(seekable = true)
+        assertFailsWith<FFmpegException> {
+            runBlocking { Remuxer.remux(input = { BytesSource(input) }, output = sink, format = "no_such_muxer") }
+        }
+        assertEquals(1, sink.closes, "a muxer that cannot open still gives the sink back once")
     }
 }

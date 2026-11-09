@@ -96,6 +96,43 @@ public actual object Transcoder {
         metadata: Map<String, String>,
         dispatcher: CoroutineDispatcher?,
         onProgress: ((TranscodeProgress) -> Unit)?,
+    ): Unit = output.owning {
+        transcodeEndsOwned(
+            input,
+            output,
+            spec,
+            videoFilter,
+            videoCopy,
+            audioSpec,
+            audioFilter,
+            audioCopy,
+            subtitleCopy,
+            subtitleCodec,
+            startMicros,
+            endMicros,
+            metadata,
+            dispatcher,
+            onProgress,
+        )
+    }
+
+    /** [transcodeEnds], with the output owned by [OutputEnd.owning] (#85). */
+    private suspend fun transcodeEndsOwned(
+        input: InputEnd,
+        output: OutputEnd,
+        spec: VideoEncoderSpec?,
+        videoFilter: String?,
+        videoCopy: Boolean,
+        audioSpec: AudioEncoderSpec?,
+        audioFilter: String?,
+        audioCopy: Boolean,
+        subtitleCopy: Boolean,
+        subtitleCodec: CodecId?,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((TranscodeProgress) -> Unit)?,
     ) {
         Internals.requireCompatible()
         require(!(videoCopy && (spec != null || videoFilter != null))) {

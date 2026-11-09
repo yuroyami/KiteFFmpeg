@@ -58,6 +58,29 @@ public actual object Remuxer {
         metadata: Map<String, String>,
         dispatcher: CoroutineDispatcher?,
         onProgress: ((packetsWritten: Long) -> Unit)?,
+    ): Unit = output.owning {
+        remuxEndsOwned(
+            input,
+            output,
+            streamIndices,
+            startMicros,
+            endMicros,
+            metadata,
+            dispatcher,
+            onProgress,
+        )
+    }
+
+    /** [remuxEnds], with the output owned by [OutputEnd.owning] (#85). */
+    private suspend fun remuxEndsOwned(
+        input: InputEnd,
+        output: OutputEnd,
+        streamIndices: List<Int>?,
+        startMicros: Long,
+        endMicros: Long,
+        metadata: Map<String, String>,
+        dispatcher: CoroutineDispatcher?,
+        onProgress: ((packetsWritten: Long) -> Unit)?,
     ) {
         // The FFmpeg identity gate. First statement of the entry point.
         requireCompatibleFFmpeg()
