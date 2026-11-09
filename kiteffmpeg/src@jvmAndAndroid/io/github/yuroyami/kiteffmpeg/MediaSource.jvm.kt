@@ -4,7 +4,6 @@ import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlin.coroutines.cancellation.CancellationException
 
 public actual class MediaSource internal constructor(
@@ -179,11 +178,12 @@ public actual class MediaSource internal constructor(
 
     public actual fun decodedFrames(stream: StreamInfo): Flow<Frame> = decodeStreams(listOf(stream))
 
-    public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = flow {
+    public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = frameFlow {
+        // A clone a cancelled collector cannot receive is closed by handOver (#199).
         demuxRouted(
             decode = streams,
             copy = emptyList(),
-            onFrame = { emit(it.copy()) },
+            onFrame = { handOver(it.copy()) },
             onPacket = { _, _ -> },
         )
     }

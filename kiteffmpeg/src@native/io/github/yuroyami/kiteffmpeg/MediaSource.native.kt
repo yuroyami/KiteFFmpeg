@@ -149,7 +149,6 @@ import kotlinx.cinterop.staticCFunction
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -342,10 +341,11 @@ public actual class MediaSource internal constructor(
 
     public actual fun decodedFrames(stream: StreamInfo): Flow<Frame> = decodeStreams(listOf(stream))
 
-    public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = flow {
+    public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = frameFlow {
         // Emit OWNED clones (O(1) refcount bumps): collectors may buffer or hold frames and
-        // must close each one. The internal reusable landing frame never escapes this call.
-        demuxRouted(decode = streams, copy = emptyList(), onFrame = { emit(it.copy()) }, onPacket = { _, _ -> })
+        // must close each one. The internal reusable landing frame never escapes this call, and a
+        // clone a cancelled collector cannot receive is closed by handOver (#199).
+        demuxRouted(decode = streams, copy = emptyList(), onFrame = { handOver(it.copy()) }, onPacket = { _, _ -> })
     }
 
     /**

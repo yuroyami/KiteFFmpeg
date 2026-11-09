@@ -94,8 +94,6 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_metadata
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_stream_start_time
 import kotlinx.coroutines.flow.Flow
 import kotlin.js.JsAny
-import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.flow
 
 /**
  * An open container, over the codec module.
@@ -332,7 +330,7 @@ public actual class MediaSource internal constructor(
 
     public actual fun decodedFrames(stream: StreamInfo): Flow<Frame> = decodeStreams(listOf(stream))
 
-    public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = flow {
+    public actual fun decodeStreams(streams: List<StreamInfo>): Flow<Frame> = frameFlow {
         // Refused before any decoder exists. A duplicate index opened a second decoder over the
         // first one's map entry, and only the survivor was closed (#113).
         canonicalPacketSelection(table, streams)
@@ -350,10 +348,11 @@ public actual class MediaSource internal constructor(
         // the frame would mean reading its info on every frame, which is a dozen calls back across
         // the binding for a value most callers never look at. The recorder only runs the lambda for
         // a stream it has not seen, so info is read once per stream and never again.
-        suspend fun FlowCollector<Frame>.emitObserved(streamIndex: Int, frame: Frame?): Frame? {
+        suspend fun emitObserved(streamIndex: Int, frame: Frame?): Frame? {
             if (frame == null) return null
             declaredByIndex[streamIndex]?.let { declared -> divergences.observe(declared) { frame.info } }
-            emit(frame)
+            // A frame a cancelled collector cannot receive is closed there (#199).
+            handOver(frame)
             return frame
         }
         var reader: PacketReader? = null
@@ -377,7 +376,7 @@ public actual class MediaSource internal constructor(
                         while (true) emitObserved(streamIndex, decoder.receive()) ?: break
                     }
                     corruptDataSkipped = skippedBefore + decoders.values.sumOf { it.corruptDataSkipped }
-                    return@flow
+                    return@frameFlow
                 }
                 packet.use { p ->
                     val decoder = decoders[p.streamIndex]

@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -94,5 +95,39 @@ private class FrameBufferFlow(
             channel.cancel()
             producer.cancel()
         }
+    }
+}
+
+/**
+ * A flow of owned frames built like `flow { }`, whose [FrameHandOver.handOver] closes a frame the
+ * collector can no longer receive.
+ *
+ * The builder's `emit` checks for cancellation before it passes the value on, so a decode flow that
+ * made a fresh copy of a frame and was then cancelled, by `withTimeout` or a job cancelled from
+ * another thread while a packet decoded, threw from `emit` with the copy reaching no one. A frame
+ * has no finalizer, so that was one leaked picture per cancel: 3.1 MB at 1080p (#199). Like
+ * [FrameBufferFlow], this implements [Flow] by hand, so the frame stays ours until the collector's
+ * own `emit` is called with it.
+ */
+internal fun frameFlow(block: suspend FrameHandOver.() -> Unit): Flow<Frame> = object : Flow<Frame> {
+    override suspend fun collect(collector: FlowCollector<Frame>) {
+        FrameHandOver(collector).block()
+    }
+}
+
+/** The emitting side of [frameFlow]. */
+internal class FrameHandOver(private val collector: FlowCollector<Frame>) {
+    /**
+     * Delivers [frame], which is the caller's until this is called. A cancelled collector gets
+     * nothing: the frame is closed here and the cancellation thrown. Once the collector's `emit`
+     * is called with it the frame is the collector's, also when that call then throws.
+     */
+    suspend fun handOver(frame: Frame) {
+        val context = currentCoroutineContext()
+        if (!context.isActive) {
+            frame.close()
+            context.ensureActive()
+        }
+        collector.emit(frame)
     }
 }
