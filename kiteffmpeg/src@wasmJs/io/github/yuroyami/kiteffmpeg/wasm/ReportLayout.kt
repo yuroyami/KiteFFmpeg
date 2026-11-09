@@ -34,5 +34,7 @@ internal object ReportLayout {
     const val TEXT_LIST: Int = 128
     const val TEXT_PATH: Int = 512
     const val TEXT_SENTENCE: Int = 1152
+    const val ABI_MAJOR: Int = 5
+    const val ABI_MINOR: Int = 4
     const val SIZE_OF: Int = 2176
 }

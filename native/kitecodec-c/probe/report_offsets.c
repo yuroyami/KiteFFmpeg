@@ -40,6 +40,9 @@ int main(void) {
     printf("  \"TEXT_LIST\": %d,\n", KC_TEXT_LIST);
     printf("  \"TEXT_PATH\": %d,\n", KC_TEXT_PATH);
     printf("  \"TEXT_SENTENCE\": %d,\n", KC_TEXT_SENTENCE);
+    /* The C ABI these offsets belong to, which attach compares with the module's own (#265). */
+    printf("  \"ABI_MAJOR\": %d,\n", KITECODEC_C_ABI_MAJOR);
+    printf("  \"ABI_MINOR\": %d,\n", KITECODEC_C_ABI_MINOR);
     printf("  \"sizeof\": %zu\n", sizeof(kc_ffmpeg_report));
     printf("}\n");
     return 0;

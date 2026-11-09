@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.wasm.ReportLayout
 import kotlin.js.JsAny
 
 /*
@@ -87,6 +88,8 @@ import kotlin.js.JsAny
             _ffkmp_codecpar_spherical: () => 0,
             _ffkmp_codecpar_stereo3d: () => 0,
             _kc_ffmpeg_report_get: (p) => { HEAPU8.copyWithin(p, stage, stage + 2176); },
+            // The C ABI the committed layouts belong to, as a module of this release reports (#265).
+            _kc_abi_version: () => (${ReportLayout.ABI_MAJOR} << 16) | (${ReportLayout.ABI_MINOR} << 8),
             _kc_ffmpeg_library_name: (i) => (i >= 0 && i < libs.length) ? libs[i] : 0,
             _kc_verdict_name: (v) => (v >= 0 && v < verdicts.length) ? verdicts[v] : 0,
             _ffkmp_component_names: (kind, buf, cap) => {

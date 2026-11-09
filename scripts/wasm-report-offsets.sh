@@ -48,7 +48,7 @@ def camel(s):
     return head + "".join(w.capitalize() for w in rest)
 for k in order:
     lines.append("    const val %s: Int = %d" % (camel(k), o[k]))
-for k in ["LIBRARY_COUNT","TEXT_REF","TEXT_NAME","TEXT_LIST","TEXT_PATH","TEXT_SENTENCE"]:
+for k in ["LIBRARY_COUNT","TEXT_REF","TEXT_NAME","TEXT_LIST","TEXT_PATH","TEXT_SENTENCE","ABI_MAJOR","ABI_MINOR"]:
     lines.append("    const val %s: Int = %d" % (camel(k.lower()).upper() if False else k, o[k]))
 lines.append("    const val SIZE_OF: Int = %d" % o["sizeof"])
 lines.append("}")

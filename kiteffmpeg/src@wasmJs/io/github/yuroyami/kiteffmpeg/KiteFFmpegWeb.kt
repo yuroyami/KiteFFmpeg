@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.js.JsAny
 import kotlin.js.Promise
+import io.github.yuroyami.kiteffmpeg.wasm.ReportLayout
 
 /**
  * Loads the codec, which on the web is a separate wasm module fetched over the network.
@@ -72,6 +73,7 @@ public object KiteFFmpegWeb {
         }
         val missing = missingRuntimeMethods(codecModule)
         if (missing.isNotEmpty()) throw IncompleteModule(missing)
+        requireLayout(codecModule)
         module = codecModule
         // Silent unless a sink was set, as on every other backend.
         WebLog.apply(codecModule)
@@ -185,6 +187,7 @@ public object KiteFFmpegWeb {
                 "jar of a KiteFFmpeg release, or link it with `./kotlin do linkKiteFFmpegAsyncWasmModules` " +
                 "in the KiteFFmpeg repository."
         }
+        requireLayout(codecModule)
         val version = asyncBridgeVersion(codecModule)
         if (version != ASYNC_BRIDGE_VERSION) {
             throw FFmpegException(
@@ -208,6 +211,29 @@ public object KiteFFmpegWeb {
         engine.lane = lane
         engine.install()
         return AsyncMediaRuntime(lane)
+    }
+
+    /**
+     * Refuses [codecModule] when it was built with a C layout other than the one this library reads
+     * every struct at (#265). The page serves the module and Maven serves this code, so the two can
+     * come from different releases, and a moved field reads back as a plausible wrong value. A
+     * module of the same major and a minor at least this library's adds only what this library
+     * does not call, so it is accepted.
+     */
+    private fun requireLayout(codecModule: JsAny) {
+        val packed = if (hasAbiVersion(codecModule)) moduleAbiVersion(codecModule) else -1
+        val major = packed ushr 16 and 0xFF
+        val minor = packed ushr 8 and 0xFF
+        if (packed < 0 || major != ReportLayout.ABI_MAJOR || minor < ReportLayout.ABI_MINOR) {
+            val held = if (packed < 0) "no C ABI version" else "C ABI $major.$minor"
+            throw FFmpegException(
+                FFmpegError.Unsupported(
+                    0,
+                    "this codec module holds $held, and this library reads its structs at the layout of C ABI " +
+                        "${ReportLayout.ABI_MAJOR}.${ReportLayout.ABI_MINOR}. Use kite.mjs and kite.wasm of the same release.",
+                ),
+            )
+        }
     }
 
     /** The version of the asynchronous bridge this library reads. */
@@ -300,6 +326,16 @@ private external fun missingAsyncPieces(module: JsAny): String
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => m._ffkmp_async_bridge_version()")
 private external fun asyncBridgeVersion(module: JsAny): Int
+
+/** True when [module] exports `kc_abi_version`, which a module older than the check may not. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => typeof m._kc_abi_version === 'function'")
+private external fun hasAbiVersion(module: JsAny): Boolean
+
+/** [module]'s packed C ABI version, major << 16 | minor << 8. */
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m) => m._kc_abi_version() >>> 0")
+private external fun moduleAbiVersion(module: JsAny): Int
 
 /** True when a runtime owns [module]. The mark lives on the module, so it lasts as long as it does. */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)

@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.wasm.ReportLayout
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
@@ -73,6 +74,23 @@ class KiteFFmpegWebTest {
         assertFalse("ccall" in missingClause, "ccall is present, so it is not missing: $missingClause")
         assertFalse("UTF8ToString" in missingClause, "UTF8ToString is present: $missingClause")
         assertTrue("HEAP32" in missingClause, "HEAP32 is absent and must be listed: $missingClause")
+    }
+
+    /** A module of another C layout is refused before any struct is read at the wrong offsets (#265). */
+    @Test
+    fun attachRefusesAModuleBuiltWithAnotherCLayout() {
+        for (packed in listOf((ReportLayout.ABI_MAJOR + 1) shl 16, (ReportLayout.ABI_MAJOR shl 16) or ((ReportLayout.ABI_MINOR - 1) shl 8))) {
+            val module = fakeCodecModule()
+            setFakeAbiVersion(module, packed)
+            val failure = assertFailsWith<FFmpegException> { KiteFFmpegWeb.attach(module) }
+            assertTrue("the same release" in failure.message.orEmpty(), "the refusal must say what to do, was: ${failure.message}")
+            assertFalse(KiteFFmpegWeb.isLoaded, "a refused module must not become the loaded one")
+        }
+        // A newer minor of the same major only adds, so it is taken.
+        val newer = fakeCodecModule()
+        setFakeAbiVersion(newer, (ReportLayout.ABI_MAJOR shl 16) or ((ReportLayout.ABI_MINOR + 1) shl 8))
+        KiteFFmpegWeb.attach(newer)
+        assertTrue(KiteFFmpegWeb.isLoaded)
     }
 
     @Test
@@ -240,3 +258,7 @@ private fun runWithoutSuspending(block: suspend () -> Unit) {
     val settled = outcome ?: fail("the call suspended; nothing here is allowed to reach the network")
     settled.getOrThrow()
 }
+
+@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+@JsFun("(m, v) => { m._kc_abi_version = () => v; }")
+private external fun setFakeAbiVersion(module: JsAny, packed: Int)
