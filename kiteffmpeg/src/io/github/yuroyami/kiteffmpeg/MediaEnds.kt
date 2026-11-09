@@ -4,8 +4,15 @@ package io.github.yuroyami.kiteffmpeg
  * Where a transcode or a remux reads. [open] is called once for each open, because a transcode
  * opens its input a second time when the encoder must see the first frame. [name] is how an error
  * names the input, and [path] is set only for a path, which the same-file check needs.
+ *
+ * Every open shares [interrupt], which a cancel of the call raises, so an open or a read blocked
+ * on a server that stopped answering returns instead of waiting for FFmpeg's own timeout (#250).
  */
-internal class InputEnd(val name: String, val path: String?, val open: () -> MediaSource)
+internal class InputEnd(val name: String, val path: String?, private val opener: (OpenInterrupt) -> MediaSource) {
+    val interrupt: OpenInterrupt = OpenInterrupt()
+
+    fun open(): MediaSource = opener(interrupt)
+}
 
 /**
  * Where a transcode or a remux writes. [path] is set only for a path.
@@ -66,10 +73,10 @@ internal class OutputEnd(
 }
 
 internal fun inputAt(path: String, options: Map<String, String>): InputEnd =
-    InputEnd(path, path) { if (options.isEmpty()) MediaSource.open(path) else MediaSource.open(path, options) }
+    InputEnd(path, path) { interrupt -> MediaSource.open(path, options, interrupt) }
 
 internal fun inputFrom(source: () -> MediaByteSource): InputEnd =
-    InputEnd("the caller's byte source", null) { MediaSource.open(source()) }
+    InputEnd("the caller's byte source", null) { interrupt -> MediaSource.open(source(), interrupt = interrupt) }
 
 internal fun outputAt(path: String): OutputEnd = OutputEnd(path, opener = { MediaSink.open(path) })
 

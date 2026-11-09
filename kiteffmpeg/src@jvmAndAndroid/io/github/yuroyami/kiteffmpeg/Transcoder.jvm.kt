@@ -151,7 +151,7 @@ public actual object Transcoder {
         require(startMicros >= 0L && endMicros > startMicros) {
             "Invalid trim window [$startMicros, $endMicros]"
         }
-        runTranscode(dispatcher ?: Dispatchers.IO, onProgress) { publish ->
+        runTranscode(dispatcher ?: Dispatchers.IO, onProgress, input.interrupt) { publish ->
             transcodeHere(
                 input, output, spec, videoFilter, videoCopy, audioSpec, audioFilter, audioCopy,
                 subtitleCopy, subtitleCodec, startMicros, endMicros, metadata, publish,

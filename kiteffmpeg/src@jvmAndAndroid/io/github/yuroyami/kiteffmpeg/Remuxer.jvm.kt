@@ -83,7 +83,7 @@ public actual object Remuxer {
             "Invalid trim window [$startMicros, $endMicros]"
         }
         if (input.path != null && output.path != null) refuseSameFile(input.path, output.path)
-        runTranscode(dispatcher ?: Dispatchers.IO, onProgress) { publish ->
+        runTranscode(dispatcher ?: Dispatchers.IO, onProgress, input.interrupt) { publish ->
             remuxHere(input, output, streamIndices, startMicros, endMicros, metadata, publish)
         }
     }
