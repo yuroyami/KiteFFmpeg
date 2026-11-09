@@ -37,6 +37,12 @@ internal actual object JniLibrary {
         // manifest.txt lists every file in the bundle, the JNI library LAST. The others are
         // dependencies it loads through @loader_path, so they must all sit in one directory
         // before the load; extracting only the library would fail at the first missing symbol.
+        val platformDirectory = platformDirectory ?: throw UnsatisfiedLinkError(
+            "kitecodec_jni is not on java.library.path, and this build of kiteffmpeg carries no " +
+                "native library for os.name=${System.getProperty("os.name")}, " +
+                "os.arch=${System.getProperty("os.arch")}; supply one with -Dkiteffmpeg.jni.path " +
+                "or -Djava.library.path.",
+        )
         val directoryResource = "/$RESOURCE_ROOT/$platformDirectory"
         val manifest = JniLibrary::class.java.getResourceAsStream("$directoryResource/$MANIFEST_NAME")
             ?.bufferedReader()?.use { it.readLines() }
@@ -66,25 +72,40 @@ internal actual object JniLibrary {
         System.load(loadable.absolutePath)
     }
 
-    /** `macos-arm64`, `linux-x64`, `windows-x64`: the same names the vendored FFmpeg trees use. */
-    private val platformDirectory: String by lazy {
-        val name = System.getProperty("os.name").orEmpty().lowercase()
-        val arch = System.getProperty("os.arch").orEmpty().lowercase()
-        val os = when {
-            "mac" in name || "darwin" in name -> "macos"
-            "win" in name -> "windows"
-            else -> "linux"
-        }
-        val cpu = if (arch in setOf("aarch64", "arm64")) "arm64" else "x64"
-        "$os-$cpu"
+    /** This JVM's bundle directory, or null when it runs on a processor or system no bundle names. */
+    private val platformDirectory: String? by lazy {
+        platformDirectoryFor(System.getProperty("os.name").orEmpty(), System.getProperty("os.arch").orEmpty())
     }
 
     private val fileName: String by lazy {
+        val directory = platformDirectory.orEmpty()
         when {
-            platformDirectory.startsWith("macos") -> "lib$LIBRARY_NAME.dylib"
-            platformDirectory.startsWith("windows") -> "$LIBRARY_NAME.dll"
+            directory.startsWith("macos") -> "lib$LIBRARY_NAME.dylib"
+            directory.startsWith("windows") -> "$LIBRARY_NAME.dll"
             else -> "lib$LIBRARY_NAME.so"
         }
+    }
+
+    /**
+     * `macos-arm64`, `linux-x64`, `windows-x64`: the same names the vendored FFmpeg trees use, or
+     * null for a processor or system that is not one of them. Only known names map, so a JVM on
+     * 32-bit ARM, RISC-V or 32-bit x86 gets the clear refusal instead of the x64 library failing
+     * inside `System.load` (#266).
+     */
+    internal fun platformDirectoryFor(osName: String, osArch: String): String? {
+        val name = osName.lowercase()
+        val os = when {
+            "mac" in name || "darwin" in name -> "macos"
+            "win" in name -> "windows"
+            "linux" in name -> "linux"
+            else -> return null
+        }
+        val cpu = when (osArch.lowercase()) {
+            "amd64", "x86_64" -> "x64"
+            "aarch64", "arm64" -> "arm64"
+            else -> return null
+        }
+        return "$os-$cpu"
     }
 
     private const val LIBRARY_NAME = "kitecodec_jni"

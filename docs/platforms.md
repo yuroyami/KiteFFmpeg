@@ -33,7 +33,10 @@ The JVM looks for the JNI library in this order:
    directory.
 
 On a platform that the jar does not carry, and with neither property set, the first call throws
-`UnsatisfiedLinkError`.
+`UnsatisfiedLinkError`, naming `os.name` and `os.arch` and the two properties. Only `amd64` or
+`x86_64` and `aarch64` or `arm64` on macOS, Linux and Windows name a bundle; any other processor,
+such as 32-bit ARM, RISC-V or 32-bit x86, gets that error rather than a library built for another
+one.
 
 ### The web
 
