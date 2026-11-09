@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -306,7 +308,9 @@ public data class DolbyVisionColor(
  * be closed as soon as this exists.
  *
  * Threading. [composeRows] calls may run at the same time on different threads, as long as their
- * rows do not overlap. [finish] and [close] must wait until every [composeRows] call has returned.
+ * rows do not overlap. [finish] and [close] must wait until every [composeRows] call has returned:
+ * while one still runs they throw [IllegalStateException] rather than free the frames under it,
+ * and a [composeRows] that starts after either of them throws the same.
  *
  * Lifetime. Close it when you do not [finish] it. [finish] hands the picture over and closes the
  * rest, and a later [close] does nothing.
@@ -321,6 +325,9 @@ public class DolbyVisionComposition internal constructor(
     private var source: Frame? = source
     private var output: Frame? = output
 
+    /** Counts the bands composing now, so a close cannot free the frames under one (#257). */
+    private val bands = BandGate()
+
     /**
      * Composes rows [startRow] up to [endRowExclusive]. A band starts on an even row and ends on
      * an even row or at [height], because one row of 4:2:0 chroma serves two rows of the picture.
@@ -331,8 +338,6 @@ public class DolbyVisionComposition internal constructor(
      */
     @Throws(FFmpegException::class)
     public fun composeRows(startRow: Int, endRowExclusive: Int) {
-        val from = checkNotNull(source) { "This Dolby Vision composition is finished or closed" }
-        val to = checkNotNull(output) { "This Dolby Vision composition is finished or closed" }
         if (startRow < 0 || endRowExclusive > height || startRow > endRowExclusive ||
             startRow % 2 != 0 || (endRowExclusive % 2 != 0 && endRowExclusive != height)
         ) {
@@ -345,7 +350,18 @@ public class DolbyVisionComposition internal constructor(
             )
         }
         if (startRow == endRowExclusive) return
-        composeDolbyVisionRows(from, to, startRow, endRowExclusive)
+        // The frames are read under the gate, and the band runs without any lock, so bands on
+        // other threads do not wait for one another.
+        val (from, to) = bands.enter {
+            val from = checkNotNull(source) { "This Dolby Vision composition is finished or closed" }
+            val to = checkNotNull(output) { "This Dolby Vision composition is finished or closed" }
+            from to to
+        }
+        try {
+            composeDolbyVisionRows(from, to, startRow, endRowExclusive)
+        } finally {
+            bands.exit()
+        }
     }
 
     /**
@@ -355,18 +371,48 @@ public class DolbyVisionComposition internal constructor(
      * @throws IllegalStateException after [finish] or [close]
      */
     public fun finish(): Frame {
-        val picture = checkNotNull(output) { "This Dolby Vision composition is finished or closed" }
-        output = null
-        source?.close()
-        source = null
+        val (picture, rest) = bands.whenIdle {
+            val picture = checkNotNull(output) { "This Dolby Vision composition is finished or closed" }
+            output = null
+            (picture to source).also { source = null }
+        }
+        rest?.close()
         return picture
     }
 
     override fun close() {
-        output?.close()
-        output = null
-        source?.close()
-        source = null
+        val (picture, rest) = bands.whenIdle {
+            (output to source).also {
+                output = null
+                source = null
+            }
+        }
+        picture?.close()
+        rest?.close()
+    }
+}
+
+/**
+ * The bands of a [DolbyVisionComposition] in flight. [enter] and [exit] bracket a band, and
+ * [whenIdle] runs a close only while none is in flight, throwing [IllegalStateException] otherwise.
+ */
+internal class BandGate {
+    private val lock = SynchronizedObject()
+    private var running = 0
+
+    fun <T> enter(take: () -> T): T = synchronized(lock) {
+        take().also { running++ }
+    }
+
+    fun exit() {
+        synchronized(lock) { running-- }
+    }
+
+    fun <T> whenIdle(take: () -> T): T = synchronized(lock) {
+        check(running == 0) {
+            "A Dolby Vision composition cannot be finished or closed while $running band(s) of it still compose"
+        }
+        take()
     }
 }
 
