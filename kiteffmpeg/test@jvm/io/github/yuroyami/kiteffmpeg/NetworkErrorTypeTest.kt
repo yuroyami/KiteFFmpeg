@@ -15,7 +15,13 @@ class NetworkErrorTypeTest {
     fun aConnectionToAClosedPortIsRefused() {
         val port = ServerSocket(0).use { it.localPort }
         val failure = assertFailsWith<FFmpegException> { MediaSource.open("tcp://127.0.0.1:$port").close() }
-        assertIs<FFmpegError.ConnectionRefused>(failure.error, "was ${failure.error} (code ${failure.error.code})")
+        // Windows answers a closed port by retrying the connect until FFmpeg's wait for it ends,
+        // so there the failure is a timeout, typed as one, which CI's Windows job showed.
+        if (System.getProperty("os.name").orEmpty().lowercase().startsWith("win")) {
+            assertIs<FFmpegError.TimedOut>(failure.error, "was ${failure.error} (code ${failure.error.code})")
+        } else {
+            assertIs<FFmpegError.ConnectionRefused>(failure.error, "was ${failure.error} (code ${failure.error.code})")
+        }
     }
 
     @Test

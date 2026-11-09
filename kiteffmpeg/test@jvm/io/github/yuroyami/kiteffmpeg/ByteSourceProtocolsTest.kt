@@ -49,7 +49,7 @@ class ByteSourceProtocolsTest {
             listOf("-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=160x120:rate=10:duration=2", "-c:v", "mpeg4", "-f", "mpegts", segment.path),
         ) != null
         if (!made) return println("byte source protocols degraded: no ffmpeg")
-        val text = playlist(segment.toURI().toString())
+        val text = playlist(fileAddress(segment))
         assertFailsWith<FFmpegException>("the playlist opened the local file it names") {
             MediaSource.open(Bytes(text.encodeToByteArray()), url = "https://cdn.test/live.m3u8", mimeType = "application/vnd.apple.mpegurl", nestedOpener = null).use { media ->
                 // Where the open itself succeeds, the segment must still be refused when read.
@@ -67,4 +67,10 @@ class ByteSourceProtocolsTest {
             nestedOpener = null,
         ).use { media -> assertTrue(media.primaryVideo != null, "a playlist the caller let read files did not open") }
     }
+
+    /**
+     * The address FFmpeg's file protocol opens for [file] on every system: a URI's `file:/C:/` form
+     * does not open on Windows, while `file:` before the path with forward slashes does everywhere.
+     */
+    private fun fileAddress(file: File): String = "file:" + file.absolutePath.replace('\\', '/')
 }
