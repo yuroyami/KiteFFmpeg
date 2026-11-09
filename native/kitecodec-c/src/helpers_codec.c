@@ -24,7 +24,19 @@ KC_API int ffkmp_codecctx_receive_frame(kc_codec_ctx *ctx, kc_frame *frame) {
     return (ctx && frame) ? avcodec_receive_frame(ctx, frame) : AVERROR(EINVAL);
 }
 KC_API int ffkmp_codecctx_send_frame(kc_codec_ctx *ctx, const kc_frame *frame) {
-    return ctx ? avcodec_send_frame(ctx, frame) : AVERROR(EINVAL);
+    if (!ctx) return AVERROR(EINVAL);
+    if (!frame || ctx->codec_type != AVMEDIA_TYPE_VIDEO) return avcodec_send_frame(ctx, frame);
+    /* A decoder writes a picture type into every frame, and an encoder reads it as a request:
+     * I forces a keyframe, so an intra-only source came out all keyframes. FFmpeg's command line
+     * clears it before every video encode (fftools/ffmpeg_enc.c), and so does this, leaving the
+     * GOP to the encoder (#196). avcodec_send_frame takes its own reference, so the caller's
+     * frame gets its type back. */
+    AVFrame *own = (AVFrame *)frame;
+    enum AVPictureType type = own->pict_type;
+    own->pict_type = AV_PICTURE_TYPE_NONE;
+    int rc = avcodec_send_frame(ctx, own);
+    own->pict_type = type;
+    return rc;
 }
 KC_API int ffkmp_codecctx_receive_packet(kc_codec_ctx *ctx, kc_packet *packet) {
     return (ctx && packet) ? avcodec_receive_packet(ctx, packet) : AVERROR(EINVAL);
