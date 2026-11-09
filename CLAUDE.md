@@ -211,9 +211,8 @@ Each line is something that bit someone. Delete a line when it stops being true.
 - FFmpeg polls the interrupt callback only inside stream-info discovery and the URL protocol
   loop. The HLS header reader leaves the callback zeroed on its sample-AES and subtitle-context
   branches, so child contexts need the callback copied explicitly.
-- `PacketReader.reselect` is a committed, tested primitive with no caller in the player on
-  purpose: the engine's all-lanes subtitle cache made the SPI member unnecessary and it was
-  deleted. Do not re-add the SPI half without its caller.
+- `PacketReader.reselect` has a caller in the player: KitePlayer's `KiteFFmpegSource.selectStreams`
+  calls `open.reselect(selected)`. Removing or changing it breaks the player's track selection.
 
 ## Decisions already made
 

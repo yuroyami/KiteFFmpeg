@@ -58,7 +58,7 @@ open class BuildFFmpegTask : BuildStep() {
 
     val target = Property<TargetTriple>("target")
 
-    /** Licence flavour. Android and iOS are LGPL-only; only desktop targets honour [FFmpegLicense.GPL]. */
+    /** Licence flavour. Every target is LGPL-only; [FFmpegLicense.GPL] is refused on all of them. */
     val license = Property<FFmpegLicense>("license")
 
     /** The FFmpeg tag this task builds (for example `n9.0.2`), the name its output carries. */
@@ -416,11 +416,11 @@ open class BuildFFmpegTask : BuildStep() {
 
         // buffer/buffersink/abuffer/abuffersink are how KiteFFmpeg feeds and drains every graph.
         // Without them ffkmp_graph_build_* returns AVERROR_FILTER_NOT_FOUND.
-        // Only filters EVERY profile can actually provide. Two kinds of exception live elsewhere,
-        // because configure silently drops a filter whose dependencies are unmet. Listing one
-        // here would make this a promise some builds quietly break:
-        //   - drawtext needs libfreetype/libharfbuzz → desktopBaseArgs (Android links neither).
-        //   - eq and boxblur are `deps="gpl"` in FFmpeg's own configure → desktopGplArgs.
+        // Only filters EVERY profile can actually provide, because configure silently drops a
+        // filter whose dependencies are unmet. Listing one here would make this a promise some
+        // builds quietly break. No profile carries these two kinds today (#222):
+        //   - drawtext needs libfreetype/libharfbuzz, which no profile links.
+        //   - eq and boxblur are `deps="gpl"` in FFmpeg's own configure, and every profile is LGPL.
         // `hue` (which has a brightness parameter), `colorlevels` and `curves` cover most of what
         // `eq` is reached for, and are available everywhere.
         // setparams added 2026-08-17 (phase W): the project's own P010 alignment test declares an

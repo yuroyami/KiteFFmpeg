@@ -6,7 +6,7 @@ KiteFFmpeg's API is coroutine-first: the long-running entry points (`Transcoder.
 
 ## libav contexts are not thread-safe
 
-Some KiteFFmpeg objects wrap native state: `MediaSource` (an `AVFormatContext` plus per-stream decoders), `MediaSink` and its encoders, and `FilterGraph`. Don't call any of them from concurrent coroutines. `MediaSource` has no lock, so two calls that overlap on one source break its state. `FilterGraph` and `MediaSink` take a lock around each native call, so overlapping calls wait for each other, but the order of the frames then depends on the scheduler. Share none of them.
+Some KiteFFmpeg objects wrap native state: `MediaSource` (an `AVFormatContext` plus per-stream decoders), `MediaSink` and its encoders, and `FilterGraph`. Don't call any of them from concurrent coroutines. `MediaSource` takes a small state lock that turns the most common overlaps into an `IllegalStateException` rather than a native crash: a second decode flow while one is collecting, a batch decode while a `PacketReader` owns the demuxer cursor, or any call after `close`. That lock guards the bookkeeping only, not the native calls, so other overlapping calls still break its state. `FilterGraph` and `MediaSink` take a lock around each native call, so overlapping calls wait for each other, but the order of the frames then depends on the scheduler. Share none of them.
 
 This is a rule about *concurrent access to one object*, not about threads in general. It is fine to:
 
@@ -14,6 +14,15 @@ This is a rule about *concurrent access to one object*, not about threads in gen
 - move a pipeline between suspension points onto whatever thread the dispatcher picks, as long as calls into any one object never overlap.
 
 It is not fine to share one object between concurrently running coroutines.
+
+## Stopping a blocked open, read or seek
+
+Two members exist to be called from another thread while the work they stop is blocked.
+
+- `MediaSource.interrupt()` is the one member of a source callable while a read, seek or decode is blocked on it. The blocked call returns with `FFmpegError.Interrupted` at FFmpeg's next check, and every later call on the source fails the same way. It is one-way, and it must never run concurrently with, or after, `close`, which stays required.
+- `OpenInterrupt` reaches an open that has not returned a source yet, for example on a server that accepts the connection and then sends nothing. Create one before the open, pass it to `MediaSource.open`, and call its `interrupt()` from any thread. The source the open returns keeps the same request, so a later interrupt stops its reads too.
+
+FFmpeg looks for either request inside its network protocols and during stream discovery, and this library looks between the reads of a `MediaByteSource`. A wait inside a caller's own `MediaByteSource.read` finishes before the request is seen. On the web nothing runs while an open runs, so the request is seen only before and after it.
 
 ## MediaSource: one coroutine context
 

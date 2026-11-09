@@ -93,7 +93,7 @@ line, and it is complete for every artifact this project publishes. The web jars
 carry FFmpeg alone.
 
   FFmpeg          LGPL-2.1-or-later   https://ffmpeg.org
-                  (the eight libav* libraries, bundled)
+                  (the six libav* libraries, bundled)
   dav1d           BSD-2-Clause        https://code.videolan.org/videolan/dav1d
                   (bundled; it is the software AV1 decoder)
   zlib            zlib                https://zlib.net

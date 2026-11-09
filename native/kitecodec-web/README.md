@@ -27,7 +27,7 @@ The host creates the module with a `kiteAsync` object:
 | --- | --- | --- |
 | `read(source, buf, len)` | a Promise | Bytes written at `buf`: their count, -1 at the end, -2 for a failure. |
 | `seek(source, offset, whence, result)` | a Promise | The 64-bit position read at `offset` and the answer written at `result`. Returns 0, or a negative value to fail. |
-| `open(url, source, size, seekable)` | a Promise | A nested source for `url`: 0 when it is served, -3 to decline it. |
+| `open(url, source, size, seekable)` | a Promise | A nested source for `url`: 0 when it is served, -3 to decline it. The id written at `source` must not be 0, which the bridge reads as no source, so number sources from 1. |
 | `close(source)` | a Promise | Releases a nested source, once. |
 | `sleep(usec)` | a Promise | Resolves after the wait FFmpeg asked for. |
 | `tags(source, tags)` | at once | Hands over the tags the last read brought. |
