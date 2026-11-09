@@ -575,6 +575,7 @@ public actual class MediaSink internal constructor(
             val bridge = JniByteSink(sink)
             val token = Internals.fmtAllocOutputIo(bridge, format)
             try {
+                refuseSecondPassOnByteSink(options)
                 Internals.fmtAvoidNegativeTs(token)
                 options.forEach { (key, value) ->
                     check0(Internals.fmtSetOpt(token, key, value), "av_opt_set (muxer option '$key')")

@@ -101,7 +101,10 @@ public expect class MediaSink : AutoCloseable {
          *
          * @param format container short name (`mp4`, `matroska`, `mpegts`, …). There is no path
          *               to infer it from, so it is required.
-         * @param options muxer private options, as for the path variant
+         * @param options muxer private options, as for the path variant, except `faststart` in
+         *                `movflags`: it moves the index to the front in a second pass that opens the
+         *                output again to read it back, which a byte sink cannot be, so the MP4 lost its
+         *                index at close. It is refused here with [FFmpegError.InvalidArgument] (#234).
          */
         @Throws(FFmpegException::class)
         public fun open(sink: MediaByteSink, format: String, options: Map<String, String> = emptyMap()): MediaSink
@@ -279,4 +282,23 @@ public expect class AudioEncoder : AutoCloseable {
     @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun drive(input: Flow<Frame>)
     override fun close()
+}
+
+/**
+ * Refuses muxer [options] that need a second pass over the output, which a byte sink cannot give
+ * because the muxer would have to open it again to read it back (#234). `faststart` is the one:
+ * a `movflags` value that turns it on, as `+faststart` or `faststart` among other flags.
+ */
+internal fun refuseSecondPassOnByteSink(options: Map<String, String>) {
+    val flags = options["movflags"] ?: return
+    val asked = Regex("([+-]?)([A-Za-z0-9_]+)").findAll(flags).any { it.groupValues[1] != "-" && it.groupValues[2] == "faststart" }
+    if (asked) {
+        throw FFmpegException(
+            FFmpegError.InvalidArgument(
+                0,
+                "movflags=faststart needs the muxer to read its output back in a second pass, which a byte sink " +
+                    "cannot do, so the file would lose its index. Write to a path, or leave faststart out.",
+            ),
+        )
+    }
 }

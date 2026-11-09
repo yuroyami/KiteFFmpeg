@@ -152,6 +152,20 @@ internal class MediaByteSinkContractTest {
         assertEquals(1, memory.closes, "the sink is still closed once")
     }
 
+    /** faststart needs the output read back, which a byte sink cannot give, so the open refuses it (#234). */
+    @Test
+    fun faststartIntoAByteSinkIsRefusedAtTheOpen() {
+        for (flags in listOf("+faststart", "frag_keyframe+faststart", "faststart")) {
+            val memory = MemorySink(seekable = true)
+            val failure = assertFailsWith<FFmpegException> { MediaSink.open(memory, "mp4", mapOf("movflags" to flags)) }
+            assertIs<FFmpegError.InvalidArgument>(failure.error, "$flags was ${failure.error}")
+            assertTrue("faststart" in (failure.message ?: ""), "the refusal names the flag: ${failure.message}")
+            assertEquals(0, memory.written, "$flags wrote ${memory.written} bytes")
+        }
+        // A flag that only turns faststart off, and a path, are taken as before.
+        MediaSink.open(MemorySink(seekable = true), "mp4", mapOf("movflags" to "-faststart")).close()
+    }
+
     @Test
     fun aSinkThatThrowsFailsTheWriteWithItsOwnException() {
         val input = fixture() ?: return println("byte sink contract degraded: no ffmpeg")

@@ -707,6 +707,7 @@ public actual class MediaSink internal constructor(
             }
             ffkmp_fmt_avoid_negative_ts(ctx)
             try {
+                refuseSecondPassOnByteSink(options)
                 options.forEach { (k, v) ->
                     check0(ffkmp_fmt_set_opt(ctx, k, v), "av_opt_set (muxer option '$k')")
                 }
