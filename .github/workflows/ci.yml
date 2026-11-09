@@ -566,6 +566,10 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # macOS only. A toolchain publish compiles every platform of the module, the Apple ones
+      # included, and has no option to name fewer, so on a Linux runner it stops at the macOS
+      # cinterop, which Kotlin/Native cannot run there (#278). The Linux x64 job still links and
+      # runs the sample against the same static tree.
       matrix:
         include:
           - os: macos-latest
@@ -574,12 +578,6 @@ jobs:
             taskSuffix: MacosArm64
             toolchainCache: ~/Library/Caches/JetBrains/Kotlin
             triples: macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64
-          - os: ubuntu-24.04
-            label: linux-x64
-            target: linuxX64
-            taskSuffix: LinuxX64
-            toolchainCache: ~/.cache/JetBrains/Kotlin
-            triples: linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
@@ -595,8 +593,8 @@ jobs:
       # fail to link with `ld: library 'avformat' not found`. The prebuilt static trees make the klib
       # self-contained, which is what a consumer actually gets from Maven Central.
       #
-      # A toolchain publish builds every platform that the host can build, so the job fetches the
-      # tree of each of them. A Linux runner cannot build the Apple platforms.
+      # A toolchain publish builds every platform of the module, so the job fetches the tree of
+      # each of them.
       - name: Fetch the prebuilt static FFmpeg trees
         run: |
           set -euo pipefail
