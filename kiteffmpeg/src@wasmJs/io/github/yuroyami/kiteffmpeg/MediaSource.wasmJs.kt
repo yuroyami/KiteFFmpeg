@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 import io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions
+import io.github.yuroyami.kiteffmpeg.dsl.byteSourceOpenOptions
 import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_subtitle_decoder_open2
 import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_codecpar_content_light
@@ -700,7 +701,7 @@ public actual class MediaSource internal constructor(
         ): MediaSource {
             refuseSeekBreakingOptions(options)
             // What FFmpeg logged while it refused rides on the exception (#170).
-            return openUnderSingleThreaded(interrupt) { withLoggedReason { openIo(io, options, url, mimeType, nestedOpener) } }
+            return openUnderSingleThreaded(interrupt) { withLoggedReason { openIo(io, byteSourceOpenOptions(options, nestedOpener), url, mimeType, nestedOpener) } }
         }
 
         @Deprecated("Use the overload with url, mimeType and nestedOpener.", level = DeprecationLevel.HIDDEN)

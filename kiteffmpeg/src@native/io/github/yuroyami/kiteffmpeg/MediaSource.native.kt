@@ -118,6 +118,7 @@ import ffmpeg.kc_fmt_ctx
 import ffmpeg.kc_io_opener
 import ffmpeg.kc_packet
 import ffmpeg.kc_stream
+import io.github.yuroyami.kiteffmpeg.dsl.byteSourceOpenOptions
 import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
@@ -823,7 +824,7 @@ public actual class MediaSource internal constructor(
             requireCompatibleFFmpeg()
             refuseSeekBreakingOptions(options)
             return openUnder(interrupt, ::newInterruptCell, { ffkmp_interrupt_raise(it) }, ::freeInterruptCell) { cell ->
-                withLoggedReason { openMediaSourceIo(io, options, cell, url, mimeType, nestedOpener) }
+                withLoggedReason { openMediaSourceIo(io, byteSourceOpenOptions(options, nestedOpener), cell, url, mimeType, nestedOpener) }
             }
         }
 

@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteffmpeg
 
+import io.github.yuroyami.kiteffmpeg.dsl.byteSourceOpenOptions
 import io.github.yuroyami.kiteffmpeg.dsl.refuseSeekBreakingOptions
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -564,7 +565,7 @@ public actual class MediaSource internal constructor(
             Internals.requireCompatible()
             refuseSeekBreakingOptions(options)
             return openUnder(interrupt, Internals::interruptNew, { Internals.interruptRaise(it) }, { Internals.interruptFree(it) }) { cell ->
-                withLoggedReason { openMediaSourceIo(io, options, cell ?: 0L, url, mimeType, nestedOpener) }
+                withLoggedReason { openMediaSourceIo(io, byteSourceOpenOptions(options, nestedOpener), cell ?: 0L, url, mimeType, nestedOpener) }
             }
         }
 

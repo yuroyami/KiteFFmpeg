@@ -30,7 +30,9 @@ public data class DemuxOptions(
     val formatWhitelist: Set<String> = emptySet(),
     /**
      * The only protocols the open and every nested open may use (`protocol_whitelist`), such as
-     * `file` or `http,tcp`; empty allows all. A playlist that points at another protocol is refused.
+     * `file` or `http,tcp`; empty allows all for an open by address. A playlist that points at
+     * another protocol is refused. An open from a byte source with no nested opener takes `data`
+     * alone when this is empty, so the bytes reach no file or address by themselves (#239).
      */
     val protocolWhitelist: Set<String> = emptySet(),
     /**
@@ -166,3 +168,13 @@ internal fun setsFastSeek(flags: String): Boolean {
 }
 
 private val FLAG_TOKEN = Regex("([+-]?)([^+-]+)")
+
+/**
+ * [options] for an open from a byte source, which reaches nothing by itself (#239). With no
+ * nested opener and no `protocol_whitelist` of the caller's, the open takes `data` alone, so a
+ * playlist handed over as bytes cannot make FFmpeg fetch the http addresses or open the local
+ * files it names behind the app's own client, proxy and policy. A nested opener is the one door
+ * then, and [DemuxOptions.protocolWhitelist] widens the list on purpose.
+ */
+internal fun byteSourceOpenOptions(options: Map<String, String>, nestedOpener: Any?): Map<String, String> =
+    if (nestedOpener != null || "protocol_whitelist" in options) options else options + ("protocol_whitelist" to "data")
