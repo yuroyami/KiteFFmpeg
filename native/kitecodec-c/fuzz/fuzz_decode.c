@@ -123,6 +123,30 @@ static size_t inspect_video(kc_frame *frame, int rgba) {
             total += read_planes(converted, rgba, width);
             ffkmp_frame_free(converted);
         }
+        /* The display converter, which tone maps PQ and HLG and reads the YCgCo matrix: code
+           KiteFFmpeg wrote itself, fed only by decoded frames (#229). */
+        kc_frame *display = ffkmp_frame_convert_display(frame, rgba);
+        if (display != NULL) {
+            if (ffkmp_frame_width(display) != width || ffkmp_frame_height(display) != height
+                || ffkmp_frame_format(display) != rgba) {
+                abort();
+            }
+            total += read_planes(display, rgba, width);
+            ffkmp_frame_free(display);
+        }
+        /* The Dolby Vision composition, over the RPU the decoder attached, in two bands that end
+           on even rows as the contract asks. A frame with no RPU answers 0 and leaves dst blank. */
+        kc_frame *composed = ffkmp_frame_alloc();
+        if (composed != NULL) {
+            if (ffkmp_frame_dovi_compose_prepare(frame, composed) == 1) {
+                int middle = (height / 2) & ~1;
+                if (ffkmp_frame_dovi_compose_rows(frame, composed, 0, middle) != 0) abort();
+                if (ffkmp_frame_dovi_compose_rows(frame, composed, middle, height) != 0) abort();
+                if (ffkmp_frame_width(composed) != width || ffkmp_frame_height(composed) != height) abort();
+                total += read_planes(composed, ffkmp_frame_format(composed), width);
+            }
+            ffkmp_frame_free(composed);
+        }
     }
     return total;
 }
