@@ -133,8 +133,9 @@ public sealed class FFmpegError(public val code: Int, public val message: String
 
     public companion object {
         // AVERROR_* tags are FFERRTAG('a','b','c','d') = -MKTAG(a,b,c,d); errno-style codes
-        // are -errno. All values below are identical across the supported platforms except
-        // ENOSYS, which gets each platform's known value listed explicitly.
+        // are -errno. The errno values below are the Linux, Apple and Windows numbers. The web
+        // codec module is built with Emscripten, whose errno is WASI's, so the web backend reads
+        // its codes with webFromCode instead (#206).
         private fun tag(a: Int, b: Char, c: Char, d: Char): Int =
             -(a or (b.code shl 8) or (c.code shl 16) or (d.code shl 24))
         private fun tag(a: Char, b: Char, c: Char, d: Char): Int = tag(a.code, b, c, d)

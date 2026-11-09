@@ -55,11 +55,11 @@ public actual object FFmpeg {
         val m = requireModule()
         val code = componentCode(kind)
         val needed = ffkmp_component_names(m, code, 0, 0)
-        if (needed < 0) throw FFmpegException(FFmpegError.fromCode(needed, "listing components failed with $needed"))
+        if (needed < 0) throw FFmpegException(webFromCode(needed, "listing components failed with $needed"))
         val buffer = wasmAlloc(m, needed + 1)
         try {
             val written = ffkmp_component_names(m, code, buffer, needed + 1)
-            if (written < 0) throw FFmpegException(FFmpegError.fromCode(written, "listing components failed with $written"))
+            if (written < 0) throw FFmpegException(webFromCode(written, "listing components failed with $written"))
             return componentList(utf8OrNull(m, buffer).orEmpty())
         } finally {
             wasmFree(m, buffer)

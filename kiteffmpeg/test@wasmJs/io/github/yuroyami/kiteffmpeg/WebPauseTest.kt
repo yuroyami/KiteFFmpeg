@@ -67,7 +67,7 @@ class WebPauseTest {
     @Test
     fun aRefusedPauseThrowsItsCode() {
         val module = pausingModule()
-        setFakePauseAnswer(module, -5)
+        setFakePauseAnswer(module, -29) // AVERROR(EIO) in the Emscripten build (#206)
         MediaSource.open(OneByteSource(), emptyMap()).use { source ->
             val refusal = assertFailsWith<FFmpegException> { source.pause() }
             assertIs<FFmpegError.Io>(refusal.error)

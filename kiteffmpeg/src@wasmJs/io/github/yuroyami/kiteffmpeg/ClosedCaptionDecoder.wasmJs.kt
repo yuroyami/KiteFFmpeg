@@ -51,7 +51,7 @@ public actual class ClosedCaptionDecoder private constructor(private val context
             val slot = wasmAlloc(m, 4)
             try {
                 val rc = ffkmp_caption_decoder_open(m, slot, if (realTime) 1 else 0)
-                if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "opening the closed caption decoder failed with $rc"))
+                if (rc < 0) throw FFmpegException(webFromCode(rc, "opening the closed caption decoder failed with $rc"))
                 return ClosedCaptionDecoder(readInt32(m, slot))
             } finally {
                 wasmFree(m, slot)

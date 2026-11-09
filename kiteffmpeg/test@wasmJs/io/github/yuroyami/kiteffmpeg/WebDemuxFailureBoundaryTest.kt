@@ -87,7 +87,7 @@ class WebDemuxFailureBoundaryTest {
                     media.openPacketReader(media.streams).use { reader ->
                         assertNotNull(reader.read()).close()
                     }
-                    fixture.action = { phase -> if (phase == next) -5 else 0 }
+                    fixture.action = { phase -> if (phase == next) WASM_EIO else 0 }
                     val failure = assertFailsWith<FFmpegException> {
                         when (next) {
                             "read" -> media.openPacketReader(media.streams).use { it.read()?.close() }
@@ -113,7 +113,7 @@ class WebDemuxFailureBoundaryTest {
                             assertEquals(32L, failureBoundarySizeWithFallback(fixture.module, index).toLong())
                             0
                         }
-                        "probe" -> -5
+                        "probe" -> WASM_EIO
                         else -> 0
                     }
                 }
@@ -133,7 +133,7 @@ class WebDemuxFailureBoundaryTest {
                             assertEquals(32L, failureBoundarySizeWithFallback(fixture.module, index).toLong())
                             0
                         }
-                        "read" -> -5
+                        "read" -> WASM_EIO
                         else -> 0
                     }
                 }
@@ -158,7 +158,7 @@ class WebDemuxFailureBoundaryTest {
                             assertEquals(-2, failureBoundaryRead(fixture.module, index))
                             // Root: a later successful read. Nested: a different successful child.
                             assertEquals(1, failureBoundaryRead(fixture.module, if (index == -1) -1 else 1))
-                            -5
+                            WASM_EIO
                         } else 0
                     }
                     val failure = assertFailsWith<FFmpegException> {
@@ -183,13 +183,13 @@ class WebDemuxFailureBoundaryTest {
                 if (phase == "read") {
                     assertEquals(-2, failureBoundaryRead(fixture.module, -1))
                     assertEquals(-2, failureBoundaryRead(fixture.module, 0))
-                    -5
+                    WASM_EIO
                 } else 0
             }
             media.openPacketReader(media.streams).use { reader ->
                 val first = assertFailsWith<FFmpegException> { reader.read() }
                 assertSame(rootFailure, first.cause, "preserve the existing root-cause priority")
-                fixture.action = { phase -> if (phase == "read") -5 else 0 }
+                fixture.action = { phase -> if (phase == "read") WASM_EIO else 0 }
                 assertNull(assertFailsWith<FFmpegException> { reader.read() }.cause)
             }
         }
@@ -205,7 +205,7 @@ class WebDemuxFailureBoundaryTest {
                         if (phase == operation) {
                             assertEquals(-2, failureBoundaryRead(fixture.module, index))
                             assertEquals(1, failureBoundaryRead(fixture.module, if (index == -1) -1 else 1))
-                            -5
+                            WASM_EIO
                         } else 0
                     }
                     val failure = assertFailsWith<FFmpegException> { fixture.open() }
@@ -302,3 +302,6 @@ private external fun failureBoundarySizeWithFallback(module: JsAny, index: Int):
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m) => m.__failureBoundaryRelease()")
 private external fun releaseFailureBoundaryProbe(module: JsAny)
+
+/** AVERROR(EIO) in the Emscripten build the real module is, whose errno is WASI's (#206). */
+private const val WASM_EIO = -29

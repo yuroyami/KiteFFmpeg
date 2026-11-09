@@ -122,7 +122,7 @@ public actual class MediaSource internal constructor(
      * code (#169).
      */
     internal fun demuxFailure(code: Int, what: String): FFmpegException =
-        FFmpegException(FFmpegError.fromCode(code, "$what failed with $code"), input.takeFailure())
+        FFmpegException(webFromCode(code, "$what failed with $code"), input.takeFailure())
 
     /**
      * Starts one native demux operation. A callback failure which FFmpeg recovered from belongs
@@ -1283,5 +1283,34 @@ internal class CStringArrays(val keys: Int, val values: Int, private val strings
  */
 internal fun webAvError(m: kotlin.js.JsAny, code: Int, label: String): FFmpegError {
     val text = utf8OrNull(m, ffkmp_strerror(m, code)) ?: "AVERROR($code)"
-    return FFmpegError.fromCode(code, "$label: $text (code=$code)")
+    return webFromCode(code, "$label: $text (code=$code)")
 }
+
+/**
+ * `FFmpegError.fromCode` for a code from the web codec module, which keeps [code] as it came.
+ *
+ * The module is built with Emscripten, whose errno numbers are WASI's, not the Linux, Apple and
+ * Windows ones `FFmpegError.fromCode` reads: AVERROR(EIO) there is -29, not -5, and -2 is EACCES,
+ * not ENOENT. Read with the common table, an I/O failure, an allocation failure and an invalid
+ * argument all arrived as [FFmpegError.AvError] on the web (#206). An errno-range code this table
+ * does not name stays [FFmpegError.AvError] rather than borrowing another platform's meaning.
+ */
+internal fun webFromCode(code: Int, message: String): FFmpegError = when (code) {
+    -WASI_EACCES, -WASI_EPERM -> FFmpegError.PermissionDenied(code, message)
+    -WASI_ENOENT -> FFmpegError.FileNotFound(code, message)
+    -WASI_EIO -> FFmpegError.Io(code, message)
+    -WASI_ENOMEM -> FFmpegError.OutOfMemory(code, message)
+    -WASI_EINVAL -> FFmpegError.InvalidArgument(code, message)
+    in -WASI_ERRNO_MAX..-1 -> FFmpegError.AvError(code, message)
+    else -> FFmpegError.fromCode(code, message)
+}
+
+// Emscripten's errno numbers, from its musl bits/errno.h, which takes them from WASI.
+private const val WASI_EACCES = 2
+private const val WASI_EINVAL = 28
+private const val WASI_EIO = 29
+private const val WASI_ENOENT = 44
+private const val WASI_ENOMEM = 48
+private const val WASI_EPERM = 63
+/** WASI's errno numbers end below this; FFmpeg's own tags are far more negative. */
+private const val WASI_ERRNO_MAX = 4095

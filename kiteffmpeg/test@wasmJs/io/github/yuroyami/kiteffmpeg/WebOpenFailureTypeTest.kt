@@ -20,12 +20,13 @@ class WebOpenFailureTypeTest {
     @AfterTest fun finish() = forgetCodecModule()
 
     private companion object {
+        // The Emscripten build's errno numbers, which are WASI's, as the real module answers (#206).
         /** AVERROR(EIO), what the input bridge answers when the caller's source throws. */
-        const val EIO = -5
+        const val EIO = -29
         /** AVERROR(ENOMEM). */
-        const val ENOMEM = -12
+        const val ENOMEM = -48
         /** AVERROR(EINVAL). */
-        const val EINVAL = -22
+        const val EINVAL = -28
     }
 
     /** A source that throws at its first read, so the open's probe fails inside it. */
@@ -144,5 +145,22 @@ class WebOpenFailureTypeTest {
                 assertEquals(patchWelcome, failure.code)
             }
         }
+    }
+
+    /** A POSIX errno number means something else on the web, so it is not read as the POSIX one. */
+    @Test
+    fun theWebReadsErrnoWithWasiNumbers() {
+        assertIs<FFmpegError.Io>(webFromCode(-29, "x"))
+        assertIs<FFmpegError.OutOfMemory>(webFromCode(-48, "x"))
+        assertIs<FFmpegError.InvalidArgument>(webFromCode(-28, "x"))
+        assertIs<FFmpegError.FileNotFound>(webFromCode(-44, "x"))
+        assertIs<FFmpegError.PermissionDenied>(webFromCode(-2, "x"))
+        assertIs<FFmpegError.PermissionDenied>(webFromCode(-63, "x"))
+        assertEquals(-29, webFromCode(-29, "x").code, "the raw code is kept")
+        // -5 and -22 are POSIX EIO and EINVAL; on the web they are other errors.
+        assertIs<FFmpegError.AvError>(webFromCode(-5, "x"))
+        assertIs<FFmpegError.AvError>(webFromCode(-22, "x"))
+        assertIs<FFmpegError.InvalidData>(webFromCode(FFmpegError.AVERROR_INVALIDDATA, "x"))
+        assertIs<FFmpegError.EndOfFile>(webFromCode(FFmpegError.AVERROR_EOF, "x"))
     }
 }

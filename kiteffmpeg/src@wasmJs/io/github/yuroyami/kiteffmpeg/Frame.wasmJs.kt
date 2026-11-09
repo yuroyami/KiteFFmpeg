@@ -153,7 +153,7 @@ public actual class Frame internal constructor(
         val m = requireModule()
         val p = alive()
         val size = ffkmp_frame_a53_cc(m, p, 0, 0)
-        if (size < 0) throw FFmpegException(FFmpegError.fromCode(size, "reading closed captions failed with $size"))
+        if (size < 0) throw FFmpegException(webFromCode(size, "reading closed captions failed with $size"))
         if (size == 0) return null
         val buffer = wasmAlloc(m, size)
         try {
@@ -171,7 +171,7 @@ public actual class Frame internal constructor(
         val ints = wasmAlloc(m, DOLBY_VISION_INTS * 4)
         try {
             val rc = ffkmp_frame_dovi_metadata(m, p, ints)
-            if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "reading Dolby Vision metadata failed with $rc"))
+            if (rc < 0) throw FFmpegException(webFromCode(rc, "reading Dolby Vision metadata failed with $rc"))
             if (rc == 0) return null
             return dolbyVisionMetadataOf(IntArray(DOLBY_VISION_INTS) { readInt32(m, ints + it * 4) })
         } finally {
@@ -185,7 +185,7 @@ public actual class Frame internal constructor(
         val ints = wasmAlloc(m, DOLBY_VISION_RPU_INTS * 4)
         try {
             val rc = ffkmp_frame_dovi_rpu(m, p, ints, DOLBY_VISION_RPU_INTS)
-            if (rc < 0) throw FFmpegException(FFmpegError.fromCode(rc, "reading the Dolby Vision RPU failed with $rc"))
+            if (rc < 0) throw FFmpegException(webFromCode(rc, "reading the Dolby Vision RPU failed with $rc"))
             if (rc == 0) return null
             return dolbyVisionRpuOf(IntArray(DOLBY_VISION_RPU_INTS) { readInt32(m, ints + it * 4) })
         } finally {
@@ -204,7 +204,7 @@ public actual class Frame internal constructor(
             ffkmp_frame_free(m, composed)
             if (rc == 0) return null
             throw dolbyVisionPrepareFailure(
-                FFmpegError.fromCode(rc, "preparing a Dolby Vision composition failed with $rc"),
+                webFromCode(rc, "preparing a Dolby Vision composition failed with $rc"),
                 pixelFormatOf(m, ffkmp_frame_format(m, p)),
             )
         }
@@ -309,7 +309,7 @@ internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRo
     val rc = ffkmp_frame_dovi_compose_rows(requireModule(), source.pointer, output.pointer, startRow, endRowExclusive)
     if (rc < 0) {
         throw FFmpegException(
-            FFmpegError.fromCode(rc, "Dolby Vision composition of rows $startRow until $endRowExclusive failed with $rc"),
+            webFromCode(rc, "Dolby Vision composition of rows $startRow until $endRowExclusive failed with $rc"),
         )
     }
 }

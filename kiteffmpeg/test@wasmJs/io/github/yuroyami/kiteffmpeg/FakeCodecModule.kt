@@ -90,7 +90,7 @@ import kotlin.js.JsAny
             _kc_ffmpeg_library_name: (i) => (i >= 0 && i < libs.length) ? libs[i] : 0,
             _kc_verdict_name: (v) => (v >= 0 && v < verdicts.length) ? verdicts[v] : 0,
             _ffkmp_component_names: (kind, buf, cap) => {
-                if (kind < 0 || kind >= components.length || cap < 0) return -22;
+                if (kind < 0 || kind >= components.length || cap < 0) return -28;
                 const b = new TextEncoder().encode(components[kind].join("\n"));
                 if (cap > 0) {
                     const k = Math.min(b.length, cap - 1);
@@ -136,7 +136,7 @@ internal fun fakePacketReaderCodecModule(): JsAny = installFakePacketReaderSurfa
             // A probe reads before it can answer; a test turns this on to see a read fail the open.
             if (m.__openReads) {
                 const scratch = m._malloc(16);
-                if (m.__table[readFn](opaque, scratch, 16) <= 0) return -5;
+                if (m.__table[readFn](opaque, scratch, 16) <= 0) return -29;
             }
             m.HEAP32[out >> 2] = CONTEXT;
             m.HEAP32[unused >> 2] = 0;
@@ -475,7 +475,8 @@ internal external fun fakeOpenReads(module: JsAny)
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun(
     """(m) => {
-        const EIO = -5;
+        // AVERROR(EIO) in the Emscripten build the real module is, whose errno is WASI's (#206).
+        const EIO = -29;
         const read = m._ffkmp_fmt_read_frame;
         m._ffkmp_fmt_read_frame = (ctx, packet) => {
             const scratch = m._malloc(16);
@@ -507,10 +508,10 @@ internal external fun fakeDemuxThroughSource(module: JsAny)
         m.__tagged = [];
         m.__refusedKey = null;
         m._ffkmp_io_tag = (tags, k, v) => {
-            if (tags !== m.__tagsHandle || k === 0 || v === 0) return -22;
+            if (tags !== m.__tagsHandle || k === 0 || v === 0) return -28;
             const key = m.UTF8ToString(k);
-            if (key === '') return -22;
-            if (key === m.__refusedKey) return -12;
+            if (key === '') return -28;
+            if (key === m.__refusedKey) return -48;
             m.__tagged.push(key + '=' + m.UTF8ToString(v));
             return 0;
         };
@@ -896,7 +897,7 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         const programs = [[10, 3, [0, 1], 6], [11, 0, [1, 5], 7]];
         m._ffkmp_fmt_program_count = () => programs.length;
         m._ffkmp_fmt_program_get = (ctx, index, idOut, numberOut, countOut) => {
-            if (index < 0 || index >= programs.length) return -22;
+            if (index < 0 || index >= programs.length) return -28;
             const p = programs[index];
             m.HEAP32[idOut >> 2] = p[0];
             m.HEAP32[numberOut >> 2] = p[1];
@@ -905,7 +906,7 @@ internal fun fakeModelCodecModule(): JsAny = installFakeModelSurface(fakePacketR
         };
         m._ffkmp_fmt_program_stream = (ctx, index, position) => {
             const p = programs[index];
-            return p && position >= 0 && position < p[2].length ? p[2][position] : -22;
+            return p && position >= 0 && position < p[2].length ? p[2][position] : -28;
         };
         m._ffkmp_fmt_program_metadata = (ctx, index) => programs[index] ? programs[index][3] : 0;
 
@@ -1088,7 +1089,7 @@ internal fun fakeSubtitleCodecModule(): JsAny = installFakeSubtitleSurface(fakeP
             return 0;
         };
         m._ffkmp_subtitle_rect_rgba = (s, i, dst, size) => {
-            if (i !== 0 || size !== 8) return -22;
+            if (i !== 0 || size !== 8) return -28;
             m.HEAPU8.set([255, 0, 0, 255, 0, 0, 255, 128], dst);
             return 0;
         };
