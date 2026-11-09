@@ -161,6 +161,26 @@ abstract class DecodeContract {
     }
 
     @Test
+    fun aPacketSentAfterTheDrainIsRefusedUntilAFlush() = contract {
+        open().use { source ->
+            val video = assertNotNull(source.primaryVideo)
+            source.openPacketReader(listOf(video)).use { reader ->
+                source.openDecoder(video).use { decoder ->
+                    decoder.decodeAll(reader)
+                    assertTrue(decoder.isDrained)
+                    assertTrue(decoder.send(null), "a second drain signal")
+                    reader.seek(0)
+                    assertNotNull(reader.read()).use { packet ->
+                        assertFailsWith<IllegalStateException> { decoder.send(packet) }
+                        decoder.flush()
+                        assertTrue(decoder.send(packet), "after the flush")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun closedObjectsRefuseTheSameWay() = contract {
         open().use { source ->
             val video = assertNotNull(source.primaryVideo)

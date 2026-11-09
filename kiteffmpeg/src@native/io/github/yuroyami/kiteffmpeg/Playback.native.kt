@@ -451,7 +451,11 @@ public actual class StreamDecoder internal constructor(
             ?: ffkmp_codecctx_send_packet(codecCtx, null)
         return when {
             rc == 0 -> true
-            rc == FFErrors.EOF -> true
+            // A second drain signal asks for nothing; a real packet after the drain would vanish (#259).
+            rc == FFErrors.EOF -> {
+                check(packet == null) { DRAINED_DECODER_SEND }
+                true
+            }
             rc == FFErrors.EAGAIN -> false
             // A packet the decoder cannot use is not a reason to abandon the file. Every seek into a
             // stream that carries its parameter sets in band, MPEG-TS above all, lands before the

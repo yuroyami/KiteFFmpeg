@@ -281,8 +281,15 @@ public expect class StreamDecoder : AutoCloseable {
      * packet from a DIFFERENT source that happens to share the index, which needs source-scoped
      * packet handles and is a later change.
      *
+     * After the drain signal the decoder takes no packet until [flush], as libavcodec does. A
+     * second null packet is harmless and returns true, but a real packet sent then is REFUSED:
+     * FFmpeg answers it with end of file, and reporting that as consumed made every packet after a
+     * forgotten flush disappear with no frame and no error.
+     *
      * @return true when consumed; false when output must be drained before retrying the same packet
      * @throws FFmpegException when [packet] is closed or belongs to another stream
+     * @throws IllegalStateException when [packet] is not null and the decoder was drained and not
+     *         flushed since
      */
     @Throws(FFmpegException::class)
     public fun send(packet: Packet?): Boolean
@@ -366,3 +373,7 @@ internal fun requireOwnStream(packet: Packet?, stream: StreamInfo) {
         )
     }
 }
+
+/** The refusal of a packet sent after the drain signal and before a flush, on every backend. */
+internal const val DRAINED_DECODER_SEND: String =
+    "A packet was sent to a drained decoder. After send(null) the decoder takes no packet until flush()."

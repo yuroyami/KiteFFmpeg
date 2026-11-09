@@ -221,7 +221,12 @@ public actual class StreamDecoder internal constructor(
             packet.locked { Internals.codecCtxSendPacket(codecContext, it) }
         }
         when (rc) {
-            0, Internals.errorEof -> true
+            0 -> true
+            // A second drain signal asks for nothing; a real packet after the drain would vanish (#259).
+            Internals.errorEof -> {
+                check(packet == null) { DRAINED_DECODER_SEND }
+                true
+            }
             FFmpegError.AVERROR_INVALIDDATA -> {
                 noteCorruptData(rc)
                 true

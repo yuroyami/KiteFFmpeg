@@ -296,8 +296,12 @@ public actual class StreamDecoder internal constructor(
             // nothing here may record progress: marking the decoder drained on an EAGAIN drain
             // signal ended the stream while the decoder still held frames.
             rc == ffkmp_averror_eagain(m) -> false
-            // Already flushed. Nothing more to send, so the input is not owed another attempt.
-            rc == ffkmp_averror_eof(m) -> true
+            // Already drained. A second drain signal asks for nothing, but a real packet would
+            // vanish, so it is refused until flush (#259).
+            rc == ffkmp_averror_eof(m) -> {
+                check(packet == null) { DRAINED_DECODER_SEND }
+                true
+            }
             // Same tolerance the JVM and Native backends apply: a packet the decoder cannot use is
             // not a reason to abandon the file, and refusing it here would strand the caller.
             rc == FFmpegError.AVERROR_INVALIDDATA -> {
