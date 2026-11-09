@@ -329,6 +329,7 @@ public actual class StreamDecoder internal constructor(
                 val context = Internals.codecCtxAlloc(codec)
                 try {
                     check0(Internals.codecCtxFromPar(context, parameters), "avcodec_parameters_to_context")
+                    stream.packetTimeBaseOption?.let { check0(Internals.codecCtxSetOpt(context, "pkt_timebase", it), "av_opt_set ('pkt_timebase')") }
                     Internals.codecCtxSetThreads(context, threadCount, stream.type == MediaType.Video)
                     Internals.codecCtxSetLowDelay(context, lowDelay)
                     // Typed options through the existing av_opt_set funnel,

@@ -9,6 +9,7 @@ import ffmpeg.ffkmp_codec_id_name
 import ffmpeg.ffkmp_codecctx_alloc
 import ffmpeg.ffkmp_codecctx_free
 import ffmpeg.ffkmp_codecctx_from_par
+import ffmpeg.ffkmp_codecctx_set_opt
 import ffmpeg.ffkmp_codecctx_open
 import ffmpeg.ffkmp_codecctx_receive_frame
 import ffmpeg.ffkmp_codecctx_send_packet
@@ -874,6 +875,7 @@ private class DecoderState(
                 ?: throw FFmpegException(FFmpegError.Internal("avcodec_alloc_context3 returned NULL"))
             try {
                 check0(ffkmp_codecctx_from_par(codecCtx, codecpar), "avcodec_parameters_to_context")
+                stream.packetTimeBaseOption?.let { check0(ffkmp_codecctx_set_opt(codecCtx, "pkt_timebase", it), "av_opt_set ('pkt_timebase')") }
                 check0(ffkmp_codecctx_open(codecCtx, codec), "avcodec_open2")
             } catch (t: Throwable) {
                 ffkmp_codecctx_free(codecCtx)

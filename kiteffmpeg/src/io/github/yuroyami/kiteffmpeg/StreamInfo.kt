@@ -357,3 +357,13 @@ private const val AV_PROFILE_UNKNOWN = -99
 
 /** [profile] as [StreamInfo.codecProfile] carries it: null for `AV_PROFILE_UNKNOWN`. */
 internal fun knownProfile(profile: Int): Int? = profile.takeIf { it != AV_PROFILE_UNKNOWN }
+
+/**
+ * The `pkt_timebase` a decoder of this stream takes, as `num/den`, or null when the stream has no
+ * usable time base. libavcodec moves a frame whose priming it trims forward by the cut only when
+ * the caller has set it, as `ffmpeg` and `ffplay` do; without it an Opus pre-skip or an AAC or MP3
+ * encoder delay left the first frame early by the cut, and the log said "Could not update
+ * timestamps for skipped samples" (#258). Every decoder open sets it, as the subtitle open did.
+ */
+internal val StreamInfo.packetTimeBaseOption: String?
+    get() = timeBase.takeIf { it.num > 0 && it.den > 0 }?.let { "${it.num}/${it.den}" }

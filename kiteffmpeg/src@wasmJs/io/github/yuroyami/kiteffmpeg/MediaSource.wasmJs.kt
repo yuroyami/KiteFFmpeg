@@ -567,6 +567,10 @@ public actual class MediaSource internal constructor(
             withLoggedReason {
                 val parRc = ffkmp_codecctx_from_par(m, ctx, par)
                 if (parRc < 0) throw FFmpegException(webAvError(m, parRc, "avcodec_parameters_to_context"))
+                stream.packetTimeBaseOption?.let { base ->
+                    val rc = withCString(m, "pkt_timebase") { k -> withCString(m, base) { v -> ffkmp_codecctx_set_opt(m, ctx, k, v) } }
+                    if (rc < 0) throw FFmpegException(webAvError(m, rc, "av_opt_set ('pkt_timebase')"))
+                }
                 if (lowDelay) ffkmp_codecctx_set_low_delay(m, ctx, 1)
                 if (threadCount >= 1) ffkmp_codecctx_set_threads(m, ctx, 1, 0)
                 // Typed options through the same av_opt_set funnel the other backends use, between

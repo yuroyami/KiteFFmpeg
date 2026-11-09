@@ -579,6 +579,7 @@ public actual class StreamDecoder internal constructor(
                 ?: throw FFmpegException(FFmpegError.Internal("avcodec_alloc_context3 returned NULL"))
             try {
                 check0(ffkmp_codecctx_from_par(codecCtx, codecpar), "avcodec_parameters_to_context")
+                stream.packetTimeBaseOption?.let { check0(ffkmp_codecctx_set_opt(codecCtx, "pkt_timebase", it), "av_opt_set ('pkt_timebase')") }
                 // Frame-level threading for video is what makes real-time 4K possible at all. Low
                 // delay for audio keeps the decoder from holding frames a player is waiting for.
                 ffkmp_codecctx_set_threads(codecCtx, threadCount, if (stream.type == MediaType.Video) 1 else 0)

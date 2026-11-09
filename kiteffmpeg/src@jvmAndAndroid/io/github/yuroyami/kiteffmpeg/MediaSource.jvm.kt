@@ -609,6 +609,7 @@ private class DecoderState(val stream: StreamInfo, var context: Long) {
                 val context = Internals.codecCtxAlloc(codec)
                 try {
                     check0(Internals.codecCtxFromPar(context, parameters), "avcodec_parameters_to_context")
+                    stream.packetTimeBaseOption?.let { check0(Internals.codecCtxSetOpt(context, "pkt_timebase", it), "av_opt_set ('pkt_timebase')") }
                     check0(Internals.codecCtxOpen(context, codec), "avcodec_open2")
                     return DecoderState(stream, context)
                 } catch (error: Throwable) {
