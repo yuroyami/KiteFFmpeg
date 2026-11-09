@@ -1,17 +1,21 @@
 #!/bin/sh
 # Source discipline of the JNI adapter. The adapter may include only <jni.h>, the C
 # runtime and KiteFFmpeg's three opaque headers, and may call only kc_*/ffkmp_* helpers, JNI and
-# the C runtime. Four bans, each proved able to fail by a planted violation:
+# the C runtime. Five bans, each proved able to fail by a planted violation:
 #   1. every direct include is on the exact JNI/runtime/opaque-boundary allowlist;
 #   2. no direct libav/libsw call spelled in any unit;
 #   3. no raw FFmpeg struct, typedef, constant or other identifier is reproduced;
-#   4. no Java_* symbol defined (dynamic registration only).
+#   4. no Java_* symbol defined (dynamic registration only);
+#   5. a function handed to kj_bytes_read_in_place, kj_bytes_written_in_place or
+#      kj_bytes_filled_in_place runs inside a critical array region, where JNI allows no call back
+#      into the JVM, so it may only copy: no decoder, encoder, open or log call, which can reach a
+#      log sink that calls Java (#207).
 # Prints the violations and exits 1 on any; prints a PASS line and exits 0 otherwise.
 set -u
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FAIL=0
 
-echo "source-discipline.sh (kitecodec-jni): four bans over $DIR"
+echo "source-discipline.sh (kitecodec-jni): five bans over $DIR"
 
 # Keep this deliberately exact. A broad "not libav" test would let a second native boundary enter
 # unnoticed, while a broad system-header wildcard would let platform policy creep into category
@@ -72,8 +76,25 @@ HITS=$(grep -nE 'JNIEXPORT[^(]*Java_' "$DIR"/*.c 2>/dev/null)
 if [ -n "$HITS" ]; then echo "FAIL: Java_* export (dynamic registration only):"; echo "$HITS"; FAIL=1
 else echo "  ok: no Java_* symbol"; fi
 
+CALLBACKS=$(grep -hoE 'kj_bytes_(read|written|filled)_in_place\([^,]+,[^,]+, *[A-Za-z_][A-Za-z0-9_]*' "$DIR"/*.c 2>/dev/null \
+    | sed -E 's/.*, *([A-Za-z_][A-Za-z0-9_]*)$/\1/' | sort -u)
+HITS=""
+for cb in $CALLBACKS; do
+    BODY=$(awk -v name="$cb" '
+        $0 ~ "^static[^(]*[^A-Za-z0-9_]" name "\\(" { inside = 1 }
+        inside { print FILENAME ":" FNR ":" $0 }
+        inside && /^}/ { inside = 0 }
+    ' "$DIR"/*.c)
+    BAD=$(printf '%s\n' "$BODY" | grep -E '(ffkmp|kc)_[A-Za-z0-9_]*(decode|encode|send|receive|open|log)[A-Za-z0-9_]*\(|\(\*env\)->')
+    if [ -n "$BAD" ]; then HITS="${HITS:+$HITS
+}$BAD"; fi
+done
+if [ -z "$CALLBACKS" ]; then echo "FAIL: no in-place callback found, so ban 5 checks nothing"; FAIL=1
+elif [ -n "$HITS" ]; then echo "FAIL: a critical-region callback calls more than a copy:"; echo "$HITS"; FAIL=1
+else echo "  ok: every critical-region callback only copies"; fi
+
 if [ "$FAIL" -ne 0 ]; then
     echo "source-discipline.sh (kitecodec-jni): FAILED"
     exit 1
 fi
-echo "source-discipline.sh (kitecodec-jni): PASS, 4 of 4 bans hold"
+echo "source-discipline.sh (kitecodec-jni): PASS, 5 of 5 bans hold"

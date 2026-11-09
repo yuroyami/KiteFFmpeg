@@ -320,41 +320,53 @@ JNIEXPORT jlong JNICALL kj_caption_decoder_open(JNIEnv *env, jclass cls, jboolea
     return token;
 }
 
-typedef struct {
-    kc_codec_ctx *c;
-    int64_t pts_us;
-    kc_subtitle *subtitle;
-    int rc;
-} kj_caption_bytes;
-
-/* Inside the array's critical region, so it calls nothing that reaches back into the JVM. */
-static int kj_caption_bytes_in(void *opaque, const uint8_t *src, int32_t len)
-{
-    kj_caption_bytes *cb = (kj_caption_bytes *)opaque;
-    cb->rc = ffkmp_caption_decode(cb->c, src, (int)len, cb->pts_us, &cb->subtitle);
-    return 0;
-}
+/* Caption bytes up to this many are copied to the stack; a frame's captions are a few dozen. */
+#define KJ_CAPTION_STACK 512
 
 /* Decodes the captions in bytes, those of the frame shown at pts_us: 0 when they completed no
- * subtitle, else a subtitle token the caller frees with kj_subtitle_free. */
+ * subtitle, else a subtitle token the caller frees with kj_subtitle_free.
+ *
+ * The bytes are copied out first and decoded outside any critical array region. The decoder can
+ * log, and a log sink calls back into the JVM, which JNI forbids between
+ * GetPrimitiveArrayCritical and its release (#207). */
 JNIEXPORT jlong JNICALL kj_caption_decode(JNIEnv *env, jclass cls, jlong ctx_token, jbyteArray bytes, jlong pts_us)
 {
-    kj_caption_bytes cb;
+    uint8_t stack[KJ_CAPTION_STACK];
+    uint8_t *copy = stack;
+    kc_codec_ctx *c;
+    kc_subtitle *subtitle = NULL;
+    jsize len;
     jlong token;
+    int rc;
     (void)cls;
-    cb.c = (kc_codec_ctx *)kj_handle_get(env, ctx_token, KJ_KIND_CODEC_CTX);
-    if (cb.c == NULL) return 0;
-    cb.pts_us = (int64_t)pts_us;
-    cb.subtitle = NULL;
-    cb.rc = 0;
-    if (kj_bytes_read_in_place(env, bytes, kj_caption_bytes_in, &cb) < 0) return 0;
-    if (cb.rc < 0) {
-        kj_throw_ffmpeg(env, cb.rc, "caption_decode");
+    c = (kc_codec_ctx *)kj_handle_get(env, ctx_token, KJ_KIND_CODEC_CTX);
+    if (c == NULL) return 0;
+    if (bytes == NULL) {
+        kj_throw_handle(env, "byte read across the JNI boundary refused: NULL argument");
         return 0;
     }
-    if (cb.subtitle == NULL) return 0;
-    token = kj_handle_put_checked(env, KJ_KIND_SUBTITLE, cb.subtitle);
-    if (token == 0) ffkmp_subtitle_free(&cb.subtitle);
+    len = (*env)->GetArrayLength(env, bytes);
+    if (len > KJ_CAPTION_STACK) {
+        copy = (uint8_t *)malloc((size_t)len);
+        if (copy == NULL) {
+            kj_throw_ffmpeg(env, -12, "caption_decode");
+            return 0;
+        }
+    }
+    (*env)->GetByteArrayRegion(env, bytes, 0, len, (jbyte *)copy);
+    if ((*env)->ExceptionCheck(env)) {
+        if (copy != stack) free(copy);
+        return 0;
+    }
+    rc = ffkmp_caption_decode(c, copy, (int)len, (int64_t)pts_us, &subtitle);
+    if (copy != stack) free(copy);
+    if (rc < 0) {
+        kj_throw_ffmpeg(env, rc, "caption_decode");
+        return 0;
+    }
+    if (subtitle == NULL) return 0;
+    token = kj_handle_put_checked(env, KJ_KIND_SUBTITLE, subtitle);
+    if (token == 0) ffkmp_subtitle_free(&subtitle);
     return token;
 }
 
