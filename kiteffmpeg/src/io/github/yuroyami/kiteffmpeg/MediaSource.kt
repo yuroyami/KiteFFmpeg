@@ -364,7 +364,8 @@ public expect class MediaSource : AutoCloseable {
      * required.
      *
      * This is the ONE member callable from another thread while a read, seek or decode is blocked
-     * on this source. It must still never run concurrently with, or after, [close].
+     * on this source, and it is safe at any time: a [close] waits for an interrupt in progress,
+     * and an interrupt after close does nothing.
      *
      * On wasmJs the runtime is single threaded, so nothing can be blocked while this runs; the
      * flag is still set and later calls still fail fast.

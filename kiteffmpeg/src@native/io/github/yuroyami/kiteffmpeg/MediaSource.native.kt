@@ -310,7 +310,6 @@ public actual class MediaSource internal constructor(
         setStreamDiscardSelection(streams.mapTo(HashSet()) { it.index })
     }
 
-    private val isClosed: Boolean get() = synchronized(stateLock) { closed }
 
     /**
      * Read once at open, because it cannot change afterwards and because reading it lazily would
@@ -525,12 +524,15 @@ public actual class MediaSource internal constructor(
                 "Cannot seek this MediaSource while a PacketReader is open: the reader owns the " +
                     "demuxer cursor. Use PacketReader.seek instead."
             }
+            // The seek runs while stateLock is held, as on the JVM: released after the checks, a
+            // close on another thread freed the format context under a seek blocked on the
+            // network (#256). A close arriving now waits for the seek, which is the safe order.
+            // [micros] is media-relative; av_seek_frame with stream_index = -1 wants an absolute
+            // AV_TIME_BASE timestamp. On a container that starts at a nonzero time (MPEG-TS) the
+            // two differ by exactly startTimeMicros.
+            val rc = ffkmp_fmt_seek_micros(ctx, -1, toAbsoluteMicros(micros))
+            if (rc < 0) throw demuxFailure(rc)
         }
-        // [micros] is media-relative; av_seek_frame with stream_index = -1 wants an absolute
-        // AV_TIME_BASE timestamp. On a container that starts at a nonzero time (MPEG-TS) the
-        // two differ by exactly startTimeMicros.
-        val rc = ffkmp_fmt_seek_micros(ctx, -1, toAbsoluteMicros(micros))
-        if (rc < 0) throw demuxFailure(rc)
     }
 
     /**
@@ -554,10 +556,19 @@ public actual class MediaSource internal constructor(
 
     /** Native codec parameters of a stream, for stream-copy setups ([MediaSink.addCopyStream]). */
     /** The stream behind [stream], checked to belong to this source. */
-    internal fun streamOf(stream: StreamInfo): CPointer<kc_stream>? {
-        check(!isClosed) { "MediaSource is closed" }
+    internal fun streamOf(stream: StreamInfo): CPointer<kc_stream>? = whileOpen {
         requireOwnStream(stream)
-        return ffkmp_fmt_stream(ctx, stream.index.toUInt())
+        ffkmp_fmt_stream(ctx, stream.index.toUInt())
+    }
+
+    /**
+     * Runs [block], which touches the format context, under stateLock and only while the source
+     * is open, so a close on another thread waits for it rather than freeing the context under
+     * it (#256). The lock is reentrant.
+     */
+    private inline fun <T> whileOpen(block: () -> T): T = synchronized(stateLock) {
+        check(!closed) { "MediaSource is closed" }
+        block()
     }
 
     /**
@@ -568,10 +579,9 @@ public actual class MediaSource internal constructor(
         stream: StreamInfo,
         codec: CodecId,
         outPar: CPointer<kc_codec_par>,
-    ): CPointer<kc_subtitle_converter> {
-        check(!isClosed) { "MediaSource is closed" }
+    ): CPointer<kc_subtitle_converter> = whileOpen {
         requireOwnStream(stream)
-        return withLoggedReason {
+        withLoggedReason {
             memScoped {
                 val slot = alloc<CPointerVar<kc_subtitle_converter>>()
                 val rc = ffkmp_subtitle_converter_open(ctx, stream.index, codec.name, outPar, slot.ptr)
@@ -581,14 +591,13 @@ public actual class MediaSource internal constructor(
         }
     }
 
-    internal fun codecparOf(stream: StreamInfo): CPointer<kc_codec_par>? {
-        check(!isClosed) { "MediaSource is closed" }
+    internal fun codecparOf(stream: StreamInfo): CPointer<kc_codec_par>? = whileOpen {
         // The copy path reached this with any index at all, so a StreamInfo belonging to ANOTHER
         // source with a valid index here copied this file's codec parameters under that file's
         // time base and metadata. Every other entry point already canonicalizes; the
         // one the muxer uses did not.
         requireOwnStream(stream)
-        return ffkmp_fmt_stream(ctx, stream.index.toUInt())?.let { ffkmp_stream_codecpar(it) }
+        ffkmp_fmt_stream(ctx, stream.index.toUInt())?.let { ffkmp_stream_codecpar(it) }
     }
 
     @Throws(FFmpegException::class, CancellationException::class)
@@ -688,11 +697,10 @@ public actual class MediaSource internal constructor(
         options: io.github.yuroyami.kiteffmpeg.dsl.DecoderOptions?,
         hardware: HardwareAccel?,
         corruptData: CorruptData,
-    ): StreamDecoder {
-        check(!isClosed) { "MediaSource is closed" }
+    ): StreamDecoder = whileOpen {
         require(stream.type.isAv) { "Only video and audio streams can be decoded, got ${stream.type}" }
         requireOwnStream(stream)
-        return withLoggedReason {
+        withLoggedReason {
             StreamDecoder.open(ctx, stream, threadCount, lowDelay, decoder, options, hardware, corruptData)
         }
     }
@@ -712,8 +720,7 @@ public actual class MediaSource internal constructor(
 
     @KiteFFmpegLowLevelApi
     @Throws(FFmpegException::class)
-    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder {
-        check(!isClosed) { "MediaSource is closed" }
+    public actual fun openSubtitleDecoder(stream: StreamInfo, realTime: Boolean): SubtitleDecoder = whileOpen {
         require(stream.type == MediaType.Subtitle) { "Only subtitle streams can be decoded here, got ${stream.type}" }
         requireOwnStream(stream)
         val codecCtx = withLoggedReason {
@@ -724,7 +731,7 @@ public actual class MediaSource internal constructor(
                 slot.value ?: throw FFmpegException(FFmpegError.Internal("the subtitle decoder open returned no context"))
             }
         }
-        return SubtitleDecoder(stream, codecCtx)
+        SubtitleDecoder(stream, codecCtx)
     }
 
 
@@ -747,11 +754,20 @@ public actual class MediaSource internal constructor(
         true
     }
 
+    /**
+     * Guards [contextLive] alone. Never stateLock: the whole point of [interrupt] is reaching a
+     * context another thread is blocked on while holding stateLock.
+     */
+    private val interruptLock = SynchronizedObject()
+    private var contextLive = true
+
     public actual fun interrupt() {
-        /* Deliberately NOT under stateLock: the whole point is reaching a context another thread
-           is blocked on. The contract forbids calling this concurrently with or after close, so
-           the pointer is live for the duration of the call. */
-        ffkmp_fmt_interrupt(ctx)
+        /* A close takes interruptLock before it frees the context, so it waits for an interrupt
+           in flight, and an interrupt after close does nothing instead of reading freed memory
+           (#255). */
+        synchronized(interruptLock) {
+            if (contextLive) ffkmp_fmt_interrupt(ctx)
+        }
     }
 
     /** What [releaseAtClose] registered, run after [close] frees the context. */
@@ -774,6 +790,7 @@ public actual class MediaSource internal constructor(
             }
             closed = true
         }
+        synchronized(interruptLock) { contextLive = false }
         // Every step runs whichever one throws: a throwing byte source close used to skip the
         // releases after it, such as the open's interrupt cell (#112).
         val failures = CloseFailures()

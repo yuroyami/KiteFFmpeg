@@ -493,12 +493,20 @@ public actual class MediaSource internal constructor(
         true
     }
 
+    /**
+     * Guards [interruptToken] alone. Never stateLock: the whole point of [interrupt] is reaching
+     * a context another thread is blocked on while holding stateLock.
+     */
+    private val interruptLock = Any()
+    private var interruptToken: Long = formatToken
+
     public actual fun interrupt() {
-        /* Deliberately NOT under the demux lock: the whole point is reaching a context another
-           thread is blocked on. The handle table refuses a token that a finished close
-           invalidated, but it takes no lease, so a close running at the same moment could free
-           the context mid-call. That is why the contract forbids calling this during close. */
-        Internals.fmtInterrupt(formatToken)
+        /* A close clears interruptToken under interruptLock before it frees the context, so it
+           waits for an interrupt in flight, and an interrupt after close does nothing instead of
+           failing on the zeroed token (#255). */
+        synchronized(interruptLock) {
+            if (interruptToken != 0L) Internals.fmtInterrupt(interruptToken)
+        }
     }
 
     /** What [releaseAtClose] registered, run after [close] frees the context. */
@@ -520,6 +528,7 @@ public actual class MediaSource internal constructor(
             }
             formatToken.also { formatToken = 0L }
         }
+        synchronized(interruptLock) { interruptToken = 0L }
         // Every step runs whichever one throws: a throwing byte source close used to skip the
         // releases after it, such as the open's interrupt cell (#112).
         val failures = CloseFailures()

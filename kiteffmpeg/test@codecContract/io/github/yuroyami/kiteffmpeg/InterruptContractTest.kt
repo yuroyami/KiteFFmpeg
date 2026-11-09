@@ -50,4 +50,16 @@ class InterruptContractTest {
             source.close()
         }
     }
+
+    /**
+     * A cancel path on another thread cannot prove that close has not started, so an interrupt
+     * after close must do nothing: native read the freed format context and the JVM threw (#255).
+     */
+    @Test
+    fun interruptAfterCloseDoesNothing() {
+        val source = MediaSource.open(mediaPath())
+        source.close()
+        source.interrupt()
+        source.interrupt()
+    }
 }
