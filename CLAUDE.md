@@ -251,8 +251,9 @@ Do not reopen these without new evidence.
 - There is no KiteFFmpeg Gradle plugin, and consumers need no build script. It died when FFmpeg
   moved inside the published klibs, so a dependency line is the whole integration. Any note
   saying a plugin supplies the link-time search path predates that and is wrong.
-- Release tags carry all 22 prebuilts, eleven triples times two flavours. macOS uses the
-  portable profile. Deleted release pages keep their tags.
+- Each `ffmpeg-n*` binaries release carries 11 prebuilt zips, one per triple, all LGPL, each
+  with a `.sha256` beside it, and the FFmpeg source tarball. The `kiteffmpeg-v*` release tags
+  carry no zip. macOS uses the portable profile. Deleted release pages keep their tags.
 - Two artifact names are served publicly. The old `kitecodec-core` line is finished and receives
   nothing further. This repository's artifact is `kiteffmpeg`, and the toolchain module is
   `kiteffmpeg`; the artifact id lost its `-core` suffix in the rename.
