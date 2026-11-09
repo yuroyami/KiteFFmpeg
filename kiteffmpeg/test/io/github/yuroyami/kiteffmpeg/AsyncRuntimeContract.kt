@@ -257,9 +257,12 @@ abstract class AsyncRuntimeContract {
             val refused = assertFailsWith<FFmpegException>("$name: a read after the cancel") { reader.read() }
             assertIs<FFmpegError.Interrupted>(refused.error, "$name")
             assertEquals(after, bytes.reads, "$name: reads after the cancel")
-            // Each read had an array of its own, so the late write reached nothing FFmpeg reads.
+            // Reads that returned share one array, but the cancelled read's array is handed to no
+            // read after it, so the late write reached nothing FFmpeg reads (#248).
             assertNotNull(written, "$name: the cancelled read never ran its late write")
-            assertEquals(1, bytes.arrays.count { it === written }, "$name: reads that shared the late array")
+            val cancelledAt = bytes.arrays.indexOfFirst { it === written }
+            assertEquals(bytes.arrays.lastIndex, bytes.arrays.indexOfLast { it === written }, "$name: a read after the cancel had the late array")
+            assertTrue(cancelledAt >= 0, "$name: the late array was never handed out")
         } finally {
             source.close()
         }
@@ -363,5 +366,16 @@ abstract class AsyncRuntimeContract {
             assertEquals(0, bytes.closes, "$name: the refused object was closed")
         }
         assertEquals(1, bytes.closes, "$name: closes of the byte source")
+    }
+
+    /** Reads that all return reuse one array, rather than one new 64 KB array each (#248). */
+    @Test
+    fun readsThatReturnShareOneArray() = eachRuntime { name, runtime ->
+        val bytes = AsyncBytes(clip, chunk = 512)
+        runtime.open(bytes).useAsync { source -> source.packetFacts() }
+        assertTrue(bytes.reads > 10, "$name: only ${bytes.reads} reads")
+        val first = bytes.arrays.first()
+        val others = bytes.arrays.count { it !== first }
+        assertEquals(0, others, "$name: ${bytes.reads} reads were handed ${others + 1} or more arrays")
     }
 }

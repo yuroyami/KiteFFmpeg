@@ -143,6 +143,12 @@ internal class ProviderLease(val source: AsyncMediaByteSource, val isRoot: Boole
     /** The tags the last read brought, until FFmpeg takes them. */
     var tags: Map<String, String>? = null
 
+    /**
+     * The array reads go into, reused from one read to the next (#248). A read that has not
+     * returned owns it; one that never came back keeps it, and the next read makes a new one.
+     */
+    var scratch: ByteArray? = null
+
     /** The source's location, read when it was opened. */
     var location: String? = null
 
@@ -650,14 +656,18 @@ internal class AsyncLane(val engine: AsyncEngine) {
         val operation = current ?: return ASYNC_IO_ERR
         if (length <= 0) return ASYNC_IO_ERR
         val want = minOf(length, ASYNC_READ_SCRATCH)
-        // A new array for each request. A call that outlives its operation keeps writing into
-        // an array nothing reads.
-        val scratch = ByteArray(want)
-        val got = call(operation) {
+        // The lease's array, taken for the length of the call. It goes back only once the call
+        // has returned: a call that outlives its operation keeps the array it was handed and
+        // writes into one nothing reads, while the next read makes a new one. An array per
+        // read cost 64 KB for each FFmpeg request (#248).
+        val scratch = lease.scratch?.also { lease.scratch = null } ?: ByteArray(ASYNC_READ_SCRATCH)
+        val answer = call(operation) {
             val count = lease.source.read(scratch, 0, want)
             lease.tags = if (lease.isRoot && count in 1..want) lease.source.takeTags() else null
             count
-        }?.getOrNull() ?: return ASYNC_IO_ERR
+        }
+        val got = answer?.getOrNull() ?: return ASYNC_IO_ERR
+        lease.scratch = scratch
         return when {
             got > want -> {
                 operation.fail(byteSourceOverCount(got, want))
