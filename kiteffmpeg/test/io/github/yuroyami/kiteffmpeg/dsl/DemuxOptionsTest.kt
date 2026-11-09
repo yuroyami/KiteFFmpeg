@@ -75,4 +75,31 @@ class DemuxOptionsTest {
         refuseSeekBreakingOptions(mapOf("fflags" to "-fastseek"))
         refuseSeekBreakingOptions(mapOf("fflags" to "+fastseek-fastseek"))
     }
+
+    @Test
+    fun theReadTimeoutGoesUnderTheNameEachProtocolReads() {
+        val options = DemuxOptions(ioTimeoutMicros = 5_000_000, probeSizeBytes = 32)
+        for (address in listOf("http://h/a.ts", "HTTPS://h/a.ts", "tcp://h:1", "rtmp://h/app", "/media/a.mkv", "C:\\a.mkv")) {
+            assertEquals(address to listOf("probesize" to "32", "rw_timeout" to "5000000"), options.compileFor(address), address)
+        }
+        for (address in listOf("rtsp://cam/stream", "udp://@:1234", "RTSP://cam/x")) {
+            assertEquals(address to listOf("probesize" to "32", "timeout" to "5000000"), options.compileFor(address), address)
+        }
+        assertEquals("rtp://h:5004?timeout=5000000" to listOf("probesize" to "32"), options.compileFor("rtp://h:5004"))
+        assertEquals("rtp://h:5004?ttl=2&timeout=5000000" to listOf("probesize" to "32"), options.compileFor("rtp://h:5004?ttl=2"))
+        assertEquals("rtp://h:5004?timeout=1" to listOf("probesize" to "32"), options.compileFor("rtp://h:5004?timeout=1"))
+    }
+
+    @Test
+    fun withNoReadTimeoutTheAddressAndOptionsStandAsTheyAre() {
+        val options = DemuxOptions(probeSizeBytes = 32)
+        assertEquals("rtp://h:5004" to listOf("probesize" to "32"), options.compileFor("rtp://h:5004"))
+        assertEquals("rtsp://cam" to listOf("probesize" to "32"), options.compileFor("rtsp://cam"))
+    }
+
+    @Test
+    fun aRawTimeoutStillWinsATie() {
+        val compiled = DemuxOptions(ioTimeoutMicros = 5, options = mapOf("timeout" to "9")).compileFor("rtsp://cam").second
+        assertEquals("9", compiled.toMap()["timeout"])
+    }
 }

@@ -11,7 +11,12 @@ public fun MediaSource.Companion.open(
     path: String,
     options: DemuxOptions,
     interrupt: OpenInterrupt? = null,
-): MediaSource = open(path, options.compile().toMap(), interrupt)
+): MediaSource {
+    // The read timeout goes under the name the address's protocol reads, which for rtp is the
+    // address itself (#241).
+    val (address, compiled) = options.compileFor(path)
+    return open(address, compiled.toMap(), interrupt)
+}
 
 /** [MediaSource.open] over caller-supplied bytes, with typed [DemuxOptions]. */
 @Throws(FFmpegException::class)

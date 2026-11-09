@@ -33,7 +33,17 @@ public data class DemuxOptions(
      * `file` or `http,tcp`; empty allows all. A playlist that points at another protocol is refused.
      */
     val protocolWhitelist: Set<String> = emptySet(),
-    /** How long one network read or write may wait, in microseconds (`rw_timeout`); null waits for ever. */
+    /**
+     * How long one network read or write may wait, in microseconds; null waits for ever. Each
+     * protocol in FFmpeg takes it under its own name, so an open by address routes it by the
+     * address's scheme (#241): `rw_timeout` for http, https, tcp and rtmp, the demuxer's `timeout`
+     * for rtsp, udp's own `timeout`, and for rtp a `timeout` in the address's query, because the
+     * rtp reader waits for its first packet through a protocol no option reaches. Any other
+     * address, and [compile] itself, use `rw_timeout`. An open over a
+     * [io.github.yuroyami.kiteffmpeg.MediaByteSource] reads no
+     * network, so this bounds only the network reads of its nested opens; to stop a read of the
+     * caller's own bytes, use [io.github.yuroyami.kiteffmpeg.MediaSource.interrupt].
+     */
     val ioTimeoutMicros: Long? = null,
     /** Raw option pairs for anything the typed set lacks. They come after the typed ones and win a tie. */
     val options: Map<String, String> = emptyMap(),
@@ -46,15 +56,40 @@ public data class DemuxOptions(
      */
     val format: String? = null,
 ) {
-    /** The exact option pairs, in a stable order: typed knobs first, the raw pairs after. */
-    public fun compile(): List<Pair<String, String>> = buildList {
+    /**
+     * The exact option pairs, in a stable order: typed knobs first, the raw pairs after. Here
+     * [ioTimeoutMicros] is always `rw_timeout`; an open by address routes it by scheme instead.
+     */
+    public fun compile(): List<Pair<String, String>> = compileWithTimeout { timeout -> add("rw_timeout" to timeout) }
+
+    /**
+     * The address and option pairs an open of [address] uses, with [ioTimeoutMicros] under the
+     * name the address's protocol reads. A raw option or a `timeout` already in an rtp address
+     * keeps its own value.
+     */
+    internal fun compileFor(address: String): Pair<String, List<Pair<String, String>>> {
+        val timeout = ioTimeoutMicros?.toString() ?: return address to compile()
+        val scheme = schemeOf(address)
+        if (scheme == "rtp") {
+            val query = address.substringAfter('?', "")
+            val named = query.split('&').any { it.startsWith("timeout=") }
+            val routed = if (named) address else address + (if ('?' in address) "&" else "?") + "timeout=$timeout"
+            return routed to compileWithTimeout { }
+        }
+        val key = if (scheme == "rtsp" || scheme == "udp") "timeout" else "rw_timeout"
+        return address to compileWithTimeout { add(key to timeout) }
+    }
+
+    private fun compileWithTimeout(
+        timeout: MutableList<Pair<String, String>>.(String) -> Unit,
+    ): List<Pair<String, String>> = buildList {
         probeSizeBytes?.let { add("probesize" to it.toString()) }
         analyzeDurationMicros?.let { add("analyzeduration" to it.toString()) }
         fpsProbeFrames?.let { add("fpsprobesize" to it.toString()) }
         if (flags.isNotEmpty()) add("fflags" to flags.sortedBy { it.ordinal }.joinToString("") { "+" + it.ff })
         if (formatWhitelist.isNotEmpty()) add("format_whitelist" to formatWhitelist.joinToString(","))
         if (protocolWhitelist.isNotEmpty()) add("protocol_whitelist" to protocolWhitelist.joinToString(","))
-        ioTimeoutMicros?.let { add("rw_timeout" to it.toString()) }
+        ioTimeoutMicros?.let { timeout(it.toString()) }
         options.forEach { (key, value) -> add(key to value) }
         // Not an FFmpeg option: the C open takes this key out and passes the demuxer it names.
         format?.let { add(FORCED_FORMAT_KEY to it) }
@@ -69,6 +104,13 @@ public data class DemuxOptions(
             flags = setOf(DemuxFlag.NoBuffer),
         )
     }
+}
+
+/** The lower-case scheme of [address], or `file` when it has none, as FFmpeg reads a protocol name. */
+internal fun schemeOf(address: String): String {
+    val end = address.indexOfFirst { !(it.isLetterOrDigit() || it == '+' || it == '-' || it == '.') }
+    if (end < 2 || address[end] != ':') return "file"
+    return address.substring(0, end).lowercase()
 }
 
 /** The key the C open takes the forced demuxer from. It must match `KC_FORCED_FORMAT_KEY`. */
