@@ -130,7 +130,10 @@ open class BuildFFmpegWasmTask : BuildStep() {
             // avfilter, which the spike did not need and libkitecodec.a does. See the class KDoc.
             "--enable-avfilter",
             "--enable-filter=$FILTERS",
-            "--enable-protocol=file",
+            // data as well: an HLS key or playlist given inline as a data: address is read by
+            // FFmpeg's own data protocol, which the nested opener hands it to, as on every
+            // native build (#240). The HLS demuxer does not select it by itself.
+            "--enable-protocol=file,data",
             "--prefix=$prefix",
         )
         val perVariant = when (variantName) {

@@ -12,7 +12,8 @@ package io.github.yuroyami.kiteffmpeg
  * - An AES-128 segment arrives as the address of its encrypted bytes. The key arrives through
  *   this opener too, and KiteFFmpeg decrypts the segment itself.
  * - A live playlist asks for its own address again each time it reloads.
- * - A `data:` address never arrives. FFmpeg reads the bytes inside it itself.
+ * - A `data:` address never arrives. FFmpeg reads the bytes inside it itself, through its `data`
+ *   protocol, which every build carries, the web codec module's included.
  * - A byte source that came through a redirect says where it came from in
  *   [MediaByteSource.location], and the addresses inside it resolve against that.
  * - A byte source it returns is never asked for [MediaByteSource.takeTags], because FFmpeg reads
