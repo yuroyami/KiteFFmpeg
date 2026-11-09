@@ -89,7 +89,8 @@ public data class ColorInfo(
          *
          * This stays a heuristic over one input. A caller that knows the frame rate, the container
          * or the origin of the media can do better, and should: nothing here overrides a real
-         * declaration, it only fills a silence.
+         * declaration, it only fills a silence. [resolveDeclaredColor] reads the declared transfer
+         * first: a PQ or HLG stream is not filled in from its height.
          */
         public fun guessFor(height: Int): ColorInfo = when {
             height <= 0 -> Unspecified
@@ -234,9 +235,21 @@ public data class Disposition(
  *
  * Every backend used to do this inline with its own `copy()`, which is how the web ended up not
  * doing it at all and the two frame readers ended up differing from the two parameter readers.
+ *
+ * A stream that declares a PQ or HLG transfer and leaves its primaries or matrix out is guessed as
+ * BT.2020 with the non-constant luminance matrix, whatever its height (#230). Every HDR10, HLG and
+ * Dolby Vision base layer delivery format names exactly that pair, and libplacebo infers the same
+ * primaries from an HDR transfer. Guessed from the height, a 2160p HLG capture read as BT.709, and
+ * a tone mapper that trusts the primaries skipped the gamut step and drew it undersaturated. mpv
+ * still guesses an HDR stream's matrix from its size; this does not, because no delivery format
+ * pairs an HDR transfer with another matrix.
  */
 internal fun resolveDeclaredColor(declared: ColorInfo, height: Int): ColorInfo {
-    val guessed = ColorInfo.guessFor(height)
+    val guessed = if (declared.isHdr) {
+        ColorInfo(ColorMatrix.Bt2020Ncl, ColorPrimaries.Bt2020, declared.transfer)
+    } else {
+        ColorInfo.guessFor(height)
+    }
     return declared.copy(
         matrix = declared.matrix.takeUnless { it == ColorMatrix.Unspecified } ?: guessed.matrix,
         primaries = declared.primaries.takeUnless { it == ColorPrimaries.Unspecified } ?: guessed.primaries,

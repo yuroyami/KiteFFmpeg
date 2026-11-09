@@ -75,7 +75,27 @@ class EncodeIdentityTest {
         val half = resolveDeclaredColor(ColorInfo(transfer = ColorTransfer.SmpteSt2084), 1080)
         val filled = spec.inheriting(frame(half), sdrStream)
         assertEquals(ColorTransfer.SmpteSt2084, filled.color?.transfer)
-        assertEquals(ColorPrimaries.Unspecified, filled.color?.primaries, "BT.709 was a guess for 1080 lines")
+        assertEquals(ColorPrimaries.Unspecified, filled.color?.primaries, "BT.2020 was a guess for a PQ stream")
+    }
+
+    /** A PQ or HLG stream that declares only its transfer is guessed as BT.2020, not by its height (#230). */
+    @Test
+    fun anHdrTransferAloneIsGuessedAsBt2020() {
+        for (transfer in listOf(ColorTransfer.SmpteSt2084, ColorTransfer.AribStdB67)) {
+            for (height in listOf(480, 1080, 2160)) {
+                val resolved = resolveDeclaredColor(ColorInfo(transfer = transfer), height)
+                assertEquals(ColorPrimaries.Bt2020, resolved.primaries, "$transfer at $height lines")
+                assertEquals(ColorMatrix.Bt2020Ncl, resolved.matrix, "$transfer at $height lines")
+                assertEquals(false, resolved.primariesSpecified)
+                assertEquals(true, resolved.transferSpecified)
+            }
+        }
+        // A declared field still wins, and an SDR stream is still guessed from its height.
+        assertEquals(
+            ColorPrimaries.Bt709,
+            resolveDeclaredColor(ColorInfo(primaries = ColorPrimaries.Bt709, transfer = ColorTransfer.AribStdB67), 2160).primaries,
+        )
+        assertEquals(ColorPrimaries.Smpte170m, resolveDeclaredColor(ColorInfo.Unspecified, 480).primaries)
     }
 
     @Test
