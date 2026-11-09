@@ -87,6 +87,11 @@ FreeType (FreeType License) and FriBidi (LGPL-2.1-or-later) archives, each zip c
 license texts. KitePlayer's `kiteplayer-libass` module embeds them, so FriBidi's LGPL terms apply to its
 artifacts. Their source is the tagged upstream checkout that each zip's `CHAIN.txt` names, with
 the libass patches that it lists from `native/patches/libass`. FriBidi itself is built unpatched.
+The same release attaches that source, so the offer does not depend on an upstream URL staying
+alive: `ass-chain-source-<name>-<tag>.tar.gz` for FriBidi, FreeType and HarfBuzz, and
+`ass-chain-source-libass-<tag>-patched.tar.gz` for libass with its patches applied, each with a
+`.sha256`. The zips carry a build provenance attestation, which `gh attestation verify <zip>
+--repo yuroyami/KiteFFmpeg` checks.
 
 x264 and x265 appear only in a GPL tree you build yourself, and both are **GPL-2.0+**.
 

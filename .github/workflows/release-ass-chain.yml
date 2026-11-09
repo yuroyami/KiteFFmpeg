@@ -148,18 +148,71 @@ jobs:
           unzip -q dist/ass-chain-linux-x64.zip -d native-libs/deps/linux-x64/ass-chain
           bash scripts/test-ass-chain.sh linux-x64
 
+  # The source offer, attached to the same release as the archives, as the FFmpeg release attaches
+  # FFmpeg's (#226). FriBidi is LGPL, and the libass patches live only in this repository, so a
+  # pointer to the upstream tags is not enough on its own. libass is archived with its patches
+  # applied, the way the chain builds it.
+  sources:
+    name: Source archives
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive the four pinned checkouts
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          archive() {
+            name="$1" tag="$2" url="$3"
+            git clone --depth 1 --branch "$tag" "$url" "vendor/$name"
+            if [ "$name" = libass ]; then
+              # The command the chain build applies them with, then a local commit for git archive.
+              for patch in native/patches/libass/*.patch; do
+                ( cd vendor/libass && patch -p1 --forward --fuzz=0 -i "$GITHUB_WORKSPACE/$patch" )
+              done
+              git -C vendor/libass add -A
+              git -C vendor/libass -c user.name=kiteffmpeg -c user.email=kiteffmpeg@invalid \
+                commit -q -m "KiteFFmpeg's patches from native/patches/libass"
+              out="dist/ass-chain-source-libass-${tag}-patched.tar.gz"
+            else
+              out="dist/ass-chain-source-${name}-${tag}.tar.gz"
+            fi
+            git -C "vendor/$name" archive --format=tar.gz --prefix="${name}-${tag}/" HEAD > "$out"
+            ( cd dist && sha256sum "$(basename "$out")" > "$(basename "$out").sha256" )
+          }
+          archive fribidi "$FRIBIDI_TAG" https://github.com/fribidi/fribidi.git
+          archive freetype "$FREETYPE_TAG" https://gitlab.freedesktop.org/freetype/freetype.git
+          archive harfbuzz "$HARFBUZZ_TAG" https://github.com/harfbuzz/harfbuzz.git
+          archive libass "$LIBASS_TAG" https://github.com/libass/libass.git
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ass-chain-sources
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 7
+
   release:
     name: Attach to ${{ github.event.inputs.release_tag }}
-    needs: [chains, test-linux]
+    needs: [chains, test-linux, sources]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write      # OIDC token for the provenance attestation
+      attestations: write  # store the attestation
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: assets
           merge-multiple: true
+      # Which run and commit built each zip, as the FFmpeg release attests its binaries (#226).
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: assets/*.zip
       - name: Attach the chains to the release
         env:
           GH_TOKEN: ${{ github.token }}
