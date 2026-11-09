@@ -13,6 +13,9 @@
 #include "kj_internal.h"
 #include "kj_append.h"
 
+#ifndef _WIN32
+#include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,13 +33,67 @@ JNIEXPORT jint JNICALL kj_abi_init(JNIEnv *env, jclass cls)
 }
 
 /* The log bridge. The Kotlin side keeps the sink, so C forwards every line to one static method,
- * Internals.onNativeLog, resolved when the first level is set. FFmpeg logs on its own worker
- * threads too, so a thread the JVM does not know is attached for the one call and detached after
- * it, as the byte-source bridge in kj_format.c does. A pending exception on the logging thread is
- * set aside for the call and restored after it, because calling Java with one pending is illegal. */
+ * Internals.onNativeLog, resolved when the first level is set. A pending exception on the logging
+ * thread is set aside for the call and restored after it, because calling Java with one pending is
+ * illegal.
+ *
+ * FFmpeg logs on its own worker threads too, and a frame-threaded decoder on a damaged stream logs
+ * at frame rate from them. Attaching such a thread for each line and detaching it after cost a
+ * Thread peer and the VM's thread list lock per line (#254). On POSIX a thread the JVM does not know
+ * is attached once, as a daemon, and detached when it exits, through a thread-specific key whose
+ * destructor runs then; Android aborts a thread that exits while attached, so the detach is not
+ * optional. Windows keeps the attach for one call: its thread-exit hook needs <windows.h>, which
+ * this adapter does not include. */
 static JavaVM *kj_log_vm = NULL;
 static jclass kj_log_class = NULL;
 static jmethodID kj_log_method = NULL;
+
+#ifndef _WIN32
+static pthread_key_t kj_log_attached_key;
+static pthread_once_t kj_log_key_once = PTHREAD_ONCE_INIT;
+static int kj_log_key_ready = 0;
+
+/* Runs as a thread that the log bridge attached exits. */
+static void kj_log_thread_exit(void *mark)
+{
+    (void)mark;
+    if (kj_log_vm != NULL) (*kj_log_vm)->DetachCurrentThread(kj_log_vm);
+}
+
+static void kj_log_key_create(void)
+{
+    kj_log_key_ready = pthread_key_create(&kj_log_attached_key, kj_log_thread_exit) == 0;
+}
+#endif
+
+/* The JNIEnv of this thread, attaching it when the JVM does not know it. *detach_after is set when
+ * the caller must detach it after this one call. NULL when it cannot be attached. */
+static JNIEnv *kj_log_env(int *detach_after)
+{
+    JNIEnv *env = NULL;
+    *detach_after = 0;
+    if ((*kj_log_vm)->GetEnv(kj_log_vm, (void **)&env, JNI_VERSION_1_6) == JNI_OK && env != NULL) return env;
+#ifndef _WIN32
+    pthread_once(&kj_log_key_once, kj_log_key_create);
+    if (kj_log_key_ready) {
+#ifdef __ANDROID__
+        if ((*kj_log_vm)->AttachCurrentThreadAsDaemon(kj_log_vm, &env, NULL) != JNI_OK) return NULL;
+#else
+        if ((*kj_log_vm)->AttachCurrentThreadAsDaemon(kj_log_vm, (void **)&env, NULL) != JNI_OK) return NULL;
+#endif
+        /* Any non-NULL value: it is what makes the destructor run at the thread's exit. */
+        if (pthread_setspecific(kj_log_attached_key, (void *)kj_log_vm) != 0) *detach_after = 1;
+        return env;
+    }
+#endif
+#ifdef __ANDROID__
+    if ((*kj_log_vm)->AttachCurrentThread(kj_log_vm, &env, NULL) != JNI_OK) return NULL;
+#else
+    if ((*kj_log_vm)->AttachCurrentThread(kj_log_vm, (void **)&env, NULL) != JNI_OK) return NULL;
+#endif
+    *detach_after = 1;
+    return env;
+}
 
 static void kj_log_forward(int level, const char *component, const char *message)
 {
@@ -47,14 +104,8 @@ static void kj_log_forward(int level, const char *component, const char *message
     jstring jmessage;
 
     if (kj_log_vm == NULL) return;
-    if ((*kj_log_vm)->GetEnv(kj_log_vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK || env == NULL) {
-#ifdef __ANDROID__
-        if ((*kj_log_vm)->AttachCurrentThread(kj_log_vm, &env, NULL) != JNI_OK) return;
-#else
-        if ((*kj_log_vm)->AttachCurrentThread(kj_log_vm, (void **)&env, NULL) != JNI_OK) return;
-#endif
-        attached = 1;
-    }
+    env = kj_log_env(&attached);
+    if (env == NULL) return;
     pending = (*env)->ExceptionOccurred(env);
     if (pending != NULL) (*env)->ExceptionClear(env);
     jcomponent = kj_string_new(env, component);
