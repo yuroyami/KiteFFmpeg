@@ -34,7 +34,7 @@ aliases:
   - jvmAndAndroid: [ jvm, android ]
   # The codec contract suite. Each real backend that this host can test runs it: Linux too, which
   # the Linux CI job tests against the shipped prebuilt profile (#204).
-  - codecContract: [ jvm, macosArm64, linuxX64, linuxArm64 ]
+  - codecContract: [ jvm, macosArm64, linuxX64, linuxArm64, mingwX64 ]
   # The contract suite's file and process helpers, which are plain POSIX on macOS and Linux.
   - posixContract: [ macosArm64, linuxX64, linuxArm64 ]
 
