@@ -218,11 +218,14 @@ public actual class MediaSink internal constructor(
     /** Refuses once a close began, so an encode never starts on a sink that is going away. */
     internal fun checkNotClosing(): Unit = synchronized(muxLock) {
         check(!closeBegun) { "MediaSink is closed" }
+        // An encoder or copy stream added before the failure writes nothing after it (#216).
+        checkUsable()
     }
 
     /** Runs [block] under the mux lock once no close has begun. A copy write holds it throughout. */
     internal fun <T> withMuxLockOpen(block: () -> T): T = synchronized(muxLock) {
         check(!closeBegun) { "MediaSink is closed" }
+        checkUsable()
         block()
     }
 
@@ -552,6 +555,9 @@ public actual class MediaSink internal constructor(
 
     internal fun ensureHeaderWritten(): Unit = synchronized(muxLock) {
         check(!closed) { "MediaSink is closed" }
+        // A poisoned sink's stream table does not describe its contents, so no header is started:
+        // the avio_open before it would truncate the output first (#216).
+        checkUsable()
         when (headerState) {
             HeaderState.Written -> return
             HeaderState.Failed -> throw FFmpegException(
@@ -649,7 +655,8 @@ public actual class MediaSink internal constructor(
                 // failure. Copied packets still waiting for the origin go out before the trailer,
                 // deciding it if nothing has.
                 val owesHeader = headerState == HeaderState.NotWritten && declaredStreams > 0
-                if (headerState != HeaderState.Failed && (owesHeader || origin.isHolding)) {
+                // A poisoned sink owes no container: its output is left as it was (#216).
+                if (failure == null && headerState != HeaderState.Failed && (owesHeader || origin.isHolding)) {
                     runCatching { settleOrigin() }.exceptionOrNull()?.let(::note)
                 }
                 if (headerState == HeaderState.Written) {

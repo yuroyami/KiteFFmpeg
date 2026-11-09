@@ -55,6 +55,12 @@ public actual class MediaSink internal constructor(
     private fun checkOpen(): Long {
         check(formatToken != 0L) { "MediaSink is closed" }
         check(!closing) { "MediaSink is closing" }
+        checkUsable()
+        return formatToken
+    }
+
+    /** Refuses once a stream setup failed after the muxer was mutated; see [failure]. */
+    private fun checkUsable() {
         failure?.let {
             throw IllegalStateException(
                 "This MediaSink failed while a stream was being added and cannot be used again. " +
@@ -64,7 +70,6 @@ public actual class MediaSink internal constructor(
                 it,
             )
         }
-        return formatToken
     }
 
     /**
@@ -122,6 +127,8 @@ public actual class MediaSink internal constructor(
     internal fun checkNotClosing(): Unit = synchronized(muxLock) {
         check(formatToken != 0L) { "MediaSink is closed" }
         check(!closing) { "MediaSink is closing" }
+        // An encoder or copy stream added before the failure writes nothing after it (#216).
+        checkUsable()
     }
 
     private val headerWritten: Boolean
@@ -420,6 +427,9 @@ public actual class MediaSink internal constructor(
         // Deliberately NOT checkOpen(): the closer itself calls this to write a header it still
         // owes, after closing is already true. The token check alone is the right gate here.
         check(formatToken != 0L) { "MediaSink is closed" }
+        // A poisoned sink's stream table does not describe its contents, so no header is started:
+        // the avio_open before it would truncate the output first (#216).
+        checkUsable()
         when (headerState) {
             HeaderState.Written -> return
             HeaderState.Failed -> throw FFmpegException(
@@ -525,7 +535,8 @@ public actual class MediaSink internal constructor(
                 // still waiting for the origin go out before the trailer, deciding it if nothing
                 // has.
                 val owesHeader = headerState == HeaderState.NotWritten && declaredStreams > 0
-                if (headerState != HeaderState.Failed && (owesHeader || origin.isHolding)) {
+                // A poisoned sink owes no container: its output is left as it was (#216).
+                if (failure == null && headerState != HeaderState.Failed && (owesHeader || origin.isHolding)) {
                     runCatching { settleOrigin() }.exceptionOrNull()?.let { failure ->
                         if (firstFailure == null) firstFailure = failure
                         else firstFailure?.addSuppressed(failure)
