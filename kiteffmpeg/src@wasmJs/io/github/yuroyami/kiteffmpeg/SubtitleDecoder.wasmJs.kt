@@ -66,7 +66,8 @@ internal inline fun decodeSubtitleInto(m: JsAny, context: Int, call: (JsAny, Int
     val fields = scratch + 24
     try {
         val rc = call(m, scratch)
-        if (rc < 0) throw FFmpegException(FFmpegError.InvalidData(rc, "decoding a subtitle failed with $rc"))
+        // Typed from FFmpeg's code, as on the JVM and native backends (#244).
+        if (rc < 0) throw FFmpegException(webAvError(m, rc, "decoding a subtitle"))
         val subtitle = readInt32(m, scratch)
         if (subtitle == 0) return null
         try {

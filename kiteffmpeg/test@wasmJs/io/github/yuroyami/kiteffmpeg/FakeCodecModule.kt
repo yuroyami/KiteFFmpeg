@@ -350,7 +350,7 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
         m._ffkmp_codecctx_open = () => m.__codecOpenRc ?? 0;
         m._ffkmp_codecctx_set_low_delay = () => {};
         m._ffkmp_codecctx_set_threads = () => {};
-        m._ffkmp_codecctx_set_opt = () => 0;
+        m._ffkmp_codecctx_set_opt = () => m.__setOptRc ?? 0;
         m._ffkmp_codecctx_flush = (c) => { pending.delete(c); draining.delete(c); };
         m._ffkmp_codecctx_free = (c) => {
             if (live.delete(c)) frees++;
@@ -359,6 +359,7 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
         };
 
         m._ffkmp_codecctx_send_packet = (c, p) => {
+            if (p !== 0 && m.__sendRc !== undefined) return m.__sendRc;
             if (p === 0) { draining.add(c); return 0; }
             if (packetKind.get(p) === "x") return INVALIDDATA;
             if (pending.has(c)) return EAGAIN;
@@ -366,6 +367,7 @@ internal fun fakeDecodeCodecModule(): JsAny = installFakeDecodeSurface(fakePacke
             return 0;
         };
         m._ffkmp_codecctx_receive_frame = (c, f) => {
+            if (m.__receiveRc !== undefined) return m.__receiveRc;
             if (pending.delete(c)) return 0;
             if (draining.has(c)) return EOF;
             return EAGAIN;
@@ -400,7 +402,9 @@ internal external fun setFakeDecodeScript(module: JsAny, script: String)
 
 /**
  * Makes the fake's step [key] answer [rc]: `__streamInfoRc` for the stream discovery,
- * `__codecOpenRc` for a decoder open and `__subtitleOpenRc` for a subtitle decoder open.
+ * `__codecOpenRc` for a decoder open, `__subtitleOpenRc` for a subtitle decoder open, and
+ * `__sendRc`, `__receiveRc` and `__setOptRc` for a packet send, a frame receive and a decoder
+ * option.
  */
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
 @JsFun("(m, key, rc) => { m[key] = rc; }")

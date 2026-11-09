@@ -308,7 +308,8 @@ public actual class StreamDecoder internal constructor(
                 noteCorruptData(rc)
                 true
             }
-            else -> throw FFmpegException(FFmpegError.Internal("sending a packet failed with $rc"))
+            // Typed from FFmpeg's code, as on the JVM and native backends (#244).
+            else -> throw FFmpegException(webAvError(m, rc, "sending a packet"))
         }
     }
 
@@ -327,7 +328,7 @@ public actual class StreamDecoder internal constructor(
             noteCorruptData(rc)
             return null
         }
-        if (rc < 0) throw FFmpegException(FFmpegError.Internal("receiving a frame failed with $rc"))
+        if (rc < 0) throw FFmpegException(webAvError(m, rc, "receiving a frame"))
         // The decoder reuses its frame, so the caller gets a clone it owns outright. Handing out
         // the shared one would make the next receive() mutate a frame the caller still holds.
         val owned = io.github.yuroyami.kiteffmpeg.wasm.ffkmp_frame_clone(m, frame)
@@ -347,7 +348,7 @@ public actual class StreamDecoder internal constructor(
         requireSkippableStream(stream)
         val m = requireModule()
         val rc = withCString(m, "skip_frame") { k -> withCString(m, skip.ff) { v -> ffkmp_codecctx_set_opt(m, context, k, v) } }
-        if (rc < 0) throw FFmpegException(FFmpegError.InvalidArgument(rc, "av_opt_set ('skip_frame') was refused with $rc"))
+        if (rc < 0) throw FFmpegException(webAvError(m, rc, "av_opt_set ('skip_frame')"))
     }
 
     actual override fun close() {

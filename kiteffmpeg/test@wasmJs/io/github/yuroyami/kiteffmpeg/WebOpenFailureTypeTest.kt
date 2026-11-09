@@ -110,4 +110,39 @@ class WebOpenFailureTypeTest {
             assertEquals(ENOMEM, failure.code)
         }
     }
+
+    /** FFmpeg's own AVERROR_PATCHWELCOME: a code that is the same number on every platform. */
+    private val patchWelcome = FFmpegError.AVERROR_PATCHWELCOME
+
+    @Test
+    fun aPacketSendFailureKeepsItsCode() {
+        val module = fakeDecodeCodecModule()
+        useCodecModule(module)
+        setFakeDecodeScript(module, "g")
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            source.openPacketReader(listOf(source.streams[0])).use { reader ->
+                source.openDecoder(source.streams[0]).use { decoder ->
+                    setFakeReturn(module, "__sendRc", patchWelcome)
+                    val failure = reader.read()!!.use { packet -> assertFailsWith<FFmpegException> { decoder.send(packet) } }
+                    assertIs<FFmpegError.Unsupported>(failure.error, "typed ${failure.error}")
+                    assertEquals(patchWelcome, failure.code)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun aFrameReceiveFailureKeepsItsCode() {
+        val module = fakeDecodeCodecModule()
+        useCodecModule(module)
+        setFakeDecodeScript(module, "g")
+        MediaSource.open(OneByteSource(), emptyMap()).use { source ->
+            source.openDecoder(source.streams[0]).use { decoder ->
+                setFakeReturn(module, "__receiveRc", patchWelcome)
+                val failure = assertFailsWith<FFmpegException> { decoder.receive() }
+                assertIs<FFmpegError.Unsupported>(failure.error, "typed ${failure.error}")
+                assertEquals(patchWelcome, failure.code)
+            }
+        }
+    }
 }
