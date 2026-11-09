@@ -3,6 +3,7 @@
 
 #include "kitecodec_helpers.h"
 #include "kc_convert.h"
+#include <libavcodec/avcodec.h>
 
 #include <libavutil/channel_layout.h>
 #include <libavutil/dict.h>
@@ -67,6 +68,11 @@ KC_API int ffkmp_frame_a53_cc(AVFrame *f, uint8_t *dst, int dst_size) {
    takes ffkmp_frame_convert_display instead. */
 KC_API AVFrame* ffkmp_frame_convert_pixfmt(const AVFrame *src, int dst_fmt) {
     return kc_sws_convert(src, dst_fmt, KC_SWS_EXACT);
+}
+
+KC_API AVFrame* ffkmp_frame_convert_for_encoder(const AVFrame *src, const AVCodecContext *enc) {
+    if (!enc) return NULL;
+    return kc_sws_convert_to(src, enc->pix_fmt, KC_SWS_EXACT, enc->colorspace, enc->color_range);
 }
 
 KC_API int ffkmp_image_get_buffer_size(int fmt, int w, int h, int align) {

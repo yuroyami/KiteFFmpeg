@@ -110,7 +110,19 @@ static int kc_pixfmt_is_jpeg(int fmt) {
            fmt == AV_PIX_FMT_YUVJ440P || fmt == AV_PIX_FMT_YUVJ411P;
 }
 
+/* kc_sws_convert with the destination's colour named. dst_spc is the matrix the output is made
+   with, and AVCOL_SPC_UNSPECIFIED keeps the source's; dst_range is its range, and
+   AVCOL_RANGE_UNSPECIFIED keeps the rule below (full for RGB and the yuvj formats, else the
+   source's). An encoder declares both, and the pixels must match what it declares (#195). */
+static AVFrame *kc_sws_convert_to(const AVFrame *src, int dst_fmt, int flags,
+                                  enum AVColorSpace dst_spc, enum AVColorRange dst_range);
+
 static AVFrame *kc_sws_convert(const AVFrame *src, int dst_fmt, int flags) {
+    return kc_sws_convert_to(src, dst_fmt, flags, AVCOL_SPC_UNSPECIFIED, AVCOL_RANGE_UNSPECIFIED);
+}
+
+static AVFrame *kc_sws_convert_to(const AVFrame *src, int dst_fmt, int flags,
+                                  enum AVColorSpace dst_spc, enum AVColorRange dst_range) {
     struct SwsContext *kc_sws_cache;
     if (!src || src->width <= 0 || src->height <= 0) return NULL;
     if (src->hw_frames_ctx) return NULL;
@@ -124,7 +136,11 @@ static AVFrame *kc_sws_convert(const AVFrame *src, int dst_fmt, int flags) {
        for a JPEG kept 16 to 235 under a format every reader takes as 0 to 255 (#193). */
     int src_full = src->color_range == AVCOL_RANGE_JPEG || kc_pixfmt_is_jpeg(src->format);
     int dst_rgb = (dst_desc->flags & AV_PIX_FMT_FLAG_RGB) != 0;
-    int dst_full = dst_rgb || kc_pixfmt_is_jpeg(dst_fmt) ? 1 : src_full;
+    int dst_full = dst_rgb || kc_pixfmt_is_jpeg(dst_fmt) ? 1
+                 : dst_range == AVCOL_RANGE_JPEG ? 1
+                 : dst_range == AVCOL_RANGE_MPEG ? 0
+                 : src_full;
+    int dst_named = !dst_rgb && dst_spc != AVCOL_SPC_UNSPECIFIED && dst_spc != AVCOL_SPC_RGB;
     (void)pthread_once(&kc_sws_key_once, kc_sws_key_create);
     {
         /* Without a key there is nowhere to keep a context, so this call builds its own and the
@@ -140,8 +156,9 @@ static AVFrame *kc_sws_convert(const AVFrame *src, int dst_fmt, int flags) {
     if (!kc_sws_cache) return NULL;
     {
         const int *coeffs = sws_getCoefficients(kc_sws_cs_for(src->colorspace, src->width, src->height));
+        const int *dst_coeffs = dst_named ? sws_getCoefficients(kc_sws_cs_for(dst_spc, src->width, src->height)) : coeffs;
         /* Refuses (-1) for pure RGB<->RGB conversions, where there is nothing to configure. */
-        (void)sws_setColorspaceDetails(kc_sws_cache, coeffs, src_full, coeffs, dst_full,
+        (void)sws_setColorspaceDetails(kc_sws_cache, coeffs, src_full, dst_coeffs, dst_full,
                                        0, 1 << 16, 1 << 16);
     }
     AVFrame *dst = av_frame_alloc();
@@ -161,8 +178,9 @@ static AVFrame *kc_sws_convert(const AVFrame *src, int dst_fmt, int flags) {
        full range for an RGB destination, and their matrix is RGB, not the source's YUV one; a
        consumer trusting the copied tags would convert a second time and crush the range.
        Primaries and transfer describe the light itself, not the encoding, so they stay. */
-    dst->color_range = dst_full ? AVCOL_RANGE_JPEG : src->color_range;
+    dst->color_range = dst_full ? AVCOL_RANGE_JPEG : dst_range == AVCOL_RANGE_MPEG ? AVCOL_RANGE_MPEG : src->color_range;
     if (dst_rgb) dst->colorspace = AVCOL_SPC_RGB;
+    else if (dst_named) dst->colorspace = dst_spc;
 done:
     if (!kc_sws_key_ready) sws_freeContext(kc_sws_cache);
     return dst;

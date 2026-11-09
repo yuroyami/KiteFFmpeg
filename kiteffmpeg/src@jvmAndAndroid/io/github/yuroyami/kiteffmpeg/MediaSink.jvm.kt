@@ -761,7 +761,9 @@ internal class EncoderCore(
         val wanted = Internals.codecCtxPixelFormat(codecContext)
         val actual = Internals.frameFormat(frame)
         if (wanted < 0 || actual < 0 || wanted == actual) return 0L
-        return Internals.frameConvert(frame, wanted)
+        // Made with the matrix and in the range the encoder declares, which a frame from RGBA
+        // bytes otherwise took from its height and its own range (#195).
+        return Internals.frameConvertForEncoder(frame, codecContext)
     }
 
     fun finish(packet: Long): Unit = synchronized(lock) {

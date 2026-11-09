@@ -173,6 +173,14 @@ KC_API kc_frame* ffkmp_frame_clone(const kc_frame *f);
  */
 KC_API kc_frame* ffkmp_frame_convert_pixfmt(const kc_frame *src, int dst_fmt);
 
+/* Ownership, caching and refusals as ffkmp_frame_convert_pixfmt. Converts src into what the
+ * encoder enc takes: its pixel format, made with the colour matrix and in the range it declares,
+ * and tagged with them, so the pixels say what the stream says (#195). A matrix or range the
+ * encoder leaves unspecified is taken as ffkmp_frame_convert_pixfmt takes it. A NULL encoder is
+ * NULL.
+ */
+KC_API kc_frame* ffkmp_frame_convert_for_encoder(const kc_frame *src, const kc_codec_ctx *enc);
+
 /* Ownership, caching and refusals as ffkmp_frame_convert_pixfmt, with a cache of its own. A
  * picture for a screen, converted once per frame drawn, into dst_fmt, which must be a packed 8-bit
  * RGB format of 3 or 4 bytes per pixel, rgba among them; any other format returns NULL. The

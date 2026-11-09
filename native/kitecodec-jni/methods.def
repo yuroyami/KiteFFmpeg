@@ -266,6 +266,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameClosedCaptions"
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameUnref",       "(J)V",                    kj_frame_unref)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameClone",       "(J)J",                    kj_frame_clone)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameConvert",     "(JI)J",                   kj_frame_convert)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameConvertForEncoder", "(JJ)J",             kj_frame_convert_for_encoder)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameDuration",    "(J)J",                    kj_frame_duration)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameSampleCount", "(J)I",                    kj_frame_sample_count)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameSampleRate",  "(J)I",                    kj_frame_sample_rate)

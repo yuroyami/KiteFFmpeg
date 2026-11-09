@@ -268,6 +268,7 @@ internal object Internals {
     private external fun nativeFrameUnref(token: Long)
     private external fun nativeFrameClone(token: Long): Long
     private external fun nativeFrameConvert(token: Long, format: Int): Long
+    private external fun nativeFrameConvertForEncoder(token: Long, context: Long): Long
     private external fun nativeFrameDuration(token: Long): Long
     private external fun nativeFrameSampleCount(token: Long): Int
     private external fun nativeFrameSampleRate(token: Long): Int
@@ -669,6 +670,8 @@ internal object Internals {
     internal fun frameUnref(token: Long) = checked { nativeFrameUnref(token) }
     internal fun frameClone(token: Long) = token("frame clone") { nativeFrameClone(token) }
     internal fun frameConvert(token: Long, format: Int) = token("frame conversion") { nativeFrameConvert(token, format) }
+    internal fun frameConvertForEncoder(token: Long, context: Long) =
+        token("frame conversion") { nativeFrameConvertForEncoder(token, context) }
     internal fun frameDuration(token: Long) = checked { nativeFrameDuration(token) }
     internal fun frameSampleCount(token: Long) = checked { nativeFrameSampleCount(token) }
     internal fun frameSampleRate(token: Long) = checked { nativeFrameSampleRate(token) }

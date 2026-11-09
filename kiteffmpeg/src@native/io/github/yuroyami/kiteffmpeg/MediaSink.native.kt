@@ -28,7 +28,7 @@ import ffmpeg.ffkmp_codecpar_copy_display_matrix
 import ffmpeg.ffkmp_codecpar_copy_for_mux
 import ffmpeg.ffkmp_codecpar_from_context
 import ffmpeg.ffkmp_find_encoder_by_name
-import ffmpeg.ffkmp_frame_convert_pixfmt
+import ffmpeg.ffkmp_frame_convert_for_encoder
 import ffmpeg.ffkmp_frame_format
 import ffmpeg.ffkmp_frame_free
 import ffmpeg.ffkmp_frame_height
@@ -933,7 +933,9 @@ internal class EncoderCore(
         val want = ffkmp_codecctx_pix_fmt(codecCtx)
         val have = ffkmp_frame_format(native)
         if (want < 0 || have < 0 || want == have) return null
-        return ffkmp_frame_convert_pixfmt(native, want)
+        // Made with the matrix and in the range the encoder declares, which a frame from RGBA
+        // bytes otherwise took from its height and its own range (#195).
+        return ffkmp_frame_convert_for_encoder(native, codecCtx)
             ?: throw FFmpegException(
                 FFmpegError.Internal(
                     "Could not convert frame from ${pixelFormatFromAv(have).name} to " +

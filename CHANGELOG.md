@@ -62,6 +62,10 @@ below.
 - `Transcoder` keeps the source's display matrix on an encoded video, so a phone's portrait clip
   still plays upright, unless the video filter turns or flips the picture itself (#270). The C ABI
   is 5.5 for it: `ffkmp_codecpar_copy_display_matrix` is new.
+- A frame converted for an encoder, such as one made from RGBA bytes, is made with the colour
+  matrix and in the range the encoder declares in `VideoEncoderSpec.color`, and tagged with them
+  (#195). Before, the matrix came from the picture's height and the range from the frame. The C
+  ABI 5.5 gains `ffkmp_frame_convert_for_encoder` for it.
 
 ### Removed
 

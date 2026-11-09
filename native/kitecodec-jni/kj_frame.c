@@ -197,6 +197,26 @@ JNIEXPORT jlong JNICALL kj_frame_convert(JNIEnv *env, jclass cls, jlong token, j
     return converted_token;
 }
 
+JNIEXPORT jlong JNICALL kj_frame_convert_for_encoder(JNIEnv *env, jclass cls, jlong token, jlong context_token)
+{
+    kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
+    kc_codec_ctx *context;
+    kc_frame *converted;
+    jlong converted_token;
+    (void)cls;
+    if (frame == NULL) return 0;
+    context = (kc_codec_ctx *)kj_handle_get(env, context_token, KJ_KIND_CODEC_CTX);
+    if (context == NULL) return 0;
+    converted = ffkmp_frame_convert_for_encoder(frame, context);
+    if (converted == NULL) {
+        kj_throw_handle(env, "frame pixel-format conversion failed");
+        return 0;
+    }
+    converted_token = kj_handle_put_checked(env, KJ_KIND_FRAME, converted);
+    if (converted_token == 0) ffkmp_frame_free(converted);
+    return converted_token;
+}
+
 JNIEXPORT jlong JNICALL kj_frame_duration(JNIEnv *env, jclass cls, jlong token)
 {
     kc_frame *frame = (kc_frame *)kj_handle_get(env, token, KJ_KIND_FRAME);
