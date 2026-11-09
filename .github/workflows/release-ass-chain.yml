@@ -83,10 +83,22 @@ jobs:
             kotlin-toolchain-ass-chain-
       - name: Install build deps
         run: brew install meson ninja autoconf automake libtool pkg-config nasm
-      # The web chain compiles with emscripten; the konan targets never touch it.
+      # The web chain compiles with emscripten; the konan targets never touch it. It comes from
+      # emsdk at the version publish.yml builds the web codec modules with, never from Homebrew's
+      # version of the day, and package-ass-chain.sh writes it into the zip's CHAIN.txt (#228).
       - name: Install emscripten
         if: matrix.target == 'wasm32'
-        run: brew install emscripten
+        env:
+          EMSCRIPTEN_VERSION: "6.0.11"
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"
+          "${RUNNER_TEMP}/emsdk/emsdk" install "${EMSCRIPTEN_VERSION}"
+          "${RUNNER_TEMP}/emsdk/emsdk" activate "${EMSCRIPTEN_VERSION}"
+          echo "${RUNNER_TEMP}/emsdk" >> "$GITHUB_PATH"
+          echo "${RUNNER_TEMP}/emsdk/upstream/emscripten" >> "$GITHUB_PATH"
+          echo "EMSDK=${RUNNER_TEMP}/emsdk" >> "$GITHUB_ENV"
+          "${RUNNER_TEMP}/emsdk/upstream/emscripten/emcc" --version | sed -n 1p
       - name: Clone the chain sources
         run: |
           git clone --depth 1 --branch "$FRIBIDI_TAG" https://github.com/fribidi/fribidi.git vendor/fribidi

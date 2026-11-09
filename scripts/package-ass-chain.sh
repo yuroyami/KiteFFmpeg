@@ -71,6 +71,13 @@ for target in "${targets[@]}"; do
     exit 1
   fi
 
+  # The compiler of the web objects, so a consumer that links them can check it (#228). A wasm32
+  # zip is refused without one, as an assignment lets set -e see the failure.
+  compiler=""
+  if [ "${target}" = "wasm32" ]; then
+    compiler="$(emcc --version | sed -n 1p)"
+  fi
+
   stage="$(mktemp -d)"
   trap 'rm -rf "${stage}"' EXIT
   cp -R "${src}/include" "${stage}/include"
@@ -90,6 +97,7 @@ for target in "${targets[@]}"; do
     done
     echo "with these patches to libass, from native/patches/libass:"
     echo "${expected_patches}" | sed 's/^/  /'
+    if [ -n "${compiler}" ]; then echo "compiled with: ${compiler}"; fi
   } > "${stage}/CHAIN.txt"
 
   out="dist/ass-chain-${target}.zip"
