@@ -199,7 +199,7 @@ open class CompileKiteFFmpegCTask(
         val objects = sources.map { source ->
             val objectFile = objectDir.resolve("${source.nameWithoutExtension}.o")
             val command = listOf(clang.absolutePath, "-target", spec.triple) +
-                sysrootArgs + COMPILER_FLAGS + defineArgs + includeArgs +
+                sysrootArgs + COMPILER_FLAGS + hardeningFlagsFor(target) + defineArgs + includeArgs +
                 listOf("-c", source.absolutePath, "-o", objectFile.absolutePath)
             logger.info("[KiteFFmpeg] " + command.joinToString(" "))
             execOperations.exec {
@@ -367,6 +367,19 @@ open class CompileKiteFFmpegCTask(
             "-fvisibility=hidden", "-fPIC",
             "-Wall", "-Wextra", "-Werror", "-Werror=vla",
         )
+
+        /**
+         * The hardening a target's toolchain does not add by itself (#224). Apple's clang and the
+         * NDK's clang already put a stack protector in every function that needs one; konan's
+         * clang for Linux does not, so the Linux helpers ask for it, and for glibc's checked
+         * string and memory calls, as a distribution's FFmpeg is built. Windows is left as it is
+         * until a MinGW link shows that `__stack_chk_fail` resolves there.
+         */
+        fun hardeningFlagsFor(konanTargetName: String): List<String> =
+            if (konanTargetName.startsWith("linux_")) LINUX_HARDENING_FLAGS else emptyList()
+
+        /** The compile half of [hardeningFlagsFor] on Linux, which the JNI adapter shares. */
+        val LINUX_HARDENING_FLAGS: List<String> = listOf("-fstack-protector-strong", "-D_FORTIFY_SOURCE=2")
 
         /**
          * Triple and sysroot per konan target.

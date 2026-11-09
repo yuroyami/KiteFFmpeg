@@ -104,7 +104,8 @@ class LinkKiteFFmpegJniTaskTest {
         val toolchain = listOf("-target", "fake-triple")
         val ffmpeg = listOf("-lavformat", "-lavcodec", "-lavfilter", "-lavutil", "-lswscale", "-lswresample")
         assertEquals(
-            toolchain + ffmpeg + "-ldav1d" + listOf("-lz", "-lm", "-ldl", "-lpthread", "-Wl,--no-undefined"),
+            toolchain + ffmpeg + "-ldav1d" + listOf("-lz", "-lm", "-ldl", "-lpthread", "-Wl,--no-undefined") +
+                listOf("-Wl,-z,noexecstack", "-Wl,-z,relro", "-Wl,-z,now", "-fstack-protector-strong", "-D_FORTIFY_SOURCE=2"),
             LinkKiteFFmpegJniTask.desktopLinkFlags(linux, toolchain, dav1d = true),
         )
         // Every library after -Bstatic comes from its static archive. The MinGW sysroot also

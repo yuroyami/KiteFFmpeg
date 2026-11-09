@@ -385,7 +385,12 @@ open class LinkKiteFFmpegJniTask(
                     "-static-libgcc",
                 )
             } else {
-                toolchainFlags + ffmpeg + listOf("-lz", "-lm", "-ldl", "-lpthread", "-Wl,--no-undefined")
+                // The same hardening as the Android link: a GOT that is read-only once loaded, and
+                // a stack that cannot run code. The compile flags apply to the adapter's own
+                // sources, which this same clang call compiles (#224).
+                toolchainFlags + ffmpeg + listOf("-lz", "-lm", "-ldl", "-lpthread", "-Wl,--no-undefined") +
+                    listOf("-Wl,-z,noexecstack", "-Wl,-z,relro", "-Wl,-z,now") +
+                    CompileKiteFFmpegCTask.LINUX_HARDENING_FLAGS
             }
         }
 

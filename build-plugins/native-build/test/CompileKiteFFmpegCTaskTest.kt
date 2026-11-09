@@ -472,4 +472,15 @@ class CompileKiteFFmpegCTaskTest {
         )
     }
 
+
+    /** Linux asks for the stack protector and checked calls its toolchain does not add (#224). */
+    @Test
+    fun linuxHelpersAreHardenedAndOtherTargetsKeepTheirToolchainDefaults() {
+        for (target in listOf("linux_x64", "linux_arm64")) {
+            assertEquals(listOf("-fstack-protector-strong", "-D_FORTIFY_SOURCE=2"), CompileKiteFFmpegCTask.hardeningFlagsFor(target), target)
+        }
+        for (target in listOf("macos_arm64", "ios_arm64", "android_arm64", "mingw_x64")) {
+            assertEquals(emptyList(), CompileKiteFFmpegCTask.hardeningFlagsFor(target), target)
+        }
+    }
 }

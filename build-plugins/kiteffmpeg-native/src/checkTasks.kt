@@ -10,6 +10,7 @@ import io.github.yuroyami.kiteffmpeg.buildtools.CheckFFmpegRecipesTask
 import io.github.yuroyami.kiteffmpeg.buildtools.CheckReleaseTargetMirrorTask
 import io.github.yuroyami.kiteffmpeg.buildtools.CheckWasmBindingMirrorTask
 import io.github.yuroyami.kiteffmpeg.buildtools.CompareCodecContractTask
+import io.github.yuroyami.kiteffmpeg.buildtools.ElfHardening
 import io.github.yuroyami.kiteffmpeg.buildtools.checkJniRegistration
 import java.io.File
 import java.nio.file.Path
@@ -145,5 +146,15 @@ fun checkDesktopJni(
                 "platforms, and link macos-arm64 on an arm64 Mac.",
         )
     }
-    BuildLog.lifecycle("[KiteFFmpeg] the JVM jar carries JNI libraries for ${platforms.joinToString()}")
+    // A Linux library must keep the hardening its link asks for, which no test can see (#224).
+    val weak = resourcesDirs.flatMap { dir ->
+        dir.toFile().resolve(BundleHostJniTask.RESOURCE_ROOT).listFiles().orEmpty()
+            .filter { it.name.startsWith("linux-") }
+            .flatMap { platform -> platform.listFiles().orEmpty().filter { it.name.endsWith(".so") } }
+    }.mapNotNull { library ->
+        val missing = ElfHardening.read(library.readBytes()).missing
+        if (missing.isEmpty()) null else "${library.parentFile.name}/${library.name} lacks ${missing.joinToString()}"
+    }
+    if (weak.isNotEmpty()) throw BuildFailure("The JVM jar carries an unhardened JNI library: ${weak.joinToString("; ")}")
+        BuildLog.lifecycle("[KiteFFmpeg] the JVM jar carries JNI libraries for ${platforms.joinToString()}")
 }
