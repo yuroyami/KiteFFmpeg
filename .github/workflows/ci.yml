@@ -389,6 +389,14 @@ jobs:
           rm -f "${asset}" "${asset}.sha256"
       - name: Unit + native tests
         run: ./kotlin test -m kiteffmpeg -p linuxX64
+      # The JVM tests load the linux-x64 JNI library that the desktop jar ships, cross-linked from
+      # this same tree, and run the JNI boundary harness and the contract suite on it. Before this
+      # no job ever opened the Linux or Windows library in a JVM (#203).
+      - name: JVM tests on the Linux JNI library
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+        run: ./kotlin test -m kiteffmpeg -p jvm
       - name: Link sample
         run: ./kotlin build -m kiteffmpeg-sample-linux -p linuxX64
       - name: End-to-end transcode
@@ -759,6 +767,10 @@ jobs:
       - name: Unit + native tests
         shell: cmd
         run: kotlin.bat test -m kiteffmpeg -p mingwX64
+      # The same for the windows-x64 JNI library (#203).
+      - name: JVM tests on the Windows JNI library
+        shell: cmd
+        run: kotlin.bat test -m kiteffmpeg -p jvm
       - name: Link sample
         shell: cmd
         run: kotlin.bat build -m kiteffmpeg-sample-windows -p mingwX64
