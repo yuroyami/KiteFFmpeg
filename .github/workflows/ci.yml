@@ -46,6 +46,10 @@ env:
   # it in their own `git clone --branch`, and `./kotlin check ffmpegRefs` compares those clones with
   # the build recipe. This line moves only when a new companion release is published.
   FFMPEG_VERSION: n9.0.2
+  # The emscripten the web codec modules are built with. publish.yml and release-ass-chain.yml pin
+  # the same one, so the compiler CI tests is the one that ships (#227);
+  # scripts/check-emscripten-pins.sh fails while the three differ.
+  EMSCRIPTEN_VERSION: "6.0.11"
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
   # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0 and 0.5.1. ffmpeg-n9.0.2-r2
   # stays as the binaries and source offer of 0.4.0, and ffmpeg-n9.0.2 as those of 0.3.0. The
@@ -285,8 +289,16 @@ jobs:
       - name: Install emscripten
         id: emscripten
         run: |
-          brew install emscripten
-          echo "version=$(emcc --version | head -1 | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"
+          "${RUNNER_TEMP}/emsdk/emsdk" install "${EMSCRIPTEN_VERSION}"
+          "${RUNNER_TEMP}/emsdk/emsdk" activate "${EMSCRIPTEN_VERSION}"
+          echo "${RUNNER_TEMP}/emsdk" >> "$GITHUB_PATH"
+          echo "${RUNNER_TEMP}/emsdk/upstream/emscripten" >> "$GITHUB_PATH"
+          echo "EMSDK=${RUNNER_TEMP}/emsdk" >> "$GITHUB_ENV"
+          echo "KITEFFMPEG_EMSCRIPTEN_LLVM_BIN=${RUNNER_TEMP}/emsdk/upstream/bin" >> "$GITHUB_ENV"
+          "${RUNNER_TEMP}/emsdk/upstream/emscripten/emcc" --version | sed -n 1p
+          echo "version=${EMSCRIPTEN_VERSION}" >> "$GITHUB_OUTPUT"
       # A web FFmpeg is only as good as the compiler that built it, so the key carries the emcc
       # version as well as the build recipe, the source patches and the FFmpeg tag.
       - name: Cache the web FFmpeg build
@@ -358,6 +370,8 @@ jobs:
       #
       # The ffmpeg CLI still comes from apt, for scripts/e2e.sh's assertions only. It is not what
       # gets linked.
+      - name: Check that every workflow pins one emscripten
+        run: bash scripts/check-emscripten-pins.sh
       - name: Fetch the prebuilt static FFmpeg (linux-x64) + the ffmpeg CLI for e2e
         run: |
           set -euo pipefail

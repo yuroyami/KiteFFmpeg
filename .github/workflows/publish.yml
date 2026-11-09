@@ -216,6 +216,21 @@ jobs:
             unzip -l "${web_async}" "${entry}" > /dev/null \
               || { echo "::error::the kiteffmpeg-web-async jar carries no ${entry}" >&2; exit 1; }
           done
+          # The web tests then load the modules out of these jars, so the bytes that ship are the
+          # bytes that were tested (#227).
+          rm -rf build/kite-web build/kite-web-async
+          mkdir -p build/kite-web build/kite-web-async
+          unzip -q -o "${web}" kite.mjs kite.wasm -d build/kite-web
+          unzip -q -o "${web_async}" kite-jspi.mjs kite-jspi.wasm kite-asyncify.mjs kite-asyncify.wasm -d build/kite-web-async
+      # JSPI needs a recent engine, and the runner's own Node may be older.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: Web tests against the modules in the web jars
+        run: |
+          emcc_line=$("${RUNNER_TEMP}/emsdk/upstream/emscripten/emcc" --version | sed -n 1p)
+          echo "web jars built with: ${emcc_line}"
+          python3 scripts/web-tests/run.py --platform wasmJs --platform wasmJsBrowser --require-modules
       # Now with the web jars: their digests, FFmpeg commit and patches, and emscripten version.
       # A jar is a zip file, so the script reads it through --web-zip.
       - name: Bill of materials for the embedded code, with the web jars
