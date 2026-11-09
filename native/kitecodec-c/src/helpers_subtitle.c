@@ -141,10 +141,15 @@ KC_API int ffkmp_subtitle_times(const AVSubtitle *s, int64_t *start_us, int64_t 
     *start_us = INT64_MIN;
     *end_us = INT64_MIN;
     if (s->pts == AV_NOPTS_VALUE) return 0;
-    *start_us = s->pts + (int64_t)s->start_display_time * 1000;
+    /* The offsets are at most UINT32_MAX * 1000, which fits; the sum may not, and a time past the
+     * largest timestamp is reported as unknown rather than wrapped (#264). */
+    const int64_t start_offset = (int64_t)s->start_display_time * 1000;
+    if (s->pts > INT64_MAX - start_offset) return 0;
+    *start_us = s->pts + start_offset;
     /* UINT32_MAX says the stream has no end; an end at or before the start says nothing either. */
     if (s->end_display_time != UINT32_MAX && s->end_display_time > s->start_display_time) {
-        *end_us = s->pts + (int64_t)s->end_display_time * 1000;
+        const int64_t end_offset = (int64_t)s->end_display_time * 1000;
+        if (s->pts <= INT64_MAX - end_offset) *end_us = s->pts + end_offset;
     }
     return 0;
 }

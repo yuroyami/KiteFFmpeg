@@ -393,6 +393,54 @@ static void case_captions_in_real_time_show_as_the_screen_changes(void)
     ffkmp_codecctx_free(c);
 }
 
+/* Times near the largest timestamp: the sum of the timestamp and an offset must not wrap (#264). */
+static void case_times_near_the_largest_timestamp_are_unknown_not_wrapped(void)
+{
+    AVSubtitle s;
+    int64_t start, end;
+
+    kc_case("a start or end past INT64_MAX reads as unknown instead of a wrapped negative time");
+    memset(&s, 0, sizeof(s));
+    s.start_display_time = 1;
+    s.end_display_time = 2;
+
+    s.pts = INT64_MAX - 500;
+    KC_EQ_INT(ffkmp_subtitle_times((const kc_subtitle *)&s, &start, &end), 0);
+    KC_EQ_I64(start, INT64_MIN);
+    KC_EQ_I64(end, INT64_MIN);
+
+    s.pts = INT64_MAX - 1500;
+    KC_EQ_INT(ffkmp_subtitle_times((const kc_subtitle *)&s, &start, &end), 0);
+    KC_EQ_I64(start, INT64_MAX - 500);
+    KC_EQ_I64(end, INT64_MIN);
+
+    s.pts = INT64_MAX - 2000;
+    KC_EQ_INT(ffkmp_subtitle_times((const kc_subtitle *)&s, &start, &end), 0);
+    KC_EQ_I64(start, INT64_MAX - 1000);
+    KC_EQ_I64(end, INT64_MAX);
+
+    s.pts = INT64_MAX - 1000;
+    KC_EQ_INT(ffkmp_subtitle_times((const kc_subtitle *)&s, &start, &end), 0);
+    KC_EQ_I64(start, INT64_MAX);
+    KC_EQ_I64(end, INT64_MIN);
+
+    s.pts = INT64_MAX - 999;
+    KC_EQ_INT(ffkmp_subtitle_times((const kc_subtitle *)&s, &start, &end), 0);
+    KC_EQ_I64(start, INT64_MIN);
+    KC_EQ_I64(end, INT64_MIN);
+
+    s.pts = INT64_MAX - 2000;
+    s.end_display_time = UINT32_MAX;
+    KC_EQ_INT(ffkmp_subtitle_times((const kc_subtitle *)&s, &start, &end), 0);
+    KC_EQ_I64(start, INT64_MAX - 1000);
+    KC_EQ_I64(end, INT64_MIN);
+
+    s.pts = AV_NOPTS_VALUE;
+    KC_EQ_INT(ffkmp_subtitle_times((const kc_subtitle *)&s, &start, &end), 0);
+    KC_EQ_I64(start, INT64_MIN);
+    KC_EQ_I64(end, INT64_MIN);
+}
+
 int main(void)
 {
     kc_suite_begin("test_subtitle");
@@ -403,6 +451,7 @@ int main(void)
     case_a_held_caption_comes_out_of_the_drain();
     case_the_captions_frames_carry_decode_without_a_stream();
     case_captions_in_real_time_show_as_the_screen_changes();
+    case_times_near_the_largest_timestamp_are_unknown_not_wrapped();
 
     return kc_suite_end();
 }

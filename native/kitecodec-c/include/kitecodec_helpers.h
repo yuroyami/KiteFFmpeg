@@ -574,7 +574,8 @@ KC_API int ffkmp_caption_decode(kc_codec_ctx *c, const uint8_t *data, int size, 
 
 /* When the subtitle starts and ends, in microseconds on the stream's own timeline. Either is
  * INT64_MIN when it is not known: the start when the packet had no timestamp, the end when the
- * stream does not say, as with Blu-ray subtitles. NULL arguments are refused with AVERROR(EINVAL). */
+ * stream does not say, as with Blu-ray subtitles. A time that would pass INT64_MAX is not known
+ * either, and reads INT64_MIN with 0 returned. NULL arguments are refused with AVERROR(EINVAL). */
 KC_API int ffkmp_subtitle_times(const kc_subtitle *s, int64_t *start_us, int64_t *end_us);
 
 /* How many rectangles the subtitle has; 0 for NULL or a subtitle that clears the screen. */
