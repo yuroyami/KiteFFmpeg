@@ -125,4 +125,34 @@ class ResamplerContractTest {
             assertFailsWith<IllegalStateException> { resampler.convert(input) }
         }
     }
+
+    /** Silent interleaved s16 at [IN_RATE], [BLOCK] samples, starting at [ptsMicros]. */
+    private fun s16Block(ptsMicros: Long): Frame =
+        Frame.ofAudio(ByteArray(BLOCK * 2 * 2), BLOCK, IN_RATE, 2, SampleFormat.S16, ptsMicros)
+
+    /** The output times of 20 blocks, where block 10 onward starts [jumpMicros] later than counted. */
+    private fun outputTimes(jumpMicros: Long): List<Long> =
+        Resampler(AudioSpec(IN_RATE, 2, SampleFormat.S16), AudioSpec(IN_RATE, 2, SampleFormat.FltP)).use { resampler ->
+            (0 until 20).mapNotNull { block ->
+                val pts = block * BLOCK * 1_000_000L / IN_RATE + if (block >= 10) jumpMicros else 0L
+                s16Block(pts).use { input -> resampler.convert(input)?.use { it.ptsMicros } }
+            }
+        }
+
+    /** A gap in the input stays a gap in the output, rather than every later frame moving early (#201). */
+    @Test
+    fun aGapInTheInputStaysAGapInTheOutput() {
+        val times = outputTimes(jumpMicros = 1_000_000L)
+        assertEquals(20, times.size, "a format change holds nothing back")
+        assertEquals(10L * BLOCK * 1_000_000L / IN_RATE, times[9] + BLOCK * 1_000_000L / IN_RATE, "before the gap the count runs on")
+        assertEquals(1_000_000L + 10L * BLOCK * 1_000_000L / IN_RATE, times[10], "block 10 starts a second later, as it went in")
+        assertEquals(1_000_000L + 19L * BLOCK * 1_000_000L / IN_RATE, times[19])
+    }
+
+    /** A jump below 100 ms is a decoder's jitter, and the output keeps counting through it. */
+    @Test
+    fun aSmallJumpIsCountedThrough() {
+        val times = outputTimes(jumpMicros = 5_000L)
+        assertEquals(10L * BLOCK * 1_000_000L / IN_RATE, times[10], "a 5 ms jump does not move the count")
+    }
 }

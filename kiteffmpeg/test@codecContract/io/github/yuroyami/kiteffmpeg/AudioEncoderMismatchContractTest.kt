@@ -269,4 +269,34 @@ class AudioEncoderMismatchContractTest {
 
         override fun close(): Unit = Unit
     }
+
+    /**
+     * The issue's case: s16 frames into AAC, which takes planar float, so every frame is converted,
+     * with a one second jump after frame 10. The jump survives into the file (#201).
+     */
+    @OptIn(KiteFFmpegLowLevelApi::class)
+    @Test
+    fun aGapSurvivesTheConversionIntoTheEncoder() = runBlocking {
+        val path = contractOutputPath("mkv").also(paths::add)
+        val rate = 48_000
+        val frames = Array(20) { index ->
+            val pts = index * SAMPLES * 1_000_000L / rate + if (index >= 10) 1_000_000L else 0L
+            Frame.ofAudio(ByteArray(SAMPLES * CHANNELS * 2), SAMPLES, rate, CHANNELS, SampleFormat.S16, pts)
+        }
+        MediaSink.open(path).use { sink ->
+            val encoder = sink.addAudioEncoder(AudioEncoderSpec(codec = CodecId("aac"), sampleRate = rate, channels = CHANNELS))
+            assertTrue(encoder.sampleFormat != SampleFormat.S16, "the frames must take the converter path")
+            encoder.drive(flowOf(*frames))
+        }
+        val times = MediaSource.open(path).use { source ->
+            source.openPacketReader(source.streams).use { reader ->
+                generateSequence { reader.read() }.map { packet -> packet.use { it.ptsMicros } }.filterNotNull().toList()
+            }
+        }
+        val afterGap = times.filter { it > 500_000L }
+        assertTrue(afterGap.isNotEmpty(), "no packet after the gap: $times")
+        // Frame 10 went in at 1.213 s. Without the gap it would start at 213 ms, and nothing
+        // would lie between 0.5 s and 1.2 s either way.
+        assertTrue(afterGap.first() in 1_150_000L..1_260_000L, "the first packet after the gap is at ${afterGap.first()}: $times")
+    }
 }

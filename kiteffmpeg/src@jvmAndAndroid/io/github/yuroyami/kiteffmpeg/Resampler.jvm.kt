@@ -8,9 +8,8 @@ public actual class Resampler actual constructor(
 
     private var token: Long
 
-    /** Where the output timeline starts, set by the first converted frame. */
-    private var startMicros: Long? = null
-    private var samplesOut = 0L
+    /** Where the output timeline starts and the gaps in the input it keeps (#201). */
+    private val timeline = ResampleTimeline(input.sampleRate, output.sampleRate)
 
     init {
         Internals.requireCompatible()
@@ -25,7 +24,7 @@ public actual class Resampler actual constructor(
     public actual fun convert(frame: Frame): Frame? {
         check(token != 0L) { "Resampler is closed" }
         requireAudioSpec(frame, input)
-        if (startMicros == null) startMicros = frame.ptsMicros ?: 0L
+        timeline.input(frame.ptsMicros, frame.info.sampleCount)
         return frame.locked { source -> run(source) }
     }
 
@@ -44,8 +43,7 @@ public actual class Resampler actual constructor(
             if (rc < 0) throw FFmpegException(avError(rc))
             return null
         }
-        Internals.frameSetPts(out, resampledPtsMicros(startMicros ?: 0L, samplesOut, output.sampleRate))
-        samplesOut += samples
+        Internals.frameSetPts(out, timeline.stamp(samples))
         return Frame(out, true, -1, MediaType.Audio, Rational.Tb_us)
     }
 

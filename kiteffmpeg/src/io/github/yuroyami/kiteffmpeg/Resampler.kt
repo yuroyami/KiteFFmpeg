@@ -28,7 +28,9 @@ public data class AudioSpec(
  * same count is converted too, such as side surrounds to back surrounds. A rate change holds some samples back to filter them, so a converted frame can be
  * shorter than the one that went in, and [flush] returns the samples still held once the input
  * ends. Output frames carry microsecond timestamps: the first one starts at the first input frame's
- * timestamp (or zero when it had none), and every later one follows from the samples before it.
+ * timestamp (or zero when it had none), and every later one follows from the samples before it,
+ * except that an input frame whose timestamp jumps more than 100 ms past where the samples before
+ * it end moves the output by the same jump, so a gap in the input stays a gap in the output.
  *
  * Not thread safe: use one resampler from one thread at a time. Available on the JVM, Android and
  * the native targets; on the web the constructor throws [FFmpegError.Unsupported].
@@ -81,6 +83,43 @@ internal fun requireAudioSpec(frame: Frame, spec: AudioSpec) {
     throw FFmpegException(
         FFmpegError.InvalidArgument(0, "This frame does not match the resampler's input: " + problems.joinToString("; ")),
     )
+}
+
+/**
+ * The output timeline of one [Resampler]. Output frames are dated by counting samples from the
+ * first input frame's time, so the small jitter of a decoder's timestamps never reaches them, but a
+ * forward jump in the input of more than [GAP_MICROS] moves the count by the jump, as FFmpeg's
+ * `aresample` does with a hard compensation, so a gap in the input stays a gap in the output (#201).
+ * The few samples a rate change still holds from before the gap move with it.
+ */
+internal class ResampleTimeline(private val inputRate: Int, private val outputRate: Int) {
+    /** The time of output sample zero, set by the first input frame. */
+    private var originMicros: Long? = null
+    private var shiftMicros = 0L
+    private var samplesIn = 0L
+    private var samplesOut = 0L
+
+    /** Notes an input frame of [samples] samples starting at [ptsMicros]. */
+    fun input(ptsMicros: Long?, samples: Int) {
+        val origin = originMicros
+        if (origin == null) {
+            originMicros = ptsMicros ?: 0L
+        } else if (ptsMicros != null) {
+            val counted = resampledPtsMicros(origin + shiftMicros, samplesIn, inputRate)
+            val jump = ptsMicros - counted
+            if (jump > GAP_MICROS) shiftMicros += jump
+        }
+        samplesIn += samples
+    }
+
+    /** The time of the next output frame, of [samples] samples. */
+    fun stamp(samples: Int): Long =
+        resampledPtsMicros((originMicros ?: 0L) + shiftMicros, samplesOut, outputRate).also { samplesOut += samples }
+
+    internal companion object {
+        /** FFmpeg's `min_hard_comp` default: a jump smaller than this is jitter, not a gap. */
+        const val GAP_MICROS = 100_000L
+    }
 }
 
 /** The microsecond timestamp of the output sample at [samplesBefore], from [startMicros]. */

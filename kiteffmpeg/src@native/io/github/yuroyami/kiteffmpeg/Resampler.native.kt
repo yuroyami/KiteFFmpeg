@@ -27,9 +27,8 @@ public actual class Resampler actual constructor(
     private val handle: CPointer<kc_swr>
     private var closed = false
 
-    /** Where the output timeline starts, set by the first converted frame. */
-    private var startMicros: Long? = null
-    private var samplesOut = 0L
+    /** Where the output timeline starts and the gaps in the input it keeps (#201). */
+    private val timeline = ResampleTimeline(input.sampleRate, output.sampleRate)
 
     init {
         // The FFmpeg identity gate. Before the first allocation.
@@ -53,7 +52,7 @@ public actual class Resampler actual constructor(
     public actual fun convert(frame: Frame): Frame? {
         check(!closed) { "Resampler is closed" }
         requireAudioSpec(frame, input)
-        if (startMicros == null) startMicros = frame.ptsMicros ?: 0L
+        timeline.input(frame.ptsMicros, frame.info.sampleCount)
         return frame.withNative { native -> run(native) }
     }
 
@@ -72,8 +71,7 @@ public actual class Resampler actual constructor(
             if (rc < 0) throw FFmpegException(avError(rc))
             return null
         }
-        ffkmp_frame_set_pts(out, resampledPtsMicros(startMicros ?: 0L, samplesOut, output.sampleRate))
-        samplesOut += samples
+        ffkmp_frame_set_pts(out, timeline.stamp(samples))
         return Frame(out, ownsPointer = true, streamIndex = -1, streamType = MediaType.Audio, streamTimeBase = Rational.Tb_us)
     }
 
