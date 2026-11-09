@@ -2,7 +2,6 @@ package io.github.yuroyami.kiteffmpeg
 
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /**
  * Finds and loads `libkitecodec_jni` for a desktop JVM.
@@ -12,7 +11,8 @@ import java.nio.file.StandardCopyOption
  *    deliberately broken library, so it must beat everything else.
  * 2. `System.loadLibrary`, which reads `java.library.path`. This is how a packager (jpackage, a
  *    distro package, a Gradle run task) supplies its own copy without unpacking anything.
- * 3. The copy bundled in this jar under `native/<os>-<arch>/`, extracted once to a temp file.
+ * 3. The copy bundled in this jar under `native/<os>-<arch>/`, extracted into a temporary folder
+ *    named after the bundle's hash, which every later launch reuses ([JniExtraction]).
  *    This is what makes `implementation("...:kiteffmpeg")` enough for a desktop app.
  */
 internal actual object JniLibrary {
@@ -54,18 +54,26 @@ internal actual object JniLibrary {
                     "supply one with -Dkiteffmpeg.jni.path or -Djava.library.path.",
             )
 
-        val directory = Files.createTempDirectory("kitecodec-jni").toFile().apply { deleteOnExit() }
-        var library: File? = null
-        for (name in manifest) {
+        val bundle = manifest.map { name ->
             val stream = JniLibrary::class.java.getResourceAsStream("$directoryResource/$name")
                 ?: throw UnsatisfiedLinkError(
                     "the bundle manifest names $name but $directoryResource/$name is not in the jar.",
                 )
-            val target = File(directory, name)
-            stream.use { Files.copy(it, target.toPath(), StandardCopyOption.REPLACE_EXISTING) }
-            target.deleteOnExit()
-            if (name == fileName) library = target
+            JniExtraction.BundleFile(name, stream.use { it.readBytes() })
         }
+        // One folder per bundle, reused by every later launch, so Windows, which cannot delete
+        // a loaded DLL, no longer keeps a copy per launch (#208). A folder this process cannot
+        // own falls back to a private one for this launch only.
+        val shared = runCatching {
+            JniExtraction.extract(File(System.getProperty("java.io.tmpdir")), bundle)
+        }.getOrNull()
+        val directory = shared ?: Files.createTempDirectory(JniExtraction.LEGACY_PREFIX).toFile().apply {
+            deleteOnExit()
+            bundle.forEach { file ->
+                File(this, file.name).apply { writeBytes(file.bytes); deleteOnExit() }
+            }
+        }
+        val library: File? = manifest.lastOrNull { it == fileName }?.let { File(directory, it) }
         val loadable = library ?: throw UnsatisfiedLinkError(
             "the bundle at $directoryResource carries no $fileName.",
         )
