@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Packages one vendored FFmpeg build into a Release asset.
 #
-#   package-ffmpeg.sh <ffmpeg-version> <license> <target-triple> [ffmpeg-source-dir]
+#   package-ffmpeg.sh <ffmpeg-version> <license> <target-triple> [ffmpeg-source-dir] [dav1d-source-dir]
 #
 # dav1d is MANDATORY (2026-08-22): there is no flavour axis; every zip carries
 # lib/libdav1d.a and the packaging refuses a tree without it.
@@ -15,6 +15,8 @@
 # LGPL compliance: every zip additionally carries, at the archive root,
 #   - COPYING.LGPLv2.1 (always) and COPYING.GPLv2 + COPYING.GPLv3 (gpl profile),
 #   - LICENSE.md from the FFmpeg source tree,
+#   - COPYING.dav1d, dav1d's COPYING from the checkout the bake built, whose BSD-2-Clause terms
+#     require its notice in every binary redistribution (#225),
 #   - a generated BUILD-INFO.txt (tag, commit, configure line, build date, target,
 #     license profile, source-code URL).
 # The FFmpeg source tree defaults to vendor/ffmpeg, where the release workflow clones it.
@@ -24,6 +26,7 @@ version="${1:?ffmpeg version, e.g. n8.0}"
 license="${2:?license: lgpl|gpl}"
 triple="${3:?target triple, e.g. macos-arm64}"
 ffmpeg_src="${4:-vendor/ffmpeg}"
+dav1d_src="${5:-vendor/dav1d}"
 
 src="native-libs/${license}/${triple}"
 
@@ -93,6 +96,12 @@ for f in "${legal_files[@]}"; do
   fi
   cp "${ffmpeg_src}/${f}" "${stage}/"
 done
+# Taken from the checkout the bake built, so the notice follows the dav1d version.
+if [ ! -f "${dav1d_src}/COPYING" ]; then
+  echo "::error::dav1d licence ${dav1d_src}/COPYING missing, cannot ship a compliant zip" >&2
+  exit 1
+fi
+cp "${dav1d_src}/COPYING" "${stage}/COPYING.dav1d"
 
 commit="$(git -C "${ffmpeg_src}" rev-parse HEAD 2>/dev/null || echo "unknown")"
 
