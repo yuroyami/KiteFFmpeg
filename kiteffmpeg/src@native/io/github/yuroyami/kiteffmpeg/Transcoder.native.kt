@@ -455,8 +455,9 @@ public actual object Transcoder {
                     audioGraph?.close()
                     subConversions.values.forEach(SubtitleConversion::close)
                     videoRate?.close()
-                    venc?.close()
-                    aenc?.close()
+                    // The encoders are the sink's: its close, which the use above runs next,
+                    // drains each one and then frees it. Closing them here first made that drain
+                    // skip them, so a cancelled or failed transcode lost what they held (#202).
                 }
             }
         }

@@ -85,7 +85,7 @@ The pipelines cooperate with structured concurrency: cancellation is honored at 
 Two practical consequences:
 
 - **Cancellation is prompt but not instantaneous.** A decode/encode step that is already inside a native call finishes that call first; the loop then observes cancellation before the next one.
-- **A canceled transcode leaves a short output file.** The sink still flushes its encoders and writes the trailer as it closes, so the file is valid and holds the part written before the cancellation. Delete it if you do not want a short file.
+- **A canceled transcode leaves a short output file.** The sink still flushes its encoders and writes the trailer as it closes, so the file is valid and holds the part written before the cancellation, including the frames the encoders still held. That drain runs after the cancel, so a slow encoder makes the cancel take that much longer. Delete it if you do not want a short file.
 
 `Transcoder.transcode` and `Remuxer.remux` run their work on their own dispatcher, `Dispatchers.IO` unless you pass another as `dispatcher`, so the thread you call them from stays free, and a cancel sent from that same thread reaches them. Their `onProgress` callbacks run in your coroutine context. The other entry points run on the dispatcher you call them from, so call them from a background dispatcher yourself. [Transcoding](transcoding.md#threads-and-cancellation) has the details.
 
