@@ -11,6 +11,14 @@ package io.github.yuroyami.kiteffmpeg
 internal class InputEnd(val name: String, val path: String?, private val opener: (OpenInterrupt) -> MediaSource) {
     val interrupt: OpenInterrupt = OpenInterrupt()
 
+    /**
+     * False for a descriptor or a pipe. FFmpeg's `fd` and `pipe` protocols duplicate the
+     * descriptor and never rewind it, and a duplicate shares the file offset, so a second open
+     * reads from wherever the first left it and moves the first one's reads: a Matroska peek then
+     * failed with invalid data, and an MP4 transcode wrote a short file (#197).
+     */
+    val reopensSafely: Boolean = path == null || !(path == "fd:" || path.startsWith("pipe:") || path == "pipe")
+
     fun open(): MediaSource = opener(interrupt)
 }
 

@@ -53,6 +53,11 @@ below.
 
 ### Fixed
 
+- `Transcoder.transcode` of an `"fd:"` or `pipe:` input opens it once (#197). It opened the input
+  again to read the first frame the encoder gets, and the duplicate descriptor shares the file
+  offset, so a Matroska input failed with invalid data and an MP4 one wrote a short file. A spec
+  that leaves colour, pixel shape or HDR metadata unset now takes them from the stream's
+  declaration for such an input.
 - Android native (`androidNativeArm32`, `androidNativeArm64`, `androidNativeX64`): an executable that uses
   `kiteffmpeg` could fail to link with undefined `av_*`, `stderr` or `__aarch64_*` symbols. The cinterop klib
   of each Android native platform now embeds one archive. That archive also holds the `stdout` and

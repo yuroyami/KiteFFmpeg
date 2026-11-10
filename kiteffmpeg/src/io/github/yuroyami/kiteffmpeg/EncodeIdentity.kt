@@ -22,14 +22,16 @@ private const val PEEK_FRAME_LIMIT = 250
 /**
  * The first frame the encoder will receive: the first frame of [stream] at or after [startMicros],
  * decoded from a second open of [input] and run through [videoFilter] when there is one. Null when
- * nothing comes out within [PEEK_FRAME_LIMIT] decoded frames.
+ * nothing comes out within [PEEK_FRAME_LIMIT] decoded frames, and null without an open for an
+ * input that cannot be opened twice, a descriptor or a pipe, which then inherits from the stream's
+ * own declaration (#197).
  */
 internal suspend fun firstEncodedFrameInfo(
     input: InputEnd,
     stream: StreamInfo,
     videoFilter: String?,
     startMicros: Long,
-): FrameInfo? = input.open().use { source ->
+): FrameInfo? = if (!input.reopensSafely) null else input.open().use { source ->
     val video = source.streams.firstOrNull { it.index == stream.index } ?: return null
     if (startMicros > 0) source.seekMicros(startMicros)
     val trim = TrimWindow(startMicros, Long.MAX_VALUE, source.startTimeMicros)

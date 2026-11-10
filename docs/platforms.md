@@ -159,7 +159,10 @@ To write the result into bytes that the app keeps, use the overloads that take a
 factory and a `MediaByteSink`, and name the container with `format`.
 
 FFmpeg duplicates the descriptor, so you still own yours, and it treats a regular file as
-seekable. Don't open `/proc/self/fd/N` through the `file` protocol instead. That opens the file
+seekable. The duplicate shares the file offset with yours, so read one descriptor through one
+open at a time. `Transcoder.transcode` opens an input path a second time to read the first frame
+the encoder gets, for the colour, pixel shape and HDR metadata a spec leaves unset, but never an
+`"fd:"` or `pipe:` input: those take the stream's own declaration instead. Don't open `/proc/self/fd/N` through the `file` protocol instead. That opens the file
 again by path, and the permission check on the path can fail with `Permission denied`. The `pipe:`
 protocol also duplicates the descriptor, but it treats the stream as not seekable, so you lose
 seeking.

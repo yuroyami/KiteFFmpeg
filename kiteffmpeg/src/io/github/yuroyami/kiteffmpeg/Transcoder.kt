@@ -131,8 +131,10 @@ public expect object Transcoder {
     /**
      * [transcode] with pre-open options for [input], applied the way [MediaSource.open] applies
      * them. On Android this reads a file the user picked without copying it: pass `"fd:"` as
-     * [input] and the descriptor number as the `fd` option. Every other parameter is as in the
-     * path overload.
+     * [input] and the descriptor number as the `fd` option. A descriptor or a pipe is opened only
+     * once, because a second open would share its file offset, so a [VideoEncoderSpec] that leaves
+     * colour, pixel shape or HDR metadata unset takes them from the stream's declaration rather
+     * than from its first frame. Every other parameter is as in the path overload.
      *
      * @throws FFmpegException as the path overload does. Swift and Objective-C receive it as an error.
      */
