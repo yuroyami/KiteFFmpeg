@@ -203,7 +203,7 @@ public actual object Transcoder {
             }
 
             if (startMicros > 0L) {
-                if (videoCopy) source.seekMicros(startMicros) else source.seekForDecode(startMicros)
+                if (videoCopy) source.seekMicros(startMicros) else source.seekForDecode(startMicros, videoStream)
             }
 
             // What the source declares and the specs leave open: colour, pixel shape and HDR

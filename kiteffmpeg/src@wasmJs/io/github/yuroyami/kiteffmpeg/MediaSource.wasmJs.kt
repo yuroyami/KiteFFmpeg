@@ -421,7 +421,9 @@ public actual class MediaSource internal constructor(
         // before the target, so the first frame that comes out of it is the KEYFRAME, not the frame
         // asked for: returning it answered a sparse-keyframe file with a picture seconds early.
         // Backward, so the target is never overshot before the walk begins.
-        val landing = (atMicros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L)
+        // With only the target on, the C seek checks its landing, so a picture stream aims at the
+        // target itself (#252).
+        val landing = (atMicros - readerSeekBackoffMicros(target)).coerceAtLeast(0L)
         openPacketReader(listOf(target)).use { it.seek(landing, SeekDirection.Backward, null) }
         // Both opened INSIDE the try. They used to sit outside it, so a throwing openDecoder left
         // the reader open and readerActive true for ever: that MediaSource could never open another
@@ -794,7 +796,6 @@ public actual class MediaSource internal constructor(
          * keyframe at or before its target, and a file whose keyframes are seconds apart needs the
          * walk to start before the one that covers the target.
          */
-        private const val DECODE_SEEK_BACKOFF_MICROS = 5_000_000L
 
         private fun noFilesystem(path: String) = FFmpegException(
             FFmpegError.Unsupported(

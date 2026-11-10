@@ -53,6 +53,11 @@ below.
 
 ### Fixed
 
+- `extractFrame` and a trimmed transcode that decodes video no longer seek five seconds before the
+  target and decode that stretch only to throw it away (#252). The keyframe seek already checks
+  that its landing shows by the target for the media's one picture stream, so such a seek aims at
+  the target. An extraction from a clip with a keyframe every 50 frames decoded 126 to 173 frames
+  and now decodes at most 54. Any other stream keeps the back-off.
 - `Transcoder.transcode` of an `"fd:"` or `pipe:` input opens it once (#197). It opened the input
   again to read the first frame the encoder gets, and the duplicate descriptor shares the file
   offset, so a Matroska input failed with invalid data and an MP4 one wrote a short file. A spec

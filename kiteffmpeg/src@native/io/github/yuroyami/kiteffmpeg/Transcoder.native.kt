@@ -225,7 +225,7 @@ public actual object Transcoder {
                     // content the caller asked for. Copied audio and subtitles alongside a
                     // decoded video stream are unaffected: the beforeStart gate drops their
                     // pre-roll.
-                    source.seekForDecode(startMicros)
+                    source.seekForDecode(startMicros, videoStream)
                 }
             }
 

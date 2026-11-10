@@ -262,8 +262,9 @@ public class AsyncMediaSource internal constructor(
         val target = stream ?: info.primaryVideo
             ?: throw FFmpegException(FFmpegError.Internal("this media has no video stream to extract from"))
         val startTimeMicros = info.startTimeMicros
-        // A seek lands on a keyframe at or before its target, so the walk starts well before it.
-        val landing = (atMicros - EXTRACT_SEEK_BACKOFF_MICROS).coerceAtLeast(0L)
+        // A seek lands on a keyframe at or before its target. With only the target on, the C seek
+        // checks that landing for a picture stream, so the walk starts there (#252).
+        val landing = (atMicros - readerSeekBackoffMicros(target)).coerceAtLeast(0L)
         openPacketReader(listOf(target)).useAsync { it.seek(landing, SeekDirection.Backward, null) }
         var reader: AsyncPacketReader? = null
         var decoder: AsyncStreamDecoder? = null
@@ -405,11 +406,6 @@ public class AsyncMediaSource internal constructor(
     override suspend fun close() {
         lane.enter()
         once.close { lane.closeSource(input) }
-    }
-
-    private companion object {
-        /** How far before the wanted time an extraction seek aims, as on [MediaSource]. */
-        const val EXTRACT_SEEK_BACKOFF_MICROS = 5_000_000L
     }
 }
 

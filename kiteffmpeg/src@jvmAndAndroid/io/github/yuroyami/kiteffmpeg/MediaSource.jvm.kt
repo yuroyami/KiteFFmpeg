@@ -337,8 +337,9 @@ public actual class MediaSource internal constructor(
         }
     }
 
-    internal suspend fun seekForDecode(micros: Long) {
-        seekMicros((micros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L))
+    /** A seek for a decode of [stream] that walks forward to [micros], aimed as [decodeSeekBackoffMicros] says. */
+    internal suspend fun seekForDecode(micros: Long, stream: StreamInfo?) {
+        seekMicros((micros - decodeSeekBackoffMicros(streams, stream)).coerceAtLeast(0L))
     }
 
     internal fun <T> withCodecParameters(stream: StreamInfo, block: (streamToken: Long, parameters: Long) -> T): T {
@@ -360,16 +361,25 @@ public actual class MediaSource internal constructor(
         }
     }
 
+    /** The frames the last [extractFrame] decoded, the one it answers included. For tests (#252). */
+    @Volatile
+    internal var extractWalk: Int = 0
+        private set
+
     @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
         val target = stream ?: primaryVideo
             ?: throw FFmpegException(FFmpegError.Internal("No video stream to extract a frame from"))
-        seekForDecode(atMicros)
+        seekForDecode(atMicros, target)
         var result: Frame? = null
+        var walked = 0
+        extractWalk = 0
         demuxRouted(
             decode = listOf(target),
             copy = emptyList(),
             onFrame = { frame ->
+                walked += 1
+                extractWalk = walked
                 val timestamp = if (frame.info.hasPts) {
                     toRelativeMicros(frame.info.pts, target.timeBase)
                 } else Long.MAX_VALUE
@@ -586,7 +596,6 @@ public actual class MediaSource internal constructor(
             interrupt: OpenInterrupt?,
         ): MediaSource = open(io, options, interrupt, url = null, mimeType = null, nestedOpener = null)
 
-        private const val DECODE_SEEK_BACKOFF_MICROS = 5_000_000L
     }
 }
 

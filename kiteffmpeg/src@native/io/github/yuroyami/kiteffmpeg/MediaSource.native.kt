@@ -545,13 +545,14 @@ public actual class MediaSource internal constructor(
      * so it then silently starts a whole GOP late. Landing early costs a few discarded frames.
      * Landing late is unrecoverable, because nothing downstream can rewind.
      *
-     * So aim deliberately early by [DECODE_SEEK_BACKOFF_MICROS] and let the caller's existing
-     * decode-and-discard loop move forward to the frame it actually wants. Callers that
-     * stream-copy instead of decoding ([Remuxer]) must not use this, because for them the extra
-     * pre-roll would appear in the output as real content.
+     * So aim early by [decodeSeekBackoffMicros] for [stream], which is nothing when the C seek
+     * checks that stream's landing itself, and let the caller's existing decode-and-discard loop
+     * move forward to the frame it actually wants. Callers that stream-copy instead of decoding
+     * ([Remuxer]) must not use this, because for them the extra pre-roll would appear in the output
+     * as real content.
      */
-    internal suspend fun seekForDecode(micros: Long) {
-        seekMicros((micros - DECODE_SEEK_BACKOFF_MICROS).coerceAtLeast(0L))
+    internal suspend fun seekForDecode(micros: Long, stream: StreamInfo?) {
+        seekMicros((micros - decodeSeekBackoffMicros(streams, stream)).coerceAtLeast(0L))
     }
 
     /** Native codec parameters of a stream, for stream-copy setups ([MediaSink.addCopyStream]). */
@@ -608,7 +609,7 @@ public actual class MediaSource internal constructor(
         // container's start offset, so the comparison below stays in one consistent timeline.
         // seekForDecode (not seekMicros) because the loop below decodes forward to the target and
         // a seek that overshoots would silently return a much later frame.
-        seekForDecode(atMicros)
+        seekForDecode(atMicros, target)
         var result: Frame? = null
         demuxRouted(
             decode = listOf(target),
@@ -858,7 +859,6 @@ public actual class MediaSource internal constructor(
          * broadcast MPEG-TS typically uses 0.5 to 2 s, and file-based content rarely exceeds 10s. The
          * only cost of overshooting backwards is decoding frames that are then discarded.
          */
-        private const val DECODE_SEEK_BACKOFF_MICROS = 5_000_000L
     }
 }
 
