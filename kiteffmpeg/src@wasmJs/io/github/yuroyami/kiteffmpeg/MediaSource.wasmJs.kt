@@ -424,7 +424,14 @@ public actual class MediaSource internal constructor(
         // With only the target on, the C seek checks its landing, so a picture stream aims at the
         // target itself (#252).
         val landing = (atMicros - readerSeekBackoffMicros(target)).coerceAtLeast(0L)
-        openPacketReader(listOf(target)).use { it.seek(landing, SeekDirection.Backward, null) }
+        // A stream that cannot seek by time is refused with the reason (#253); the web build reads
+        // no raw elementary stream, where the JVM and native go back to the first byte instead.
+        try {
+            openPacketReader(listOf(target)).use { it.seek(landing, SeekDirection.Backward, null) }
+        } catch (refused: FFmpegException) {
+            if (refused.error.code == SEEK_REFUSED) throw unseekableExtract(atMicros)
+            throw refused
+        }
         // Both opened INSIDE the try. They used to sit outside it, so a throwing openDecoder left
         // the reader open and readerActive true for ever: that MediaSource could never open another
         // reader again, and the leak was permanent for the object's life.

@@ -32,3 +32,31 @@ private fun StreamInfo.isCheckedPicture(): Boolean =
 
 /** The back-off for a stream the C seek does not check. */
 internal const val DECODE_SEEK_BACKOFF_MICROS: Long = 5_000_000L
+
+/** What FFmpeg answers a seek by time on a stream with no way to do one, such as raw H.264: AVERROR(EPERM). */
+internal const val SEEK_REFUSED: Int = -1
+
+/** FFmpeg's `AVSEEK_FLAG_BYTE`: the seek's target is a byte offset, not a time. */
+internal const val AVSEEK_FLAG_BYTE: Int = 2
+
+/**
+ * The error [MediaSource.extractFrame] answers when a stream refuses its seek by time and cannot
+ * go back to its first byte either, as a pipe cannot (#253). A bare EPERM said neither.
+ */
+internal fun unseekableExtract(atMicros: Long): FFmpegException = FFmpegException(
+    FFmpegError.Unsupported(
+        SEEK_REFUSED,
+        "this stream cannot seek, by time or back to its start, so a frame at ${atMicros}µs cannot be " +
+            "reached; open the source again to extract from it",
+    ),
+)
+
+/**
+ * The time of the [index]th frame decoded from the first byte of a stream whose frames carry no
+ * timestamp, from the stream's [frameRate] (#253); null when the stream declares no rate. Raw
+ * H.264 is such a stream, and this is how the `ffmpeg` command line dates its frames too.
+ */
+internal fun untimedFrameMicros(index: Int, frameRate: Rational?): Long? {
+    val rate = frameRate?.takeIf { it.num > 0 && it.den > 0 } ?: return null
+    return index * 1_000_000L * rate.den / rate.num
+}

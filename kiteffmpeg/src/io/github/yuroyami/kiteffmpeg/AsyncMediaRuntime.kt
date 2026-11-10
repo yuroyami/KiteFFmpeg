@@ -265,7 +265,14 @@ public class AsyncMediaSource internal constructor(
         // A seek lands on a keyframe at or before its target. With only the target on, the C seek
         // checks that landing for a picture stream, so the walk starts there (#252).
         val landing = (atMicros - readerSeekBackoffMicros(target)).coerceAtLeast(0L)
-        openPacketReader(listOf(target)).useAsync { it.seek(landing, SeekDirection.Backward, null) }
+        // A stream that cannot seek by time is refused with the reason (#253): a packet reader has
+        // no way back to the first byte, as MediaSource.extractFrame has.
+        try {
+            openPacketReader(listOf(target)).useAsync { it.seek(landing, SeekDirection.Backward, null) }
+        } catch (refused: FFmpegException) {
+            if (refused.error.code == SEEK_REFUSED) throw unseekableExtract(atMicros)
+            throw refused
+        }
         var reader: AsyncPacketReader? = null
         var decoder: AsyncStreamDecoder? = null
         try {

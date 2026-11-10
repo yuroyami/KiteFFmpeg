@@ -322,6 +322,18 @@ public actual class MediaSource internal constructor(
 
     @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun seekMicros(micros: Long) {
+        val rc = seekResult(micros)
+        if (rc < 0) throw demuxFailure(rc)
+    }
+
+    /** Moves the cursor to the stream's first byte (#253): FFmpeg's answer, negative when it cannot. */
+    private fun rewindToFirstByte(): Int = synchronized(stateLock) {
+        check(formatToken != 0L) { "MediaSource is closed" }
+        Internals.fmtSeekFile(formatToken, -1, 0L, 0L, 0L, AVSEEK_FLAG_BYTE)
+    }
+
+    /** [seekMicros] without the throw: FFmpeg's answer, negative on a failure. */
+    private fun seekResult(micros: Long): Int {
         // The native seek runs while stateLock is held: releasing it after the token read would
         // let a concurrent close() free the format context mid-seek. A close arriving during the
         // seek now blocks until the seek returns, which is the safe ordering.
@@ -332,8 +344,7 @@ public actual class MediaSource internal constructor(
                 "Cannot seek this MediaSource while a PacketReader is open: the reader owns the " +
                     "demuxer cursor. Use PacketReader.seek instead."
             }
-            val rc = Internals.fmtSeekMicros(formatToken, -1, toAbsoluteMicros(micros))
-            if (rc < 0) throw demuxFailure(rc)
+            return Internals.fmtSeekMicros(formatToken, -1, toAbsoluteMicros(micros))
         }
     }
 
@@ -370,7 +381,14 @@ public actual class MediaSource internal constructor(
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
         val target = stream ?: primaryVideo
             ?: throw FFmpegException(FFmpegError.Internal("No video stream to extract a frame from"))
-        seekForDecode(atMicros, target)
+        val seek = seekResult((atMicros - decodeSeekBackoffMicros(streams, target)).coerceAtLeast(0L))
+        // A stream that cannot seek by time goes back to its first byte and decodes forward (#253).
+        val fromStart = seek == SEEK_REFUSED
+        if (fromStart) {
+            if (rewindToFirstByte() < 0) throw unseekableExtract(atMicros)
+        } else if (seek < 0) {
+            throw demuxFailure(seek)
+        }
         var result: Frame? = null
         var walked = 0
         extractWalk = 0
@@ -380,9 +398,12 @@ public actual class MediaSource internal constructor(
             onFrame = { frame ->
                 walked += 1
                 extractWalk = walked
-                val timestamp = if (frame.info.hasPts) {
-                    toRelativeMicros(frame.info.pts, target.timeBase)
-                } else Long.MAX_VALUE
+                val timestamp = when {
+                    frame.info.hasPts -> toRelativeMicros(frame.info.pts, target.timeBase)
+                    // Counted from the first byte, an untimed frame's place gives its time.
+                    fromStart -> untimedFrameMicros(walked - 1, target.video?.frameRate) ?: Long.MAX_VALUE
+                    else -> Long.MAX_VALUE
+                }
                 if (timestamp >= atMicros) {
                     result = frame.copy()
                     throw StopDemux()

@@ -241,7 +241,10 @@ public expect class MediaSource : AutoCloseable {
      * @param atMicros where to read, relative to the start of the content (see [startTimeMicros])
      * @param stream which stream to read; default = primary video
      * @return an owned frame: hold it as long as you like, then close it
-     * @throws FFmpegException when the seek or decode fails
+     * @throws FFmpegException when the seek or decode fails. A stream that cannot seek by time, such
+     *   as raw H.264, goes back to its first byte and decodes forward to [atMicros], dating a frame
+     *   that carries no time by its place and the stream's frame rate; one that cannot go back
+     *   either, such as a pipe, fails with [FFmpegError.Unsupported] (#253).
      */
     @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun extractFrame(atMicros: Long, stream: StreamInfo? = null): Frame

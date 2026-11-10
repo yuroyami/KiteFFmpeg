@@ -79,6 +79,7 @@ import ffmpeg.ffkmp_fmt_nb_streams
 import ffmpeg.ffkmp_fmt_open_input
 import ffmpeg.ffkmp_fmt_interrupt
 import ffmpeg.ffkmp_fmt_read_frame
+import ffmpeg.ffkmp_fmt_seek_file
 import ffmpeg.ffkmp_fmt_take_tag_changes
 import ffmpeg.ffkmp_fmt_layout_stamp
 import ffmpeg.KC_OPTION_NOT_FOUND
@@ -508,6 +509,17 @@ public actual class MediaSource internal constructor(
 
     @Throws(FFmpegException::class, CancellationException::class)
     public actual suspend fun seekMicros(micros: Long) {
+        val rc = seekResult(micros)
+        if (rc < 0) throw demuxFailure(rc)
+    }
+
+    /** Moves the cursor to the stream's first byte (#253): FFmpeg's answer, negative when it cannot. */
+    private fun rewindToFirstByte(): Int = whileOpen {
+        ffkmp_fmt_seek_file(ctx, -1, 0L, 0L, 0L, AVSEEK_FLAG_BYTE)
+    }
+
+    /** [seekMicros] without the throw: FFmpeg's answer, negative on a failure. */
+    private fun seekResult(micros: Long): Int {
         synchronized(stateLock) {
             check(!closed) { "MediaSource is closed" }
             // A batch decode flow owns the cursor for its whole run, so seeking under it would make
@@ -530,8 +542,7 @@ public actual class MediaSource internal constructor(
             // [micros] is media-relative; av_seek_frame with stream_index = -1 wants an absolute
             // AV_TIME_BASE timestamp. On a container that starts at a nonzero time (MPEG-TS) the
             // two differ by exactly startTimeMicros.
-            val rc = ffkmp_fmt_seek_micros(ctx, -1, toAbsoluteMicros(micros))
-            if (rc < 0) throw demuxFailure(rc)
+            return ffkmp_fmt_seek_micros(ctx, -1, toAbsoluteMicros(micros))
         }
     }
 
@@ -605,19 +616,31 @@ public actual class MediaSource internal constructor(
     public actual suspend fun extractFrame(atMicros: Long, stream: StreamInfo?): Frame {
         val target = stream ?: primaryVideo
             ?: throw FFmpegException(FFmpegError.Internal("No video stream to extract a frame from"))
-        // [atMicros] is media-relative; seekForDecode and toRelativeMicros both apply the
-        // container's start offset, so the comparison below stays in one consistent timeline.
-        // seekForDecode (not seekMicros) because the loop below decodes forward to the target and
-        // a seek that overshoots would silently return a much later frame.
-        seekForDecode(atMicros, target)
+        // [atMicros] is media-relative; the seek and toRelativeMicros both apply the container's
+        // start offset, so the comparison below stays in one consistent timeline. The seek backs
+        // off as seekForDecode does, because the loop below decodes forward to the target and a
+        // seek that overshoots would silently return a much later frame. A stream that cannot seek
+        // is decoded from its start while nothing has read it yet (#253).
+        val seek = seekResult((atMicros - decodeSeekBackoffMicros(streams, target)).coerceAtLeast(0L))
+        val fromStart = seek == SEEK_REFUSED
+        if (fromStart) {
+            if (rewindToFirstByte() < 0) throw unseekableExtract(atMicros)
+        } else if (seek < 0) {
+            throw demuxFailure(seek)
+        }
         var result: Frame? = null
+        var walked = 0
         demuxRouted(
             decode = listOf(target),
             copy = emptyList(),
             onFrame = { frame ->
-                val ptsMicros = if (frame.info.hasPts) {
-                    toRelativeMicros(frame.info.pts, target.timeBase)
-                } else Long.MAX_VALUE  // no pts → accept the first frame we see
+                walked += 1
+                val ptsMicros = when {
+                    frame.info.hasPts -> toRelativeMicros(frame.info.pts, target.timeBase)
+                    // Counted from the first byte, an untimed frame's place gives its time.
+                    fromStart -> untimedFrameMicros(walked - 1, target.video?.frameRate) ?: Long.MAX_VALUE
+                    else -> Long.MAX_VALUE  // no pts and no known place: accept the first frame
+                }
                 if (ptsMicros >= atMicros) {
                     result = frame.copy()
                     frame.close()
