@@ -143,7 +143,7 @@ jobs:
       # check-deleted-surface.sh holds the fifteen deleted ffkmp_ names dead. It needs no build output.
       - name: Public API baseline + coupling + deleted surface + wasm mirror + dependency hygiene
         run: |
-          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
           ./kotlin build -m kiteffmpeg
           ./kotlin check abi klibAbi cinteropCoupling wasmBindingMirror releaseTargetMirror jniRegistration ffmpegRefs
           ./native/kitecodec-c/scripts/check-deleted-surface.sh
@@ -581,7 +581,7 @@ jobs:
         run: |
           git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
-          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
           # shellcheck disable=SC1010
           ./kotlin do buildFFmpegFor${{ matrix.task }}
       - name: Compile kiteffmpeg klib (${{ matrix.platform }})
@@ -656,7 +656,7 @@ jobs:
           done
       - name: Publish the library to mavenLocal
         run: |
-          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
           # The toolchain signs a mavenLocal publish too. This job has no release key, so it uses a throwaway one.
           . scripts/test-signing-key.sh
           ./kotlin publish mavenLocal -m kiteffmpeg -m kiteffmpeg-android-natives

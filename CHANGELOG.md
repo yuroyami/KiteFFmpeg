@@ -53,6 +53,10 @@ below.
 
 ### Fixed
 
+- Every Android build of CI and of a release uses one pinned NDK, 30.0.16248370, named in
+  `.github/android-ndk-version.txt` (#190). The jobs took whatever the runner image called its
+  latest NDK, so the `ffmpeg-n9.0.2-r3` Android trees came from NDK 29 and NDK 30. A binaries
+  release now fails when its Android trees name another NDK.
 - The FFmpeg source offer now names KiteFFmpeg's patches (#187). Every binary is built from the
   upstream tag with the patches under `native/patches/ffmpeg` applied, but `BUILD-INFO.txt`, the
   `THIRD-PARTY.txt` files, `docs/licensing.md` and `NOTICE` named the upstream tarball alone as

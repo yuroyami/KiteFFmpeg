@@ -81,7 +81,7 @@ jobs:
         env:
           KITEFFMPEG_FFMPEG_SELF_CONTAINED: true
         run: |
-          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
           # `do` is a command of the kotlin script here, not the shell keyword.
           # shellcheck disable=SC1010
           ./kotlin do buildFFmpegFor${{ matrix.task }}
@@ -218,6 +218,23 @@ jobs:
           path: dist
           merge-multiple: true
         continue-on-error: true
+      # Every Android tree of one release must come from the one pinned NDK (#190). A tree names its
+      # compiler, with the NDK's version in the path, on BUILD-INFO.txt's configure line.
+      - name: Check every Android tree names the pinned NDK
+        run: |
+          want="$(tr -d '[:space:]' < source/.github/android-ndk-version.txt)"
+          found=""
+          for zip in dist/ffmpeg-*-android-*.zip; do
+            [ -f "$zip" ] || continue
+            ndk="$(unzip -p "$zip" '*BUILD-INFO.txt' | grep -o 'ndk/[0-9.]*' | sort -u)"
+            echo "$zip: ${ndk:-no NDK named}"
+            found="$found$ndk"$'\n'
+          done
+          names="$(printf '%s' "$found" | grep -v '^$' | sort -u)"
+          if [ -n "$names" ] && [ "$names" != "ndk/$want" ]; then
+            echo "The Android trees name $(echo $names), not the pinned ndk/$want" >&2
+            exit 1
+          fi
       # LGPL source offer: the offer must stay valid for as long as the binaries are distributed,
       # so the exact FFmpeg source is attached to the same release instead of only pointing at a
       # URL we don't control. BUILD-INFO.txt inside each zip references this asset. dav1d is
