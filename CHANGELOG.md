@@ -53,6 +53,9 @@ below.
 
 ### Fixed
 
+- A `MediaSink` over a `MediaByteSink` whose `flush` and `close` both throw reports the flush's
+  failure with the close's suppressed into it (#112). The close's failure used to replace it. A
+  trailer or output close error now keeps the byte sink's own failure beside it too.
 - A transcode's video filter graph is built for the colour matrix and range its frames declare,
   and rebuilt when either changes (#214). Built without them, a filter that converts but stays in
   YUV, such as `scale`, took FFmpeg's default for an unknown input: BT.709 and BT.2020 frames came

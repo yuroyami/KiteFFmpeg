@@ -706,7 +706,8 @@ public actual class MediaSink internal constructor(
         }
         // A failed trailer means the file on disk is broken (e.g. mp4 moov never written), and
         // surfacing that beats handing the caller a corrupt output with a green checkmark.
-        if (trailerRc < 0) throw explained(avError(trailerRc))
+        // The custom output's own failure stays reachable beside the container's (#112).
+        if (trailerRc < 0) throw explained(avError(trailerRc)).also { e -> finishFailure?.takeIf { it !== e }?.let(e::addSuppressed) }
         finishFailure?.let { throw it }
     }
 

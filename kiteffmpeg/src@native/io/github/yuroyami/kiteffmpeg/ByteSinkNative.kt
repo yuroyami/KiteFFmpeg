@@ -33,13 +33,17 @@ internal class ByteSinkState(val sink: MediaByteSink) {
     fun takeFailure(): Throwable? = failure.also { failure = null }
 
     /** Runs once, after the C side freed the output: disposes the ref, then flushes and closes the sink. */
+    /**
+     * Flushes the caller's sink and then closes it, whatever the flush did. A flush failure is the
+     * one that says the bytes did not arrive, so it is what this throws, with a failing close
+     * suppressed into it rather than in its place (#112).
+     */
     fun finish() {
         ref.dispose()
-        try {
-            sink.flush()
-        } finally {
-            sink.close()
-        }
+        val failures = CloseFailures()
+        failures.run { sink.flush() }
+        failures.run { sink.close() }
+        failures.rethrow()
     }
 }
 

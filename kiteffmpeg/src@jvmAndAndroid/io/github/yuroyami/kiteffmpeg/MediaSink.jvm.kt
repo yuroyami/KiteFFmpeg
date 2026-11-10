@@ -583,8 +583,9 @@ public actual class MediaSink internal constructor(
             finishFailure?.let(failure::addSuppressed)
             throw failure
         }
-        if (trailerRc < 0) throw explained(FFmpegException(avError(trailerRc)))
-        if (closeRc < 0) throw explained(FFmpegException(avError(closeRc)))
+        // The custom output's own failure stays reachable beside the container's (#112).
+        if (trailerRc < 0) throw explained(FFmpegException(avError(trailerRc))).also { e -> finishFailure?.takeIf { it !== e }?.let(e::addSuppressed) }
+        if (closeRc < 0) throw explained(FFmpegException(avError(closeRc))).also { e -> finishFailure?.takeIf { it !== e }?.let(e::addSuppressed) }
         finishFailure?.let { throw it }
     }
 
