@@ -54,6 +54,15 @@ internal object FFmpegLog {
     @Volatile
     var sink: FFmpegLogSink? = null
 
+    /** The level the sink was installed at, as a C code; [QUIET] with no sink. */
+    @Volatile
+    var levelCode: Int = QUIET
+
+    /** Hands the sink one warning of KiteFFmpeg's own, when it asked for warnings (#242). */
+    fun warn(component: String, message: String) {
+        if (levelCode >= FFmpegLogLevel.Warning.code) deliver(FFmpegLogLevel.Warning.code, component, message)
+    }
+
     /** The C level for [level] and [sink]: QUIET when there is no sink. */
     fun code(level: FFmpegLogLevel, sink: FFmpegLogSink?): Int = if (sink == null) QUIET else level.code
 

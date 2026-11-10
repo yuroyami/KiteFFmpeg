@@ -9,7 +9,8 @@ import io.github.yuroyami.kiteffmpeg.dsl.DecoderSkip
  * produced it. The compressed payload remains reference counted; taking or copying ownership is an
  * O(1) reference operation, not a copy of the compressed bytes.
  *
- * Close every packet exactly once. Reading any property, copying it or sending it after close throws
+ * Close every packet. One collected without close is freed late, with a warning, on the JVM and
+ * Android only, and leaks on native and the web. Reading any property, copying it or sending it after close throws
  * rather than resolving memory or a token that the allocator is free to reuse.
  */
 @KiteFFmpegLowLevelApi

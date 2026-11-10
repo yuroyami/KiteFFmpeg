@@ -6,8 +6,10 @@ package io.github.yuroyami.kiteffmpeg
  *
  * **Ownership rule.** Frames emitted by the public `Flow` APIs ([MediaSource.decodedFrames],
  * [MediaSource.decodeStreams], [FilterGraph.process]) are owned by the collector. Each frame
- * stays valid until you [close] it. Close every collected frame. An unclosed frame leaks its
- * native buffers. Frames handed to a callback ([FilterGraph.feedInput]'s `onOutput`) are valid
+ * stays valid until you [close] it. Close every collected frame. An unclosed frame holds its
+ * native buffers until the garbage collector finds it, which may be never, since the collector
+ * does not see native memory. On the JVM and Android a frame collected without close is then
+ * freed with a warning to the [FFmpeg.setLogSink] sink; on native and the web it leaks. Frames handed to a callback ([FilterGraph.feedInput]'s `onOutput`) are valid
  * only for that call. Call [copy] to take an owned snapshot of one.
  *
  * **Buffering rule.** `toList()` is safe: every frame reaches you. Do not put frames through a

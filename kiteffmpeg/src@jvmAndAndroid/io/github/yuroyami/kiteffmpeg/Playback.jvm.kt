@@ -2,7 +2,7 @@ package io.github.yuroyami.kiteffmpeg
 
 @KiteFFmpegLowLevelApi
 public actual class Packet internal constructor(
-    internal var token: Long,
+    token: Long,
     public actual val timeBase: Rational,
     public actual val newContainerTags: Map<String, String>? = null,
     public actual val newStreamTags: Map<String, String>? = null,
@@ -11,7 +11,16 @@ public actual class Packet internal constructor(
 ) : AutoCloseable {
     // Guards the token across each native call, excluding a concurrent close(): the JNI handle
     // table only guarantees a non-torn lookup, not object lifetime for the whole operation.
-    internal val lock: Any = Any()
+    internal val lock: Any get() = claim
+
+    /** The native packet; one collected without [close] is freed by [NativeReaper] with a warning (#242). */
+    private val claim = NativeClaim(token, "Packet", FREE_PACKET)
+
+    internal val token: Long get() = claim.token
+
+    init {
+        if (token != 0L) claim.watch(this)
+    }
 
     internal fun checkOpen(): Long {
         check(token != 0L) { "Packet is closed" }
@@ -42,12 +51,7 @@ public actual class Packet internal constructor(
     public actual fun copyBytes(): ByteArray = locked { Internals.packetBytes(it) }
 
     actual override fun close() {
-        synchronized(lock) {
-            val owned = token
-            if (owned == 0L) return
-            token = 0L
-            Internals.packetFree(owned)
-        }
+        synchronized(lock) { claim.release() }
     }
 }
 
@@ -361,3 +365,5 @@ public actual class StreamDecoder internal constructor(
         }
     }
 }
+
+private val FREE_PACKET: (Long) -> Unit = { Internals.packetFree(it) }

@@ -381,6 +381,7 @@ internal object Internals {
     @Synchronized
     internal fun setLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
         FFmpegLog.sink = sink
+        FFmpegLog.levelCode = FFmpegLog.code(level, sink)
         checked { nativeSetLogLevel(FFmpegLog.code(level, sink)) }
     }
 

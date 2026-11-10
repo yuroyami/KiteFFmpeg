@@ -1,7 +1,7 @@
 package io.github.yuroyami.kiteffmpeg
 
 public actual class Frame internal constructor(
-    internal var token: Long,
+    token: Long,
     private val ownsToken: Boolean,
     internal val streamIndex: Int,
     internal val streamType: MediaType,
@@ -13,7 +13,20 @@ public actual class Frame internal constructor(
      * alive across an operation, so the mutual exclusion has to happen here, at the boundary where
      * both the operation and the close enter native code.
      */
-    internal val lock: Any = Any()
+    internal val lock: Any get() = claim
+
+    /**
+     * The native frame and how it goes. An owning frame that is collected without [close] has it
+     * freed by [NativeReaper] and logs a warning (#242); a view onto another owner's frame is only
+     * unreferenced by its own [close].
+     */
+    private val claim = NativeClaim(token, "Frame", if (ownsToken) FREE_FRAME else UNREF_FRAME)
+
+    internal val token: Long get() = claim.token
+
+    init {
+        if (ownsToken && token != 0L) claim.watch(this)
+    }
 
     internal fun checkOpen(): Long {
         check(token != 0L) { "Frame is closed, its native buffers are gone" }
@@ -282,12 +295,7 @@ public actual class Frame internal constructor(
     }
 
     actual override fun close() {
-        synchronized(lock) {
-            val owned = token
-            if (owned == 0L) return
-            token = 0L
-            if (ownsToken) Internals.frameFree(owned) else Internals.frameUnref(owned)
-        }
+        synchronized(lock) { claim.release() }
     }
 
     public actual companion object {
@@ -379,3 +387,6 @@ internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRo
         "Dolby Vision composition of rows $startRow until $endRowExclusive",
     )
 }
+
+private val FREE_FRAME: (Long) -> Unit = { Internals.frameFree(it) }
+private val UNREF_FRAME: (Long) -> Unit = { Internals.frameUnref(it) }
