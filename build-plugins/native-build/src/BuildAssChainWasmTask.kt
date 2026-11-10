@@ -124,6 +124,8 @@ open class BuildAssChainWasmTask : BuildStep() {
                 "CC" to emcc, "CXX" to emxx, "AR" to emar, "RANLIB" to emranlib,
                 // configure's link probes must not try to produce and run a native binary.
                 "LDFLAGS" to "-O2",
+                // Without it autoconf picks "-g -O2" and libass carries DWARF (#191).
+                "CFLAGS" to BuildAssChainTask.LIBASS_CFLAGS,
             )
             runIn(source, listOf("autoreconf", "-ivf"), toolchain)
             val build = scratch.resolve("build-libass").also(File::mkdirs)

@@ -160,7 +160,10 @@ open class BuildAssChainTask : BuildStep() {
         copyTreeKeepingExecutableBits(vendor.resolve("libass"), source)
         val patches = BuildFFmpegTask.orderedPatches(sourcePatches.files)
         patches.forEach { patch -> runIn(source, BuildFFmpegTask.patchCommand(patch), env) }
-        val fullEnv = env + toolchainEnv(target, scratch)
+        // CFLAGS set on purpose: unset, autoconf's AC_PROG_CC picks "-g -O2", so every libass
+        // object carried DWARF that each library linked from the chain inherited, a third of the
+        // published Android adapter (#191). The meson members build with --buildtype release.
+        val fullEnv = env + toolchainEnv(target, scratch) + ("CFLAGS" to LIBASS_CFLAGS)
         runIn(source, listOf("autoreconf", "-ivf"), fullEnv)
         val configure = mutableListOf(
             source.resolve("configure").absolutePath,
@@ -522,6 +525,9 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
     }
 
     companion object {
+        /** libass's C flags: optimised, without debug info, as the meson members of the chain (#191). */
+        const val LIBASS_CFLAGS: String = "-O2"
+
         /**
          * Every target this task can cross-build the chain for, and therefore every target
          * `:kiteffmpeg` may register a `buildAssChainFor<Target>` task for. One list, read by
