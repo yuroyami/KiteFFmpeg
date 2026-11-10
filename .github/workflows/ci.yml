@@ -46,7 +46,7 @@ env:
   # it in their own `git clone --branch`, and `./kotlin check ffmpegRefs` compares those clones with
   # the build recipe. This line moves only when a new companion release is published.
   FFMPEG_VERSION: n9.0.2
-  # The emscripten the web codec modules are built with. publish.yml and release-ass-chain.yml pin
+  # The emscripten the web codec modules are built with. The publish inputs action and release-ass-chain.yml pin
   # the same one, so the compiler CI tests is the one that ships (#227);
   # scripts/check-emscripten-pins.sh fails while the three differ.
   EMSCRIPTEN_VERSION: "6.0.11"

@@ -35,6 +35,17 @@
 # release page. A digest, a version or a patch that does not match stops the run before the
 # upload. A publish from the maintainer's machine gets no document; run the script by hand there.
 #
+# BUILD ATTESTATION (#215). The attest job signs a build provenance attestation of every file the
+# run hands out: each jar, klib, AAR, POM and module metadata file of the four artifacts, and the
+# bill of materials. The publish-library job lists them as checksums from a Maven Local
+# publication; the attest job signs that list; only then does the upload job build again on a
+# fresh runner, fail before the upload when any listed byte differs, upload, and compare once more.
+# Signatures are not subjects, because each one is made again for Central. An app author checks a
+# file with
+#   gh attestation verify <file> --repo yuroyami/KiteFFmpeg --signer-workflow yuroyami/KiteFFmpeg/.github/workflows/publish.yml
+# and adds --source-ref refs/tags/v<version> or --source-digest <commit> to pin what was built.
+# A publish from the maintainer's machine carries no attestation.
+#
 # TESTS. The upload job waits for the whole of ci.yml, run on the commit being published, so a
 # commit whose tests fail cannot reach Central. A release therefore takes as long as CI plus the
 # upload, and one flaky test stops it.
@@ -104,7 +115,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   publish-library:
-    name: kiteffmpeg, its Android natives and its web jars → Maven Central
+    name: build, test and list kiteffmpeg, its Android natives and its web jars
     needs: [check-version, tests]
     # Apple klibs (macosArm64) can only be produced on a macOS host.
     runs-on: macos-latest
@@ -123,43 +134,12 @@ jobs:
           key: kotlin-toolchain-publish-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
             kotlin-toolchain-publish-
-      # The build requires an FFmpeg tree for EVERY native target, and cinterop
-      # EMBEDS these archives into the published klibs. Fetch this repo's own prebuilt
-      # LGPL assets from the release tag being published and unpack into the exact layout
-      # FFmpegPaths.resolve() expects: native-libs/<license>/<triple>/{include,lib}. The archives
-      # and their .sha256 files stay in build/prebuilt-ffmpeg for the bill of materials.
-      - name: Fetch prebuilt FFmpeg (all 11 triples, lgpl, dav1d inside)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # The FFmpeg binaries are keyed to the FFMPEG version, not to KiteFFmpeg's: n8.0 zips are
-          # byte-identical across every KiteFFmpeg release, so ONE canonical `ffmpeg-<version>`
-          # release holds them and every KiteFFmpeg version fetches from it. Storing a copy per
-          # version release cost 127 MB each for nothing (owner call, 2026-08-22).
-          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
-          kept=build/prebuilt-ffmpeg
-          mkdir -p "${kept}"
-          for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
-                        linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
-            asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
-            echo "fetching ${asset}"
-            curl -fL --retry 3 -o "${kept}/${asset}" "${base}/${asset}"
-            curl -fL --retry 3 -o "${kept}/${asset}.sha256" "${base}/${asset}.sha256"
-            # The release's .sha256 is kept for the bill of materials, but the check is against
-            # the digest this commit pins, which a rerun of the release cannot replace (#188).
-            .github/scripts/check-prebuilt.sh "${kept}/${asset}"
-            # And the zip must be one release-binaries.yml built in this repository, by its
-            # provenance attestation (#188).
-            gh attestation verify "${kept}/${asset}" --repo "${{ github.repository }}" \
-              --signer-workflow "${{ github.repository }}/.github/workflows/release-binaries.yml"
-            mkdir -p "native-libs/lgpl/${triple}"
-            unzip -q "${kept}/${asset}" -d "native-libs/lgpl/${triple}"
-            test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
-            # Before anything is built: a tree without every committed patch stops the run here,
-            # naming what it lacks, instead of at the web jars' bill of materials (#175).
-            ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
-          done
+      # The FFmpeg trees of all 11 triples, emscripten and the FFmpeg source of the web module: the
+      # same inputs for this job and the upload job (.github/actions/publish-inputs).
+      - name: The FFmpeg trees, emscripten and the FFmpeg source
+        uses: ./.github/actions/publish-inputs
+        with:
+          token: ${{ github.token }}
       # Written from the archives the step above kept, and before anything is built or uploaded,
       # so a refusal stops the run early. It is written again once the web jars exist.
       - name: Bill of materials for the embedded FFmpeg and dav1d
@@ -191,22 +171,9 @@ jobs:
       # version, and the FFmpeg clone must be the commit the native archives were built from, so a
       # later publish cannot ship different bytes from the same inputs.
       - name: Build the web codec module
-        env:
-          EMSCRIPTEN_VERSION: "6.0.11"
         run: |
           set -euo pipefail
-          git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"
-          "${RUNNER_TEMP}/emsdk/emsdk" install "${EMSCRIPTEN_VERSION}"
-          "${RUNNER_TEMP}/emsdk/emsdk" activate "${EMSCRIPTEN_VERSION}"
           source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
-          git clone --depth 1 --branch "${FFMPEG_VERSION}" https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-          expected=$(unzip -p "build/prebuilt-ffmpeg/ffmpeg-${FFMPEG_VERSION}-lgpl-macos-arm64.zip" BUILD-INFO.txt \
-            | sed -n 's/^Git commit: *//p' | head -1 | tr -d '\r')
-          actual=$(git -C vendor/ffmpeg rev-parse HEAD)
-          if [ -z "${expected}" ] || [ "${actual}" != "${expected}" ]; then
-            echo "::error::FFmpeg ${FFMPEG_VERSION} cloned as ${actual}, but the native archives were built from ${expected}" >&2
-            exit 1
-          fi
           export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
           # shellcheck disable=SC1010
           ./kotlin build -m kiteffmpeg-web -m kiteffmpeg-web-async
@@ -255,6 +222,110 @@ jobs:
           name: native-sbom-${{ inputs.version }}
           path: build/sbom/
           if-no-files-found: error
+      # The subjects of the attestation: every file this build publishes, read from a Maven Local
+      # publication, and the bill of materials. The attest job signs the list before the upload
+      # job runs (#215).
+      - name: List the files to attest
+        run: |
+          set -euo pipefail
+          ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
+          export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
+          . scripts/test-signing-key.sh
+          ./kotlin publish mavenLocal -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async
+          mkdir -p build/attest
+          ./scripts/attestation-subjects.sh maven > build/attest/maven.sha256
+          ./scripts/attestation-subjects.sh release > build/attest/release.sha256
+          wc -l build/attest/maven.sha256 build/attest/release.sha256
+          # At most 1024 subjects go into one attestation, so the list is cut into parts of 1000.
+          cat build/attest/maven.sha256 build/attest/release.sha256 \
+            | awk '{ part = int((NR - 1) / 1000); print > ("build/attest/subjects-" part ".sha256") }'
+          parts="$(ls build/attest/subjects-*.sha256 | wc -l | tr -d ' ')"
+          if [ "$parts" -gt 2 ]; then
+            echo "::error::$parts parts of subjects; the attest job signs two, add a step there" >&2
+            exit 1
+          fi
+      - name: Keep the list of files to attest
+        uses: actions/upload-artifact@v4
+        with:
+          name: attestation-subjects-${{ inputs.version }}
+          path: build/attest/subjects-*.sha256
+          if-no-files-found: error
+      - name: Keep the list of Maven files for the upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-list-${{ inputs.version }}
+          path: build/attest/maven.sha256
+          if-no-files-found: error
+
+  # Only this job holds the id-token and attestations permissions, and it reads only the list.
+  attest:
+    name: signed build attestation of the files to publish
+    needs: [check-version, publish-library]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: attestation-subjects-${{ inputs.version }}
+          path: subjects
+      - name: Attest the first thousand files
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: subjects/subjects-0.sha256
+      - name: Attest the second thousand files
+        if: hashFiles('subjects/subjects-1.sha256') != ''
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: subjects/subjects-1.sha256
+
+  # The upload waits for the attestation, so nothing reaches Central, and nothing is released,
+  # before the files it names are attested. It builds on a fresh runner from the same inputs and
+  # compares its Maven Local publication with the attested list before the upload, so a build
+  # that is not reproducible stops here, and compares again after it.
+  upload:
+    name: the attested files → Maven Central
+    needs: [check-version, attest]
+    runs-on: macos-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-toolchain-publish-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
+          restore-keys: |
+            kotlin-toolchain-publish-
+      - name: The FFmpeg trees, emscripten and the FFmpeg source
+        uses: ./.github/actions/publish-inputs
+        with:
+          token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: maven-list-${{ inputs.version }}
+          path: ${{ runner.temp }}/attested
+      - name: This build gives the attested files
+        run: |
+          set -euo pipefail
+          ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
+          export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
+          . scripts/test-signing-key.sh
+          ./kotlin publish mavenLocal -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async
+          ./scripts/attestation-subjects.sh maven > "${RUNNER_TEMP}/maven-here.sha256"
+          if ! diff -u "${RUNNER_TEMP}/attested/maven.sha256" "${RUNNER_TEMP}/maven-here.sha256"; then
+            echo "::error::this runner built other bytes than the attested ones; nothing was uploaded" >&2
+            exit 1
+          fi
       # Uploads to the Central Portal. By default it stops there: the deployment waits and a human
       # presses Publish. With the release input on, the run switches publishingMode to auto in its
       # own checkout, which is the same click made by the run rather than by a person. Central is
@@ -267,8 +338,6 @@ jobs:
           KOTLIN_TOOLCHAIN_SIGNING_KEY: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
           KOTLIN_TOOLCHAIN_SIGNING_KEY_PASSPHRASE: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
         run: |
-          # The Android natives jar links with the NDK. The web jars link with emscripten if
-          # their earlier link is out of date.
           ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
           source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
           export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
@@ -277,3 +346,19 @@ jobs:
             grep -q 'publishingMode: auto' library.module-template.yaml
           fi
           ./kotlin publish mavenCentral -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async
+      # The same comparison once more, after the upload, from an emptied Maven Local. With the
+      # release input off, a failure here means: drop the deployment on the portal.
+      - name: The uploaded files are the attested ones
+        run: |
+          set -euo pipefail
+          ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
+          export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
+          . scripts/test-signing-key.sh
+          mv "$HOME/.m2/repository/io/github/yuroyami" "${RUNNER_TEMP}/before-upload"
+          ./kotlin publish mavenLocal -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async
+          ./scripts/attestation-subjects.sh maven > "${RUNNER_TEMP}/maven-again.sha256"
+          if ! diff -u "${RUNNER_TEMP}/attested/maven.sha256" "${RUNNER_TEMP}/maven-again.sha256"; then
+            echo "::error::the build gave other bytes after the upload than the attested ones" >&2
+            exit 1
+          fi

@@ -1,0 +1,70 @@
+name: The inputs of a KiteFFmpeg publish
+description: >-
+  Fetches and checks the prebuilt FFmpeg trees of all 11 triples, installs the pinned emscripten
+  and clones the FFmpeg source the web module builds from. The publish job and the upload job of
+  publish.yml run it, so both build from the same inputs (#215).
+inputs:
+  token:
+    description: The token gh attestation verify reads the release with.
+    required: true
+runs:
+  using: composite
+  steps:
+    # The build requires an FFmpeg tree for EVERY native target, and cinterop
+    # EMBEDS these archives into the published klibs. Fetch this repo's own prebuilt
+    # LGPL assets from the release tag being published and unpack into the exact layout
+    # FFmpegPaths.resolve() expects: native-libs/<license>/<triple>/{include,lib}. The archives
+    # and their .sha256 files stay in build/prebuilt-ffmpeg for the bill of materials.
+    - name: Fetch prebuilt FFmpeg (all 11 triples, lgpl, dav1d inside)
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+            set -euo pipefail
+            # The FFmpeg binaries are keyed to the FFMPEG version, not to KiteFFmpeg's: n8.0 zips are
+            # byte-identical across every KiteFFmpeg release, so ONE canonical `ffmpeg-<version>`
+            # release holds them and every KiteFFmpeg version fetches from it. Storing a copy per
+            # version release cost 127 MB each for nothing (owner call, 2026-08-22).
+            base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
+            kept=build/prebuilt-ffmpeg
+            mkdir -p "${kept}"
+            for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
+                          linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
+              asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
+              echo "fetching ${asset}"
+              curl -fL --retry 3 -o "${kept}/${asset}" "${base}/${asset}"
+              curl -fL --retry 3 -o "${kept}/${asset}.sha256" "${base}/${asset}.sha256"
+              # The release's .sha256 is kept for the bill of materials, but the check is against
+              # the digest this commit pins, which a rerun of the release cannot replace (#188).
+              .github/scripts/check-prebuilt.sh "${kept}/${asset}"
+              # And the zip must be one release-binaries.yml built in this repository, by its
+              # provenance attestation (#188).
+              gh attestation verify "${kept}/${asset}" --repo "${{ github.repository }}" \
+                --signer-workflow "${{ github.repository }}/.github/workflows/release-binaries.yml"
+              mkdir -p "native-libs/lgpl/${triple}"
+              unzip -q "${kept}/${asset}" -d "native-libs/lgpl/${triple}"
+              test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
+              # Before anything is built: a tree without every committed patch stops the run here,
+              # naming what it lacks, instead of at the web jars' bill of materials (#175).
+              ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
+            done
+    # Emscripten from emsdk at a pinned version, and the FFmpeg clone must be the commit the native
+    # archives were built from, so a later publish cannot ship different bytes from the same inputs.
+    - name: Emscripten and the FFmpeg source
+      shell: bash
+      env:
+        EMSCRIPTEN_VERSION: "6.0.11"
+      run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"
+          "${RUNNER_TEMP}/emsdk/emsdk" install "${EMSCRIPTEN_VERSION}"
+          "${RUNNER_TEMP}/emsdk/emsdk" activate "${EMSCRIPTEN_VERSION}"
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
+          git clone --depth 1 --branch "${FFMPEG_VERSION}" https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          expected=$(unzip -p "build/prebuilt-ffmpeg/ffmpeg-${FFMPEG_VERSION}-lgpl-macos-arm64.zip" BUILD-INFO.txt \
+            | sed -n 's/^Git commit: *//p' | head -1 | tr -d '\r')
+          actual=$(git -C vendor/ffmpeg rev-parse HEAD)
+          if [ -z "${expected}" ] || [ "${actual}" != "${expected}" ]; then
+            echo "::error::FFmpeg ${FFMPEG_VERSION} cloned as ${actual}, but the native archives were built from ${expected}" >&2
+            exit 1
+          fi
