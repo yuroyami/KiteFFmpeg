@@ -30,9 +30,10 @@ import kotlin.js.JsAny
  *
  * The conversion is the one for a picture on a screen, not only a change of encoding. A YCgCo
  * picture uses the YCgCo matrix. A PQ or HLG picture is tone mapped to SDR in C beside the decoder:
- * BT.2020 primaries fold to BT.709, and luminance rolls off from a 1000 nit peak to 203 nit
- * reference white, encoded as gamma 2.2. That is the law KitePlayer's other software paths use, so
- * the canvas shows the same picture they do. Because it runs for every frame drawn, the conversion
+ * BT.2020 primaries fold to BT.709, and luminance rolls off through the BT.2390 EETF from the
+ * content's peak, its MaxCLL or its mastering display's peak and else 1000 nits, to 203 nit
+ * reference white, encoded as gamma 2.2. A source deeper than 8 bits is mapped before the cut to
+ * 8 bits, so its gradients keep their steps (#231). Because it runs for every frame drawn, the conversion
  * is swscale's fast one, up to 3 off the colour matrix with each chroma sample repeated across a
  * pair of pixels in a row, where a frame saved as an image or fed to an encoder converts exactly
  * (#164).

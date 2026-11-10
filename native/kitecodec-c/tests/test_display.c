@@ -18,6 +18,8 @@
 
 #include "kitecodec_helpers.h"
 
+#include <libavutil/mastering_display_metadata.h>
+
 #include <libavutil/frame.h>
 #include <libavutil/pixfmt.h>
 #include <libswscale/swscale.h>
@@ -307,6 +309,98 @@ static void case_fcc(void)
     ffkmp_frame_free(src);
 }
 
+/* ---- A deep source and the content's own peak (#231) ---- */
+
+/* A yuv444p10 frame of grey pixels, luma from `first` up by one code per pixel, chroma neutral. */
+static AVFrame *grey_ramp10(int first, int count, int trc)
+{
+    AVFrame *f = av_frame_alloc();
+    int x, plane;
+    if (f == NULL) return NULL;
+    f->width = count;
+    f->height = 1;
+    f->format = AV_PIX_FMT_YUV444P10;
+    if (av_frame_get_buffer(f, 0) < 0) {
+        av_frame_free(&f);
+        return NULL;
+    }
+    for (x = 0; x < count; x++) {
+        ((uint16_t *)f->data[0])[x] = (uint16_t)(first + x);
+        for (plane = 1; plane < 3; plane++) ((uint16_t *)f->data[plane])[x] = 512;
+    }
+    f->colorspace = AVCOL_SPC_BT2020_NCL;
+    f->color_range = AVCOL_RANGE_MPEG;
+    f->color_trc = trc;
+    f->color_primaries = AVCOL_PRI_BT2020;
+    return f;
+}
+
+/* Thirty-two neighbouring 10-bit codes in PQ's mid tones. Cut to 8 bits first, as before, they
+ * fell on eight or nine bytes before the tone map, and came out as that many stairs. */
+static void case_deep_source_keeps_its_steps(void)
+{
+    AVFrame *src, *dst;
+    int x, distinct = 1, falls = 0;
+    kc_case("a 10-bit PQ ramp keeps its steps apart through the tone map");
+    src = grey_ramp10(400, 32, AVCOL_TRC_SMPTE2084);
+    KC_NOT_NULL(src);
+    dst = ffkmp_frame_convert_display(src, AV_PIX_FMT_RGBA);
+    KC_NOT_NULL(dst);
+    for (x = 1; x < 32; x++) {
+        int now = dst->data[0][x * 4 + 1], before = dst->data[0][(x - 1) * 4 + 1];
+        if (now != before) distinct++;
+        if (now < before) falls++;
+    }
+    if (falls != 0) KC_FAIL("the ramp fell %d times", falls);
+    if (distinct < 16) KC_FAIL("32 codes came out on %d levels, as an 8-bit cut gives", distinct);
+    kc_detail("32 codes from %d to %d on %d levels", dst->data[0][1], dst->data[0][31 * 4 + 1], distinct);
+    ffkmp_frame_free(dst);
+    ffkmp_frame_free(src);
+}
+
+static int green_of(AVFrame *src)
+{
+    AVFrame *dst = ffkmp_frame_convert_display(src, AV_PIX_FMT_RGBA);
+    int g;
+    if (dst == NULL) KC_FAIL("the conversion failed");
+    g = dst->data[0][1];
+    ffkmp_frame_free(dst);
+    return g;
+}
+
+/* A bright PQ grey, near 1000 nits, sits at the top of a 1000 nit master and in the middle of a
+ * 4000 nit one, so it maps darker under the larger peak. */
+static void case_peak_comes_from_the_frame(void)
+{
+    AVFrame *src;
+    AVContentLightMetadata *cll;
+    AVMasteringDisplayMetadata *mastering;
+    int none, cll4000, cll50, mastering4000;
+    kc_case("PQ maps from the frame's MaxCLL, else its mastering peak, else 1000 nits");
+    src = grey_ramp10(720, 1, AVCOL_TRC_SMPTE2084);
+    KC_NOT_NULL(src);
+    none = green_of(src);
+    mastering = av_mastering_display_metadata_create_side_data(src);
+    KC_NOT_NULL(mastering);
+    mastering->max_luminance = av_make_q(4000, 1);
+    mastering->min_luminance = av_make_q(1, 10000);
+    mastering->has_luminance = 1;
+    mastering4000 = green_of(src);
+    cll = av_content_light_metadata_create_side_data(src);
+    KC_NOT_NULL(cll);
+    cll->MaxCLL = 50;
+    cll50 = green_of(src);
+    cll->MaxCLL = 1000;
+    KC_EQ_INT(green_of(src), none);
+    cll->MaxCLL = 4000;
+    cll4000 = green_of(src);
+    if (!(mastering4000 < none)) KC_FAIL("a 4000 nit master mapped to %d, not darker than %d with no metadata", mastering4000, none);
+    KC_EQ_INT(cll50, mastering4000);
+    KC_EQ_INT(cll4000, mastering4000);
+    kc_detail("no metadata %d, 4000 nit master %d, MaxCLL 50 ignored %d, MaxCLL 4000 %d", none, mastering4000, cll50, cll4000);
+    ffkmp_frame_free(src);
+}
+
 /* ---- Cost, printed and never asserted, because a busy machine moves it ---- */
 
 /* The thread's own processor time, so other processes on a busy machine move the number less. */
@@ -315,6 +409,34 @@ static double now_ms(void)
     struct timespec t;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t);
     return t.tv_sec * 1000.0 + t.tv_nsec / 1e6;
+}
+
+/* A yuv420p10 PQ frame whose every pixel differs from its neighbour. */
+static AVFrame *deep_varied(int width, int height)
+{
+    AVFrame *f = av_frame_alloc();
+    int x, y;
+    if (f == NULL) return NULL;
+    f->width = width;
+    f->height = height;
+    f->format = AV_PIX_FMT_YUV420P10;
+    if (av_frame_get_buffer(f, 0) < 0) {
+        av_frame_free(&f);
+        return NULL;
+    }
+    for (y = 0; y < height; y++)
+        for (x = 0; x < width; x++)
+            ((uint16_t *)(f->data[0] + (ptrdiff_t)y * f->linesize[0]))[x] = (uint16_t)(64 + (x * 7 + y * 3) % 876);
+    for (y = 0; y < (height + 1) / 2; y++)
+        for (x = 0; x < (width + 1) / 2; x++) {
+            ((uint16_t *)(f->data[1] + (ptrdiff_t)y * f->linesize[1]))[x] = (uint16_t)(64 + (x * 5 + y) % 896);
+            ((uint16_t *)(f->data[2] + (ptrdiff_t)y * f->linesize[2]))[x] = (uint16_t)(64 + (x + y * 5) % 896);
+        }
+    f->colorspace = AVCOL_SPC_BT2020_NCL;
+    f->color_range = AVCOL_RANGE_MPEG;
+    f->color_trc = AVCOL_TRC_SMPTE2084;
+    f->color_primaries = AVCOL_PRI_BT2020;
+    return f;
 }
 
 static double per_frame_ms(const AVFrame *src, AVFrame *(*convert)(const AVFrame *, int))
@@ -334,7 +456,7 @@ static double per_frame_ms(const AVFrame *src, AVFrame *(*convert)(const AVFrame
 static void case_cost(void)
 {
     AVFrame *frame;
-    double sdr, exact, pq_varied, pq_flat;
+    double sdr, exact, pq_varied, pq_flat, pq_deep;
     kc_case("the tone map's cost on a 1080p frame, beside the plain conversion and the exact one");
     frame = flat_yuv(AV_PIX_FMT_YUV420P, 1920, 1080, 120, 90, 180, AVCOL_SPC_BT2020_NCL, AVCOL_RANGE_MPEG);
     KC_NOT_NULL(frame);
@@ -350,7 +472,12 @@ static void case_cost(void)
     frame->color_trc = AVCOL_TRC_SMPTE2084;
     frame->color_primaries = AVCOL_PRI_BT2020;
     pq_flat = per_frame_ms(frame, ffkmp_frame_convert_display);
-    kc_detail("SDR %.2f ms, exact %.2f ms, PQ %.2f ms varied and %.2f ms flat, per frame", sdr, exact, pq_varied, pq_flat);
+    ffkmp_frame_free(frame);
+    frame = deep_varied(1920, 1080);
+    KC_NOT_NULL(frame);
+    pq_deep = per_frame_ms(frame, ffkmp_frame_convert_display);
+    kc_detail("SDR %.2f ms, exact %.2f ms, PQ %.2f ms varied and %.2f ms flat, 10-bit PQ %.2f ms varied, per frame",
+              sdr, exact, pq_varied, pq_flat, pq_deep);
     ffkmp_frame_free(frame);
 }
 
@@ -404,6 +531,8 @@ int main(void)
     case_tone_map("PQ with BT.709 primaries", PQ_709, 12, AVCOL_TRC_SMPTE2084, AVCOL_PRI_BT709);
     case_tone_map("HLG with BT.2020 primaries", HLG_2020, 12, AVCOL_TRC_ARIB_STD_B67, AVCOL_PRI_BT2020);
     case_other_byte_orders();
+    case_deep_source_keeps_its_steps();
+    case_peak_comes_from_the_frame();
     case_sdr_is_the_fast_conversion();
     case_ycgco();
     case_fcc();

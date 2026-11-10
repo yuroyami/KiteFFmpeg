@@ -188,8 +188,10 @@ KC_API kc_frame* ffkmp_frame_convert_for_encoder(const kc_frame *src, const kc_c
  * each chroma sample repeated across a pair of pixels in a row rather than interpolated, for
  * about a seventh of the time on a 1080p frame (#164). Two steps are added. A YCgCo picture uses
  * the YCgCo matrix. A PQ or HLG picture is tone mapped to SDR: BT.2020 primaries fold to BT.709,
- * and luminance rolls off from a 1000 nit peak to 203 nit reference white, encoded as gamma 2.2.
- * The result's tags say so. Every other picture gives the fast conversion's bytes, with the tags
+ * and luminance rolls off from the source's peak to 203 nit reference white, encoded as gamma 2.2.
+ * A PQ picture's peak is its MaxCLL, else its mastering display's peak, each only between 100 and
+ * 10000 nits, else 1000 nits; HLG maps from 1000 nits. A source deeper than 8 bits is tone mapped
+ * from a 16-bit intermediate before the cut to 8 bits (#231). The result's tags say so. Every other picture gives the fast conversion's bytes, with the tags
  * ffkmp_frame_convert_pixfmt gives.
  */
 KC_API kc_frame* ffkmp_frame_convert_display(const kc_frame *src, int dst_fmt);
