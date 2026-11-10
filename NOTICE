@@ -78,8 +78,11 @@ WHAT THIS MEANS IF YOU SHIP AN APP USING KITEFFMPEG
   - The LGPL applies to FFmpeg, not to your application, and not to KiteFFmpeg's
     own Apache-2.0 code.
   - State that your application uses FFmpeg under the LGPL, and make the
-    corresponding FFmpeg source available to your users. Linking to the tag above
-    plus any patches you applied satisfies this.
+    corresponding FFmpeg source available to your users. That source is the tag
+    above plus KiteFFmpeg's patches, which every KiteFFmpeg binary carries: the
+    release assets ffmpeg-<version>-source.tar.gz and ffmpeg-<version>-patches.tar.gz,
+    plus any patches of your own. The upstream tag alone is not the source of what
+    you ship.
   - If you link FFmpeg statically, the LGPL additionally requires that your users
     be able to relink your application against a modified FFmpeg. Publishing your
     object files, or providing a written offer, are the usual routes.

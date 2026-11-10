@@ -1,8 +1,11 @@
 This artifact embeds compiled FFmpeg libraries (LGPL-2.1-or-later) and dav1d
 (BSD-2-Clause) inside its native library. KiteFFmpeg's own code is Apache-2.0.
 
-FFmpeg source (exact tag this build was compiled from):
-  https://github.com/yuroyami/KiteFFmpeg/releases  (asset: ffmpeg-<version>-source.tar.gz)
+FFmpeg source (the exact tag this build was compiled from, with KiteFFmpeg's patches applied;
+the two together are the complete corresponding source):
+  https://github.com/yuroyami/KiteFFmpeg/releases  (assets: ffmpeg-<version>-source.tar.gz
+  and ffmpeg-<version>-patches.tar.gz)
+  https://github.com/yuroyami/KiteFFmpeg/tree/main/native/patches/ffmpeg  (the patches)
   https://github.com/FFmpeg/FFmpeg
 
 dav1d 1.5.4: https://code.videolan.org/videolan/dav1d (BSD-2-Clause). It carries no

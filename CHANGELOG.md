@@ -53,6 +53,11 @@ below.
 
 ### Fixed
 
+- The FFmpeg source offer now names KiteFFmpeg's patches (#187). Every binary is built from the
+  upstream tag with the patches under `native/patches/ffmpeg` applied, but `BUILD-INFO.txt`, the
+  `THIRD-PARTY.txt` files, `docs/licensing.md` and `NOTICE` named the upstream tarball alone as
+  the exact source. A binaries release now attaches `ffmpeg-<version>-patches.tar.gz` beside it,
+  with a README that says how to apply them, and the texts name both.
 - `ClosedCaptionDecoder` reads CC1 alone (#263). FFmpeg's caption decoder keeps no data channel,
   so CC2's control codes acted on CC1's screen, a CC2 erase blanked CC1's caption, and CC2's text
   appeared inside it. The C layer now passes over the pairs of CC2 before FFmpeg sees them.

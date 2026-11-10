@@ -117,9 +117,12 @@ Build date (UTC): $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 Configure:        ${configure_line}
 
 FFmpeg is licensed under the LGPL v2.1 or later; builds with --enable-gpl are covered by the
-GPL instead. See the bundled COPYING.* files and LICENSE.md. The complete corresponding source
-code for this build is available at the source-code URL above, at the exact tag and commit
-recorded in this file.
+GPL instead. See the bundled COPYING.* files and LICENSE.md. This build is the source-code tree
+above, at the exact tag and commit recorded in this file, with KiteFFmpeg's patches applied: the
+ones lib/kiteffmpeg/ffmpeg-patches.txt lists. The complete corresponding source is that tag plus
+those patches. Both are assets of the KiteFFmpeg release this zip came from, as
+ffmpeg-${version}-source.tar.gz and ffmpeg-${version}-patches.tar.gz, and the patches are also
+in native/patches/ffmpeg of the KiteFFmpeg repository.
 EOF
 
 # --- self-containment check -----------------------------------------------------------------

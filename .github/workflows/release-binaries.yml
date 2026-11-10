@@ -207,6 +207,10 @@ jobs:
       id-token: write      # OIDC token for provenance attestation
       attestations: write  # store the attestation
     steps:
+      # For the patches the source offer carries, which live in this repository (#187).
+      - uses: actions/checkout@v4
+        with:
+          path: source
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -225,6 +229,31 @@ jobs:
             "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/${{ github.event.inputs.ffmpeg_version }}.tar.gz"
           (cd dist && shasum -a 256 "ffmpeg-${{ github.event.inputs.ffmpeg_version }}-source.tar.gz" \
             > "ffmpeg-${{ github.event.inputs.ffmpeg_version }}-source.tar.gz.sha256")
+      # Every binary is built from the tag above with KiteFFmpeg's patches applied, so the offer is
+      # the tarball AND the patches; the tarball alone is not the source of what ships (#187).
+      - name: Pack the FFmpeg patches (source offer)
+        run: |
+          version="${{ github.event.inputs.ffmpeg_version }}"
+          work="$(mktemp -d)"
+          mkdir -p "$work/ffmpeg-$version-patches"
+          cp source/native/patches/ffmpeg/*.patch "$work/ffmpeg-$version-patches/"
+          {
+            echo "KiteFFmpeg's patches to FFmpeg $version"
+            echo
+            echo "Every KiteFFmpeg binary of this release is built from ffmpeg-$version-source.tar.gz"
+            echo "with these patches applied in the order of their numbers. Together the two are the"
+            echo "complete corresponding source. To rebuild it:"
+            echo
+            echo "  tar -xzf ffmpeg-$version-source.tar.gz"
+            echo "  cd FFmpeg-*"
+            echo "  for p in ../ffmpeg-$version-patches/*.patch; do patch -p1 < \"\$p\"; done"
+            echo
+            echo "Each patch file names what it changes and why. The patches date from KiteFFmpeg"
+            echo "commit ${{ github.sha }}."
+          } > "$work/ffmpeg-$version-patches/README.txt"
+          tar -czf "dist/ffmpeg-$version-patches.tar.gz" -C "$work" "ffmpeg-$version-patches"
+          (cd dist && shasum -a 256 "ffmpeg-$version-patches.tar.gz" > "ffmpeg-$version-patches.tar.gz.sha256")
+          tar -tzf "dist/ffmpeg-$version-patches.tar.gz" | grep -c '\.patch$'
       - name: List release assets
         run: ls -l dist/
       - name: Attest build provenance

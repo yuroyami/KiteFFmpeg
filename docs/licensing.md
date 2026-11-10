@@ -31,7 +31,7 @@ The LGPL flavor does **not** make your app open source. It does obligate you, wh
 
 1. **Ship the license text.** Include FFmpeg's `COPYING.LGPLv2.1` and its `LICENSE.md`, which lists the per-component terms. An about screen, a bundled `licenses/` directory, or an oss-attribution page all work.
 2. **Tell users FFmpeg is in there** and that it is LGPL-licensed, with a pointer to its source.
-3. **Offer the FFmpeg source code.** You must offer the *complete corresponding source* of the exact FFmpeg you built, including your own modifications. KiteFFmpeg's FFmpeg releases attach the exact source tarball (`ffmpeg-<version>-source.tar.gz`) next to the binary zips. Pointing at that release asset satisfies the offer, and it does not depend on a third-party URL staying alive. A URL to the upstream tag or commit also works in practice. The conservative reading of the license says the offer must remain valid, so host or link a copy that will.
+3. **Offer the FFmpeg source code.** You must offer the *complete corresponding source* of the exact FFmpeg you built, including your own modifications. KiteFFmpeg builds FFmpeg from an upstream tag with its own patches applied, the ones under `native/patches/ffmpeg`, so the corresponding source is that tag plus those patches. KiteFFmpeg's FFmpeg releases attach both next to the binary zips: the upstream tarball (`ffmpeg-<version>-source.tar.gz`) and the patches with a README that says how to apply them (`ffmpeg-<version>-patches.tar.gz`). Pointing at those two release assets satisfies the offer, and it does not depend on a third-party URL staying alive. A URL to the upstream tag or commit also works in practice. The conservative reading of the license says the offer must remain valid, so host or link a copy that will.
 4. **Let users relink**, under LGPL-2.1 §6. Users must be able to substitute a modified FFmpeg and run your app with it. How hard that is depends on how you link.
 
 ### Static and dynamic linking under §6
@@ -50,9 +50,9 @@ The prebuilt FFmpeg archives on KiteFFmpeg's GitHub Releases are named `ffmpeg-<
 - `LICENSE.md` from the FFmpeg source tree, which is the per-component license map.
 - `BUILD-INFO.txt`, which records the FFmpeg tag and commit, the full `./configure` line, the target, the license profile, and the source-code URL for that exact build.
 
-The release itself also carries `ffmpeg-<version>-source.tar.gz`. That is the exact FFmpeg source those binaries were built from, so the source offer is self-contained on the same page as the binaries.
+The release itself also carries `ffmpeg-<version>-source.tar.gz` and `ffmpeg-<version>-patches.tar.gz`. The tarball with the patches applied is the exact FFmpeg source those binaries were built from, so the source offer is self-contained on the same page as the binaries. The tarball alone is not: it lacks the patches.
 
-Ship the license texts onward with your app. Use `BUILD-INFO.txt` plus the attached source tarball to satisfy the source offer. Together they identify and provide the complete corresponding source.
+Ship the license texts onward with your app. Use `BUILD-INFO.txt` plus the attached source tarball and patches to satisfy the source offer. Together they identify and provide the complete corresponding source.
 
 ## GPL flavor restrictions
 
