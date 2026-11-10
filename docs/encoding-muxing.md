@@ -308,7 +308,7 @@ val encoder = EncoderId.H264VideoToolbox.takeIf { it in available } ?: available
 
 ## Both streams in one sink
 
-A real output usually carries video and audio together. Add both encoders up front, then drive them from their respective flows:
+A real output usually carries video and audio together. Add both encoders up front, then drive each from its own flow, in its own coroutine:
 
 ```kotlin
 MediaSink.open("output.mp4").use { sink ->
@@ -323,15 +323,17 @@ MediaSink.open("output.mp4").use { sink ->
         AudioEncoderSpec(codec = CodecId.Aac)
     )
 
-    video.drive(videoFrames)
-    audio.drive(audioFrames)
+    coroutineScope {
+        launch { video.drive(videoFrames) }
+        launch { audio.drive(audioFrames) }
+    }
 }   // close() flushes both encoders, then writes the trailer
 ```
 
-The muxer interleaves packets from both encoders into the container. `close()` waits until both encoders have flushed before writing the trailer, so the file is complete and seekable.
+Each encoder runs its codec under its own lock, and the two meet only at the muxer, which the sink locks, so concurrent drives are safe. `close()` waits until both encoders have flushed before writing the trailer, so the file is complete and seekable.
 
-!!! warning "Do not drive one sink's encoders from concurrent coroutines"
-    All encoders attached to a `MediaSink` share the underlying muxer, and libav contexts are not thread-safe. Drive them from a single coroutine, one after the other, as shown above. When both streams come from the same input file, you can instead use `decodeStreams` (one demux pass, frames already interleaved) and route each frame to the right encoder as it arrives. That is what [Transcoder](transcoding.md) does internally. See [Concurrency](concurrency.md) for the full threading rules.
+!!! warning "The muxer interleaves only what arrives within 10 seconds"
+    FFmpeg's muxer holds packets until it has some of every stream, but only until what it holds spans 10 seconds, its default `max_interleave_delta`. It then writes what it has. So the order of the packets in the file is the order your drives hand them over, give or take 10 seconds. Driving one encoder to its end and then the other writes all of the first stream but its last 10 seconds before the second begins: a five minute recording then holds almost five minutes of picture before its first sound, which a player reading the file in order meets as silence or a stall (#198). Concurrent drives stay interleaved while both flows deliver at the pace they play, as a camera and a microphone do. A flow that generates its frames as fast as it can runs ahead of the other, and its file comes out the same as sequential drives. There is no public per-frame encode yet that lets one coroutine feed both encoders in time order. When both streams come from one input file, use [Transcoder](transcoding.md), which does exactly that internally. See [Concurrency](concurrency.md) for the full threading rules.
 
 For the common case of demux one file, re-encode, and mux, the [Transcoder](transcoding.md) already orchestrates this interleaving for you, including the AAC frame-size wiring and the trim rebasing. Use raw `MediaSink` when your frames come from a source a single input file cannot describe.
 

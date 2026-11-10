@@ -52,23 +52,24 @@ source.decodeStreams(listOfNotNull(source.primaryVideo, source.primaryAudio))
 
 The same confinement applies to seeking. `seekMicros` moves the shared demuxer position. Call it between collections, from the same context. Never call it while a flow on the same source is being collected.
 
-## MediaSink: drive encoders sequentially
+## MediaSink: drive encoders concurrently, at the pace they play
 
-All encoders attached to one `MediaSink` share the underlying muxer. Do not run one sink's `drive` calls in concurrent coroutines:
+All encoders attached to one `MediaSink` share the underlying muxer, and the sink locks it, while each encoder runs its codec under its own lock. So one sink's `drive` calls may run in concurrent coroutines, and they must, for an output longer than 10 seconds:
 
 ```kotlin
-// WRONG: both drives funnel packets into the same muxer concurrently
+// WRONG for more than 10 seconds: the file holds all of the video but its last
+// 10 seconds before the first audio packet (#198)
+videoEncoder.drive(videoFrames)
+audioEncoder.drive(audioFrames)
+
+// RIGHT for paced sources, such as a camera and a microphone
 coroutineScope {
     launch { videoEncoder.drive(videoFrames) }
     launch { audioEncoder.drive(audioFrames) }
 }
-
-// RIGHT: sequential drives; the muxer still interleaves the packets correctly
-videoEncoder.drive(videoFrames)
-audioEncoder.drive(audioFrames)
 ```
 
-When both streams come from the same input, the better shape is the one [Transcoder](transcoding.md) uses internally: `decodeStreams` for a single interleaved frame flow, routing each frame to its encoder as it arrives. That runs in one coroutine from start to finish.
+FFmpeg's muxer holds packets for interleaving only until they span 10 seconds, so the file follows the order in which the drives hand packets over, within that window. Concurrent drives keep it while both flows deliver at the pace they play. Flows that generate frames as fast as they can drift apart, and there is no public per-frame encode yet to feed both encoders in time order from one coroutine. When both streams come from the same input, use [Transcoder](transcoding.md), which reads the file once and routes each frame to its encoder in time order.
 
 ## FilterGraph is confined too
 
@@ -102,7 +103,7 @@ job.cancelAndJoin()   // stops at the next suspension point, frees native state
 | Object | Rule |
 |---|---|
 | `MediaSource` | Confine to one coroutine context. One active flow at a time; `decodeStreams` for several streams. Seek between collections, not during. |
-| `MediaSink` + encoders | Add all streams first, then drive encoders sequentially from one coroutine. |
+| `MediaSink` + encoders | Add all streams first, then drive each encoder in its own coroutine, at the pace its media plays. Sequential drives longer than 10 s do not interleave. |
 | `FilterGraph` | Feed/flush/collect from one coroutine. |
 | `Frame` from a flow | Owned by the collector until closed. Close every one. Decode ahead with `bufferFrames()`, never `buffer()` or `flowOn`. |
 | Separate objects | Independent. Parallel pipelines over different files are fine. |
