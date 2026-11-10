@@ -64,6 +64,7 @@ internal val nativeLogForwarder = staticCFunction { level: Int, component: CPoin
 /** Installs [sink] at [level] behind [nativeLogForwarder], or drops every line when [sink] is null. */
 internal fun setNativeLogSink(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
     FFmpegLog.sink = sink
+    FFmpegLog.levelCode = FFmpegLog.code(level, sink)
     ffkmp_log_set_sink(if (sink == null) null else nativeLogForwarder, FFmpegLog.code(level, sink))
 }
 

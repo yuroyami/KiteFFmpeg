@@ -86,9 +86,15 @@ public actual class Packet internal constructor(
      * Excludes [close] while a read is inside native code, the same per-object rule the JVM actual
      * has always had. The closed check alone was check-then-use.
      */
-    private val lock = kotlinx.atomicfu.locks.SynchronizedObject()
+    private val lock: kotlinx.atomicfu.locks.SynchronizedObject get() = hold
 
-    private var closed = false
+    /** The native packet; one collected without [close] is freed by [cleaner], with a warning (#242). */
+    private val hold = NativeHold(native, "Packet", FREE_PACKET)
+
+    @OptIn(kotlin.experimental.ExperimentalNativeApi::class)
+    private val cleaner = kotlin.native.ref.createCleaner(hold) { it.reap() }
+
+    private val closed: Boolean get() = hold.closed
 
     /**
      * Rejects use after [close].
@@ -179,9 +185,7 @@ public actual class Packet internal constructor(
     }
 
     actual override fun close(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
-        if (closed) return
-        closed = true
-        ffkmp_packet_free(native)
+        hold.release()
     }
 }
 
@@ -679,3 +683,5 @@ public val Frame.hardwareSurface: COpaquePointer?
     // The window is entirely inside this getter, so no test can open it; the guard is the lease
     // itself, which withPlanes' race test pins.
     get() = withNative { ffkmp_frame_hw_surface(it) }
+
+private val FREE_PACKET: (CPointer<kc_packet>) -> Unit = { ffkmp_packet_free(it) }

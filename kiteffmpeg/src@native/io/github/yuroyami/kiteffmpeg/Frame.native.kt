@@ -91,9 +91,19 @@ public actual class Frame internal constructor(
      * check and the FFI call freed the AVFrame under the running operation. The lock
      * is reentrant, so a helper under [withNative] may read [checkedNative] again freely.
      */
-    private val lock = kotlinx.atomicfu.locks.SynchronizedObject()
+    private val lock: kotlinx.atomicfu.locks.SynchronizedObject get() = hold
 
-    private var closed = false
+    /**
+     * The native frame and its open state. An owning frame collected without [close] has it freed
+     * by [cleaner], with a warning (#242); a view onto another owner's frame is only unreferenced
+     * by its own [close].
+     */
+    private val hold = NativeHold(nativeFrame, "Frame", if (ownsPointer) FREE_FRAME else UNREF_FRAME)
+
+    @OptIn(kotlin.experimental.ExperimentalNativeApi::class)
+    private val cleaner = if (ownsPointer) kotlin.native.ref.createCleaner(hold) { it.reap() } else null
+
+    private val closed: Boolean get() = hold.closed
 
     private fun checkOpen() = check(!closed) { "Frame is closed, its native buffers are gone" }
 
@@ -420,13 +430,7 @@ public actual class Frame internal constructor(
     actual override fun close(): Unit = kotlinx.atomicfu.locks.synchronized(lock) {
         // Under the same lock every operation holds, so a close arriving mid-operation WAITS for
         // it instead of freeing the buffers under it. Idempotent, exactly as before.
-        if (closed) return
-        closed = true
-        if (ownsPointer) {
-            ffkmp_frame_free(nativeFrame)
-        } else {
-            ffkmp_frame_unref(nativeFrame)
-        }
+        hold.release()
     }
 
     public actual companion object {
@@ -544,3 +548,6 @@ internal actual fun composeDolbyVisionRows(source: Frame, output: Frame, startRo
         "Dolby Vision composition of rows $startRow until $endRowExclusive",
     )
 }
+
+private val FREE_FRAME: (CPointer<kc_frame>) -> Unit = { ffkmp_frame_free(it) }
+private val UNREF_FRAME: (CPointer<kc_frame>) -> Unit = { ffkmp_frame_unref(it) }

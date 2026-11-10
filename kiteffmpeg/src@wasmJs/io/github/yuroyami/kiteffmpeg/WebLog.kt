@@ -14,6 +14,7 @@ internal object WebLog {
     fun set(level: FFmpegLogLevel, sink: FFmpegLogSink?) {
         FFmpegLog.sink = sink
         this.level = FFmpegLog.code(level, sink)
+        FFmpegLog.levelCode = this.level
         KiteFFmpegWeb.module?.let(::apply)
     }
 
