@@ -53,6 +53,9 @@ below.
 
 ### Fixed
 
+- `ClosedCaptionDecoder` reads CC1 alone (#263). FFmpeg's caption decoder keeps no data channel,
+  so CC2's control codes acted on CC1's screen, a CC2 erase blanked CC1's caption, and CC2's text
+  appeared inside it. The C layer now passes over the pairs of CC2 before FFmpeg sees them.
 - A `MediaSink` over a `MediaByteSink` whose `flush` and `close` both throw reports the flush's
   failure with the close's suppressed into it (#112). The close's failure used to replace it. A
   trailer or output close error now keeps the byte sink's own failure beside it too.

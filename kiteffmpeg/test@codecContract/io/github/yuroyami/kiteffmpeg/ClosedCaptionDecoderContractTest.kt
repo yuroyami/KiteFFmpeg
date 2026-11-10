@@ -71,6 +71,29 @@ internal class ClosedCaptionDecoderContractTest {
         assertTrue(cleared.texts.single().endsWith(",,"), "the erase leaves an empty screen: ${cleared.texts}")
     }
 
+    /**
+     * CC2 shares field 1 with CC1, and its codes name channel 2 in bit 0x08 of their first byte.
+     * FFmpeg's decoder took them as CC1's, so CC2's erase blanked CC1's caption and its text joined
+     * CC1's screen (#263). They now leave CC1's screen alone.
+     */
+    @Test
+    fun theCodesAndTextOfCc2LeaveCc1sScreenAlone() {
+        val cc2 = buildList {
+            // CC2's erase displayed memory, then a CC2 pop-on caption of its own.
+            add(pair(0x1C, 0x2C)); add(pair(0x1C, 0x2C))
+            add(pair(0x1C, 0x20)); add(pair(0x1C, 0x20))
+            add(pair('C'.code, 'D'.code))
+            add(pair(0x1C, 0x2F)); add(pair(0x1C, 0x2F))
+        }
+        val answers = ClosedCaptionDecoder.open(realTime = true).use { decoder ->
+            val given = ArrayList<Subtitle>()
+            (frames.take(7) + cc2).forEachIndexed { index, bytes -> decoder.decode(bytes, timeOf(index))?.let { given += it } }
+            given
+        }
+        assertTrue(answers.isNotEmpty() && answers.first().texts.single().endsWith("HELLO"), "CC1 shows HELLO: ${answers.map { it.texts }}")
+        assertEquals(1, answers.size, "CC2 changed CC1's screen: ${answers.map { it.texts }}")
+    }
+
     @Test
     fun framesWithoutCaptionTextGiveNothing() {
         ClosedCaptionDecoder.open().use { decoder ->

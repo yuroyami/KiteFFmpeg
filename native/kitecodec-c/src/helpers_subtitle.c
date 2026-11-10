@@ -117,6 +117,27 @@ KC_API int ffkmp_caption_decoder_open(AVCodecContext **out, int real_time) {
     return 0;
 }
 
+/* Keeps only CC1 of the field 1 pairs in data, CEA-708 cc_data triplets: the others are marked
+   invalid, which FFmpeg's decoder skips. FFmpeg's eia_608 decoder keeps no data channel: it took
+   CC2's control codes as CC1's, so a CC2 erase blanked CC1's caption, and put CC2's text into
+   CC1's screen (#263). A control code names its channel in bit 0x08 of its first byte, and the
+   printable pairs after it belong to that channel until the next control code. The channel the
+   last control code named is kept in the context's opaque, which nothing else of a caption
+   decoder uses: 0 before any, which reads as CC1, as the decoder read everything before. */
+static void kc_caption_keep_cc1_(AVCodecContext *c, uint8_t *data, int size) {
+    intptr_t channel = (intptr_t)c->opaque;
+    for (int i = 0; i + 2 < size; i += 3) {
+        const int valid = data[i] & 0x04;
+        const int type = data[i] & 0x03;
+        if (!valid || type != 0) continue;
+        const uint8_t first = data[i + 1] & 0x7f;
+        if (first >= 0x10 && first <= 0x1f) channel = (first & 0x08) ? 2 : 1;
+        else if (first < 0x20) continue; /* padding and nulls belong to no channel */
+        if (channel == 2) data[i] &= (uint8_t)~0x04;
+    }
+    c->opaque = (void *)channel;
+}
+
 KC_API int ffkmp_caption_decode(AVCodecContext *c, const uint8_t *data, int size, int64_t pts_us, AVSubtitle **out) {
     if (!out) return AVERROR(EINVAL);
     *out = NULL;
@@ -129,6 +150,7 @@ KC_API int ffkmp_caption_decode(AVCodecContext *c, const uint8_t *data, int size
         return rc;
     }
     memcpy(p->data, data, (size_t)size);
+    kc_caption_keep_cc1_(c, p->data, size);
     p->pts = pts_us;
     p->dts = pts_us;
     rc = ffkmp_subtitle_decode(c, p, out);
