@@ -15,3 +15,13 @@ conditions and disclaimer, which are in COPYING.dav1d beside this file.
 The bundled COPYING.LGPLv2.1 applies to the FFmpeg portions. Consumer obligations
 (notice, source offer, LGPL section 6) are summarised in the repository NOTICE and
 README: https://github.com/yuroyami/KiteFFmpeg
+
+This software is based in part on the work of the Independent JPEG Group.
+FFmpeg compiles three files of the IJG's libjpeg; FFMPEG-LICENSE.md beside this file asks
+for that line in the documentation of anything that ships the binaries.
+
+The Windows JNI library (kiteffmpeg-native/windows-x64/kitecodec_jni.dll) also bundles:
+  GNU libiconv 1.16, LGPL-2.0-or-later (the Library GPL version 2), from the MSYS2 mingw-w64
+    sysroot that Kotlin/Native ships, which FFmpeg's subtitle charset conversion calls.
+    Source: https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz
+  zlib, the zlib licence, from the same sysroot's libz.a. https://zlib.net

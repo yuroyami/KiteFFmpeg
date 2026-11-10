@@ -12,3 +12,7 @@ the two together are the complete corresponding source):
 COPYING.LGPLv2.1 applies to the FFmpeg portions. Consumer obligations (notice, source offer,
 LGPL section 6) are summarised in the repository NOTICE and README:
 https://github.com/yuroyami/KiteFFmpeg
+
+This software is based in part on the work of the Independent JPEG Group.
+FFmpeg compiles three files of the IJG's libjpeg; FFMPEG-LICENSE.md beside this file asks
+for that line in the documentation of anything that ships the binaries.

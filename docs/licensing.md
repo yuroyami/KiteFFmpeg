@@ -75,8 +75,16 @@ self-contained artifact can only bundle what cross-compiles for all eleven targe
 |---|---|---|
 | FFmpeg (libav\*) | LGPL-2.1+ | bundled in every published artifact |
 | dav1d | BSD-2-Clause | bundled in every published artifact; it is the software AV1 decoder |
-| zlib | zlib license | linked from the platform SDK or the system, not bundled |
+| zlib | zlib license | linked from the platform SDK or the system, not bundled, except in the Windows JNI library of the JVM jar, which bundles MSYS2's `libz.a` |
+| GNU libiconv 1.16 | LGPL-2.0-or-later (the Library GPL version 2) | bundled in the Windows JNI library of the JVM jar, from the MSYS2 mingw-w64 sysroot Kotlin/Native ships, where FFmpeg's subtitle charset conversion calls it; source at <https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz> |
 | compiler-rt (LLVM) | Apache-2.0 WITH LLVM-exception | bundled in the `androidNativeArm64` klib: the outline atomics helpers of the NDK compiler runtime |
+
+**FFmpeg credits the Independent JPEG Group.** Three of its files come from libjpeg
+(`jfdctfst.c`, `jfdctint.c`, `jrevdct.c`), and every published artifact compiles them. FFmpeg's
+`LICENSE.md` asks anyone who distributes the binaries to say, in the documentation that comes with
+them: "This software is based in part on the work of the Independent JPEG Group." An app that ships
+KiteFFmpeg says it too. FFmpeg's `LICENSE.md` ships beside `COPYING.LGPLv2.1` in the jar, the AAR
+and the web jars, as `FFMPEG-LICENSE.md`.
 
 **Nothing else is linked into the FFmpeg archives.** No SVT-AV1, libvpx, libaom, libopus,
 libmp3lame, libwebp, FreeType, HarfBuzz, FriBidi or libass.

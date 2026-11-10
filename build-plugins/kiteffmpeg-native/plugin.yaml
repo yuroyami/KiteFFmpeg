@@ -558,6 +558,7 @@ tasks:
       ffmpegTree: ${project.rootDir}/native-libs/lgpl/wasm32
       licenseFiles:
         - ${module.rootDir}/resources@jvm/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1
+        - ${module.rootDir}/resources@jvm/META-INF/licenses/kiteffmpeg-ffmpeg/FFMPEG-LICENSE.md
         - ${module.rootDir}/web/licenses/THIRD-PARTY.txt
       version: ${module.settings.publishing.version}
       classifier: web
@@ -569,6 +570,7 @@ tasks:
       ffmpegTree: ${project.rootDir}/native-libs/lgpl/wasm32
       licenseFiles:
         - ${module.rootDir}/resources@jvm/META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.LGPLv2.1
+        - ${module.rootDir}/resources@jvm/META-INF/licenses/kiteffmpeg-ffmpeg/FFMPEG-LICENSE.md
         - ${module.rootDir}/web/licenses/THIRD-PARTY.txt
       version: ${module.settings.publishing.version}
       classifier: web-async

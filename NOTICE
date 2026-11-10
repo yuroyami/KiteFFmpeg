@@ -100,9 +100,26 @@ carry FFmpeg alone.
   dav1d           BSD-2-Clause        https://code.videolan.org/videolan/dav1d
                   (bundled; it is the software AV1 decoder)
   zlib            zlib                https://zlib.net
-                  (linked from the platform SDK or the system, not bundled)
+                  (linked from the platform SDK or the system, not bundled, except in
+                  the Windows JNI library of the JVM jar, which bundles MSYS2's libz.a)
+  GNU libiconv    LGPL-2.0-or-later   https://www.gnu.org/software/libiconv/
+                  (1.16, from the MSYS2 mingw-w64 sysroot that Kotlin/Native ships,
+                  bundled in the Windows JNI library of the JVM jar, where FFmpeg's
+                  subtitle charset conversion calls it; its licence is the Library
+                  GPL version 2, and its source is
+                  https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz)
   compiler-rt     Apache-2.0 WITH LLVM-exception   https://compiler-rt.llvm.org
                   (the outline atomics helpers of the NDK, bundled in the androidNativeArm64 klib)
+
+FFmpeg itself compiles three files taken from the Independent JPEG Group's
+libjpeg (jfdctfst.c, jfdctint.c and jrevdct.c), and its LICENSE.md asks a binary
+distributor to credit the IJG, which every artifact does here and an app that
+ships one must do too:
+
+  This software is based in part on the work of the Independent JPEG Group.
+
+FFmpeg's LICENSE.md ships beside COPYING.LGPLv2.1 in the jar, the AAR and the
+web jars, as FFMPEG-LICENSE.md.
 
 Nothing else is linked. In particular there is no SVT-AV1, libvpx, libaom,
 libopus, libmp3lame, libwebp, libass, FreeType, HarfBuzz or FriBidi in any

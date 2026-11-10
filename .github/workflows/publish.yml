@@ -207,7 +207,7 @@ jobs:
           cp build/tasks/_kiteffmpeg-web_jarJvm/kiteffmpeg-web-jvm.jar "${web}"
           cp build/tasks/_kiteffmpeg-web-async_jarJvm/kiteffmpeg-web-async-jvm.jar "${web_async}"
           for entry in kite.mjs kite.wasm build-info/web-build-info.txt build-info/ffmpeg-patches.txt \
-                       licenses/COPYING.LGPLv2.1 licenses/THIRD-PARTY.txt; do
+                       licenses/COPYING.LGPLv2.1 licenses/FFMPEG-LICENSE.md licenses/THIRD-PARTY.txt; do
             unzip -l "${web}" "${entry}" > /dev/null \
               || { echo "::error::the kiteffmpeg-web jar carries no ${entry}" >&2; exit 1; }
           done
