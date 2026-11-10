@@ -90,15 +90,38 @@ private external fun stageCString(module: JsAny, text: String): Int
 internal fun readBytes(module: JsAny, pointer: Int, length: Int): ByteArray =
     ByteArray(length).also { readBytesInto(module, pointer, it, length) }
 
-/** Copies [length] bytes out of codec memory into the start of [destination]. */
-@OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
+/**
+ * Copies [length] bytes out of codec memory into the start of [destination], one crossing per
+ * [READ_CHUNK] bytes (#209).
+ *
+ * This used to cross once per BYTE, so one plane of a 1080p frame made about 3.1 million calls.
+ * The bytes now travel as the mirror of [writeBytes]: a string of code units 0..255 that a tight
+ * JavaScript loop builds from the heap, unpacked on the Kotlin side. Latin-1 by construction, so
+ * no code unit is ever in the surrogate range and no encoding step can reinterpret one.
+ */
 internal fun readBytesInto(module: JsAny, pointer: Int, destination: ByteArray, length: Int) {
-    for (i in 0 until length) destination[i] = readByte(module, pointer + i).toByte()
+    var done = 0
+    while (done < length) {
+        val n = minOf(READ_CHUNK, length - done)
+        val packed = readChunk(module, pointer + done, n)
+        for (i in 0 until n) destination[done + i] = packed[i].code.toByte()
+        done += n
+    }
 }
 
+/** Bytes per crossing of [readBytesInto]: a megabyte string is cheap for every engine to build. */
+internal const val READ_CHUNK: Int = 1 shl 20
+
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-@JsFun("(m, p) => m.HEAPU8[p]")
-internal external fun readByte(module: JsAny, pointer: Int): Int
+@JsFun(
+    """(m, p, n) => {
+        const b = m.HEAPU8.subarray(p, p + n);
+        let s = '';
+        for (let i = 0; i < n; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, Math.min(i + 8192, n)));
+        return s;
+    }""",
+)
+private external fun readChunk(module: JsAny, pointer: Int, length: Int): String
 
 /** The FFmpeg name of a pixel or sample format, which is what the Kotlin value classes hold. */
 internal fun pixelFormatOf(module: JsAny, id: Int): PixelFormat =
