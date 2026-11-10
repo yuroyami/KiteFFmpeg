@@ -107,6 +107,10 @@ for triple in $triples; do
     expected=$(awk 'NR == 1 { print $1 }' "$archives/$asset.sha256")
     digest=$(shasum -a 256 "$archives/$asset" | cut -d' ' -f1)
     [ "$digest" = "$expected" ] || refuse "$asset has digest $digest, but $asset.sha256 says $expected"
+    # The digest this commit pins wins over the release's own .sha256, which a rerun of the
+    # release could replace together with the zip (#188).
+    pinned=$(awk -v n="$asset" '$2 == n { print $1 }' "$ROOT/.github/prebuilt-ffmpeg.sha256")
+    [ "$digest" = "$pinned" ] || refuse "$asset has digest $digest, but .github/prebuilt-ffmpeg.sha256 pins ${pinned:-nothing}"
 
     info=$(unzip -p "$archives/$asset" BUILD-INFO.txt) || refuse "$asset holds no BUILD-INFO.txt"
     built=$(field "FFmpeg version" <<<"$info")

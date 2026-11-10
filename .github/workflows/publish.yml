@@ -109,6 +109,9 @@ jobs:
     # Apple klibs (macosArm64) can only be produced on a macOS host.
     runs-on: macos-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
+      attestations: read
     steps:
       - uses: actions/checkout@v4
       # The Kotlin Toolchain downloads (JDK, Kotlin/Native, Node), and konan's LLVM and sysroots.
@@ -126,6 +129,8 @@ jobs:
       # FFmpegPaths.resolve() expects: native-libs/<license>/<triple>/{include,lib}. The archives
       # and their .sha256 files stay in build/prebuilt-ffmpeg for the bill of materials.
       - name: Fetch prebuilt FFmpeg (all 11 triples, lgpl, dav1d inside)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           # The FFmpeg binaries are keyed to the FFMPEG version, not to KiteFFmpeg's: n8.0 zips are
@@ -141,7 +146,13 @@ jobs:
             echo "fetching ${asset}"
             curl -fL --retry 3 -o "${kept}/${asset}" "${base}/${asset}"
             curl -fL --retry 3 -o "${kept}/${asset}.sha256" "${base}/${asset}.sha256"
-            (cd "${kept}" && shasum -a 256 -c "${asset}.sha256")
+            # The release's .sha256 is kept for the bill of materials, but the check is against
+            # the digest this commit pins, which a rerun of the release cannot replace (#188).
+            .github/scripts/check-prebuilt.sh "${kept}/${asset}"
+            # And the zip must be one release-binaries.yml built in this repository, by its
+            # provenance attestation (#188).
+            gh attestation verify "${kept}/${asset}" --repo "${{ github.repository }}" \
+              --signer-workflow "${{ github.repository }}/.github/workflows/release-binaries.yml"
             mkdir -p "native-libs/lgpl/${triple}"
             unzip -q "${kept}/${asset}" -d "native-libs/lgpl/${triple}"
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"

@@ -119,14 +119,13 @@ jobs:
                         linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
             asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
             curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-            curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-            shasum -a 256 -c "${asset}.sha256"
+            .github/scripts/check-prebuilt.sh "${asset}"
             mkdir -p "native-libs/lgpl/${triple}"
             unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
             # The release does not move when a patch is added, so a stale tree fails here (#175).
             ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
-            rm -f "${asset}" "${asset}.sha256"
+            rm -f "${asset}"
           done
       # The ratchets.
       # - `./kotlin build -m kiteffmpeg` compiles every platform and every shared native folder
@@ -380,13 +379,12 @@ jobs:
           base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           asset="ffmpeg-${FFMPEG_VERSION}-lgpl-linux-x64.zip"
           curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-          curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-          shasum -a 256 -c "${asset}.sha256"
+          .github/scripts/check-prebuilt.sh "${asset}"
           mkdir -p native-libs/lgpl/linux-x64
           unzip -q "${asset}" -d native-libs/lgpl/linux-x64
           test -f native-libs/lgpl/linux-x64/lib/libavformat.a
           ./scripts/check-tree-patches.sh native-libs/lgpl/linux-x64
-          rm -f "${asset}" "${asset}.sha256"
+          rm -f "${asset}"
       - name: Unit + native tests
         run: ./kotlin test -m kiteffmpeg -p linuxX64
       # The JVM tests load the linux-x64 JNI library that the desktop jar ships, cross-linked from
@@ -406,11 +404,10 @@ jobs:
           base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           asset="ffmpeg-${FFMPEG_VERSION}-lgpl-mingw-x64.zip"
           curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-          curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-          shasum -a 256 -c "${asset}.sha256"
+          .github/scripts/check-prebuilt.sh "${asset}"
           mkdir -p native-libs/lgpl/mingw-x64
           unzip -q "${asset}" -d native-libs/lgpl/mingw-x64
-          rm -f "${asset}" "${asset}.sha256"
+          rm -f "${asset}"
           ./kotlin task ':kiteffmpeg:jniWindowsX64@kiteffmpeg-native'
           test -f 'build/tasks/_kiteffmpeg_jniWindowsX64@kiteffmpeg-native/resources/kiteffmpeg-native/windows-x64/kitecodec_jni.dll'
       - uses: actions/upload-artifact@v4
@@ -646,13 +643,12 @@ jobs:
           for triple in ${{ matrix.triples }}; do
             asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
             curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-            curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-            shasum -a 256 -c "${asset}.sha256"
+            .github/scripts/check-prebuilt.sh "${asset}"
             mkdir -p "native-libs/lgpl/${triple}"
             unzip -q "${asset}" -d "native-libs/lgpl/${triple}"
             test -f "native-libs/lgpl/${triple}/lib/libavformat.a"
             ./scripts/check-tree-patches.sh "native-libs/lgpl/${triple}"
-            rm -f "${asset}" "${asset}.sha256"
+            rm -f "${asset}"
           done
       - name: Publish the library to mavenLocal
         run: |
@@ -770,8 +766,13 @@ jobs:
           $base = "https://github.com/${{ github.repository }}/releases/download/$env:FFMPEG_ASSET_TAG"
           $asset = "ffmpeg-$env:FFMPEG_VERSION-lgpl-mingw-x64.zip"
           Invoke-WebRequest -Uri "$base/$asset" -OutFile $asset
-          Invoke-WebRequest -Uri "$base/$asset.sha256" -OutFile "$asset.sha256"
-          $expected = (Get-Content "$asset.sha256").Split()[0].ToLower()
+          # The digest committed in .github/prebuilt-ffmpeg.sha256, not the release's own (#188).
+          $pins = Get-Content .github/prebuilt-ffmpeg.sha256
+          $tag = (($pins | Where-Object { $_ -like 'release:*' }) -replace '^release:\s*', '').Trim()
+          if ($tag -ne $env:FFMPEG_ASSET_TAG) { throw "FFMPEG_ASSET_TAG is $env:FFMPEG_ASSET_TAG, but the pins are for $tag" }
+          $line = $pins | Where-Object { ($_ -split '\s+')[1] -eq $asset }
+          if (-not $line) { throw "$asset has no pinned digest" }
+          $expected = ($line -split '\s+')[0].ToLower()
           $actual = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne $expected) { throw "sha256 mismatch: expected $expected, got $actual" }
           New-Item -ItemType Directory -Force -Path native-libs/lgpl/mingw-x64 | Out-Null
@@ -779,7 +780,7 @@ jobs:
           if (-not (Test-Path native-libs/lgpl/mingw-x64/lib/libavformat.a)) {
             throw "unpacked tree has no lib/libavformat.a"
           }
-          Remove-Item $asset, "$asset.sha256"
+          Remove-Item $asset
       # The same patch check as the other fetch steps (#175), in the runner's Git Bash.
       - name: Check the tree carries every committed patch
         run: ./scripts/check-tree-patches.sh native-libs/lgpl/mingw-x64

@@ -90,13 +90,12 @@ jobs:
           base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
           asset="ffmpeg-${FFMPEG_VERSION}-lgpl-linux-x64.zip"
           curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
-          curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
-          shasum -a 256 -c "${asset}.sha256"
+          .github/scripts/check-prebuilt.sh "${asset}"
           mkdir -p native-libs/lgpl/linux-x64
           unzip -q "${asset}" -d native-libs/lgpl/linux-x64
           test -f native-libs/lgpl/linux-x64/lib/libavformat.a
           ./scripts/check-tree-patches.sh native-libs/lgpl/linux-x64
-          rm -f "${asset}" "${asset}.sha256"
+          rm -f "${asset}"
       - name: Fuzz every target, five minutes each
         env:
           KC_CC: clang-18

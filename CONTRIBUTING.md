@@ -208,7 +208,7 @@ The klib checks read the klib of every platform in that list, so build all of th
 ./kotlin do updateKlibAbi
 ```
 
-The build compiles the klib of every native target, so it needs an FFmpeg tree in `native-libs/lgpl/<triple>/` for each of the eleven triples. A macOS host can compile all of them. The prebuilt trees are assets of the release that `FFMPEG_ASSET_TAG` names in the workflows, and the ratchets job shows how to fetch and verify them. When a tree is missing, the build of that platform stops and names the target. Only the host's own target can use a system FFmpeg instead.
+The build compiles the klib of every native target, so it needs an FFmpeg tree in `native-libs/lgpl/<triple>/` for each of the eleven triples. A macOS host can compile all of them. The prebuilt trees are assets of the release that `FFMPEG_ASSET_TAG` names in the workflows, and the ratchets job shows how to fetch and verify them. Each zip is checked against the digest committed in `.github/prebuilt-ffmpeg.sha256` with `.github/scripts/check-prebuilt.sh`, never against the release's own `.sha256`. A rebuild of the trees goes to a new release tag, and the commit that raises `FFMPEG_ASSET_TAG` writes that release's digests into the file. When a tree is missing, the build of that platform stops and names the target. Only the host's own target can use a system FFmpeg instead.
 
 API-breaking changes must be intentional and called out in `CHANGELOG.md`.
 

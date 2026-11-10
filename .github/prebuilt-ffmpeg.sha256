@@ -1,0 +1,16 @@
+# The SHA-256 of every prebuilt FFmpeg zip of the release ffmpeg-n9.0.2-r3 (#188).
+# Every workflow checks a fetched zip against this file, never against the release's own
+# .sha256, which a rerun of release-binaries.yml could replace together with the zip.
+# Raising FFMPEG_ASSET_TAG means writing the new release's digests here in the same commit.
+release: ffmpeg-n9.0.2-r3
+7af61bfe628b84aa99a60355399077ad92886059e85d2eb202c7ddfcd74316a6  ffmpeg-n9.0.2-lgpl-android-arm32.zip
+4a94fdbbe33e05ab6d3612f590e0cb585b27ffc70e3b51143b98f06bf7f39867  ffmpeg-n9.0.2-lgpl-android-arm64.zip
+1716df1087e9fc532863fbabdd7127213927d961c9f3d31e3fcb107f877fb47a  ffmpeg-n9.0.2-lgpl-android-x64.zip
+925e5fc7d4ce9313c9cf8334472d40cb2bd11f68a6a416a480e51dca68245c41  ffmpeg-n9.0.2-lgpl-ios-arm64.zip
+4c832511e77327905a2ff52ed3294d89f3ce9b9407e3fe4e3342b4cba1b89125  ffmpeg-n9.0.2-lgpl-ios-simulator-arm64.zip
+6c376c70e8ab68b54a45962e709e98df1f31c00f640fd763c392d401557095b0  ffmpeg-n9.0.2-lgpl-ios-x64.zip
+a57bac8753935f3e6881b56b9e575d19fcb0f4835e69b47db17481c575b39969  ffmpeg-n9.0.2-lgpl-linux-arm64.zip
+97cea45b47106c234a73116a9cb277b91409d90f23dd676a8e3831e1cb17ee59  ffmpeg-n9.0.2-lgpl-linux-x64.zip
+722ae3f1ee07f78f5f2a3d52dff937e9953049afb6a2129a2406b3232832ea3f  ffmpeg-n9.0.2-lgpl-macos-arm64.zip
+b1025ba41efea8ccfaa2ee2a146297e4944cbe1872b2d1352d4df45012f62283  ffmpeg-n9.0.2-lgpl-macos-x64.zip
+7ffc9b56c03f469db152bbec2559e849c65458dc4c06fdab26c4b0b6f7605022  ffmpeg-n9.0.2-lgpl-mingw-x64.zip

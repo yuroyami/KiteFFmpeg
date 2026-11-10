@@ -32,9 +32,8 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to attach the binaries to. Keep it FFmpeg-keyed (ffmpeg-n9.0.2): the zips are identical across KiteFFmpeg versions and publish.yml fetches from exactly this tag."
+        description: "Release tag to attach the binaries to, a new one for every build (ffmpeg-n9.0.2-r4, never one already pinned). Keep it FFmpeg-keyed: the zips are identical across KiteFFmpeg versions and publish.yml fetches from exactly this tag."
         required: true
-        default: "ffmpeg-n9.0.2"
       ffmpeg_version:
         description: "FFmpeg source tag to build (must equal BuildFFmpegTask.DEFAULT_SOURCE_REF; the build refuses a checkout of any other commit)"
         required: true
@@ -283,6 +282,11 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: KiteFFmpeg ${{ github.event.inputs.release_tag }}
           fail_on_unmatched_files: true
+          # A zip already on the release stays as it is (#188). The workflows check every fetch
+          # against the digests committed in .github/prebuilt-ffmpeg.sha256, so a replaced zip
+          # would only turn every job red; a rebuild goes to a new tag, which a commit then pins.
+          # A rerun after a partial failure still adds the zips that are missing.
+          overwrite_files: false
           files: |
             dist/*.zip
             dist/*.tar.gz
