@@ -5,7 +5,7 @@ import ffmpeg.ffkmp_buffersink_time_base
 import ffmpeg.ffkmp_frame_unref
 import ffmpeg.ffkmp_graph_build_audio
 import ffmpeg.ffkmp_graph_build_audio_multi
-import ffmpeg.ffkmp_graph_build_video
+import ffmpeg.ffkmp_graph_build_video_color
 import ffmpeg.ffkmp_graph_build_video_multi
 import ffmpeg.ffkmp_graph_failed_requests
 import ffmpeg.ffkmp_graph_free
@@ -104,6 +104,7 @@ internal actual fun buildVideoBackend(
     timeBase: Rational,
     frameRate: Rational,
     sampleAspectRatio: Rational,
+    color: GraphColor,
 ): FilterBackend {
     // The FFmpeg identity gate. Before the first allocation.
     requireCompatibleFFmpeg()
@@ -112,13 +113,14 @@ internal actual fun buildVideoBackend(
     val srcVar = arena.allocPointerTo<kc_filter_ctx>()
     val sinkVar = arena.allocPointerTo<kc_filter_ctx>()
 
-    val rc = ffkmp_graph_build_video(
+    val rc = ffkmp_graph_build_video_color(
         graphVar.ptr, srcVar.ptr, sinkVar.ptr,
         description,
         width, height, pixelFormatToAv(pixelFormat),
         timeBase.num, timeBase.den,
         frameRate.num, frameRate.den,
         sampleAspectRatio.num, sampleAspectRatio.den,
+        color.matrix, color.range,
     )
     if (rc < 0) { arena.clear(); throw FFmpegException(avError(rc)) }
 

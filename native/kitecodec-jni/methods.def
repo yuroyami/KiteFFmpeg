@@ -298,7 +298,7 @@ KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameFillVideo",   "
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeFrameFillAudio",   "(J[B)I",                  kj_frame_fill_audio)
 
 // ── filter graphs (kj_filter.c) ─────────────────────────────────────────────────────────────
-KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphBuildVideo",  "(Ljava/lang/String;IIIIIIIII)[J", kj_graph_build_video)
+KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphBuildVideo",  "(Ljava/lang/String;IIIIIIIIIII)[J", kj_graph_build_video)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphBuildAudio",  "(Ljava/lang/String;IIIIIIIIJJ)[J", kj_graph_build_audio)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphBuildVideoMulti","(Ljava/lang/String;I[I[I[I[I[I[I[I[I[I)[J", kj_graph_build_video_multi)
 KJ_METHOD("io/github/yuroyami/kiteffmpeg/Internals", "nativeGraphBuildAudioMulti","(Ljava/lang/String;I[I[I[I[I[IIII[JJ)[J", kj_graph_build_audio_multi)

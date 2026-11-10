@@ -48,7 +48,8 @@ fail:
 JNIEXPORT jlongArray JNICALL kj_graph_build_video(
     JNIEnv *env, jclass cls, jstring description,
     jint width, jint height, jint format,
-    jint tbn, jint tbd, jint frn, jint frd, jint sarn, jint sard)
+    jint tbn, jint tbd, jint frn, jint frd, jint sarn, jint sard,
+    jint color_space, jint color_range)
 {
     char *desc = kj_string_dup(env, description);
     kc_filter_graph *graph = NULL;
@@ -60,8 +61,8 @@ JNIEXPORT jlongArray JNICALL kj_graph_build_video(
         kj_throw_handle(env, "video filter description is null");
         return NULL;
     }
-    rc = ffkmp_graph_build_video(&graph, &source, &sink, desc, width, height, format,
-                                 tbn, tbd, frn, frd, sarn, sard);
+    rc = ffkmp_graph_build_video_color(&graph, &source, &sink, desc, width, height, format,
+                                       tbn, tbd, frn, frd, sarn, sard, color_space, color_range);
     free(desc);
     if (rc < 0) {
         kj_throw_ffmpeg(env, rc, "graph_build_video");

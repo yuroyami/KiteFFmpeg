@@ -64,6 +64,7 @@ internal actual fun buildVideoBackend(
     timeBase: Rational,
     frameRate: Rational,
     sampleAspectRatio: Rational,
+    color: GraphColor,
 ): FilterBackend {
     Internals.requireCompatible()
     return fromTokens(
@@ -75,6 +76,8 @@ internal actual fun buildVideoBackend(
             timeBase,
             frameRate,
             sampleAspectRatio,
+            color.matrix,
+            color.range,
         ),
         1,
         MediaType.Video,

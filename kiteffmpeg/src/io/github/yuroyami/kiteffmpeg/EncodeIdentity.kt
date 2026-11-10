@@ -60,6 +60,8 @@ internal suspend fun firstEncodedFrameInfo(
                         timeBase = video.timeBase,
                         frameRate = video.video?.frameRate ?: Rational(25, 1),
                         sampleAspectRatio = info.sampleAspectRatio,
+                        // As the transcode's own graph is built, so the peek sees its colour (#214).
+                        color = GraphColor.of(info.color),
                     ).also { graph = it }
                     filter.feedInput(0, frame) { out -> if (found == null) found = out.info }
                     found != null

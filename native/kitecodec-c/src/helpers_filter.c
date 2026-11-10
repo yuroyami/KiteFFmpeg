@@ -8,10 +8,12 @@
 #include <libavutil/channel_layout.h>
 #include <libavutil/error.h>
 #include <libavutil/mem.h>
+#include <libavutil/opt.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/samplefmt.h>
 
 #include <limits.h>
+#include <string.h>
 
 /* ════════════ Filter graphs (single-input video / audio) ════════════ */
 
@@ -47,11 +49,42 @@ static int ffkmp_graph_finish_(
     return avfilter_graph_config(graph, NULL);
 }
 
+/* Appends the colour matrix and range to a `buffer` source's arguments, when the caller knows them
+   and this FFmpeg's `buffer` takes them. Unknown values add nothing, so the graph keeps FFmpeg's
+   own default rather than a guess. The options arrived with FFmpeg 7.1, and the corpus jobs build
+   against 6.1, so their presence is asked of the filter rather than read from a version (#214). */
+static void ffkmp_buffer_color_args_(char *args, size_t size, const AVFilter *src, int color_space, int color_range) {
+    const AVClass *cls = src->priv_class;
+    if (!cls) return;
+    size_t used = strlen(args);
+    if (color_space > AVCOL_SPC_RGB && color_space != AVCOL_SPC_UNSPECIFIED && color_space < AVCOL_SPC_NB &&
+        av_opt_find2(&cls, "colorspace", NULL, 0, AV_OPT_SEARCH_FAKE_OBJ, NULL)) {
+        snprintf(args + used, size - used, ":colorspace=%d", color_space);
+        used = strlen(args);
+    }
+    if ((color_range == AVCOL_RANGE_MPEG || color_range == AVCOL_RANGE_JPEG) &&
+        av_opt_find2(&cls, "range", NULL, 0, AV_OPT_SEARCH_FAKE_OBJ, NULL)) {
+        snprintf(args + used, size - used, ":range=%d", color_range);
+    }
+}
+
 KC_API int ffkmp_graph_build_video(
     AVFilterGraph **out_graph, AVFilterContext **out_src, AVFilterContext **out_sink,
     const char *description,
     int width, int height, int pix_fmt,
     int tb_num, int tb_den, int fr_num, int fr_den, int sar_num, int sar_den
+) {
+    return ffkmp_graph_build_video_color(out_graph, out_src, out_sink, description, width, height, pix_fmt,
+                                         tb_num, tb_den, fr_num, fr_den, sar_num, sar_den,
+                                         AVCOL_SPC_UNSPECIFIED, AVCOL_RANGE_UNSPECIFIED);
+}
+
+KC_API int ffkmp_graph_build_video_color(
+    AVFilterGraph **out_graph, AVFilterContext **out_src, AVFilterContext **out_sink,
+    const char *description,
+    int width, int height, int pix_fmt,
+    int tb_num, int tb_den, int fr_num, int fr_den, int sar_num, int sar_den,
+    int color_space, int color_range
 ) {
     if (!KC_GATE_OPEN()) return AVERROR_EXTERNAL;
     if (!out_graph || !out_src || !out_sink) return AVERROR(EINVAL);
@@ -75,6 +108,7 @@ KC_API int ffkmp_graph_build_video(
         width, height, pix_fmt_name, tb_num, tb_den ? tb_den : 1,
         sar_num ? sar_num : 1, sar_den ? sar_den : 1,
         fr_num ? fr_num : 30, fr_den ? fr_den : 1);
+    ffkmp_buffer_color_args_(args, sizeof(args), src, color_space, color_range);
 
     AVFilterContext *src_ctx = NULL, *sink_ctx = NULL;
     int rc = avfilter_graph_create_filter(&src_ctx, src, "in", args, NULL, graph);

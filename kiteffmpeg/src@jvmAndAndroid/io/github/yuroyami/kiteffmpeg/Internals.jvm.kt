@@ -299,7 +299,7 @@ internal object Internals {
     private external fun nativeFrameFillVideo(token: Long, bytes: ByteArray): Int
     private external fun nativeFrameFillAudio(token: Long, bytes: ByteArray): Int
 
-    private external fun nativeGraphBuildVideo(description: String, width: Int, height: Int, format: Int, tbn: Int, tbd: Int, frn: Int, frd: Int, sarn: Int, sard: Int): LongArray
+    private external fun nativeGraphBuildVideo(description: String, width: Int, height: Int, format: Int, tbn: Int, tbd: Int, frn: Int, frd: Int, sarn: Int, sard: Int, colorSpace: Int, colorRange: Int): LongArray
     private external fun nativeGraphBuildAudio(description: String?, rate: Int, format: Int, channels: Int, tbn: Int, tbd: Int, outFormat: Int, outRate: Int, outChannels: Int, layoutMask: Long, outLayoutMask: Long): LongArray
     private external fun nativeGraphBuildVideoMulti(description: String, count: Int, widths: IntArray, heights: IntArray, formats: IntArray, tbns: IntArray, tbds: IntArray, frns: IntArray, frds: IntArray, sarns: IntArray, sards: IntArray): LongArray
     private external fun nativeGraphBuildAudioMulti(description: String?, count: Int, rates: IntArray, formats: IntArray, channels: IntArray, tbns: IntArray, tbds: IntArray, outFormat: Int, outRate: Int, outChannels: Int, layoutMasks: LongArray, outLayoutMask: Long): LongArray
@@ -705,7 +705,7 @@ internal object Internals {
     internal fun frameFillVideo(token: Long, bytes: ByteArray) = checked { nativeFrameFillVideo(token, bytes) }
     internal fun frameFillAudio(token: Long, bytes: ByteArray) = checked { nativeFrameFillAudio(token, bytes) }
 
-    internal fun graphBuildVideo(description: String, width: Int, height: Int, format: Int, timeBase: Rational, frameRate: Rational, sar: Rational) = checked { nativeGraphBuildVideo(description, width, height, format, timeBase.num, timeBase.den, frameRate.num, frameRate.den, sar.num, sar.den) }
+    internal fun graphBuildVideo(description: String, width: Int, height: Int, format: Int, timeBase: Rational, frameRate: Rational, sar: Rational, colorSpace: Int, colorRange: Int) = checked { nativeGraphBuildVideo(description, width, height, format, timeBase.num, timeBase.den, frameRate.num, frameRate.den, sar.num, sar.den, colorSpace, colorRange) }
     internal fun graphBuildAudio(description: String?, rate: Int, format: Int, channels: Int, timeBase: Rational, outFormat: Int, outRate: Int, outChannels: Int, layoutMask: Long, outLayoutMask: Long) = checked { nativeGraphBuildAudio(description, rate, format, channels, timeBase.num, timeBase.den, outFormat, outRate, outChannels, layoutMask, outLayoutMask) }
     internal fun graphBuildVideoMulti(description: String, count: Int, widths: IntArray, heights: IntArray, formats: IntArray, tbns: IntArray, tbds: IntArray, frns: IntArray, frds: IntArray, sarns: IntArray, sards: IntArray) = checked { nativeGraphBuildVideoMulti(description, count, widths, heights, formats, tbns, tbds, frns, frds, sarns, sards) }
     internal fun graphBuildAudioMulti(description: String?, count: Int, rates: IntArray, formats: IntArray, channels: IntArray, tbns: IntArray, tbds: IntArray, outFormat: Int, outRate: Int, outChannels: Int, layoutMasks: LongArray, outLayoutMask: Long) = checked { nativeGraphBuildAudioMulti(description, count, rates, formats, channels, tbns, tbds, outFormat, outRate, outChannels, layoutMasks, outLayoutMask) }

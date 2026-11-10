@@ -53,6 +53,11 @@ below.
 
 ### Fixed
 
+- A transcode's video filter graph is built for the colour matrix and range its frames declare,
+  and rebuilt when either changes (#214). Built without them, a filter that converts but stays in
+  YUV, such as `scale`, took FFmpeg's default for an unknown input: BT.709 and BT.2020 frames came
+  out tagged and converted as BT.601 limited range, up to 39 levels off. The C surface gains
+  `ffkmp_graph_build_video_color`, within C ABI 5.5; `ffkmp_graph_build_video` is unchanged.
 - `extractFrame` and a trimmed transcode that decodes video no longer seek five seconds before the
   target and decode that stretch only to throw it away (#252). The keyframe seek already checks
   that its landing shows by the target for the media's one picture stream, so such a seek aims at

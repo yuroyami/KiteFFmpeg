@@ -456,6 +456,9 @@ internal external fun ffkmp_graph_build_audio_multi(module: JsAny, a0: Int, a1: 
 @JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) => m._ffkmp_graph_build_video(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)")
 internal external fun ffkmp_graph_build_video(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int): Int
 
+@JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) => m._ffkmp_graph_build_video_color(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)")
+internal external fun ffkmp_graph_build_video_color(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int, a13: Int, a14: Int): Int
+
 @JsFun("(m, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) => m._ffkmp_graph_build_video_multi(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)")
 internal external fun ffkmp_graph_build_video_multi(module: JsAny, a0: Int, a1: Int, a2: Int, a3: Int, a4: Int, a5: Int, a6: Int, a7: Int, a8: Int, a9: Int, a10: Int, a11: Int, a12: Int, a13: Int): Int
 

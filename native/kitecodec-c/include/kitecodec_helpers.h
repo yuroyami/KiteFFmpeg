@@ -1084,6 +1084,21 @@ KC_API int ffkmp_graph_build_video(
     int tb_num, int tb_den, int fr_num, int fr_den, int sar_num, int sar_den
 );
 
+/* ffkmp_graph_build_video for frames of a known colour: color_space is an AVColorSpace and
+ * color_range an AVColorRange, as the frames declare them (#214). The graph's input then carries
+ * them, so a filter that converts, such as scale, keeps the frames' matrix and range rather than
+ * taking FFmpeg's default for an unknown input. AVCOL_SPC_UNSPECIFIED and AVCOL_RANGE_UNSPECIFIED,
+ * or an FFmpeg whose buffer source takes neither, build exactly what ffkmp_graph_build_video does.
+ * Ownership as there.
+ */
+KC_API int ffkmp_graph_build_video_color(
+    kc_filter_graph **out_graph, kc_filter_ctx **out_src, kc_filter_ctx **out_sink,
+    const char *description,
+    int width, int height, int pix_fmt,
+    int tb_num, int tb_den, int fr_num, int fr_den, int sar_num, int sar_den,
+    int color_space, int color_range
+);
+
 /* Ownership. On success the caller owns the graph through *out_graph and releases it with
  * ffkmp_graph_free; the two filter contexts belong to the graph and must never be freed
  * separately. On every failure path the graph is freed inside the call and all three out

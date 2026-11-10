@@ -206,6 +206,7 @@ ffkmp_frame_width
 ffkmp_graph_build_audio
 ffkmp_graph_build_audio_multi
 ffkmp_graph_build_video
+ffkmp_graph_build_video_color
 ffkmp_graph_build_video_multi
 ffkmp_graph_failed_requests
 ffkmp_graph_free

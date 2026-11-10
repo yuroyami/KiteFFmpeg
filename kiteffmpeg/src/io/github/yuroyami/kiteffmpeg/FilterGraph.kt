@@ -463,6 +463,23 @@ public class FilterGraph internal constructor(private val backend: FilterBackend
             },
         )
 
+        /** [buildVideo] for frames that declare [color], as a transcode's graph knows it (#214). */
+        @Throws(FFmpegException::class)
+        internal fun buildVideo(
+            description: String,
+            width: Int,
+            height: Int,
+            pixelFormat: PixelFormat,
+            timeBase: Rational,
+            frameRate: Rational,
+            sampleAspectRatio: Rational,
+            color: GraphColor,
+        ): FilterGraph = FilterGraph(
+            withLoggedReason {
+                buildVideoBackend(description, width, height, pixelFormat, timeBase, frameRate, sampleAspectRatio, color)
+            },
+        )
+
         /**
          * Build a single-input audio graph. When the `output*` parameters are given, an
          * `aformat` stage is appended so emitted frames arrive encoder-ready (resampled /
@@ -589,7 +606,32 @@ internal expect fun buildVideoBackend(
     timeBase: Rational,
     frameRate: Rational,
     sampleAspectRatio: Rational,
+    color: GraphColor = GraphColor.Unknown,
 ): FilterBackend
+
+/**
+ * The colour matrix and range a video graph's input carries, as FFmpeg's AVColorSpace and
+ * AVColorRange (#214). Only what the frames declare: an unknown matrix or range stays unknown, so
+ * the graph never builds on a guess.
+ */
+internal data class GraphColor(val matrix: Int, val range: Int) {
+    companion object {
+        /** AVCOL_SPC_UNSPECIFIED and AVCOL_RANGE_UNSPECIFIED. */
+        val Unknown: GraphColor = GraphColor(2, 0)
+
+        fun of(color: ColorInfo): GraphColor {
+            val declared = color.withoutGuesses()
+            return GraphColor(
+                matrix = declared.matrix.avValue,
+                range = when {
+                    !declared.rangeSpecified -> 0
+                    declared.fullRange -> 2
+                    else -> 1
+                },
+            )
+        }
+    }
+}
 
 @Throws(FFmpegException::class)
 internal expect fun buildAudioBackend(

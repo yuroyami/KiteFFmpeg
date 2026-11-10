@@ -18,20 +18,27 @@ internal data class VideoShape(
     val height: Int,
     val pixelFormat: PixelFormat,
     val sampleAspectRatio: Rational,
+    /**
+     * The matrix and range the frames declare. The graph's input carries them, and a change of
+     * either rebuilds the graph as a change of size does, so a filter that converts keeps the
+     * frames' colour rather than FFmpeg's default for an unknown input (#214).
+     */
+    val color: GraphColor = GraphColor.Unknown,
 ) : GraphShape {
     override val isComplete: Boolean
         get() = width > 0 && height > 0 && pixelFormat != PixelFormat.None
 
     override fun fits(info: FrameInfo): Boolean =
         info.width == width && info.height == height && info.pixelFormat == pixelFormat &&
-            info.sampleAspectRatio == sampleAspectRatio
+            info.sampleAspectRatio == sampleAspectRatio && GraphColor.of(info.color) == color
 
     companion object {
-        fun of(info: FrameInfo): VideoShape = VideoShape(info.width, info.height, info.pixelFormat, info.sampleAspectRatio)
+        fun of(info: FrameInfo): VideoShape =
+            VideoShape(info.width, info.height, info.pixelFormat, info.sampleAspectRatio, GraphColor.of(info.color))
 
         /** What [stream] declares, which is incomplete when it has no video information. */
         fun declaredBy(stream: StreamInfo): VideoShape = stream.video
-            ?.let { VideoShape(it.width, it.height, it.pixelFormat, it.sampleAspectRatio) }
+            ?.let { VideoShape(it.width, it.height, it.pixelFormat, it.sampleAspectRatio, GraphColor.of(it.color)) }
             ?: VideoShape(0, 0, PixelFormat.None, Rational(1, 1))
     }
 }
@@ -135,6 +142,7 @@ internal fun transcodeVideoGraph(description: String, stream: StreamInfo): Shape
             timeBase = stream.timeBase,
             frameRate = stream.video?.frameRate ?: Rational(25, 1),
             sampleAspectRatio = shape.sampleAspectRatio,
+            color = shape.color,
         )
     }
 

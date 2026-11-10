@@ -18,6 +18,7 @@ internal actual fun buildVideoBackend(
     timeBase: Rational,
     frameRate: Rational,
     sampleAspectRatio: Rational,
+    color: GraphColor,
 ): FilterBackend = refuseFilterGraph("Building a video filter graph")
 
 internal actual fun buildAudioBackend(
