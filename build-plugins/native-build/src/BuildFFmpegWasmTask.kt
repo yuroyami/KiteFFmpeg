@@ -237,9 +237,11 @@ open class BuildFFmpegWasmTask : BuildStep() {
          * audio codec and a file using it would fail the same inaudible way.
          */
         const val DECODERS = "h264,hevc,vp9,aac,aac_latm,aac_fixed,mp3,mp3float,mp3adu,mp3adufloat,flac," +
-            "opus,vorbis," +
+            "opus,vorbis,ac3,eac3," +
             "pcm_s16le,pcm_s16be,pcm_s24le,pcm_s24be,pcm_s32le,pcm_s32be,pcm_u8,pcm_s8," +
-            "pcm_f32le,pcm_f64le,pcm_alaw,pcm_mulaw"
+            "pcm_f32le,pcm_f64le,pcm_alaw,pcm_mulaw," +
+            // Picture subtitles and broadcast captions (#211): Blu-ray, DVB, DVD, DivX and CEA-608.
+            "pgssub,dvbsub,dvdsub,xsub,ccaption"
 
         /**
          * `mov` covers mp4/mov/m4a; `matroska` covers mkv and webm.
@@ -257,10 +259,13 @@ open class BuildFFmpegWasmTask : BuildStep() {
          * `webvtt` is the reader of an HLS subtitle rendition, which configure does not select
          * with `hls`. Without it the open of a stream that has such a rendition fails as a whole,
          * because the HLS reader probes the first segment of every playlist (#184).
+         *
+         * `ogg`, `wav` and `avi` are the small readers common web media needs (#211): Opus and
+         * Vorbis podcasts, WAV, and older AVI files. Together they are about 64 KB of code.
          */
-        const val DEMUXERS = "mov,matroska,mp3,flac,hls,webvtt"
+        const val DEMUXERS = "mov,matroska,mp3,flac,hls,webvtt,ogg,wav,avi"
 
-        const val PARSERS = "h264,hevc,vp9,aac,aac_latm,mpegaudio,flac,opus,vorbis"
+        const val PARSERS = "h264,hevc,vp9,aac,aac_latm,mpegaudio,flac,opus,vorbis,ac3,dvbsub,dvdsub"
 
         const val BSFS = "h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,extract_extradata,null"
 
@@ -268,6 +273,6 @@ open class BuildFFmpegWasmTask : BuildStep() {
          * Every filter `libkitecodec.a` names, plus the four a parsed graph almost always negotiates
          * through. `helpers_filter.c` is the source of the first five.
          */
-        const val FILTERS = "abuffer,abuffersink,anull,buffer,buffersink,null,aformat,format,scale,aresample"
+        const val FILTERS = "abuffer,abuffersink,anull,buffer,buffersink,null,aformat,format,scale,aresample,bwdif"
     }
 }

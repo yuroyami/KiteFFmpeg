@@ -47,9 +47,12 @@ one.
 
 The web module carries a smaller set of formats than the other builds:
 
-- **Decoders:** H.264, HEVC, VP9, AAC, MP3, FLAC, Opus, Vorbis and PCM. There is no AV1 decoder.
-- **Demuxers:** MP4 and MOV, Matroska and WebM, MP3, FLAC, HLS (with MPEG-TS and raw AAC, AC-3 and
-  E-AC-3 segments) and WebVTT.
+- **Decoders:** H.264, HEVC, VP9, AAC, MP3, FLAC, Opus, Vorbis, AC-3, E-AC-3 and PCM, and the
+  subtitle and caption decoders for Blu-ray (PGS), DVB, DVD, DivX (XSUB) and CEA-608. There is no
+  AV1 decoder.
+- **Demuxers:** MP4 and MOV, Matroska and WebM, MP3, FLAC, Ogg, WAV, AVI, HLS (with MPEG-TS and raw
+  AAC, AC-3 and E-AC-3 segments) and WebVTT.
+- **Filters:** the few a decode needs, and `bwdif` for deinterlacing.
 
 ## What each build carries
 
