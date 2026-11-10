@@ -39,7 +39,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 
 # One name per fuzz/fuzz_*.c file: the string targets first, then the two byte targets. Keep this
 # list, the fuzz/fuzz_*.c files, the fuzz/corpus subdirectories and run-fuzz.sh in agreement.
-ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode subtitle"
+ALL_TARGETS="filter_video filter_audio codec_option format_option metadata format_name codec_name muxer_name demux decode subtitle hls_opener"
 
 PROVE_POWER=0
 if [ "${1:-}" = "--prove-power" ]; then

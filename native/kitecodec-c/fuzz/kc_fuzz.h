@@ -40,6 +40,12 @@
  *     ffkmp_fmt_open_input_io. Nothing is split and nothing is NUL terminated, because no
  *     part of the input is a string.
  *
+ *   Opener target, fuzz_hls_opener
+ *     An HLS playlist and the files it may name, cut apart by the eight bytes "\n##KCF#\n". The
+ *     playlist is served as https://kite.test/index.m3u8, the parts after it as f0 to f7 through
+ *     the nested opener of ffkmp_fmt_open_input_io2, and the last part also as `key`, so an
+ *     AES-128 playlist decrypts its segments with a key from the input (#229).
+ *
  * Every string a target passes to a helper is a heap copy with a NUL appended, made by
  * kc_fuzz_dup below, and never a pointer into the driver's own buffer. Two reasons, and both are
  * about what the instrument can see:
