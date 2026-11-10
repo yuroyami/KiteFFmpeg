@@ -32,6 +32,9 @@ linkerOpts.ios = -lz -framework CoreFoundation -framework CoreMedia -framework C
 linkerOpts.linux = -lz -lm -ldl -lpthread
 # Windows: zlib + iconv from the msys2 sysroot (iconv backs subtitle charset conversion and the
 # mingw configure autodetects it), plus the sockets, media and COM APIs FFmpeg reaches for.
-linkerOpts.mingw = -lz -liconv -lws2_32 -lbcrypt -lsecur32 -lmfplat -lole32 -lstrmiids -luuid
+# zlib and iconv are named by their static archives: the sysroot holds an import library beside
+# each, the link runs in dynamic mode, and a plain -lz -liconv made every app import zlib1.dll
+# and libiconv-2.dll, which Windows does not have and kiteffmpeg does not ship (#186).
+linkerOpts.mingw = -l:libz.a -l:libiconv.a -lws2_32 -lbcrypt -lsecur32 -lmfplat -lole32 -lstrmiids -luuid
 # Android: the MediaCodec wrapper needs mediandk + JNI glue; zlib + log are NDK staples.
 linkerOpts.android = -lmediandk -landroid -llog -lz

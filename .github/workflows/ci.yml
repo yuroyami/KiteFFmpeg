@@ -809,6 +809,19 @@ jobs:
         run: kotlin.bat build -m kiteffmpeg-sample-windows -p mingwX64
       - name: End-to-end transcode
         run: scripts/e2e.sh "$(find build/tasks -name 'kiteffmpeg-sample-windows.exe' -type f | head -1)" ffmpeg ffprobe
+      # An app linked with kiteffmpeg must start on a clean Windows, so it may import no DLL that
+      # Windows lacks. This runner has zlib1.dll and libiconv-2.dll on its path, so the run above
+      # cannot tell; the names are read from the binary instead (#186).
+      - name: Check the sample imports no DLL that Windows lacks
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse -File build/tasks -Filter kiteffmpeg-sample-windows.exe | Select-Object -First 1
+          $text = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($exe.FullName))
+          foreach ($dll in 'zlib1.dll', 'libiconv-2.dll', 'libwinpthread-1.dll') {
+            if ($text.IndexOf($dll, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+              throw "$($exe.Name) imports $dll, which Windows does not have and kiteffmpeg does not ship"
+            }
+          }
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4

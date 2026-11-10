@@ -75,8 +75,8 @@ self-contained artifact can only bundle what cross-compiles for all eleven targe
 |---|---|---|
 | FFmpeg (libav\*) | LGPL-2.1+ | bundled in every published artifact |
 | dav1d | BSD-2-Clause | bundled in every published artifact; it is the software AV1 decoder |
-| zlib | zlib license | linked from the platform SDK or the system, not bundled, except in the Windows JNI library of the JVM jar, which bundles MSYS2's `libz.a` |
-| GNU libiconv 1.16 | LGPL-2.0-or-later (the Library GPL version 2) | bundled in the Windows JNI library of the JVM jar, from the MSYS2 mingw-w64 sysroot Kotlin/Native ships, where FFmpeg's subtitle charset conversion calls it; source at <https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz> |
+| zlib | zlib license | linked from the platform SDK or the system, not bundled, except on Windows: the JNI library of the JVM jar and every `mingwX64` app that links kiteffmpeg take MSYS2's `libz.a` statically |
+| GNU libiconv 1.16 | LGPL-2.0-or-later (the Library GPL version 2) | bundled in the Windows JNI library of the JVM jar and linked statically into every `mingwX64` app that links kiteffmpeg, from the MSYS2 mingw-w64 sysroot Kotlin/Native ships, where FFmpeg's subtitle charset conversion calls it; source at <https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz> |
 | compiler-rt (LLVM) | Apache-2.0 WITH LLVM-exception | bundled in the `androidNativeArm64` klib: the outline atomics helpers of the NDK compiler runtime |
 
 **FFmpeg credits the Independent JPEG Group.** Three of its files come from libjpeg

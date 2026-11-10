@@ -100,11 +100,13 @@ carry FFmpeg alone.
   dav1d           BSD-2-Clause        https://code.videolan.org/videolan/dav1d
                   (bundled; it is the software AV1 decoder)
   zlib            zlib                https://zlib.net
-                  (linked from the platform SDK or the system, not bundled, except in
-                  the Windows JNI library of the JVM jar, which bundles MSYS2's libz.a)
+                  (linked from the platform SDK or the system, not bundled, except on
+                  Windows: the JNI library of the JVM jar and every mingwX64 app that
+                  links kiteffmpeg take MSYS2's libz.a statically)
   GNU libiconv    LGPL-2.0-or-later   https://www.gnu.org/software/libiconv/
                   (1.16, from the MSYS2 mingw-w64 sysroot that Kotlin/Native ships,
-                  bundled in the Windows JNI library of the JVM jar, where FFmpeg's
+                  bundled in the Windows JNI library of the JVM jar and linked
+                  statically into every mingwX64 app that links kiteffmpeg, where FFmpeg's
                   subtitle charset conversion calls it; its licence is the Library
                   GPL version 2, and its source is
                   https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz)
