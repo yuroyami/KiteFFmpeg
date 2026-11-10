@@ -50,6 +50,12 @@ on:
 permissions:
   contents: read
 
+# The prebuilt static FFmpeg the fuzz job links, the one CI tests and the library embeds, with every
+# patch under native/patches/ffmpeg (#205). `./kotlin check ffmpegRefs` holds both pins to ci.yml's.
+env:
+  FFMPEG_VERSION: n9.0.2
+  FFMPEG_ASSET_TAG: ffmpeg-n9.0.2-r3
+
 concurrency:
   group: fuzz-${{ github.ref }}
   cancel-in-progress: true
@@ -68,20 +74,33 @@ jobs:
       # link fails exactly as it does on macOS, and run-fuzz.sh's preflight says so and exits 3
       # rather than burying the reason in a linker error.
       #
-      # The demux and decode targets fuzz THIS FFmpeg: Ubuntu's build, which is older than the one
-      # the library embeds, and not instrumented. libFuzzer then steers by the helper layer's
-      # branches only. Inside FFmpeg the sanitizers see a crash, and a bad free or copy through the
-      # calls they intercept, but not every stray read. A finding inside FFmpeg counts only after
-      # it reproduces against the embedded version through the replay driver.
-      - name: Install clang, the libFuzzer runtime and FFmpeg
+      # The demux and decode targets fuzz the FFmpeg the library embeds, with its patches, from the
+      # prebuilt linux-x64 tree CI tests (#205). It used to be Ubuntu's FFmpeg 6.1, which has none of
+      # the patches, so the patched parsers were never fuzzed and the nested opener answered ENOSYS
+      # to every opener. The tree is not instrumented: libFuzzer steers by the helper layer's
+      # branches, and inside FFmpeg the sanitizers see a crash, and a bad free or copy through the
+      # calls they intercept, but not every stray read.
+      - name: Install clang and the libFuzzer runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 libclang-rt-18-dev pkg-config \
-            libavformat-dev libavcodec-dev libavfilter-dev \
-            libavutil-dev libswscale-dev libswresample-dev
+          sudo apt-get install -y clang-18 libclang-rt-18-dev
+      - name: Fetch the prebuilt static FFmpeg (linux-x64)
+        run: |
+          set -euo pipefail
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
+          asset="ffmpeg-${FFMPEG_VERSION}-lgpl-linux-x64.zip"
+          curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
+          curl -fL --retry 3 -o "${asset}.sha256" "${base}/${asset}.sha256"
+          shasum -a 256 -c "${asset}.sha256"
+          mkdir -p native-libs/lgpl/linux-x64
+          unzip -q "${asset}" -d native-libs/lgpl/linux-x64
+          test -f native-libs/lgpl/linux-x64/lib/libavformat.a
+          ./scripts/check-tree-patches.sh native-libs/lgpl/linux-x64
+          rm -f "${asset}" "${asset}.sha256"
       - name: Fuzz every target, five minutes each
         env:
           KC_CC: clang-18
+          KC_FFMPEG_PREFIX: ${{ github.workspace }}/native-libs/lgpl/linux-x64
           KC_FUZZ_SECONDS: 300
           KC_ARTIFACT_DIR: ${{ github.workspace }}/fuzz-artifacts
         run: ./native/kitecodec-c/scripts/run-fuzz.sh

@@ -83,6 +83,22 @@ fun checkFFmpegRefs(repoRoot: String) {
                 "stopped building from source, or the clone line changed shape and this check cannot see it.",
         )
     }
+    // The fuzz job fuzzes the prebuilt tree that CI tests, so its two pins follow CI's (#205).
+    val fuzz = root.resolve(".github/workflows/fuzz.yml")
+    if (!fuzz.isFile) throw BuildFailure("Cannot check the FFmpeg release pins: no $fuzz.")
+    val fuzzText = fuzz.readText()
+    val fuzzRef = BuildFFmpegTask.readWorkflowFFmpegVersion(fuzzText) ?: throw BuildFailure(
+        "Cannot check the FFmpeg release pins: .github/workflows/fuzz.yml has no `FFMPEG_VERSION:` line in its " +
+            "env block. It names the prebuilt tree the fuzz job fuzzes.",
+    )
+    val assetTag = { text: String -> Regex("(?m)^\\s*FFMPEG_ASSET_TAG:\\s*\"?([^\"\\s#]+)").find(text)?.groupValues?.get(1) }
+    val ciTag = assetTag(ci.readText())
+    if (ciTag == null || ciTag != assetTag(fuzzText)) {
+        throw BuildFailure(
+            "The fuzz job fetches the prebuilt FFmpeg trees from FFMPEG_ASSET_TAG ${assetTag(fuzzText)}, and CI from " +
+                "$ciTag. Both must name the release CI tests, so .github/workflows/fuzz.yml follows ci.yml.",
+        )
+    }
     val vendorRelease = root.resolve("vendor/ffmpeg/RELEASE").takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
     val sites = listOf(
         BuildFFmpegTask.FFmpegRefSite(
@@ -90,6 +106,7 @@ fun checkFFmpegRefs(repoRoot: String) {
             BuildFFmpegTask.DEFAULT_SOURCE_REF,
         ),
         BuildFFmpegTask.FFmpegRefSite(".github/workflows/publish.yml FFMPEG_VERSION", publishRef),
+        BuildFFmpegTask.FFmpegRefSite(".github/workflows/fuzz.yml FFMPEG_VERSION", fuzzRef),
     ) + cloneRefs.mapIndexed { index, ref -> BuildFFmpegTask.FFmpegRefSite("ci.yml FFmpeg clone ${index + 1}", ref) }
     BuildFFmpegTask.assertFFmpegRefsAgree(sites, vendorRelease)
     BuildLog.lifecycle("[KiteFFmpeg] ${sites.size} FFmpeg release pins agree on ${BuildFFmpegTask.DEFAULT_SOURCE_REF}")

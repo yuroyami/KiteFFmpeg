@@ -99,6 +99,11 @@ if [ -n "${KC_FFMPEG_PREFIX:-}" ]; then
     FF_CFLAGS="-I$KC_FFMPEG_PREFIX/include"
     FF_LDFLAGS="-L$KC_FFMPEG_PREFIX/lib"
     FF_LIBS="-lavformat -lavcodec -lavfilter -lavutil -lswscale -lswresample"
+    # A prefix is a static tree, such as the prebuilt ones this repository ships, so the archives
+    # bring no dependencies of their own: dav1d when the tree carries it, and the system libraries
+    # FFmpeg's objects call (#205).
+    if [ -f "$KC_FFMPEG_PREFIX/lib/libdav1d.a" ]; then FF_LIBS="$FF_LIBS -ldav1d"; fi
+    FF_LIBS="$FF_LIBS -lz -lm -lpthread -ldl -latomic"
     FF_ORIGIN="KC_FFMPEG_PREFIX=$KC_FFMPEG_PREFIX"
 else
     command -v pkg-config >/dev/null 2>&1 || {
