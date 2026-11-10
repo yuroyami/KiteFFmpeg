@@ -71,7 +71,7 @@ it in every family.
 ## The corpus
 
 The string corpora hold 128 files, 38807 bytes, all committed, all textual. The byte corpora hold
-82 small media files, 121866 bytes, all committed. No media seed is larger than 5559 bytes, which
+84 small media files, 126512 bytes, all committed, beside the playlists of `corpus/hls_opener/`. No media seed is larger than 5559 bytes, which
 keeps every seed under the `-max_len` of 8192 that `run-fuzz.sh` passes.
 
 | Directory | Files | What is in it |
@@ -84,13 +84,16 @@ keeps every seed under the `-max_len` of 8192 that `run-fuzz.sh` passes.
 | `corpus/format_name/` | 20 | Valid pixel and sample format names, the `rgb32` and `bgr32` aliases, a truncated name, uppercase, a leading space, a name with an embedded NUL, and a 4096 byte name. |
 | `corpus/codec_name/` | 14 | Valid encoder, decoder and filter names (`h264`, `aac`, an encoder alias, `null`, `scale`, `yadif`), an unknown name, a comma list, a format specifier, a path, uppercase, a trailing space, an empty input and a 300 byte name. |
 | `corpus/muxer_name/` | 11 | Valid muxer names (`matroska`, `mp4`, `null`, `wav`), an unknown name, a comma list, a format specifier, uppercase, a trailing space, an empty input and a 300 byte name. |
-| `corpus/demux/` | 33 | Small files that 17 demuxers open: MP4 with its index before the media, after it, and with a rotation; Matroska with chapters and tags; WebM, Ogg, WAV, FLAC, MP3 with ID3 tags, ADTS AAC, MPEG-TS, AVI, FLV, raw H.264, IVF, AIFF, CAF, QuickTime, SubRip, WebVTT and ASS. A concat script and an SDP file that each point at something a fuzz run must never open. Ten deliberately corrupted inputs, named `corrupt_*`: truncated files, sizes that lie, changed header bytes, a bad page checksum, random bytes and an empty file. |
+| `corpus/demux/` | 35 | Small files that 17 demuxers open: MP4 with its index before the media, after it, with a rotation, and with the `st3d`, `sv3d` and `elng` boxes the patched MP4 reader adds up; Matroska with chapters and tags, and with two editions, the second the default, and a track that names its language in BCP 47, for the patched Matroska reader; WebM, Ogg, WAV, FLAC, MP3 with ID3 tags, ADTS AAC, MPEG-TS, AVI, FLV, raw H.264, IVF, AIFF, CAF, QuickTime, SubRip, WebVTT and ASS. A concat script and an SDP file that each point at something a fuzz run must never open. Ten deliberately corrupted inputs, named `corrupt_*`: truncated files, sizes that lie, changed header bytes, a bad page checksum, random bytes and an empty file. |
 | `corpus/decode/` | 37 | One small file per decoder: H.264, HEVC, VP8, VP9, AV1, MPEG-4, MJPEG, GIF, APNG, MPEG-2, Theora, FFV1, ProRes, AAC, MP3, Opus, Vorbis, FLAC, PCM, AC-3, ALAC and WavPack. Fourteen deliberately corrupted inputs, named `corrupt_*`: twelve with an intact container and changed bytes inside the coded frames, random bytes and an empty file. |
 | `corpus/subtitle/` | 12 | The SubRip, WebVTT and ASS seeds of `corpus/demux/`, the same SubRip and ASS in Matroska, SubRip as MP4 timed text, and `pgs.sup`, the Blu-ray display set that `tests/test_subtitle.c` builds byte by byte: a 4 by 2 image, then a clear. Five deliberately corrupted inputs, named `corrupt_*`: the Blu-ray set truncated inside its object, with an object size that its run-length data does not hold, and with changed run-length bytes, plus random bytes and an empty file. |
-| `corpus/hls_opener/` | 4 | An AES-128 playlist with one encrypted MPEG-TS segment of AAC and its key, the same encrypted segment read as two byte ranges, a plain playlist of two segments, and a playlist that names a file the input does not hold. The segment is one second of a sine made by the `ffmpeg` command line and encrypted with `openssl enc -aes-128-cbc`. |
+| `corpus/hls_opener/` | 5 | An AES-128 playlist with one encrypted MPEG-TS segment of AAC and its key, the same encrypted segment read as two byte ranges, a plain playlist of two segments, the same playlist naming its segments through `EXT-X-DEFINE` variables for the patched HLS reader, and a playlist that names a file the input does not hold. The segment is one second of a sine made by the `ffmpeg` command line and encrypted with `openssl enc -aes-128-cbc`. |
 
 **The media seeds.** The ffmpeg command line tool made them from its own test sources: a 32 by 32
-test picture for three frames and a sine tone, encoded with bit-exact flags. Each `corrupt_*` seed is
+test picture for three frames and a sine tone, encoded with bit-exact flags. Two were written by
+hand for the patched readers (#205): `mp4_spherical_stereo_elng.mp4` is `mp4_h264_aac.mp4` with an
+`st3d`, an `sv3d` and an `elng` box added to its video track, and `mkv_editions_bcp47.mkv` is a
+Matroska file of one subtitle line written element by element. FFmpeg 6.1 reads both. Each `corrupt_*` seed is
 one of those files with bytes changed at fixed offsets, so it can be made again.
 
 **The description overflow length vectors.** The seeds include descriptions of length 0, 2047, 2048,
