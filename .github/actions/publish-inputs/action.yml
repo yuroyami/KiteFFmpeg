@@ -68,3 +68,24 @@ runs:
             echo "::error::FFmpeg ${FFMPEG_VERSION} cloned as ${actual}, but the native archives were built from ${expected}" >&2
             exit 1
           fi
+    # The web FFmpeg tree that the kiteffmpeg-web and kiteffmpeg-web-async jars link against. The
+    # key is the one of ci.yml's web job, so this restores the tree CI built from the same inputs,
+    # and both jobs of publish.yml link the same bytes.
+    - name: Cache the web FFmpeg build
+      id: ffmpeg-web
+      uses: actions/cache@v4
+      with:
+        path: native-libs/lgpl/wasm32
+        key: ffmpeg-wasm32-lgpl-n9.0.2-emcc-6.0.11-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
+    - name: Build the web FFmpeg from the cloned source
+      if: steps.ffmpeg-web.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+          set -euo pipefail
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
+          export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
+          # shellcheck disable=SC1010
+          ./kotlin do buildFFmpegForWasm
+    - name: The web FFmpeg tree exists
+      shell: bash
+      run: test -f native-libs/lgpl/wasm32/lib/libavformat.a
