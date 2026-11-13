@@ -41,19 +41,20 @@ object FFmpegInterop {
         } else {
             template.readText()
         }
+        // A system FFmpeg links its shared libraries from its own folder. A def file keeps only the
+        // last line of a key, so these flags join the template's own linkerOpts lines.
+        val linked = if (paths.isStaticVendored) templateText else {
+            val lib = quote(paths.libDir)
+            // Kotlin/Native hands these to ld itself, which takes no clang -Wl, prefix.
+            withLinkerFlags(withLinkerFlags(templateText, "linkerOpts.osx", "-L$lib -rpath $lib"), "linkerOpts.linux", "-L$lib")
+        }
         val text = buildString {
-            append(templateText.trimEnd())
+            append(linked.trimEnd())
             appendLine()
             appendLine()
             appendLine("# Added by the kiteffmpeg-native plugin for this machine.")
             appendLine("libraryPaths = ${searchDirs.joinToString(" ") { quote(it.absolutePath) }}")
             appendLine("compilerOpts = -I${quote(ownInclude.absolutePath)} -I${quote(paths.includeDir)}")
-            if (!paths.isStaticVendored) {
-                val lib = quote(paths.libDir)
-                // Kotlin/Native hands these to ld itself, which takes no clang -Wl, prefix.
-                appendLine("linkerOpts.osx = -L$lib -rpath $lib")
-                appendLine("linkerOpts.linux = -L$lib")
-            }
             // cinterop reruns only when this file changes, so the file names the archives it embeds.
             appendLine("# Embedded archives: ${fingerprint(embeddedFiles + extraArchives)}")
         }
@@ -116,6 +117,14 @@ object FFmpegInterop {
         )
         return CompileKiteFFmpegCTask.resolveTool(llvmBin, "llvm-ar")
             ?: throw BuildFailure("No llvm-ar under $llvmBin, so the Android archives cannot be merged.")
+    }
+
+    /** [definition] with [flags] added to the end of its [key] line, or a new [key] line when it has none. */
+    fun withLinkerFlags(definition: String, key: String, flags: String): String {
+        val lines = definition.lines()
+        val at = lines.indexOfFirst { it.substringBefore('=').trim() == key && '=' in it }
+        if (at < 0) return definition.trimEnd() + "\n$key = $flags\n"
+        return lines.toMutableList().apply { this[at] = "${this[at].trimEnd()} $flags" }.joinToString("\n")
     }
 
     /** [definition] with its `staticLibraries` line naming only [archive]. */
