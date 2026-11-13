@@ -131,7 +131,11 @@ server.listen(0, "127.0.0.1", () => {
     `--user-data-dir=${profile}`, `http://127.0.0.1:${port}/`,
   ], { stdio: "ignore" });
   chrome.on("exit", () => {
-    fs.rmSync(profile, { recursive: true, force: true });
+    try {
+      fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // Chrome's helper processes can still hold a file. The folder is in the temporary directory.
+    }
     if (!finished) {
       console.log("Chrome stopped before the tests finished.");
       finish(1);
