@@ -200,6 +200,7 @@ tasks:
   jniHarness:
     action: !io.github.yuroyami.kiteffmpeg.plugin.linkJniHarness
       repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
       jniSources: ${project.rootDir}/native/kitecodec-jni
       handleSources: ${project.rootDir}/native/kitecodec-handles
       cSources: ${project.rootDir}/native/kitecodec-c/src

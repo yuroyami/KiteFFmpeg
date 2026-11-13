@@ -129,7 +129,7 @@ fun linkDesktopJni(
 
     checkJniRegistration(jniSources.toFile())
     val konanTarget = konanTargetOf(platformDirectory)
-    if (!isMac) ensureKonanSysroot(konanTarget, kotlinVersion)
+    ensureKonanSysroot(konanTarget, kotlinVersion)
     val work = linkDir.toFile()
     val paths = FFmpegPaths(tree.resolve("include").absolutePath, tree.resolve("lib").absolutePath, isStaticVendored = true)
     val helperDir = work.resolve("c/$konanTarget")
@@ -194,6 +194,7 @@ fun linkDesktopJni(
 @TaskAction
 fun linkJniHarness(
     repoRoot: String,
+    kotlinVersion: String,
     @Input jniSources: Path,
     @Input handleSources: Path,
     @Input cSources: Path,
@@ -218,6 +219,7 @@ fun linkJniHarness(
     }
 
     checkJniRegistration(jniSources.toFile())
+    ensureKonanSysroot("macos_arm64", kotlinVersion)
     val work = workDir.toFile().apply { mkdirs() }
     val jni = jniSources.toFile()
     val opaqueInclude = cInclude.toFile()

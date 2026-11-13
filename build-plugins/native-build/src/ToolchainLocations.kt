@@ -125,17 +125,24 @@ private fun lockFully(channel: FileChannel): FileLock {
 }
 
 /**
- * Makes Kotlin/Native download the sysroot of [konanTarget] when it is missing.
+ * Makes Kotlin/Native download the LLVM package and the sysroot of [konanTarget] when one is missing.
  *
- * The C helper layer and the JNI links compile against konan's sysroots, but Kotlin/Native downloads a
- * sysroot only when it first links for that target. On a fresh machine the C compile runs first, so
+ * The C helper layer and the JNI links compile with konan's clang against konan's sysroots, but
+ * Kotlin/Native downloads both only when it first links for that target. Apple targets take their SDK
+ * from Xcode, so they need only the LLVM package. On a fresh machine the C compile runs first, so
  * this compiles a one-line program for the target, which needs the linker and so downloads what the
  * target needs. A library does not: Kotlin/Native 2.4.21 builds a klib without the sysroot (#235).
  * The warmup runs under [konanSetup], as konan unpacks into one shared folder.
  */
 fun ensureKonanSysroot(konanTarget: String, kotlinVersion: String) {
-    val sysroot = CompileKiteFFmpegCTask.specFor(konanTarget).konanSysroot ?: return
-    fun present() = konanDataDir().resolve("dependencies").resolve(sysroot).isDirectory
+    val sysroot = CompileKiteFFmpegCTask.specFor(konanTarget).konanSysroot
+    fun present(): Boolean {
+        val dependencies = konanDataDir().resolve("dependencies")
+        val hasClang = dependencies.listFiles().orEmpty().any {
+            it.name.startsWith("llvm-") && CompileKiteFFmpegCTask.resolveTool(it.resolve("bin"), "clang") != null
+        }
+        return hasClang && (sysroot == null || dependencies.resolve(sysroot).isDirectory)
+    }
     if (present()) return
     konanSetup {
         if (present()) return@konanSetup
@@ -155,7 +162,8 @@ fun ensureKonanSysroot(konanTarget: String, kotlinVersion: String) {
             work.deleteRecursively()
         }
         if (!present()) {
-            throw BuildFailure("Kotlin/Native did not download $sysroot for $konanTarget into ${konanDataDir()}.")
+            val what = if (sysroot == null) "its LLVM package" else "its LLVM package or $sysroot"
+            throw BuildFailure("Kotlin/Native did not download $what for $konanTarget into ${konanDataDir()}.")
         }
     }
 }
