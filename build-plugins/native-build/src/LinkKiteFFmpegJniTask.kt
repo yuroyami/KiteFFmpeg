@@ -375,6 +375,8 @@ open class LinkKiteFFmpegJniTask(
          * does not load on a machine without MSYS2. The Windows system libraries are import stubs
          * either way. `--strip-debug` drops the DLL's DWARF sections, 3 MB the loader never reads:
          * HotSpot names Windows frames through dbghelp, so a crash report loses nothing (#192).
+         * `--no-insert-timestamp` leaves the PE header's link time at zero, so two links give the
+         * same DLL and the publish run's second build matches the attested files.
          */
         fun desktopLinkFlags(recipe: DesktopJniRecipe, toolchainFlags: List<String>, dav1d: Boolean): List<String> {
             val ffmpeg = listOf("-lavformat", "-lavcodec", "-lavfilter", "-lavutil", "-lswscale", "-lswresample") +
@@ -383,7 +385,7 @@ open class LinkKiteFFmpegJniTask(
                 toolchainFlags + "-Wl,-Bstatic" + ffmpeg + listOf(
                     "-liconv", "-lz", "-lm", "-lpthread",
                     "-lole32", "-luser32", "-lws2_32", "-lbcrypt",
-                    "-static-libgcc", "-Wl,--strip-debug",
+                    "-static-libgcc", "-Wl,--strip-debug", "-Wl,--no-insert-timestamp",
                 )
             } else {
                 // The same hardening as the Android link: a GOT that is read-only once loaded, and

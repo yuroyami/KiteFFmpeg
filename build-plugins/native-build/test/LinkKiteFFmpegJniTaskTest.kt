@@ -115,7 +115,7 @@ class LinkKiteFFmpegJniTaskTest {
             toolchain + "-Wl,-Bstatic" + ffmpeg + "-ldav1d" + listOf(
                 "-liconv", "-lz", "-lm", "-lpthread",
                 "-lole32", "-luser32", "-lws2_32", "-lbcrypt",
-                "-static-libgcc", "-Wl,--strip-debug",
+                "-static-libgcc", "-Wl,--strip-debug", "-Wl,--no-insert-timestamp",
             ),
             LinkKiteFFmpegJniTask.desktopLinkFlags(windows, toolchain, dav1d = true),
         )
