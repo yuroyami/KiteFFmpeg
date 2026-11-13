@@ -50,7 +50,8 @@ object FFmpegInterop {
             appendLine("compilerOpts = -I${quote(ownInclude.absolutePath)} -I${quote(paths.includeDir)}")
             if (!paths.isStaticVendored) {
                 val lib = quote(paths.libDir)
-                appendLine("linkerOpts.osx = -L$lib -Wl,-rpath,$lib")
+                // Kotlin/Native hands these to ld itself, which takes no clang -Wl, prefix.
+                appendLine("linkerOpts.osx = -L$lib -rpath $lib")
                 appendLine("linkerOpts.linux = -L$lib")
             }
             // cinterop reruns only when this file changes, so the file names the archives it embeds.
