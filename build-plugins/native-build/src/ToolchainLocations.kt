@@ -143,7 +143,7 @@ fun ensureKonanSysroot(konanTarget: String, kotlinVersion: String) {
         }
         return hasClang && (sysroot == null || dependencies.resolve(sysroot).isDirectory)
     }
-    if (present()) return
+    // Check only under the lock: while another task extracts the sysroot, its folder exists half full.
     konanSetup {
         if (present()) return@konanSetup
         val konanc = findKonanc(kotlinVersion) ?: downloadKonanc(kotlinVersion)
