@@ -238,7 +238,7 @@ Then add `mavenLocal()` to the repositories of your project and use the version 
 kotlin {
     macosArm64()
     sourceSets.commonMain.dependencies {
-        implementation("io.github.yuroyami:kiteffmpeg:0.5.1")
+        implementation("io.github.yuroyami:kiteffmpeg:0.6.0")
     }
 }
 ```

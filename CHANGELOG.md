@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
 The build moved from Gradle to the Kotlin Toolchain. The Kotlin API, the C ABI and the published
 group and version line did not change. The Android, Wasm and web distribution changed, as listed
 below.
@@ -53,6 +55,10 @@ below.
 
 ### Fixed
 
+- An Android app no longer has to compile against SDK 37.2 to use KiteFFmpeg (#189). The 0.5.1 AAR
+  carried that floor in its metadata, so an app on `compileSdk` 36 failed its first build. The AAR
+  that the Kotlin Toolchain builds carries no AAR metadata, and the README's install section says
+  that the library sets no `compileSdk` floor.
 - Every Android build of CI and of a release uses one pinned NDK, 30.0.16248370, named in
   `.github/android-ndk-version.txt` (#190). The jobs took whatever the runner image called its
   latest NDK, so the `ffmpeg-n9.0.2-r3` Android trees came from NDK 29 and NDK 30. A binaries
@@ -1335,7 +1341,8 @@ Everything below grew from `0.0.1` and is listed for orientation rather than as 
 
 Initial development baseline: project structure, consolidated FFmpeg cinterop binding (`ffmpeg.def` + `ffkmp_*` helpers), and the first working decode/encode paths on macOS arm64. Everything listed under [Unreleased] grew from here; treat 0.0.1 as the "it exists and transcodes" milestone rather than a supported release.
 
-[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.5.1...HEAD
+[Unreleased]: https://github.com/yuroyami/KiteFFmpeg/compare/kiteffmpeg-v0.6.0...HEAD
+[0.6.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.6.0
 [0.5.1]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.5.1
 [0.5.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.5.0
 [0.4.0]: https://github.com/yuroyami/KiteFFmpeg/releases/tag/kiteffmpeg-v0.4.0

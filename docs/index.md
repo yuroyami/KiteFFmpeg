@@ -31,7 +31,7 @@ that you build yourself. [Platform support](platforms.md) lists what each build 
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.5.1")
+    implementation("io.github.yuroyami:kiteffmpeg:0.6.0")
 }
 ```
 

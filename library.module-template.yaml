@@ -20,7 +20,7 @@ settings:
   publishing:
     enabled: true
     group: io.github.yuroyami
-    version: 0.5.1
+    version: 0.6.0
     pom:
       url: https://github.com/yuroyami/KiteFFmpeg
       developers:

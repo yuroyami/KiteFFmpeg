@@ -75,14 +75,14 @@ message you read.
 
 ```kotlin
 commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.5.1")
+    implementation("io.github.yuroyami:kiteffmpeg:0.6.0")
 }
 ```
 
 You don't install FFmpeg (it comes inside the artifact), and there is no Gradle plugin to apply.
 Each platform adds about 10 MB to download. In a plain Android or JVM project, put the line in
-your usual `dependencies { }` block. On Android the library needs `minSdk` 26, and on the JVM it
-needs Java 11 or later.
+your usual `dependencies { }` block. On Android the library needs `minSdk` 26 and sets no
+`compileSdk` floor, and on the JVM it needs Java 11 or later.
 
 ### What else you need
 

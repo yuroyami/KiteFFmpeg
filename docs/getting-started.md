@@ -9,7 +9,7 @@ most targets. There is nothing to install and no Gradle plugin:
 
 ```kotlin
 sourceSets.commonMain.dependencies {
-    implementation("io.github.yuroyami:kiteffmpeg:0.5.1")
+    implementation("io.github.yuroyami:kiteffmpeg:0.6.0")
 }
 ```
 
