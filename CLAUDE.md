@@ -9,8 +9,9 @@ only what reading the code or running the gate would not teach you.
 
 ## How work happens here
 
-- Work on `main`. Never create a branch without asking. Commit locally, never push. The owner
-  pushes, publishes and cuts every release.
+- Always work on `main`. Never create a branch, local or remote. A cloud session makes a
+  `claude/...` branch by default, so commit to `main` there too. Commit locally, never push. The
+  owner pushes, publishes and cuts every release.
 - Commit subject is one imperative sentence about the outcome. Short prose body. No trailers.
 - AI use is stated once, in the README. AI tools, Claude among them, helped build this project,
   and the owner directs and reviews all of the work. A commit does not repeat that statement in
