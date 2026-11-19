@@ -126,7 +126,8 @@ private fun platformLibraries(platform: String, analysisPlatform: String, kotlin
     val cache = toolchainCache()
     if (analysisPlatform == "native") {
         val distribution = cache.resolve("extract.cache").listDirectoryEntries("*kotlin-native-prebuilt-$kotlinVersion-*")
-            .firstOrNull { it.isDirectory() }
+            // The toolchain writes `<folder>.flag` once a folder is fully unpacked.
+            .firstOrNull { it.isDirectory() && it.resolveSibling("${it.fileName}.flag").exists() }
             ?: error("No Kotlin/Native $kotlinVersion in $cache. Build a native platform first.")
         // The libraries of one target stand in for the whole folder. They declare the same API for the docs.
         val target = when {

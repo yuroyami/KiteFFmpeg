@@ -29,18 +29,36 @@ fun konanDataDir(): File =
  * The `konanc` of Kotlin/Native [kotlinVersion]: first the one the Kotlin Toolchain downloaded, then
  * `~/.konan`. A copy in `~/.konan` counts only when it carries [COMPLETE_MARK], which only an
  * unpack that finished writes, so a folder another task is still filling is never taken (#236).
+ *
+ * The toolchain has its own mark: it writes `<folder>.flag` beside its folder when the unpack is
+ * done. A task can start while that unpack still runs, so only a flagged folder counts, and when an
+ * unflagged one is all there is, this waits for its flag.
  */
 fun findKonanc(kotlinVersion: String): File? {
     val executable = if (System.getProperty("os.name").orEmpty().startsWith("Windows")) "konanc.bat" else "konanc"
-    val toolchainCopies = kotlinToolchainCache().resolve("extract.cache").listFiles().orEmpty()
+    fun toolchainFolders() = kotlinToolchainCache().resolve("extract.cache").listFiles().orEmpty()
         .filter { it.isDirectory && "kotlin-native-prebuilt-$kotlinVersion-" in it.name }
+    fun toolchainCopy() = toolchainFolders()
+        .filter { File(it.path + ".flag").isFile }
         .map { it.resolve("bin/$executable") }
-    val konanCopies = konanDataDir().listFiles().orEmpty()
+        .firstOrNull { it.canExecute() }
+    val konanCopy = konanDataDir().listFiles().orEmpty()
         .filter { it.isDirectory && it.name.startsWith("kotlin-native-prebuilt-") && it.name.endsWith("-$kotlinVersion") }
         .filter { it.resolve(COMPLETE_MARK).isFile }
         .map { it.resolve("bin/$executable") }
-    return (toolchainCopies + konanCopies).firstOrNull { it.canExecute() }
+        .firstOrNull { it.canExecute() }
+    toolchainCopy()?.let { return it }
+    if (konanCopy != null || toolchainFolders().isEmpty()) return konanCopy
+    // An unpack is under way. It takes about 20 seconds; a folder that stays unflagged is a dead one.
+    val deadline = System.nanoTime() + UNPACK_WAIT_NANOS
+    while (System.nanoTime() < deadline) {
+        Thread.sleep(500)
+        toolchainCopy()?.let { return it }
+    }
+    return null
 }
+
+private const val UNPACK_WAIT_NANOS = 5L * 60 * 1_000_000_000
 
 /** Written into an unpacked Kotlin/Native folder once every file of it is in place. */
 private const val COMPLETE_MARK = ".kiteffmpeg-complete"
