@@ -71,7 +71,8 @@ def wasm_js_tests(executable, require_modules):
     env["KITEFFMPEG_WEB_HLS_FIXTURE"] = str(ROOT / "native/kitecodec-web/tests/hls-fixture.json")
     env["KITEFFMPEG_WEB_MODULE_REQUIRED"] = "true" if require_modules else "false"
     entry = linked(f"{MODULE}wasmJsTest*/kotlin-output/{MODULE}_test.mjs")
-    run(executable, HERE / "runner.mjs", entry, env=env)
+    # WebReaperTest forces a collection to watch the registry free a dropped frame.
+    run(executable, "--expose-gc", HERE / "runner.mjs", entry, env=env)
 
 
 def browser(executable, module, config, mounts):

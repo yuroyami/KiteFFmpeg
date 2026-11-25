@@ -128,6 +128,8 @@ server.listen(0, "127.0.0.1", () => {
   const { port } = server.address();
   chrome = spawn(findChrome(), [
     "--headless=new", "--no-first-run", "--no-default-browser-check", "--disable-gpu",
+    // WebReaperTest forces a collection to watch the registry free a dropped frame.
+    "--js-flags=--expose-gc",
     `--user-data-dir=${profile}`, `http://127.0.0.1:${port}/`,
   ], { stdio: "ignore" });
   chrome.on("exit", () => {

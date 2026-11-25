@@ -38,6 +38,7 @@ import io.github.yuroyami.kiteffmpeg.wasm.ffkmp_samples_get_buffer_size
  *
  * The pointer is an opaque `Int` on this side and is never dereferenced here; every read is a call.
  * The frame is owned: [close] frees it, and closing twice is a no-op because the pointer is cleared.
+ * A frame collected without [close] is freed late by [WebReaper], with a warning.
  */
 public actual class Frame internal constructor(
     internal var pointer: Int,
@@ -45,6 +46,10 @@ public actual class Frame internal constructor(
     private val type: MediaType,
     private val timeBase: Rational,
 ) : AutoCloseable {
+
+    init {
+        WebReaper.watch(this, moduleInUseOrNull(), pointer, WebReaper.FRAME)
+    }
 
     /** A closed frame throws IllegalStateException here, as it does on the JVM, Android and native. */
     private fun alive(): Int {
@@ -272,6 +277,7 @@ public actual class Frame internal constructor(
         val p = pointer
         if (p != 0) {
             pointer = 0
+            WebReaper.forget(this)
             ffkmp_frame_free(requireModule(), p)
         }
     }

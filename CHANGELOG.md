@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `AsyncMediaSource.extractFrame` now goes back to the first byte of a stream that cannot seek by
   time, such as raw H.264, and decodes forward, as `MediaSource.extractFrame` does. Before, it
   refused such a stream with `FFmpegError.Unsupported` (#253).
+- On the web, a `Frame` or `Packet` that is collected without `close()` now has its codec-module
+  memory freed, with one warning to the log sink. Before, that memory stayed allocated until the
+  page closed (#242).
 
 ## [0.6.0] - 2026-11-13
 

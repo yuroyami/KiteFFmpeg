@@ -43,6 +43,10 @@ public actual class Packet internal constructor(
     public actual val newPrograms: List<Program>? = null,
 ) : AutoCloseable {
 
+    init {
+        WebReaper.watch(this, moduleInUseOrNull(), pointer, WebReaper.PACKET)
+    }
+
     /** A closed packet throws IllegalStateException, with the message the other backends use. */
     private fun alive(): Int {
         check(pointer != 0) { "Packet is closed" }
@@ -82,6 +86,7 @@ public actual class Packet internal constructor(
         val p = pointer
         if (p != 0) {
             pointer = 0
+            WebReaper.forget(this)
             val m = requireModule()
             ffkmp_packet_unref(m, p)
             ffkmp_packet_free(m, p)
