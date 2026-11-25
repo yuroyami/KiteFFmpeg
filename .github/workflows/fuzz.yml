@@ -115,3 +115,63 @@ jobs:
           path: fuzz-artifacts/**
           retention-days: 14
           if-no-files-found: ignore
+
+  fuzz-linux-instrumented:
+    name: Fuzz the patched FFmpeg itself (ASan and coverage inside FFmpeg, ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    # The instrumented FFmpeg build takes about 15 minutes on a cold cache, then twelve targets at
+    # three minutes each.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      # The job above links the prebuilt tree, which has no instrumentation. This one builds FFmpeg
+      # from the same recipe and patches with ASan and libFuzzer's coverage on (#205), so libFuzzer
+      # steers through the patched readers and ASan sees a stray read inside them.
+      # scripts/build-sanitized-ffmpeg.sh takes the profile from the prebuilt tree's configure line,
+      # so the instrumented build cannot drift from the shipped one.
+      - name: Install clang, the libFuzzer runtime and nasm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 libclang-rt-18-dev nasm zlib1g-dev
+      - name: Fetch the prebuilt static FFmpeg (linux-x64), for its recipe
+        run: |
+          set -euo pipefail
+          base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
+          asset="ffmpeg-${FFMPEG_VERSION}-lgpl-linux-x64.zip"
+          curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
+          .github/scripts/check-prebuilt.sh "${asset}"
+          mkdir -p native-libs/lgpl/linux-x64
+          unzip -q "${asset}" -d native-libs/lgpl/linux-x64
+          test -f native-libs/lgpl/linux-x64/lib/kiteffmpeg/ffmpeg-configure.txt
+          rm -f "${asset}"
+      - name: Cache the instrumented FFmpeg
+        id: sanitized-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: build/sanitized-ffmpeg
+          key: ffmpeg-sanitized-linux-x64-${{ env.FFMPEG_ASSET_TAG }}-clang-18-${{ hashFiles('native/patches/ffmpeg/*.patch', 'scripts/build-sanitized-ffmpeg.sh') }}
+      - name: Build the instrumented FFmpeg from the recipe and the patches
+        if: steps.sanitized-ffmpeg.outputs.cache-hit != 'true'
+        env:
+          KC_CC: clang-18
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${FFMPEG_VERSION}" https://github.com/FFmpeg/FFmpeg.git "${RUNNER_TEMP}/ffmpeg"
+          ./scripts/build-sanitized-ffmpeg.sh native-libs/lgpl/linux-x64 "${RUNNER_TEMP}/ffmpeg" build/sanitized-ffmpeg
+      - name: Confirm the instrumented tree carries every patch
+        run: ./scripts/check-tree-patches.sh build/sanitized-ffmpeg
+      - name: Fuzz every target against the instrumented FFmpeg, three minutes each
+        env:
+          KC_CC: clang-18
+          KC_FFMPEG_PREFIX: ${{ github.workspace }}/build/sanitized-ffmpeg
+          KC_FUZZ_SECONDS: 180
+          KC_ARTIFACT_DIR: ${{ github.workspace }}/fuzz-artifacts-instrumented
+        run: ./native/kitecodec-c/scripts/run-fuzz.sh
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts-instrumented
+          path: fuzz-artifacts-instrumented/**
+          retention-days: 14
+          if-no-files-found: ignore

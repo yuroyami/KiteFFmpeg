@@ -108,6 +108,23 @@ jobs:
       # brew install above.
       - name: Confirm the ratchets will read the vendored tree
         run: test -f native-libs/lgpl/macos-arm64/lib/libavformat.a
+      # The patch cases of the C suites read FFmpeg's patched readers, so they need this tree, not
+      # Homebrew's, on which they skip and pass (#205). Under ASan, which sees a stray read in the
+      # helper layer around them. test_args, test_buffers and test_filter stay out: they need the
+      # null muxer and filters that the reduced profile does not carry. The grep fails the step when
+      # a case reports that it did not run.
+      - name: Patch cases of the C suites under ASan, against the vendored tree
+        working-directory: native/kitecodec-c
+        env:
+          KC_FFMPEG_PREFIX: ${{ github.workspace }}/native-libs/lgpl/macos-arm64
+        run: |
+          set -euo pipefail
+          ./scripts/build-host.sh asan
+          ./scripts/run-c-tests.sh asan test_editions test_language test_spherical test_nested_io | tee "${RUNNER_TEMP}/patch-cases.txt"
+          if grep -q "did not run" "${RUNNER_TEMP}/patch-cases.txt"; then
+            echo "::error::a patch case did not run against the vendored tree" >&2
+            exit 1
+          fi
       # The public API check reads the klib of every native platform, so each one needs an FFmpeg
       # tree. The other ten come from this repository's prebuilt release, checksum verified, as in
       # publish.yml. macos-arm64 is not fetched: this job built it above, and the ratchets read it.

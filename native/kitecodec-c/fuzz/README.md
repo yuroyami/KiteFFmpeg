@@ -11,7 +11,8 @@ green replay does not mean that the library was fuzzed.
 
 | Driver | Where | Tools | What a pass means |
 |---|---|---|---|
-| libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux` job of `.github/workflows/fuzz.yml`, five minutes per target | ASan, UBSan, LeakSanitizer, coverage guidance | A search for unknown inputs. It links Ubuntu's FFmpeg, which is not instrumented, so for the three byte targets the coverage guidance comes from the helper layer alone. |
+| libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux` job of `.github/workflows/fuzz.yml`, five minutes per target | ASan, UBSan, LeakSanitizer, coverage guidance | A search for unknown inputs. It links the prebuilt `linux-x64` tree with its patches, which is not instrumented, so for the byte targets the coverage guidance comes from the helper layer alone. |
+| libFuzzer, `LLVMFuzzerTestOneInput` | `ubuntu-24.04`, the `fuzz-linux-instrumented` job of `.github/workflows/fuzz.yml`, three minutes per target | ASan inside FFmpeg too, UBSan, LeakSanitizer, coverage guidance inside FFmpeg | The same search against an FFmpeg that `scripts/build-sanitized-ffmpeg.sh` builds from the shipped recipe and patches with ASan and coverage on, so a stray read inside a patched reader is seen. |
 | Corpus replay, `replay_main.c` | any host, `scripts/replay-corpus.sh`, and the `ci.yml` workflow on every push | ASan, UBSan | A regression test for the inputs in the corpus and nothing more. |
 
 libFuzzer cannot link on macOS, because neither Apple clang nor the LLVM of Kotlin/Native ships
