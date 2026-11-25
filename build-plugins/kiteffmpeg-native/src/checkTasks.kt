@@ -160,7 +160,7 @@ fun checkDesktopJni(
     if (missing.isNotEmpty()) {
         throw BuildFailure(
             "The JVM jar has no JNI library for ${missing.joinToString()}. Bake the FFmpeg trees of those " +
-                "platforms, and link macos-arm64 on an arm64 Mac.",
+                "platforms, and link macos-arm64 and macos-x64 on an arm64 Mac.",
         )
     }
     // A Linux library must keep the hardening its link asks for, which no test can see (#224).

@@ -16,12 +16,13 @@ that the page loads.
 | `iosArm64`, `iosSimulatorArm64`, `iosX64` | FFmpeg inside the klib |
 | `macosArm64`, `macosX64` | FFmpeg inside the klib |
 | `linuxX64`, `linuxArm64`, `mingwX64` | FFmpeg inside the klib |
-| `jvm` | FFmpeg and the JNI library for macOS arm64, Linux x64, Linux arm64 and Windows x64, in one jar for Java 11 or later |
+| `jvm` | FFmpeg and the JNI library for macOS arm64, macOS x64, Linux x64, Linux arm64 and Windows x64, in one jar for Java 11 or later |
 | `wasmJs` | The API only. The page serves the FFmpeg module ([Getting started](getting-started.md#set-up-the-web)). |
 | `js` | A placeholder. It compiles, and every media call throws `FFmpegError.Unsupported`. |
 
 Some targets build but have not played media yet: `macosX64`, `iosX64`, the Android `armeabi-v7a`
-and `x86_64` libraries, the desktop JVM on Linux and Windows, and the `androidNative*` targets.
+and `x86_64` libraries, the desktop JVM on Intel Macs, Linux and Windows, and the `androidNative*`
+targets.
 
 ### The JVM
 

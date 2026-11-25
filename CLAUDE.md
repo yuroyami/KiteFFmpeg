@@ -38,8 +38,11 @@ Each line is something that bit someone. Delete a line when it stops being true.
   `-m kiteffmpeg-web` (and `-m kiteffmpeg-web-async`) when the player needs it from `~/.m2`.
 - The desktop JNI libraries for Linux x64, Linux arm64 and Windows x64 are cross-linked with konan
   whenever their FFmpeg trees exist, and the build writes the small platform JNI header itself, so
-  Docker is not needed. `./kotlin do checkDesktopJni` fails unless the jar carries all four
+  Docker is not needed. Both macOS libraries link with Apple clang on an arm64 Mac, the Intel one
+  with `-arch x86_64`. `./kotlin do checkDesktopJni` fails unless the jar carries all five
   libraries, and the publish workflow runs it before the upload.
+- The Intel Mac FFmpeg tree has assembly objects with no platform load command, so its JNI link
+  prints about 170 `ld` warnings that say "assuming: macOS". They are harmless.
 - FFmpeg's configure cannot handle a `#` anywhere in its path, so the bakes build in the system
   temp directory, never inside the project.
 - `--disable-postproc` does not exist in the vendored FFmpeg line and makes configure fail

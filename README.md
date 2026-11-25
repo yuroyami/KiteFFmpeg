@@ -278,7 +278,8 @@ player.
 | Desktop | `jvm` (Java 11 or later), `linuxX64`, `linuxArm64`, `mingwX64` |
 | Web | `wasmJs` with the [web module](#web-setup), and `js` as a placeholder |
 
-- The JVM jar carries FFmpeg for macOS on Apple silicon, Linux (x64 and arm64) and Windows (x64).
+- The JVM jar carries FFmpeg for macOS (Apple silicon and Intel), Linux (x64 and arm64) and
+  Windows (x64).
   On any other platform, the first call throws `UnsatisfiedLinkError`, unless
   `-Dkiteffmpeg.jni.path` or `java.library.path` names a native library that you built.
 - `wasmJs` reads, decodes and seeks. It cannot write a file, so `Transcoder`, `Remuxer`,

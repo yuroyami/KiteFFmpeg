@@ -158,6 +158,19 @@ tasks:
       linkDir: ${taskOutputDir}/link
       resourcesDir: ${taskOutputDir}/resources
 
+  jniMacosX64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.linkDesktopJni
+      platformDirectory: macos-x64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      jniSources: ${project.rootDir}/native/kitecodec-jni
+      handleSources: ${project.rootDir}/native/kitecodec-handles
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/macos-x64
+      linkDir: ${taskOutputDir}/link
+      resourcesDir: ${taskOutputDir}/resources
+
   jniLinuxX64:
     action: !io.github.yuroyami.kiteffmpeg.plugin.linkDesktopJni
       platformDirectory: linux-x64
@@ -243,9 +256,10 @@ tasks:
 
   desktopJni:
     action: !io.github.yuroyami.kiteffmpeg.plugin.checkDesktopJni
-      platforms: [ macos-arm64, linux-x64, linux-arm64, windows-x64 ]
+      platforms: [ macos-arm64, macos-x64, linux-x64, linux-arm64, windows-x64 ]
       resourcesDirs:
         - ${tasks.jniMacosArm64.action.resourcesDir}
+        - ${tasks.jniMacosX64.action.resourcesDir}
         - ${tasks.jniLinuxX64.action.resourcesDir}
         - ${tasks.jniLinuxArm64.action.resourcesDir}
         - ${tasks.jniWindowsX64.action.resourcesDir}
@@ -603,6 +617,8 @@ generated:
       fragment: "@androidNativeX64"
   resources:
     - directory: ${tasks.jniMacosArm64.action.resourcesDir}
+      fragment: "@jvm"
+    - directory: ${tasks.jniMacosX64.action.resourcesDir}
       fragment: "@jvm"
     - directory: ${tasks.jniLinuxX64.action.resourcesDir}
       fragment: "@jvm"

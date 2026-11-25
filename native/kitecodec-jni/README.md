@@ -76,8 +76,9 @@ These tasks of the Kotlin build link the library:
   plugin `build-plugins/android-jni`) link the Android libraries. The module's jar carries them at
   `lib/<abi>/`, and the Android variant of `kiteffmpeg` depends on that jar. The two 64-bit
   libraries are aligned to 16 KiB pages.
-- `jniMacosArm64`, `jniLinuxX64`, `jniLinuxArm64` and `jniWindowsX64` of the module `kiteffmpeg`
-  (from `build-plugins/kiteffmpeg-native`) link the desktop libraries. The JVM jar carries them
-  under `kiteffmpeg-native/<os>-<arch>/`. The Linux and Windows libraries are cross-linked with the
+- `jniMacosArm64`, `jniMacosX64`, `jniLinuxX64`, `jniLinuxArm64` and `jniWindowsX64` of the
+  module `kiteffmpeg` (from `build-plugins/kiteffmpeg-native`) link the desktop libraries. The JVM
+  jar carries them under `kiteffmpeg-native/<os>-<arch>/`. Both macOS libraries link on an arm64
+  Mac, the Intel one with `-arch x86_64`. The Linux and Windows libraries are cross-linked with the
   Kotlin/Native toolchain whenever their FFmpeg trees exist. A Maven Central release must carry all
-  four, and `./kotlin do checkDesktopJni` fails until it does.
+  five, and `./kotlin do checkDesktopJni` fails until it does.

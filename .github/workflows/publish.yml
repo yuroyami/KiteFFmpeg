@@ -145,8 +145,8 @@ jobs:
       # so a refusal stops the run early. It is written again once the web jars exist.
       - name: Bill of materials for the embedded FFmpeg and dav1d
         run: ./scripts/native-sbom.sh --archives build/prebuilt-ffmpeg
-      # The JVM jar carries a JNI library for macOS arm64, Linux x64, Linux arm64 and Windows x64.
-      # The last three are cross-linked here with konan's toolchain from the linux-x64, linux-arm64
+      # The JVM jar carries a JNI library for macOS arm64, macOS x64, Linux x64, Linux arm64 and
+      # Windows x64. The Intel Mac library links with `-arch x86_64` on the arm64 runner. The last three are cross-linked here with konan's toolchain from the linux-x64, linux-arm64
       # and mingw-x64 trees fetched above. The Android natives jar carries one library per ABI,
       # linked with the NDK from the Android trees. Both checks fail while a library is missing,
       # and the JVM jar is read back before anything is uploaded.
@@ -159,7 +159,7 @@ jobs:
           # shellcheck disable=SC1010
           ./kotlin do checkDesktopJni && ./kotlin check androidJni
           jar="$(find build/tasks -name 'kiteffmpeg-jvm*.jar' -not -name '*sources*' | head -1)"
-          for lib in macos-arm64/libkitecodec_jni.dylib linux-x64/libkitecodec_jni.so \
+          for lib in macos-arm64/libkitecodec_jni.dylib macos-x64/libkitecodec_jni.dylib linux-x64/libkitecodec_jni.so \
                      linux-arm64/libkitecodec_jni.so windows-x64/kitecodec_jni.dll; do
             unzip -l "${jar}" "kiteffmpeg-native/${lib}" > /dev/null \
               || { echo "::error::${jar} carries no kiteffmpeg-native/${lib}" >&2; exit 1; }

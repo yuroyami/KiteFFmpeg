@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- The JVM jar now carries the JNI library for Intel Macs (`macos-x64`). Before, the first call on
+  an Intel Mac threw `UnsatisfiedLinkError` (#212).
+
 ## [0.6.0] - 2026-11-13
 
 The build moved from Gradle to the Kotlin Toolchain. The Kotlin API, the C ABI and the published

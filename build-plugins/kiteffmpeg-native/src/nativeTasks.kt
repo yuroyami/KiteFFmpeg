@@ -94,7 +94,7 @@ fun prepareFFmpegInterop(
  * where `JniLibrary.jvm.kt` reads it from the JVM jar.
  *
  * A platform is skipped, with a message, when its FFmpeg tree is missing or this host cannot link it
- * (macOS needs an arm64 Mac). `./kotlin do checkDesktopJni` fails while any platform is missing, so a
+ * (both macOS libraries need an arm64 Mac, which links the Intel one with `-arch x86_64`). `./kotlin do checkDesktopJni` fails while any platform is missing, so a
  * release cannot ship without one.
  */
 @TaskAction
@@ -112,13 +112,13 @@ fun linkDesktopJni(
 ) {
     val resources = resourcesDir.toFile().apply { deleteRecursively(); mkdirs() }
     val tree = ffmpegTree.toFile()
-    val isMac = platformDirectory == MACOS_JNI_PLATFORM
+    val isMac = platformDirectory in MACOS_JNI_PLATFORMS
     val recipe = LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES.firstOrNull { it.platformDirectory == platformDirectory }
     require(isMac || recipe != null) { "No JNI recipe for $platformDirectory." }
     val skipReason = when {
         !tree.resolve("lib").isDirectory ->
             "no FFmpeg tree at $tree (run `./kotlin do buildFFmpegFor${tripleOf(konanTargetOf(platformDirectory)).commandSuffix}`)"
-        isMac && !hostIsArm64Mac() -> "the macOS library links on an arm64 Mac only"
+        isMac && !hostIsArm64Mac() -> "the macOS libraries link on an arm64 Mac only"
         !isMac && hostIsWindows() -> "the desktop cross links run on macOS and Linux hosts"
         else -> null
     }
@@ -150,7 +150,9 @@ fun linkDesktopJni(
         if (isMac) {
             compiler.set("/usr/bin/clang")
             extraIncludeDirs.set(listOf(jdkInclude.absolutePath, jdkInclude.resolve("darwin").absolutePath))
-            linkFlags.set(macosJniLinkFlags())
+            // Apple clang builds for the host by default; the Intel library names its architecture.
+            val arch = if (konanTarget == "macos_x64") listOf("-arch", "x86_64") else emptyList()
+            linkFlags.set(arch + macosJniLinkFlags())
             exportControlFile.set(jni.resolve("exports.macos"))
             exportControlKind.set(LinkKiteFFmpegJniTask.ExportControlKind.MACHO_EXPORTED_SYMBOLS)
             outputDirectory.set(work.resolve("lib"))
@@ -301,6 +303,8 @@ fun linkJniHarness(
 }
 
 internal const val MACOS_JNI_PLATFORM = "macos-arm64"
+internal const val MACOS_X64_JNI_PLATFORM = "macos-x64"
+internal val MACOS_JNI_PLATFORMS = setOf(MACOS_JNI_PLATFORM, MACOS_X64_JNI_PLATFORM)
 internal const val HARNESS_PROPERTIES = "kiteffmpeg-jni-harness.properties"
 
 private fun macosHarnessLink(
@@ -341,5 +345,6 @@ internal fun tripleOf(konanTarget: String): TargetTriple =
 
 internal fun konanTargetOf(platformDirectory: String): String = when (platformDirectory) {
     MACOS_JNI_PLATFORM -> "macos_arm64"
+    MACOS_X64_JNI_PLATFORM -> "macos_x64"
     else -> LinkKiteFFmpegJniTask.DESKTOP_JNI_RECIPES.first { it.platformDirectory == platformDirectory }.konanTargetName
 }
