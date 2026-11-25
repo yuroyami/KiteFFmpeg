@@ -8,8 +8,9 @@
 # 2026-08-22, so this workflow IS runnable; publishing from the maintainer's machine remains
 # equally valid, with the same credentials in the four KOTLIN_TOOLCHAIN_* variables:
 #   ./kotlin publish mavenCentral -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async
-# Either path leaves the deployment staged on the Central Portal (publishingMode: manual in
-# library.module-template.yaml); the final Publish click stays human.
+# Either path releases the deployment once the Central Portal has validated it (publishingMode: auto
+# in library.module-template.yaml). A workflow run with the release input off stays staged instead,
+# for a human Publish click.
 #
 # PREREQUISITES:
 #   Secrets (set 2026-08-22):
@@ -58,9 +59,9 @@ on:
         description: "Version to publish (must match publishing.version in library.module-template.yaml), e.g. 0.1.0"
         required: true
       release:
-        description: "Also press Publish on the Central Portal. Off leaves the deployment staged for a human to finish."
+        description: "Release the deployment once the Central Portal validates it. Off leaves it staged for a human to finish."
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -326,11 +327,10 @@ jobs:
             echo "::error::this runner built other bytes than the attested ones; nothing was uploaded" >&2
             exit 1
           fi
-      # Uploads to the Central Portal. By default it stops there: the deployment waits and a human
-      # presses Publish. With the release input on, the run switches publishingMode to auto in its
-      # own checkout, which is the same click made by the run rather than by a person. Central is
-      # immutable either way, so the version gate above is what protects a wrong number, not this
-      # switch.
+      # Uploads to the Central Portal. By default the portal releases the deployment once it has
+      # validated it. With the release input off, the run switches publishingMode to manual in its
+      # own checkout, so the deployment waits and a human presses Publish. Central is immutable
+      # either way, so the version gate above is what protects a wrong number, not this switch.
       - name: Publish to Maven Central
         env:
           KOTLIN_TOOLCHAIN_MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
@@ -341,9 +341,9 @@ jobs:
           ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
           source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
           export KITEFFMPEG_EMSCRIPTEN_LLVM_BIN="${EMSDK}/upstream/bin"
-          if [ "${{ inputs.release }}" = "true" ]; then
-            sed -i '' 's/publishingMode: manual/publishingMode: auto/' library.module-template.yaml
-            grep -q 'publishingMode: auto' library.module-template.yaml
+          if [ "${{ inputs.release }}" != "true" ]; then
+            sed -i '' 's/publishingMode: auto/publishingMode: manual/' library.module-template.yaml
+            grep -q 'publishingMode: manual' library.module-template.yaml
           fi
           ./kotlin publish mavenCentral -m kiteffmpeg -m kiteffmpeg-android-natives -m kiteffmpeg-web -m kiteffmpeg-web-async
       # The same comparison once more, after the upload, from an emptied Maven Local. With the

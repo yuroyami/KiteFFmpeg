@@ -35,6 +35,6 @@ settings:
     publishSources: true
     mavenCentral:
       enabled: true
-      # The deployment waits on the Central Portal, and a person presses Publish.
-      # The publish workflow switches this to auto when its release input is on.
-      publishingMode: manual
+      # The deployment goes live once the Central Portal has validated it.
+      # The publish workflow switches this to manual when its release input is off.
+      publishingMode: auto
