@@ -193,6 +193,12 @@ public expect class PacketReader : AutoCloseable {
     )
 
     /**
+     * Moves the cursor back to the stream's first byte, for a stream that refuses a seek by time
+     * (#253). FFmpeg's answer, negative when the stream cannot go back either, as a pipe cannot.
+     */
+    internal fun rewindToFirstByte(): Int
+
+    /**
      * Changes which streams [read] delivers without reopening this reader or moving its demuxer
      * cursor.
      *

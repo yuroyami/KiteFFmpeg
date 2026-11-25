@@ -56,6 +56,8 @@ internal class HostAsyncEngine : AsyncEngine {
         withContext(thread) { reader.seek(micros, direction, notEarlierThan) }
     }
 
+    override suspend fun rewindToFirstByte(reader: PacketReader): Int = withContext(thread) { reader.rewindToFirstByte() }
+
     override suspend fun pause(source: MediaSource): Boolean = withContext(thread) { source.pause() }
 
     override suspend fun resume(source: MediaSource): Boolean = withContext(thread) { source.resume() }

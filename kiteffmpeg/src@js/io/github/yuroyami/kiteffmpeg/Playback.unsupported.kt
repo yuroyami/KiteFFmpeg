@@ -56,6 +56,8 @@ public actual class PacketReader private constructor() : AutoCloseable {
     public actual fun reselect(streams: List<StreamInfo>): Unit =
         placeholderBackendUnavailable("Reselecting packet reader streams")
 
+    internal actual fun rewindToFirstByte(): Int = placeholderBackendUnavailable("Rewinding a packet reader")
+
     actual override fun close(): Unit = Unit
 }
 

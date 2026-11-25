@@ -69,6 +69,9 @@ internal interface AsyncEngine {
 
     suspend fun seek(reader: PacketReader, micros: Long, direction: SeekDirection, notEarlierThan: Long?)
 
+    /** [PacketReader.rewindToFirstByte], which may wait for the byte source (#253). */
+    suspend fun rewindToFirstByte(reader: PacketReader): Int
+
     suspend fun pause(source: MediaSource): Boolean
 
     suspend fun resume(source: MediaSource): Boolean

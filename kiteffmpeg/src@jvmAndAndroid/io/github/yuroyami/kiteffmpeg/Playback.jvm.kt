@@ -154,6 +154,12 @@ public actual class PacketReader internal constructor(
         if (rc < 0) throw source.demuxFailure(rc)
     }
 
+    internal actual fun rewindToFirstByte(): Int = synchronized(lock) {
+        check(scratch != 0L) { "PacketReader is closed" }
+        settleWaiting(seeking = true)
+        Internals.fmtSeekFile(formatToken, -1, 0L, 0L, 0L, AVSEEK_FLAG_BYTE)
+    }
+
     @Throws(FFmpegException::class)
     public actual fun reselect(streams: List<StreamInfo>): Unit = synchronized(lock) {
         check(scratch != 0L) { "PacketReader is closed" }

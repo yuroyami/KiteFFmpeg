@@ -200,6 +200,20 @@ internal class WebAsyncEngine(private val module: JsAny) : AsyncEngine {
         }
     }
 
+    override suspend fun rewindToFirstByte(reader: PacketReader): Int = scoped {
+        reader.rewindUsing { m, context, min, target, max, flags ->
+            val range = wasmAlloc(m, 24)
+            try {
+                writeInt64(m, range, min)
+                writeInt64(m, range + 8, target)
+                writeInt64(m, range + 16, max)
+                parked("ffkmp_async_seek_file", context, -1, range, flags)
+            } finally {
+                wasmFree(m, range)
+            }
+        }
+    }
+
     override suspend fun pause(source: MediaSource): Boolean = scoped {
         source.pauseUsing { _, context -> parked("ffkmp_fmt_read_pause", context) }
     }

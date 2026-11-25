@@ -6,14 +6,12 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 /**
  * A stream that cannot seek by time, here raw Annex-B H.264 whose frames carry no timestamp, gives
  * extractFrame the frame at its target: it goes back to the first byte and counts frames at the
- * stream's rate (#253). It used to fail at the seek with a bare EPERM.
+ * stream's rate (#253). It used to fail at the seek with a bare EPERM. The async runtime follows
+ * the same rule through its packet reader; it used to refuse such a stream.
  */
 class UnseekableExtractTest {
 
@@ -55,14 +53,22 @@ class UnseekableExtractTest {
     }
 
     @Test
-    fun theAsyncRuntimeRefusesSuchAStreamWithTheReason() = runBlocking {
+    fun theAsyncRuntimeDecodesSuchAStreamFromItsFirstByteToo() = runBlocking {
         val input = rawStream() ?: return@runBlocking println("unseekable extract degraded: no ffmpeg")
+        val pictures = MediaSource.open(input).use { source ->
+            source.decodedFrames(checkNotNull(source.primaryVideo)).toList().map { frame ->
+                frame.use { it.copyPlanesToByteArray() }
+            }
+        }
         val runtime = FFmpeg.createAsyncRuntime()
         try {
             runtime.open(AsyncBytes(readContractBytes(input))).useAsync { source ->
-                val refused = assertFailsWith<FFmpegException> { source.extractFrame(1_000_000L) }
-                assertIs<FFmpegError.Unsupported>(refused.error, refused.message)
-                assertTrue("cannot seek" in refused.error.message, refused.error.message)
+                for (target in listOf(2_000_000L, 400_000L)) {
+                    val index = (target / 40_000L).toInt()
+                    source.extractFrame(target).useAsync { frame ->
+                        assertContentEquals(pictures[index], frame.copyPlanesToByteArray(), "the picture at ${target}µs is frame $index")
+                    }
+                }
             }
         } finally {
             runtime.close()

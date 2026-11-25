@@ -51,6 +51,16 @@ public class AsyncPacketReader internal constructor(
         }
     }
 
+    /** Moves the read position back to the first byte (#253): FFmpeg's answer, negative when it cannot. */
+    internal suspend fun rewindToFirstByte(): Int {
+        handle.requireOpen()
+        return lane.demux(owner.input) {
+            val rc = lane.engine.rewindToFirstByte(reader)
+            lane.engine.immediate { owner.refresh() }
+            rc
+        }
+    }
+
     /** Changes the streams this reader hands out. See [PacketReader.reselect]. */
     @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun reselect(streams: List<StreamInfo>) {

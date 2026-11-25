@@ -255,7 +255,8 @@ public class AsyncMediaSource internal constructor(
 
     /**
      * The first frame of [stream], or of the primary video stream, whose time reaches [atMicros].
-     * The caller owns the frame and closes it.
+     * The caller owns the frame and closes it. A stream that cannot seek by time, such as raw
+     * H.264, goes back to its first byte and decodes forward, as [MediaSource.extractFrame] does.
      */
     @Throws(FFmpegException::class, CancellationException::class)
     public suspend fun extractFrame(atMicros: Long, stream: StreamInfo? = null): AsyncFrame {
@@ -265,25 +266,33 @@ public class AsyncMediaSource internal constructor(
         // A seek lands on a keyframe at or before its target. With only the target on, the C seek
         // checks that landing for a picture stream, so the walk starts there (#252).
         val landing = (atMicros - readerSeekBackoffMicros(target)).coerceAtLeast(0L)
-        // A stream that cannot seek by time is refused with the reason (#253): a packet reader has
-        // no way back to the first byte, as MediaSource.extractFrame has.
-        try {
+        // A stream that cannot seek by time goes back to its first byte and decodes forward, as
+        // MediaSource.extractFrame does (#253).
+        val fromStart = try {
             openPacketReader(listOf(target)).useAsync { it.seek(landing, SeekDirection.Backward, null) }
+            false
         } catch (refused: FFmpegException) {
-            if (refused.error.code == SEEK_REFUSED) throw unseekableExtract(atMicros)
-            throw refused
+            if (refused.error.code != SEEK_REFUSED) throw refused
+            true
         }
         var reader: AsyncPacketReader? = null
         var decoder: AsyncStreamDecoder? = null
         try {
             val liveReader = openPacketReader(listOf(target)).also { reader = it }
+            if (fromStart && liveReader.rewindToFirstByte() < 0) throw unseekableExtract(atMicros)
             val liveDecoder = openDecoder(target).also { decoder = it }
-            // The first frame whose own time reaches the target. A frame with no time is passed over.
+            var walked = 0
+            // The first frame whose time reaches the target, by the rule MediaSource.extractFrame
+            // follows: counted from the first byte, an untimed frame's place gives its time, and
+            // after a real seek an untimed frame is taken as it comes.
             suspend fun next(): AsyncFrame? {
                 while (true) {
                     val frame = liveDecoder.receive() ?: return null
-                    val pts = frame.capturedPtsMicros
-                    if (pts != null && pts - startTimeMicros >= atMicros) return frame
+                    walked += 1
+                    val time = frame.capturedPtsMicros?.let { it - startTimeMicros }
+                        ?: (if (fromStart) untimedFrameMicros(walked - 1, target.video?.frameRate) else null)
+                        ?: Long.MAX_VALUE
+                    if (time >= atMicros) return frame
                     frame.close()
                 }
             }

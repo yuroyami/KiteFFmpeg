@@ -215,6 +215,19 @@ public actual class PacketReader internal constructor(
         if (rc < 0) throw source.demuxFailure(rc, "seeking to ${micros}us")
     }
 
+    internal actual fun rewindToFirstByte(): Int =
+        rewindUsing { m, context, min, target, max, flags -> ffkmp_fmt_seek_file(m, context, -1, min, target, max, flags) }
+
+    /** [rewindToFirstByte] with FFmpeg's seek call given by the caller, which an asynchronous runtime waits for. */
+    internal inline fun rewindUsing(seekFile: (JsAny, Int, Long, Long, Long, Int) -> Int): Int {
+        check(!closed) { "PacketReader is closed" }
+        lifetime.check("packet reader")
+        val m = requireModule()
+        settleWaiting(seeking = true)
+        source.beginDemuxOperation()
+        return seekFile(m, context, 0L, 0L, 0L, AVSEEK_FLAG_BYTE)
+    }
+
     public actual fun reselect(streams: List<StreamInfo>) {
         check(!closed) { "PacketReader is closed" }
         lifetime.check("packet reader")

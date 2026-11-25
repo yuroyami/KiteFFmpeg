@@ -13,6 +13,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The JVM jar now carries the JNI library for Intel Macs (`macos-x64`). Before, the first call on
   an Intel Mac threw `UnsatisfiedLinkError` (#212).
 
+### Fixed
+
+- `AsyncMediaSource.extractFrame` now goes back to the first byte of a stream that cannot seek by
+  time, such as raw H.264, and decodes forward, as `MediaSource.extractFrame` does. Before, it
+  refused such a stream with `FFmpegError.Unsupported` (#253).
+
 ## [0.6.0] - 2026-11-13
 
 The build moved from Gradle to the Kotlin Toolchain. The Kotlin API, the C ABI and the published
