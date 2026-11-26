@@ -23,7 +23,10 @@ internal suspend fun useLinkedCodecModule(): Boolean {
         println("skipped: no linked kite.mjs, so this test decodes nothing")
         return false
     }
-    forgetCodecModule()
+    // Drops a fake module before the load. The reader the test chose stays, so the first test to
+    // load the module reads its source as every later one does.
+    KiteFFmpegWeb.module = null
+    KiteFFmpegWeb.inFlight = null
     KiteFFmpegWeb.load(url)
     linkedModule = KiteFFmpegWeb.module
     return true
