@@ -102,13 +102,16 @@ FFmpeg uses a MediaCodec decoder only when you ask for it by name, for example
 | Part | Contents |
 | --- | --- |
 | Muxers | `mp4`, `mov`, `ipod`, `webm`, `matroska`, `matroska_audio`, `mp3`, `wav`, `flac`, `ogg`, `opus`, `mpegts`, `image2`, and the subtitle files `srt`, `ass` and `webvtt` |
-| Protocols | `file`, `fd`, `pipe`, `data`, `http`, `tcp`, `udp`, `rtp`, `rtmp` |
+| Protocols | `file`, `fd`, `pipe`, `data`, `http`, `tcp`, `udp`, `rtp`, `rtmp`, `ftp` |
 | Video filters | `scale`, `pad`, `crop`, `transpose`, `hflip`, `vflip`, `fps`, `fade`, `setsar`, `setdar`, `setparams`, `drawbox`, `overlay`, `hue`, `unsharp`, `vignette`, `colorbalance`, `colorlevels`, `curves`, `lut`, `colorchannelmixer`, `format`, `split`, `null`, `trim`, `setpts`, `loop`, `tpad`, `yadif`, `bwdif` |
 | Audio filters | `aresample`, `aformat`, `volume`, `atempo`, `adelay`, `afade`, `amix`, `pan`, `anull`, `atrim`, `asetpts`, `asetrate`, `loudnorm`, `ebur128`, `alimiter` |
 | Bitstream filters | All of them. FFmpeg inserts the right one during a stream copy. |
 
 There is no `drawtext`, `eq` or `boxblur`, because `eq` and `boxblur` are GPL in FFmpeg. Use `hue`
 (its `b` parameter sets the brightness), `colorlevels` or `curves` where you would use `eq`.
+
+Warning: FTP sends the user name and the password in plain text. Use `ftp://` only on a network
+that you trust, such as a home server or a NAS box.
 
 You never name a bitstream filter. FFmpeg adds the one that a stream copy needs, and without it a
 copy between container families would write a broken file.

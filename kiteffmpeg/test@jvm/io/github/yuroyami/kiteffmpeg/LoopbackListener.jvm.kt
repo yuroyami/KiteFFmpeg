@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteffmpeg
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketException
 import java.net.SocketTimeoutException
 
 internal actual fun listenOnLoopback(): LoopbackListener? = JvmLoopbackListener()
@@ -34,6 +35,9 @@ private class JvmLoopbackConnection(private val socket: Socket) : LoopbackConnec
             socket.getInputStream().read(buffer)
         } catch (_: SocketTimeoutException) {
             0
+        } catch (_: SocketException) {
+            // A peer that closes with replies unread resets the connection. That is a close too.
+            -1
         }
     }
 

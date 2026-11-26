@@ -364,7 +364,7 @@ open class BuildFFmpegTask : BuildStep() {
         // inherited so a target whose configure probe defaults it off fails loudly here. The
         // wide demuxer class includes members that SELECT network protocols (rtsp and its
         // relatives), and a select beats the class disable above, so the configure banner's
-        // protocol line is checked against exactly this nine-name list after every profile change.
+        // protocol line is checked against exactly this ten-name list after every profile change.
         // `fd` is what makes an Android content:// URI playable. The picker hands back a
         // descriptor, and the usual escape of re-opening `/proc/self/fd/N` through the `file`
         // protocol fails with EACCES on a modern device, because re-opening rechecks permissions
@@ -383,8 +383,12 @@ open class BuildFFmpegTask : BuildStep() {
         // A wider list does not widen what a playlist reaches: FFmpeg's HLS reader opens only
         // file, http and data, and an input opened from a file may reach only file, crypto and
         // data unless DemuxOptions.protocolWhitelist names more.
+        //
+        // ftp joined on 2026-11-26 (#268): home servers and NAS boxes share media over FTP. It is
+        // FFmpeg's own client over tcp and needs no library. FTP sends the user name and the
+        // password in plain text, and docs/platforms.md says so.
         "--enable-network",
-        "--enable-protocol=file,fd,pipe,data,http,tcp,udp,rtp,rtmp",
+        "--enable-protocol=file,fd,pipe,data,http,tcp,udp,rtp,rtmp,ftp",
         // Several everyday extensions map to their OWN muxer rather than to the obvious one, and
         // `avformat_alloc_output_context2` simply fails to find a format when that muxer is absent:
         //   .mka → matroska_audio (not matroska)   .m4a → ipod (not mp4)

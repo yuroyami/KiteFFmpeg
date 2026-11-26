@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The JVM jar now carries the JNI library for Intel Macs (`macos-x64`). Before, the first call on
   an Intel Mac threw `UnsatisfiedLinkError` (#212).
+- An `ftp://` address now opens on every native target, through FFmpeg's own `ftp` protocol.
+  Before, the native builds had no `ftp` protocol (#268). FTP sends the user name and the password
+  in plain text.
 
 ### Changed
 
