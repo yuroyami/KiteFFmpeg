@@ -89,7 +89,7 @@ the encoder options set `strict` to `experimental`.
 
 | Platform | Hardware decoders |
 | --- | --- |
-| macOS, iOS | VideoToolbox for H.264, HEVC and AV1 |
+| macOS, iOS | VideoToolbox for H.264, HEVC and AV1. On macOS 11 and later, also VP9. Whether a Mac decodes VP9 in its media engine is not measured. |
 | Windows | Direct3D 11 for H.264, HEVC, VP9, MPEG-2, VC-1 and WMV3. It has not run on a real Windows GPU. |
 | Android | MediaCodec for H.264, HEVC, AV1, VP8, VP9, MPEG-2, MPEG-4, AAC, MP3, AMR-NB and AMR-WB |
 | Linux | None. Linux decodes in software. |

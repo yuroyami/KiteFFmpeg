@@ -485,7 +485,7 @@ open class BuildFFmpegTask : BuildStep() {
     private fun appleHardwareArgs(): List<String> = listOf(
         "--enable-videotoolbox",
         "--enable-encoder=h264_videotoolbox,hevc_videotoolbox",
-    ) + appleHwaccelDecodeArgs()
+    ) + appleHwaccelDecodeArgs(macos = true)
 
     /**
      * VideoToolbox hardware DECODE. Unlike MediaCodec
@@ -497,9 +497,14 @@ open class BuildFFmpegTask : BuildStep() {
      * encode that does not), and a runtime refusal on any particular machine is FFmpeg's own
      * typed answer through `ffkmp_codecctx_use_videotoolbox`, which a player's fallback treats
      * as one more fallback cause.
+     *
+     * `vp9_videotoolbox` is pinned on macOS only (#213). VideoToolbox decodes VP9 through a
+     * supplemental decoder, and FFmpeg registers that decoder on macOS 11 and later only. The class
+     * still compiles the hwaccel into the other Apple trees.
      */
-    private fun appleHwaccelDecodeArgs(): List<String> = listOf(
-        "--enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox",
+    private fun appleHwaccelDecodeArgs(macos: Boolean): List<String> = listOf(
+        "--enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox" +
+            if (macos) ",vp9_videotoolbox" else "",
     )
 
     /*
@@ -748,7 +753,7 @@ open class BuildFFmpegTask : BuildStep() {
             "--enable-zlib",
             "--enable-videotoolbox",
             "--enable-audiotoolbox",
-        ) + encodeArgs + appleHwaccelDecodeArgs() + crossArgs
+        ) + encodeArgs + appleHwaccelDecodeArgs(macos = false) + crossArgs
     }
 
     /** Resolves an Apple SDK sysroot via `xcrun`, so the path tracks the installed Xcode. */
