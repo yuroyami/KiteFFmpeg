@@ -89,7 +89,7 @@ jobs:
       - name: Install emscripten
         if: matrix.target == 'wasm32'
         env:
-          EMSCRIPTEN_VERSION: "6.0.11"
+          EMSCRIPTEN_VERSION: "7.0.1"
         run: |
           set -euo pipefail
           git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"

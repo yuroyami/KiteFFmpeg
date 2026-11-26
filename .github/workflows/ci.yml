@@ -49,7 +49,7 @@ env:
   # The emscripten the web codec modules are built with. The publish inputs action and release-ass-chain.yml pin
   # the same one, so the compiler CI tests is the one that ships (#227);
   # scripts/check-emscripten-pins.sh fails while the three differ.
-  EMSCRIPTEN_VERSION: "6.0.11"
+  EMSCRIPTEN_VERSION: "7.0.1"
   # The tag the companion zips LIVE on, kept separate from the FFmpeg version they are BUILT from.
   # ffmpeg-n9.0.2-r3 holds n9.0.2 built with all fifteen patches, for 0.5.0 to 0.6.0. ffmpeg-n9.0.2-r2
   # stays as the binaries and source offer of 0.4.0, and ffmpeg-n9.0.2 as those of 0.3.0. The

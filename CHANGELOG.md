@@ -29,6 +29,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - Closing an RTSP source now sends `TEARDOWN` and waits up to 0.5 s for the reply. The
     interrupt callback does not cut that wait short. A source opened with `rtsp_flags=listen`
     sends no `TEARDOWN`, as before.
+- The web codec modules are now built with emscripten 7.0.1. Before, they were built with 6.0.11.
+  emscripten 7 targets Chrome 93, Firefox 92 and Safari 15.4 or later by default, where 6.0.11
+  targeted Chrome 85, Firefox 79 and Safari 15.0. `kite-jspi` targets Chrome 137, Firefox 153,
+  Safari 27 and Node.js 24 or later.
 
 ### Fixed
 

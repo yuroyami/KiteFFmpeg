@@ -53,7 +53,7 @@ runs:
     - name: Emscripten and the FFmpeg source
       shell: bash
       env:
-        EMSCRIPTEN_VERSION: "6.0.11"
+        EMSCRIPTEN_VERSION: "7.0.1"
       run: |
           set -euo pipefail
           git clone --depth 1 --branch "${EMSCRIPTEN_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"
@@ -76,7 +76,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: native-libs/lgpl/wasm32
-        key: ffmpeg-wasm32-lgpl-n9.1-emcc-6.0.11-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
+        key: ffmpeg-wasm32-lgpl-n9.1-emcc-7.0.1-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
     - name: Build the web FFmpeg from the cloned source
       if: steps.ffmpeg-web.outputs.cache-hit != 'true'
       shell: bash
