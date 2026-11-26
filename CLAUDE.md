@@ -221,9 +221,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
   address has no media extension is refused, and so is a WAV segment, because the WAV demuxer
   declares no extension. The C suite turns the check off for its WAV segments; the Kotlin suite
   uses MPEG-TS and keeps it on.
-- FFmpeg polls the interrupt callback only inside stream-info discovery and the URL protocol
-  loop. The HLS header reader leaves the callback zeroed on its sample-AES and subtitle-context
-  branches, so child contexts need the callback copied explicitly.
+- FFmpeg polls a format context's own interrupt callback only in stream-info discovery and in the
+  URL protocol loop. The HLS reader leaves the callback zeroed in its subtitle context and on its
+  sample-AES branch, but both children read only through the parent's segment reader, which polls
+  the parent's callback. So copying the callback changes nothing that a caller can see (#275).
 - `PacketReader.reselect` has a caller in the player: KitePlayer's `KiteFFmpegSource.selectStreams`
   calls `open.reselect(selected)`. Removing or changing it breaks the player's track selection.
 
