@@ -12,6 +12,8 @@ data class FFmpegRecipeExpectation(
     val taskName: String,
     val treePath: String,
     val fingerprint: Set<String>,
+    /** The libraries outside FFmpeg that configure must have enabled in the tree. */
+    val libraries: ExternalLibraries,
 ) : Serializable {
     companion object {
         private const val serialVersionUID: Long = 1L
@@ -35,6 +37,9 @@ data class FFmpegRecipeExpectation(
  *
  * A tree with no stamp is SKIPPED rather than failed: stamps arrived later, and refusing an older
  * tree would say "your recipe changed" when the truth is "this tree predates the evidence".
+ *
+ * A stamped tree must also record the libraries outside FFmpeg that configure enabled, and they
+ * must be the ones [ExternalLibraries.EXPECTED] names for its target (#223).
  */
 open class CheckFFmpegRecipesTask : BuildStep() {
 
@@ -51,7 +56,7 @@ open class CheckFFmpegRecipesTask : BuildStep() {
             val reason = BuildFFmpegTask.staleReason(
                 stamp.readText().trim(),
                 expectation.fingerprint.toList(),
-            ) ?: return@forEach
+            ) ?: ExternalLibraries.staleReason(tree, expectation.libraries) ?: return@forEach
             stale += "  ${tree.name}: $reason\n    fix: ./kotlin do ${expectation.taskName}"
         }
         if (checked == 0) {

@@ -70,8 +70,8 @@ profile=()
 while IFS= read -r flag; do profile+=("$flag"); done < "$WORK/profile.txt"
 
 cd "$WORK/source"
-# The shipped trees are cross-built against a bare sysroot, so configure finds no system library to
-# add. A native build would find the host's, so autodetection is off and the recipe's own enables win.
+# A native build would find the host's libraries, so autodetection is off and the recipe's own
+# enables win. The recipes turn it off too since #223; the flag stays for a tree baked before that.
 ./configure --disable-autodetect "${profile[@]}" \
     --toolchain=clang-asan --cc="$CC" \
     --extra-cflags="-fsanitize=fuzzer-no-link -fno-omit-frame-pointer" \

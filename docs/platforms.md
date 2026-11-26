@@ -58,11 +58,11 @@ The web module carries a smaller set of formats than the other builds:
 ## What each build carries
 
 Every build except the web one comes from the same FFmpeg n9.1 recipe. It is LGPL, with no
-`--enable-gpl`. Besides dav1d it uses only what the platform itself provides: zlib, which the
-recipe enables, and on Linux and Windows the `iconv` of the C library or the msys2 sysroot, which
-FFmpeg's configure finds on its own and uses for subtitle character sets. On Android, Linux and
-Windows configure still looks for such libraries by itself, so what a tree links is decided at bake
-time and not by the recipe alone (#223); the Apple builds turn that search off.
+`--enable-gpl`. Besides dav1d it uses only what the platform itself provides: zlib, and on Linux and
+Windows the `iconv` of the C library or the msys2 sysroot, which FFmpeg uses for subtitle character
+sets. Every build turns off the search of FFmpeg's configure for libraries, so the recipe names each
+library that a build links. The bake fails when configure enables another set, and each release
+archive lists the set in its `BUILD-INFO.txt`.
 
 The read side is wide. Every decoder, demuxer, parser and bitstream filter that FFmpeg can build
 without an external library is in, plus dav1d for AV1. So a file that FFmpeg can play, these builds
@@ -92,7 +92,7 @@ the encoder options set `strict` to `experimental`.
 | macOS, iOS | VideoToolbox for H.264, HEVC and AV1. On macOS 11 and later, also VP9. Whether a Mac decodes VP9 in its media engine is not measured. |
 | Windows | Direct3D 11 for H.264, HEVC, VP9, MPEG-2, VC-1 and WMV3. It has not run on a real Windows GPU. |
 | Android | MediaCodec for H.264, HEVC, AV1, VP8, VP9, MPEG-2, MPEG-4, AAC, MP3, AMR-NB and AMR-WB |
-| Linux | None. Linux decodes in software. |
+| Linux | V4L2 M2M decoders for H.263, H.264, HEVC, MPEG-1, MPEG-2, MPEG-4, VC-1, VP8 and VP9, which you ask for by name, for example `DecoderId("h264_v4l2m2m")`. They need a board whose kernel has a V4L2 memory-to-memory decoder, and they have not run on one. Other Linux machines decode in software. |
 
 FFmpeg uses a MediaCodec decoder only when you ask for it by name, for example
 `source.openDecoder(stream, decoder = DecoderId.H264MediaCodec)` with the low-level API.

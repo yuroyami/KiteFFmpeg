@@ -8,7 +8,8 @@
 # Android AAR. Both come from the prebuilt archives on this repository's FFmpeg release, one
 # archive for each target. For each archive the document records its download location and its
 # SHA-256 digest. For FFmpeg and for dav1d it records the version, the source repository and tag,
-# and the licence. For FFmpeg it also records each patch that the archives say was applied.
+# and the licence. For FFmpeg it also records each patch that the archives say was applied. For each
+# archive it also records the libraries outside FFmpeg that its configure enabled.
 #
 #   ./scripts/native-sbom.sh                  # writes build/sbom/kiteffmpeg-<VERSION>-native.spdx.json
 #   ./scripts/native-sbom.sh --out FILE       # writes FILE
@@ -23,6 +24,9 @@
 #   - an archive built from another FFmpeg version than FFMPEG_VERSION,
 #   - an archive configured with --enable-gpl, --enable-nonfree or --enable-version3, because the
 #     document then names the wrong licence,
+#   - an archive whose BUILD-INFO.txt names other libraries outside FFmpeg than
+#     ExternalLibraries.EXPECTED in build-plugins/native-build names for its target, because the
+#     document then misses a library,
 #   - a dav1d that is not the tag BuildDav1dTask pins,
 #   - archives that disagree on the FFmpeg commit, the dav1d version or the patches,
 #   - a patch that native/patches/ffmpeg does not hold at the same digest, because NOTICE promises
@@ -32,8 +36,9 @@
 #
 # Needs curl, unzip, shasum, strings and jq.
 #
-# Not listed: zlib, which the artifacts link from the platform and do not bundle, and the toolchain
-# runtime code that every shared library links.
+# Not listed: the libraries that the artifacts link from the platform and do not bundle, and the
+# toolchain runtime code that every shared library links. Those libraries are zlib, iconv (glibc's on
+# Linux, msys2's libiconv on Windows) and the platform's media frameworks. Each archive names them.
 
 set -euo pipefail
 
@@ -81,6 +86,16 @@ triples=$(awk '/^enum class TargetTriple/ { inside = 1; next }
     inside && /^    [A-Za-z0-9]+\("[a-z0-9-]+"/ { split($0, part, "\""); print part[2] }' \
     "$ROOT/build-plugins/native-build/src/FFmpegPaths.kt")
 [ -n "$triples" ] || refuse "could not read the TargetTriple enum"
+# The entry name of each TargetTriple beside its dirName, for example "MacosArm64 macos-arm64".
+entries=$(awk '/^enum class TargetTriple/ { inside = 1; next }
+    inside && /^    ;/ { exit }
+    inside && /^    [A-Za-z0-9]+\("[a-z0-9-]+"/ { split($0, part, "\""); name = $1; sub(/\(.*/, "", name); print name, part[2] }' \
+    "$ROOT/build-plugins/native-build/src/FFmpegPaths.kt")
+# The libraries outside FFmpeg that configure must enable for each target, one entry on each line:
+# TargetTriple.MacosArm64 to of("libdav1d zlib | audiotoolbox videotoolbox"),
+expected_libraries=$(sed -n 's/^ *TargetTriple\.\([A-Za-z0-9]*\) to of("\([^"]*\)"),$/\1 \2/p' \
+    "$ROOT/build-plugins/native-build/src/ExternalLibraries.kt")
+[ -n "$expected_libraries" ] || refuse "could not read ExternalLibraries.EXPECTED"
 out="${out:-$ROOT/build/sbom/kiteffmpeg-$version-native.spdx.json}"
 
 work="$(mktemp -d)"
@@ -90,6 +105,13 @@ mkdir -p "$archives"
 
 # A field of BUILD-INFO.txt, such as "FFmpeg version:   n8.1.2".
 field() { sed -n "s/^$1: *//p" | head -1 | tr -d '\r'; }
+
+# Library names separated by spaces, sorted, or "(none)" when there are none.
+names() {
+    local sorted
+    sorted=$(printf '%s\n' $1 | awk 'NF && $0 != "(none)"' | sort | paste -sd' ' -)
+    printf '%s' "${sorted:-(none)}"
+}
 
 # The dav1d tag with its dots escaped, and optionally the suffix that `git describe` adds, as the
 # version string reads inside libdav1d.a: 1.5.5-0-g6c7bee6.
@@ -130,6 +152,18 @@ for triple in $triples; do
             *" $flag "*) refuse "$asset was configured with $flag, so its licence is not LGPL-2.1-or-later" ;;
         esac
     done
+    entry=$(awk -v t="$triple" '$2 == t { print $1 }' <<<"$entries")
+    spec=$(awk -v e="$entry" '$1 == e { $1 = ""; print }' <<<"$expected_libraries")
+    [ -n "$spec" ] || refuse "ExternalLibraries.EXPECTED names no libraries for $triple"
+    libraries=$(field "External libraries" <<<"$info")
+    hardware=$(field "Hardware acceleration libraries" <<<"$info")
+    [ -n "$libraries" ] && [ -n "$hardware" ] ||
+        refuse "$asset names no libraries outside FFmpeg in BUILD-INFO.txt, so it was built before #223"
+    libraries=$(names "$libraries")
+    hardware=$(names "$hardware")
+    if [ "$libraries" != "$(names "${spec%%|*}")" ] || [ "$hardware" != "$(names "${spec#*|}")" ]; then
+        refuse "$asset links $libraries | $hardware, but ExternalLibraries.EXPECTED names $(names "${spec%%|*}") | $(names "${spec#*|}") for $triple"
+    fi
 
     # The patch record the build writes beside the configure line: a comment, then "(none)" or
     # one "<name>  sha256=<digest>" line per patch, in the order they were applied.
@@ -148,7 +182,8 @@ for triple in $triples; do
 
     jq -cn --arg asset "$asset" --arg triple "$triple" --arg url "$url" --arg digest "$digest" \
         --arg commit "$commit" --arg dav1d "$dav1d" --arg patches "$patches" \
-        '{asset: $asset, triple: $triple, url: $url, digest: $digest,
+        --arg libraries "$libraries" --arg hardware "$hardware" \
+        '{asset: $asset, triple: $triple, url: $url, digest: $digest, libraries: $libraries, hardware: $hardware,
           built: {commit: $commit, dav1d: $dav1d, patches: $patches}}' >> "$records"
 done
 
@@ -269,7 +304,7 @@ jq -n --slurpfile archives "$records" --slurpfile patches "$patch_records" --slu
                 licenseConcluded: "NOASSERTION",
                 copyrightText: "NOASSERTION",
                 filesAnalyzed: false,
-                comment: "Static FFmpeg and dav1d libraries for \(.triple), built by the release-binaries workflow of this repository. Its BUILD-INFO.txt names the FFmpeg commit and the configure line."
+                comment: "Static FFmpeg and dav1d libraries for \(.triple), built by the release-binaries workflow of this repository. Its BUILD-INFO.txt names the FFmpeg commit and the configure line. Its FFmpeg configure enabled these libraries outside FFmpeg: \(.libraries); for hardware acceleration: \(.hardware). Apart from dav1d, they come from the platform and are not in the archive."
             }]
             + [$web[] | {
                 SPDXID: "SPDXRef-\(.id)",

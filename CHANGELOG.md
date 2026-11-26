@@ -45,6 +45,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   HarfBuzz 15.2.0. Before, it built FriBidi 1.0.17, FreeType 2.14.3 and HarfBuzz 14.6.0. FreeType's
   new HVF support stays off, so the chain needs no new system library. The published
   `ass-chain-r2` assets keep the old versions until the chain is built again.
+- The FFmpeg builds for Android, Linux and Windows now turn off the search of FFmpeg's configure for
+  libraries, as the Apple builds do, and name each library that they link. Before, configure linked
+  what the NDK or the toolchain sysroot held (#223). The Android builds lose the V4L2 M2M decoders,
+  whose device nodes Android does not open to apps, and the Android x86_64 build loses Vulkan. The
+  bake fails when configure enables another set of libraries, and each release archive lists the
+  set in its `BUILD-INFO.txt`.
 
 ### Fixed
 

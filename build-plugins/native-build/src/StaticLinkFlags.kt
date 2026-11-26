@@ -71,7 +71,7 @@ object StaticLinkFlags {
                 "-framework", "AudioToolbox",
             )
             // iconv backs FFmpeg's subtitle charset conversion and msys2's sysroot has it, so the
-            // mingw configure autodetects it and the link must name it, along with the Windows
+            // mingw recipe enables it by name and the link must name it, along with the Windows
             // sockets, media and time APIs FFmpeg's network and mpegts code reaches for.
             target == TargetTriple.MingwX64 -> listOf(
                 "-lz", "-liconv",

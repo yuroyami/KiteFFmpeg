@@ -154,16 +154,29 @@ open class BuildFFmpegTask : BuildStep() {
                 dav1dRoot = dav1dRoot,
             )
             val env = configureEnv(target, dav1dRoot)
+            val configureOutput = mutableListOf<String>()
             runIn(
                 scratchBuild.toFile(),
                 listOf(scratchSource.resolve("configure").toAbsolutePath().toString()) + configureArgs,
                 env,
+                capture = configureOutput,
             )
+            // Fails before make when configure enabled a library the recipe does not name (#223).
+            val libraries = ExternalLibraries.fromBanner(configureOutput)
+                ?: throw BuildFailure("FFmpeg's configure for ${target.dirName} printed no list of external libraries.")
+            ExternalLibraries.EXPECTED.getValue(target).mismatch(libraries)?.let { reason ->
+                throw BuildFailure(
+                    "FFmpeg for ${target.dirName}: $reason\n" +
+                        "  The sysroot, the SDK or the NDK changed, or the recipe did. When the change is " +
+                        "wanted, update ExternalLibraries.EXPECTED.",
+                )
+            }
             runIn(scratchBuild.toFile(), listOf("make", "-j${Runtime.getRuntime().availableProcessors()}"), env)
             runIn(scratchBuild.toFile(), listOf("make", "install"), env)
 
             writeConfigureEvidence(scratchBuild.resolve("ffbuild/config.log"), scratchInstall)
             writePatchEvidence(patches, scratchInstall)
+            ExternalLibraries.writeRecord(libraries, scratchInstall)
             verifyInstall(scratchInstall, target)
             bundleThirdPartyArchives(target, license, scratchInstall.toFile())
             verifyInstall(scratchInstall, target)
@@ -678,9 +691,16 @@ open class BuildFFmpegTask : BuildStep() {
      * failure lands as `undefined symbol: inflate` in a downstream link. Asking makes the flag and
      * the link agree by construction. What zlib buys is matroska and mov compressed headers; bzlib
      * and lzma buy only rarely used matroska compression.
+     *
+     * Autodetect is off since 2026-11-26 (#223), as on Apple. Before, configure linked what the
+     * konan sysroot held, so the recipe did not decide the tree. Each library is now named: iconv
+     * for subtitle character sets (glibc's, or msys2's libiconv), and the platform's hardware
+     * decode, which is V4L2 M2M on Linux. [ExternalLibraries.EXPECTED] holds what configure must
+     * report back.
      */
-    private fun portableDesktopArgs(target: TargetTriple): List<String> = listOf("--enable-zlib") +
-        if (target == TargetTriple.MingwX64) windowsHwaccelDecodeArgs() else emptyList()
+    private fun portableDesktopArgs(target: TargetTriple): List<String> =
+        listOf("--disable-autodetect", "--enable-zlib", "--enable-iconv") +
+            if (target == TargetTriple.MingwX64) windowsHwaccelDecodeArgs() else listOf("--enable-v4l2-m2m")
 
     /**
      * Direct3D 11 hardware DECODE on Windows, which `HardwareAccel.D3d11va` attaches.
@@ -690,9 +710,12 @@ open class BuildFFmpegTask : BuildStep() {
      * the list is a PIN, like the VideoToolbox one. It names the d3d11va2 hwaccels because those
      * allocate their own surfaces from the attached device. AV1 is not among them: its hwaccel
      * needs `DXVA_PicParams_AV1`, and the MinGW headers of konan's sysroot predate it.
+     *
+     * DXVA2 is named too. Autodetect enabled it before #223, so the trees carry its hwaccels.
      */
     private fun windowsHwaccelDecodeArgs(): List<String> = listOf(
         "--enable-d3d11va",
+        "--enable-dxva2",
         "--enable-hwaccel=h264_d3d11va2,hevc_d3d11va2,vp9_d3d11va2,mpeg2_d3d11va2,vc1_d3d11va2,wmv3_d3d11va2",
     )
 
@@ -773,6 +796,10 @@ open class BuildFFmpegTask : BuildStep() {
      * MediaCodec hardware video encode/decode. `--enable-jni` is required by the MediaCodec
      * wrapper; at runtime the app must hand FFmpeg its JavaVM via `av_jni_set_java_vm` before
      * using `*_mediacodec` codecs (the surrounding KiteFFmpeg Android substrate will own that call).
+     *
+     * Autodetect is off since 2026-11-26 (#223). Before, configure added V4L2 M2M to every ABI,
+     * although Android does not let apps open its device nodes, and Vulkan to x86_64 only. iconv
+     * stays out because bionic has it only from API 28.
      */
     private fun androidArgs(target: TargetTriple, toolchainBin: File): List<String> {
         val (arch, cpu, ccPrefix) = when (target) {
@@ -793,6 +820,7 @@ open class BuildFFmpegTask : BuildStep() {
             "--ranlib=${toolchainBin.resolve("llvm-ranlib").absolutePath}",
             "--nm=${toolchainBin.resolve("llvm-nm").absolutePath}",
             "--strip=${toolchainBin.resolve("llvm-strip").absolutePath}",
+            "--disable-autodetect",
             "--enable-mediacodec", "--enable-jni",
             // Adds to the dependency-free encoder set in sharedCoreArgs.
             "--enable-encoder=h264_mediacodec,hevc_mediacodec",
@@ -831,13 +859,22 @@ open class BuildFFmpegTask : BuildStep() {
         return hostDir.resolve("bin")
     }
 
-    private fun runIn(workDir: File, command: List<String>, env: Map<String, String> = emptyMap()) {
+    /** Runs [command] in [workDir] and logs its output. [capture], when given, also keeps each line. */
+    private fun runIn(
+        workDir: File,
+        command: List<String>,
+        env: Map<String, String> = emptyMap(),
+        capture: MutableList<String>? = null,
+    ) {
         logger.lifecycle("[KiteFFmpeg build] " + command.joinToString(" "))
         val builder = ProcessBuilder(command).directory(workDir).redirectErrorStream(true)
         builder.environment().putAll(env)
         val proc = builder.start()
         proc.inputStream.bufferedReader().useLines { lines ->
-            lines.forEach { logger.lifecycle("  $it") }
+            lines.forEach { line ->
+                logger.lifecycle("  $line")
+                capture?.add(line)
+            }
         }
         val code = proc.waitFor()
         check(code == 0) { "Command exited with $code: ${command.joinToString(" ")}" }

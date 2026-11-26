@@ -65,6 +65,7 @@ object Bakes {
         val evidence = output.resolve(BuildFFmpegTask.CONFIGURE_EVIDENCE_RELATIVE_PATH)
         val stale = if (evidence.isFile) {
             BuildFFmpegTask.staleReason(evidence.readText().trim(), task.expectedRecipeFingerprint().toList())
+                ?: ExternalLibraries.staleReason(output, ExternalLibraries.EXPECTED.getValue(target))
         } else {
             "it has no configure record"
         }
@@ -161,7 +162,12 @@ object Bakes {
     fun ffmpegRecipeExpectations(repoRoot: File): List<FFmpegRecipeExpectation> =
         TargetTriple.entries.map { target ->
             val task = ffmpegTask(repoRoot, target, selfContained = false)
-            FFmpegRecipeExpectation(task.name, task.outputDir.get().asFile.absolutePath, task.expectedRecipeFingerprint())
+            FFmpegRecipeExpectation(
+                task.name,
+                task.outputDir.get().asFile.absolutePath,
+                task.expectedRecipeFingerprint(),
+                ExternalLibraries.EXPECTED.getValue(target),
+            )
         }
 
     private val ASS_CHAIN_LIBS = listOf("lib/libass.a", "lib/libfreetype.a", "lib/libfribidi.a", "lib/libharfbuzz.a")

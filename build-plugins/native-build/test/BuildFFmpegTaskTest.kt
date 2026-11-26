@@ -338,10 +338,11 @@ class BuildFFmpegTaskTest {
         )
 
         // Linux carries --enable-zlib (its konan sysroot has it) and a gcc runtime dir beside the
-        // sysroot, so the --cc line grows the extra -B/-L pair.
+        // sysroot, so the --cc line grows the extra -B/-L pair. Autodetect is off (#223), so iconv
+        // and V4L2 M2M are named.
         assertEquals(
             expectedSharedCoreArguments() + expectedKonanCrossArguments(
-                leading = listOf("--enable-zlib"),
+                leading = listOf("--disable-autodetect", "--enable-zlib", "--enable-iconv", "--enable-v4l2-m2m"),
                 arch = "x86_64",
                 targetOs = "linux",
                 cc = "/fake/llvm/bin/clang -target x86_64-unknown-linux-gnu " +
@@ -354,7 +355,7 @@ class BuildFFmpegTaskTest {
         )
         assertEquals(
             expectedSharedCoreArguments() + expectedKonanCrossArguments(
-                leading = listOf("--enable-zlib"),
+                leading = listOf("--disable-autodetect", "--enable-zlib", "--enable-iconv", "--enable-v4l2-m2m"),
                 arch = "aarch64",
                 targetOs = "linux",
                 cc = "/fake/llvm/bin/clang -target aarch64-unknown-linux-gnu " +
@@ -371,12 +372,16 @@ class BuildFFmpegTaskTest {
         // than under the triple directory, which is what made a first reading call it absent.
         // The fake has no runtime dir, which also pins the branch with no -B/-L pair. Windows also
         // requests Direct3D 11 decoding, so a build that lost it fails at configure, and pins the
-        // six d3d11va2 hwaccels HardwareAccel.D3d11va reaches.
+        // six d3d11va2 hwaccels HardwareAccel.D3d11va reaches. DXVA2 and iconv are named because
+        // autodetect is off (#223).
         assertEquals(
             expectedSharedCoreArguments() + expectedKonanCrossArguments(
                 leading = listOf(
+                    "--disable-autodetect",
                     "--enable-zlib",
+                    "--enable-iconv",
                     "--enable-d3d11va",
+                    "--enable-dxva2",
                     "--enable-hwaccel=h264_d3d11va2,hevc_d3d11va2,vp9_d3d11va2,mpeg2_d3d11va2,vc1_d3d11va2,wmv3_d3d11va2",
                 ),
                 arch = "x86_64",
@@ -1061,6 +1066,7 @@ class BuildFFmpegTaskTest {
             "--ranlib=$toolchainBin/llvm-ranlib",
             "--nm=$toolchainBin/llvm-nm",
             "--strip=$toolchainBin/llvm-strip",
+            "--disable-autodetect",
             "--enable-mediacodec",
             "--enable-jni",
             "--enable-encoder=h264_mediacodec,hevc_mediacodec",

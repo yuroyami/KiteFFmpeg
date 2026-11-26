@@ -17,8 +17,8 @@
 #   - LICENSE.md from the FFmpeg source tree,
 #   - COPYING.dav1d, dav1d's COPYING from the checkout the bake built, whose BSD-2-Clause terms
 #     require its notice in every binary redistribution (#225),
-#   - a generated BUILD-INFO.txt (tag, commit, configure line, build date, target,
-#     license profile, source-code URL).
+#   - a generated BUILD-INFO.txt (tag, commit, configure line, the libraries outside FFmpeg
+#     that configure enabled, build date, target, license profile, source-code URL).
 # The FFmpeg source tree defaults to vendor/ffmpeg, where the release workflow clones it.
 set -euo pipefail
 
@@ -76,6 +76,18 @@ if [[ "${configure_line}" == "(unavailable"* ]]; then
   exit 1
 fi
 
+# The libraries outside FFmpeg that configure enabled. The bake compared them with
+# ExternalLibraries.EXPECTED (#223), and scripts/native-sbom.sh reads them from BUILD-INFO.txt.
+libraries_record="${src}/lib/kiteffmpeg/ffmpeg-external-libraries.txt"
+if [ ! -f "${libraries_record}" ] \
+  || [ "$(grep -c '^External libraries: ' "${libraries_record}")" != "1" ] \
+  || [ "$(grep -c '^Hardware acceleration libraries: ' "${libraries_record}")" != "1" ]; then
+  echo "::error::${libraries_record} must hold one 'External libraries:' line and one 'Hardware acceleration libraries:' line; bake the tree again" >&2
+  exit 1
+fi
+libraries_line="$(grep '^External libraries: ' "${libraries_record}" | tr -d '\r')"
+hardware_line="$(grep '^Hardware acceleration libraries: ' "${libraries_record}" | tr -d '\r')"
+
 # --- stage the license texts + build info ---------------------------------------------------
 if [ ! -d "${ffmpeg_src}" ]; then
   echo "::error::FFmpeg source tree not found at ${ffmpeg_src} (needed for license texts + build info)" >&2
@@ -115,6 +127,8 @@ Target:           ${triple}
 License profile:  ${license}
 Build date (UTC): $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 Configure:        ${configure_line}
+${libraries_line}
+${hardware_line}
 
 FFmpeg is licensed under the LGPL v2.1 or later; builds with --enable-gpl are covered by the
 GPL instead. See the bundled COPYING.* files and LICENSE.md. This build is the source-code tree

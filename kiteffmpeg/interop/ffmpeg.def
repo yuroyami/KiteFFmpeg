@@ -31,7 +31,7 @@ linkerOpts.ios = -lz -framework CoreFoundation -framework CoreMedia -framework C
 # Linux: zlib, maths, dynamic loader, pthreads, all from the konan sysroot / OS.
 linkerOpts.linux = -lz -lm -ldl -lpthread
 # Windows: zlib + iconv from the msys2 sysroot (iconv backs subtitle charset conversion and the
-# mingw configure autodetects it), plus the sockets, media and COM APIs FFmpeg reaches for.
+# mingw recipe enables it by name), plus the sockets, media and COM APIs FFmpeg reaches for.
 # zlib and iconv are named by their static archives: the sysroot holds an import library beside
 # each, the link runs in dynamic mode, and a plain -lz -liconv made every app import zlib1.dll
 # and libiconv-2.dll, which Windows does not have and kiteffmpeg does not ship (#186).

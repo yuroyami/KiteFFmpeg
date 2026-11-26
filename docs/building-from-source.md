@@ -79,6 +79,12 @@ Configure, make and install run in a temporary directory. The command records th
 `lib/kiteffmpeg/ffmpeg-configure.txt`, checks the install, and only then replaces the tree under
 `native-libs`. So a failed build keeps the last good tree.
 
+Every recipe turns off the search of FFmpeg's configure for libraries. After configure, the command
+compares the libraries outside FFmpeg that configure enabled with the list that
+`ExternalLibraries.EXPECTED` in `build-plugins/native-build` holds for the target. It stops when they
+differ, for example after an NDK or a toolchain update. It records them in
+`lib/kiteffmpeg/ffmpeg-external-libraries.txt`.
+
 A command skips its build when the tree already matches the recipe. A tree that was built before the
 build kept a record of its inputs is reused as it is. Delete the tree to build it again.
 
