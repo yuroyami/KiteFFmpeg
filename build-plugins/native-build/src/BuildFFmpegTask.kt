@@ -444,7 +444,9 @@ open class BuildFFmpegTask : BuildStep() {
         // 2026-09-28 (#77): the filter DSL offers crop(), transpose(), fps(), drawBox() and pan(),
         // and every published build refused them. None is GPL-only in FFmpeg's configure, and pan
         // needs only libswresample, which aresample already needs.
-        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter,crop,transpose,hflip,vflip,fps,drawbox,fade,setsar,setdar,pan",
+        // gblur and avgblur joined on 2026-11-26 (#222): they blur as boxblur does, under the
+        // LGPL and with no library.
+        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter,crop,transpose,hflip,vflip,fps,drawbox,fade,setsar,setdar,pan,gblur,avgblur",
 
         "--enable-pthreads",
         "--enable-pic",

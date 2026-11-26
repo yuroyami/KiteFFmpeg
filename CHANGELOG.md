@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The native builds now carry FFmpeg's own `opus`, `alac`, `ac3` and `eac3` encoders. Before, the
   only compressed audio encoders were `aac` and `flac` (#220). FFmpeg marks its Opus encoder
   experimental, so it opens only when the encoder options set `strict` to `experimental`.
+- The native builds now carry the `gblur` and `avgblur` filters. They blur under the LGPL, where
+  `boxblur` is GPL. Before, the builds had neither (#222).
 
 ### Changed
 

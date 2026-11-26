@@ -37,7 +37,7 @@ val graph = FilterGraph.buildVideo(
 
 | Parameter | Meaning |
 |---|---|
-| `description` | The filter chain, e.g. `scale=1280:720,hue=b=0.1,format=yuv420p`. Filters must exist in the FFmpeg you linked. `eq` and `boxblur` are GPL-only in FFmpeg itself, so they are absent from KiteFFmpeg's default LGPL profile. `hue` (which has a brightness parameter `b`), `colorlevels` and `curves` are the LGPL equivalents. `FFmpeg.hasFilter("eq")` tells you before you build a graph. |
+| `description` | The filter chain, e.g. `scale=1280:720,hue=b=0.1,format=yuv420p`. Filters must exist in the FFmpeg you linked. `eq` and `boxblur` are GPL-only in FFmpeg itself, so they are absent from KiteFFmpeg's default LGPL profile. `hue` (which has a brightness parameter `b`), `colorlevels` and `curves` are the LGPL equivalents of `eq`, and `gblur` and `avgblur` of `boxblur`. `FFmpeg.hasFilter("eq")` tells you before you build a graph. |
 | `width`, `height` | Dimensions of the frames you feed in. |
 | `pixelFormat` | Input pixel format, typically the decoder's output (see [`PixelFormat`](https://yuroyami.github.io/KiteFFmpeg/api/)). |
 | `timeBase` | The pts time-base of input frames. |

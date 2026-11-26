@@ -988,9 +988,9 @@ class BuildFFmpegTaskTest {
         // home servers and NAS boxes (#268).
         "--enable-protocol=file,fd,pipe,data,http,tcp,udp,rtp,rtmp,ftp",
         "--enable-muxer=mp4,mov,ipod,webm,matroska,matroska_audio,mp3,wav,flac,ogg,opus,mpegts,image2,srt,ass,webvtt",
-        // FFmpeg's own Opus, ALAC, AC-3 and E-AC-3 encoders joined (#220).
+        // FFmpeg's own Opus, ALAC, AC-3 and E-AC-3 encoders joined (#220), and the two LGPL blurs (#222).
         "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg,movtext,srt,subrip,ass,webvtt,opus,alac,ac3,eac3",
-        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter,crop,transpose,hflip,vflip,fps,drawbox,fade,setsar,setdar,pan",
+        "--enable-filter=buffer,buffersink,abuffer,abuffersink,trim,setpts,setparams,scale,pad,overlay,hue,unsharp,vignette,colorbalance,colorlevels,curves,lut,format,colorchannelmixer,split,null,atrim,asetpts,asetrate,aresample,volume,atempo,adelay,afade,amix,anull,aformat,loop,tpad,yadif,bwdif,loudnorm,ebur128,alimiter,crop,transpose,hflip,vflip,fps,drawbox,fade,setsar,setdar,pan,gblur,avgblur",
         "--enable-pthreads",
         "--enable-pic",
         "--enable-runtime-cpudetect",
