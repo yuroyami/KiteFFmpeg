@@ -20,6 +20,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   experimental, so it opens only when the encoder options set `strict` to `experimental`.
 - The native builds now carry the `gblur` and `avgblur` filters. They blur under the LGPL, where
   `boxblur` is GPL. Before, the builds had neither (#222).
+- KiteFFmpeg now builds for tvOS, as `tvosArm64` and `tvosSimulatorArm64`. Before, it had no tvOS
+  target, so a player that uses it could not run on Apple TV (#267). The tvOS trees take the iOS
+  profile with the tvOS SDK and a tvOS 15.0 floor, and the Apple TV tree carries the VideoToolbox
+  H.264 and HEVC encoders, as the iPhone tree does. The prebuilt tvOS trees come with the next
+  binaries release. The tvOS targets have not played media yet.
 
 ### Changed
 

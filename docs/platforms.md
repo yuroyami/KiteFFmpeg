@@ -14,15 +14,16 @@ that the page loads.
 | Android library | FFmpeg and the JNI library for `arm64-v8a`, `armeabi-v7a` and `x86_64`, at `minSdk` 26. The two 64-bit libraries are aligned to 16 KiB pages, as Android asks. |
 | `androidNativeArm32`, `androidNativeArm64`, `androidNativeX64` | FFmpeg inside the klib, for Kotlin/Native code on Android |
 | `iosArm64`, `iosSimulatorArm64`, `iosX64` | FFmpeg inside the klib |
+| `tvosArm64`, `tvosSimulatorArm64` | FFmpeg inside the klib |
 | `macosArm64`, `macosX64` | FFmpeg inside the klib |
 | `linuxX64`, `linuxArm64`, `mingwX64` | FFmpeg inside the klib |
 | `jvm` | FFmpeg and the JNI library for macOS arm64, macOS x64, Linux x64, Linux arm64 and Windows x64, in one jar for Java 11 or later |
 | `wasmJs` | The API only. The page serves the FFmpeg module ([Getting started](getting-started.md#set-up-the-web)). |
 | `js` | A placeholder. It compiles, and every media call throws `FFmpegError.Unsupported`. |
 
-Some targets build but have not played media yet: `macosX64`, `iosX64`, the Android `armeabi-v7a`
-and `x86_64` libraries, the desktop JVM on Intel Macs, Linux and Windows, and the `androidNative*`
-targets.
+Some targets build but have not played media yet: `macosX64`, `iosX64`, `tvosArm64`,
+`tvosSimulatorArm64`, the Android `armeabi-v7a` and `x86_64` libraries, the desktop JVM on Intel
+Macs, Linux and Windows, and the `androidNative*` targets.
 
 ### The JVM
 
@@ -73,7 +74,7 @@ not list is not in the build.
 
 These lists come from the encoders that each shipped `libavcodec.a` registers.
 
-| | macOS | iPhone | iOS simulator | Linux and Windows | Android |
+| | macOS | iPhone and Apple TV | iOS and tvOS simulators | Linux and Windows | Android |
 | --- | --- | --- | --- | --- | --- |
 | Video, software | `mpeg4`, `h263`, `mjpeg`, `png` | same | same | same | same |
 | Video, hardware | `h264_videotoolbox`, `hevc_videotoolbox` | `h264_videotoolbox`, `hevc_videotoolbox` | none | none | `h264_mediacodec`, `hevc_mediacodec` |
@@ -89,7 +90,7 @@ the encoder options set `strict` to `experimental`.
 
 | Platform | Hardware decoders |
 | --- | --- |
-| macOS, iOS | VideoToolbox for H.264, HEVC and AV1. On macOS 11 and later, also VP9. Whether a Mac decodes VP9 in its media engine is not measured. |
+| macOS, iOS, tvOS | VideoToolbox for H.264, HEVC and AV1. On macOS 11 and later, also VP9. Whether a Mac decodes VP9 in its media engine is not measured. |
 | Windows | Direct3D 11 for H.264, HEVC, VP9, MPEG-2, VC-1 and WMV3. It has not run on a real Windows GPU. |
 | Android | MediaCodec for H.264, HEVC, AV1, VP8, VP9, MPEG-2, MPEG-4, AAC, MP3, AMR-NB and AMR-WB |
 | Linux | V4L2 M2M decoders for H.263, H.264, HEVC, MPEG-1, MPEG-2, MPEG-4, VC-1, VP8 and VP9, which you ask for by name, for example `DecoderId("h264_v4l2m2m")`. They need a board whose kernel has a V4L2 memory-to-memory decoder, and they have not run on one. Other Linux machines decode in software. |
@@ -185,8 +186,8 @@ seeking.
 No GPL build is published. A GPL FFmpeg (with `libx264` or `libx265`) makes the app that ships it
 GPL, and GPL-3.0 with `--enable-version3`, which a library should not decide for you. If your
 project can take the GPL, build your own FFmpeg tree and point the KiteFFmpeg build at it, as
-[Building from source](building-from-source.md#use-a-gpl-ffmpeg-of-your-own) shows. The iOS targets
-refuse a GPL tree, because the App Store cannot ship one.
+[Building from source](building-from-source.md#use-a-gpl-ffmpeg-of-your-own) shows. The iOS and tvOS
+targets refuse a GPL tree, because the App Store cannot ship one.
 
 ## Related
 

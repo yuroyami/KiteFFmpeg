@@ -10,7 +10,7 @@ package io.github.yuroyami.kiteffmpeg.buildtools
  *
  * Since the portable profiles (owner decision 2026-08-22) every target's needs are platform
  * services plus exactly ONE third-party archive, the cross-built dav1d (mandatory):
- *  - Apple (macOS and iOS): SDK zlib plus the media frameworks the VideoToolbox/AudioToolbox
+ *  - Apple (macOS, iOS and tvOS): SDK zlib plus the media frameworks the VideoToolbox/AudioToolbox
  *    codecs reference.
  *  - Linux: zlib, maths, dynamic loader, pthreads (all from the konan sysroot / OS).
  *  - Windows (mingw): zlib, iconv (both from the msys2 sysroot) plus the sockets/media/COM APIs
@@ -27,6 +27,7 @@ object StaticLinkFlags {
     private val APPLE_TARGETS = setOf(
         TargetTriple.MacosArm64, TargetTriple.MacosX64,
         TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64, TargetTriple.IosX64,
+        TargetTriple.TvosArm64, TargetTriple.TvosSimulatorArm64,
     )
 
     /**

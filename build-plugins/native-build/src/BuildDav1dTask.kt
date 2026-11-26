@@ -141,9 +141,15 @@ open class BuildDav1dTask : BuildStep() {
                 endian = 'little'
                 """.trimIndent()
             }
-            TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64, TargetTriple.IosX64 -> {
-                val sdkName = if (target == TargetTriple.IosArm64) "iphoneos" else "iphonesimulator"
-                val minFlag = if (target == TargetTriple.IosArm64) "-mios-version-min=${BuildFFmpegTask.IOS_DEPLOYMENT_TARGET}" else "-mios-simulator-version-min=${BuildFFmpegTask.IOS_DEPLOYMENT_TARGET}"
+            TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64, TargetTriple.IosX64,
+            TargetTriple.TvosArm64, TargetTriple.TvosSimulatorArm64 -> {
+                val (sdkName, minFlag) = when (target) {
+                    TargetTriple.IosArm64 -> "iphoneos" to "-mios-version-min=${BuildFFmpegTask.IOS_DEPLOYMENT_TARGET}"
+                    TargetTriple.TvosArm64 -> "appletvos" to "-mtvos-version-min=${BuildFFmpegTask.TVOS_DEPLOYMENT_TARGET}"
+                    TargetTriple.TvosSimulatorArm64 ->
+                        "appletvsimulator" to "-mtvos-simulator-version-min=${BuildFFmpegTask.TVOS_DEPLOYMENT_TARGET}"
+                    else -> "iphonesimulator" to "-mios-simulator-version-min=${BuildFFmpegTask.IOS_DEPLOYMENT_TARGET}"
+                }
                 val (arch, cpuFamily) = if (target == TargetTriple.IosX64) "x86_64" to "x86_64" else "arm64" to "aarch64"
                 val sdk = xcrunSdkPath(sdkName)
                 """

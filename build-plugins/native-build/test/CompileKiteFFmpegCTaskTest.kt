@@ -222,7 +222,7 @@ class CompileKiteFFmpegCTaskTest {
         )
         val pluginYaml = repoRoot.resolve("build-plugins/kiteffmpeg-native/plugin.yaml").readText()
         val interopTasks = pluginYaml.split("\n  ffmpegInterop").drop(1)
-        assertEquals(11, interopTasks.size, "one ffmpegInterop task per native target")
+        assertEquals(13, interopTasks.size, "one ffmpegInterop task per native target")
         interopTasks.forEach { task ->
             assertTrue(
                 "ffmpegTree: \${project.rootDir}/native-libs/lgpl/" in task.substringBefore("\n\n"),

@@ -67,6 +67,32 @@ tasks:
       archiveDir: ${taskOutputDir}/ios_x64
       defFile: ${taskOutputDir}/def/ffmpeg.def
 
+  ffmpegInteropTvosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: tvos_arm64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/tvos-arm64
+      archiveDir: ${taskOutputDir}/tvos_arm64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
+  ffmpegInteropTvosSimulatorArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
+      konanTarget: tvos_simulator_arm64
+      repoRoot: ${project.rootDir}
+      homebrewPrefix: ${pluginSettings.homebrewPrefix}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      cSources: ${project.rootDir}/native/kitecodec-c/src
+      cInclude: ${project.rootDir}/native/kitecodec-c/include
+      defTemplates: ${module.rootDir}/interop
+      ffmpegTree: ${project.rootDir}/native-libs/lgpl/tvos-simulator-arm64
+      archiveDir: ${taskOutputDir}/tvos_simulator_arm64
+      defFile: ${taskOutputDir}/def/ffmpeg.def
+
   ffmpegInteropLinuxX64:
     action: !io.github.yuroyami.kiteffmpeg.plugin.prepareFFmpegInterop
       konanTarget: linux_x64
@@ -361,6 +387,36 @@ tasks:
       dav1dTree: ${tasks.bakeDav1dIosX64.action.outputDir}
       outputDir: ${project.rootDir}/native-libs/lgpl/ios-x64
 
+  bakeDav1dTvosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: TvosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/tvos-arm64/dav1d
+
+  bakeFFmpegTvosArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: TvosArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dTvosArm64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/tvos-arm64
+
+  bakeDav1dTvosSimulatorArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
+      target: TvosSimulatorArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      outputDir: ${project.rootDir}/native-libs/deps/tvos-simulator-arm64/dav1d
+
+  bakeFFmpegTvosSimulatorArm64:
+    action: !io.github.yuroyami.kiteffmpeg.plugin.bakeFFmpeg
+      target: TvosSimulatorArm64
+      repoRoot: ${project.rootDir}
+      kotlinVersion: ${pluginSettings.kotlinVersion}
+      dav1dTree: ${tasks.bakeDav1dTvosSimulatorArm64.action.outputDir}
+      outputDir: ${project.rootDir}/native-libs/lgpl/tvos-simulator-arm64
+
   bakeDav1dLinuxX64:
     action: !io.github.yuroyami.kiteffmpeg.plugin.bakeDav1d
       target: LinuxX64
@@ -501,6 +557,8 @@ tasks:
         - ${tasks.bakeFFmpegIosArm64.action.outputDir}
         - ${tasks.bakeFFmpegIosSimulatorArm64.action.outputDir}
         - ${tasks.bakeFFmpegIosX64.action.outputDir}
+        - ${tasks.bakeFFmpegTvosArm64.action.outputDir}
+        - ${tasks.bakeFFmpegTvosSimulatorArm64.action.outputDir}
         - ${tasks.bakeFFmpegLinuxX64.action.outputDir}
         - ${tasks.bakeFFmpegLinuxArm64.action.outputDir}
         - ${tasks.bakeFFmpegMingwX64.action.outputDir}
@@ -603,6 +661,10 @@ generated:
       fragment: "@iosSimulatorArm64"
     - defFile: ${tasks.ffmpegInteropIosX64.action.defFile}
       fragment: "@iosX64"
+    - defFile: ${tasks.ffmpegInteropTvosArm64.action.defFile}
+      fragment: "@tvosArm64"
+    - defFile: ${tasks.ffmpegInteropTvosSimulatorArm64.action.defFile}
+      fragment: "@tvosSimulatorArm64"
     - defFile: ${tasks.ffmpegInteropLinuxX64.action.defFile}
       fragment: "@linuxX64"
     - defFile: ${tasks.ffmpegInteropLinuxArm64.action.defFile}
@@ -671,6 +733,14 @@ commands:
     performedBy: bakeDav1dIosX64
   - name: buildFFmpegForIosX64
     performedBy: bakeFFmpegIosX64
+  - name: buildDav1dForTvosArm64
+    performedBy: bakeDav1dTvosArm64
+  - name: buildFFmpegForTvosArm64
+    performedBy: bakeFFmpegTvosArm64
+  - name: buildDav1dForTvosSimulatorArm64
+    performedBy: bakeDav1dTvosSimulatorArm64
+  - name: buildFFmpegForTvosSimulatorArm64
+    performedBy: bakeFFmpegTvosSimulatorArm64
   - name: buildDav1dForLinuxX64
     performedBy: bakeDav1dLinuxX64
   - name: buildFFmpegForLinuxX64

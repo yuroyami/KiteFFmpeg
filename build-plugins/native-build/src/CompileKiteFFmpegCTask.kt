@@ -386,7 +386,8 @@ open class CompileKiteFFmpegCTask(
          *
          * The five in the plan (macos_arm64, ios_arm64, linux_x64, android_arm64, mingw_x64) were
          * measured working from this macOS host, and the six siblings follow the same rule; all
-         * eleven were confirmed to compile a translation unit here. The android trap is worth
+         * eleven were confirmed to compile a translation unit here, and the two tvOS targets compiled
+         * the whole helper layer here when they joined (#267). The android trap is worth
          * naming: the sysroot has to come from the `target-toolchain-*-android_ndk` package, not
          * from `target-sysroot-*-android_ndk`, whose `--sysroot` fails with
          * `'stdlib.h' file not found`.
@@ -412,6 +413,11 @@ open class CompileKiteFFmpegCTask(
             "ios_x64" -> CTargetSpec(
                 "x86_64-apple-ios${BuildFFmpegTask.IOS_DEPLOYMENT_TARGET}-simulator",
                 appleSdk = "iphonesimulator",
+            )
+            "tvos_arm64" -> CTargetSpec("arm64-apple-tvos${BuildFFmpegTask.TVOS_DEPLOYMENT_TARGET}", appleSdk = "appletvos")
+            "tvos_simulator_arm64" -> CTargetSpec(
+                "arm64-apple-tvos${BuildFFmpegTask.TVOS_DEPLOYMENT_TARGET}-simulator",
+                appleSdk = "appletvsimulator",
             )
             "linux_x64" -> CTargetSpec(
                 "x86_64-unknown-linux-gnu",
@@ -477,7 +483,8 @@ open class CompileKiteFFmpegCTask(
 
         /**
          * What `file -b` must report, as a prefix, for an object built for [konanTargetName]. All
-         * eleven strings were measured on this host by compiling one translation unit per target.
+         * eleven strings were measured on this host by compiling one translation unit per target, and
+         * the two tvOS targets produce the arm64 Mach-O string of the iOS ones (#267).
          *
          * `file` reads the architecture and not the platform, so macos_arm64, ios_arm64 and
          * ios_simulator_arm64 share a string. That is the right scope: the guard is about
@@ -487,7 +494,8 @@ open class CompileKiteFFmpegCTask(
          * the target name.
          */
         fun acceptedObjectDescriptions(konanTargetName: String): List<String> = when (konanTargetName) {
-            "macos_arm64", "ios_arm64", "ios_simulator_arm64" -> listOf("Mach-O 64-bit object arm64")
+            "macos_arm64", "ios_arm64", "ios_simulator_arm64", "tvos_arm64", "tvos_simulator_arm64" ->
+                listOf("Mach-O 64-bit object arm64")
             "macos_x64", "ios_x64" -> listOf("Mach-O 64-bit object x86_64")
             "linux_x64", "android_x64" -> listOf("ELF 64-bit LSB relocatable, x86-64")
             "linux_arm64", "android_arm64" -> listOf("ELF 64-bit LSB relocatable, ARM aarch64")

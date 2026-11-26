@@ -69,7 +69,7 @@ Apple, MediaCodec on Android) or the `mpeg4` software baseline instead of x264 a
 
 The FFmpeg build is not only FFmpeg, but it is very nearly so. This list was read out of the
 published `lib/` directories rather than from the configure line, and it is short on purpose: a
-self-contained artifact can only bundle what cross-compiles for all eleven targets.
+self-contained artifact can only bundle what cross-compiles for all thirteen targets.
 
 | Component | License | Where it is |
 |---|---|---|

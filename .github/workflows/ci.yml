@@ -126,13 +126,13 @@ jobs:
             exit 1
           fi
       # The public API check reads the klib of every native platform, so each one needs an FFmpeg
-      # tree. The other ten come from this repository's prebuilt release, checksum verified, as in
+      # tree. The other twelve come from this repository's prebuilt release, checksum verified, as in
       # publish.yml. macos-arm64 is not fetched: this job built it above, and the ratchets read it.
-      - name: Fetch the prebuilt static FFmpeg for the other ten native targets
+      - name: Fetch the prebuilt static FFmpeg for the other twelve native targets
         run: |
           set -euo pipefail
           base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
-          for triple in macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
+          for triple in macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 tvos-arm64 tvos-simulator-arm64 \
                         linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
             asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
             curl -fL --retry 3 -o "${asset}" "${base}/${asset}"
@@ -635,7 +635,7 @@ jobs:
             target: macosArm64
             taskSuffix: MacosArm64
             toolchainCache: ~/Library/Caches/JetBrains/Kotlin
-            triples: macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64
+            triples: macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 tvos-arm64 tvos-simulator-arm64 linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4

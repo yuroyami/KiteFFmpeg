@@ -18,7 +18,7 @@ KiteFFmpeg is a Kotlin Multiplatform binding to FFmpeg's libav\* libraries, with
   in the same commit.
 - **Public API changes run `./kotlin do updateAbi` and `./kotlin do updateKlibAbi` after a full
   `./kotlin build -m kiteffmpeg`, in the same commit**, and every new public declaration carries KDoc. Explicit API mode is on.
-  The dump covers every klib target, so the run needs all eleven native FFmpeg trees; see
+  The dump covers every klib target, so the run needs all thirteen native FFmpeg trees; see
   [Binary compatibility](#binary-compatibility).
 - **When the tree contradicts an issue or a document, stop and say so.** Do not improvise the
   document back into truth.
@@ -172,7 +172,7 @@ the build logic tests, the interpose, AddressSanitizer and ThreadSanitizer C run
 audit, the corpus replay, the macOS arm64 tests, the JVM tests with the JNI boundary harness, the
 comparison of the JVM and macOS codec contract transcripts, the end-to-end transcode, and
 `./scripts/linux-tests.sh`, which needs Docker. The full build needs the Android SDK and NDK and an
-FFmpeg tree for each of the eleven native targets.
+FFmpeg tree for each of the thirteen native targets.
 
 `run-c-tests.sh` never builds anything. When you run it by hand, run `build-host.sh <variant>`
 first, or you are testing yesterday's binaries.
@@ -208,7 +208,7 @@ The klib checks read the klib of every platform in that list, so build all of th
 ./kotlin do updateKlibAbi
 ```
 
-The build compiles the klib of every native target, so it needs an FFmpeg tree in `native-libs/lgpl/<triple>/` for each of the eleven triples. A macOS host can compile all of them. The prebuilt trees are assets of the release that `FFMPEG_ASSET_TAG` names in the workflows, and the ratchets job shows how to fetch and verify them. Each zip is checked against the digest committed in `.github/prebuilt-ffmpeg.sha256` with `.github/scripts/check-prebuilt.sh`, never against the release's own `.sha256`. A rebuild of the trees goes to a new release tag, and the commit that raises `FFMPEG_ASSET_TAG` writes that release's digests into the file. When a tree is missing, the build of that platform stops and names the target. Only the host's own target can use a system FFmpeg instead.
+The build compiles the klib of every native target, so it needs an FFmpeg tree in `native-libs/lgpl/<triple>/` for each of the thirteen triples. A macOS host can compile all of them. The prebuilt trees are assets of the release that `FFMPEG_ASSET_TAG` names in the workflows, and the ratchets job shows how to fetch and verify them. Each zip is checked against the digest committed in `.github/prebuilt-ffmpeg.sha256` with `.github/scripts/check-prebuilt.sh`, never against the release's own `.sha256`. A rebuild of the trees goes to a new release tag, and the commit that raises `FFMPEG_ASSET_TAG` writes that release's digests into the file. When a tree is missing, the build of that platform stops and names the target. Only the host's own target can use a system FFmpeg instead.
 
 API-breaking changes must be intentional and called out in `CHANGELOG.md`.
 

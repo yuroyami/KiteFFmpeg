@@ -11,11 +11,13 @@ import kotlin.test.assertFailsWith
 class FFmpegPathsTest {
 
     @Test
-    fun everyIosTargetRejectsGplBeforeLookingForAFileTree() {
+    fun everyIosAndTvosTargetRejectsGplBeforeLookingForAFileTree() {
         listOf(
             TargetTriple.IosArm64,
             TargetTriple.IosSimulatorArm64,
             TargetTriple.IosX64,
+            TargetTriple.TvosArm64,
+            TargetTriple.TvosSimulatorArm64,
         ).forEach { target ->
             val failure = assertFailsWith<BuildFailure> {
                 FFmpegPaths.resolve(File("."), target, FFmpegLicense.GPL)

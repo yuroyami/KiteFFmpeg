@@ -1,6 +1,6 @@
 # Publishes kiteffmpeg, kiteffmpeg-android-natives, kiteffmpeg-web and kiteffmpeg-web-async to Maven
 # Central (Central Portal, with the Kotlin Toolchain). Since 2026-08-22 there is no Gradle plugin:
-# FFmpeg is embedded INSIDE the native klibs, so the fetch step below unpacks ALL 11 triples' zips
+# FFmpeg is embedded INSIDE the native klibs, so the fetch step below unpacks ALL 13 triples' zips
 # (dav1d inside every one) into native-libs/ before publishing, and cinterop embeds them.
 #
 # ON DEMAND ONLY (owner order 2026-08-22): workflow_dispatch is the single trigger; pushing a
@@ -18,7 +18,7 @@
 #     SIGNING_IN_MEMORY_KEY / SIGNING_IN_MEMORY_KEY_PASSWORD: ASCII-armored GPG key and its
 #       passphrase. The toolchain reads no key id, so SIGNING_IN_MEMORY_KEY_ID is unused.
 #   Release assets:
-#     The `v<VERSION>` release (created by release-binaries.yml) must exist with all 11 LGPL
+#     The `v<VERSION>` release (created by release-binaries.yml) must exist with all 13 LGPL
 #     zips + .sha256 files: ffmpeg-<ffversion>-lgpl-<triple>.zip for every supported triple.
 #
 # VERSIONING: the library version is static in library.module-template.yaml (publishing.version).
@@ -26,9 +26,9 @@
 # the pushed tag (or the workflow_dispatch input) and fails on mismatch, so a stale template can
 # never publish under the wrong tag.
 #
-# kiteffmpeg publishes ALL 11 native targets plus the always-present JVM, JS and WasmJs
+# kiteffmpeg publishes ALL 13 native targets plus the always-present JVM, JS and WasmJs
 # variants. The build of a native target fails when its FFmpeg tree is missing, which is why the
-# fetch step must cover all 11.
+# fetch step must cover all 13.
 #
 # BILL OF MATERIALS. Before the upload, the run writes an SPDX document of the FFmpeg and dav1d
 # that the artifacts embed (scripts/native-sbom.sh), from the archives the fetch step kept, and
@@ -135,7 +135,7 @@ jobs:
           key: kotlin-toolchain-publish-${{ hashFiles('kotlin', 'project.yaml', '**/module.yaml', 'libs.versions.toml', 'build-plugins/**/plugin.yaml') }}
           restore-keys: |
             kotlin-toolchain-publish-
-      # The FFmpeg trees of all 11 triples, emscripten and the FFmpeg source of the web module: the
+      # The FFmpeg trees of all 13 triples, emscripten and the FFmpeg source of the web module: the
       # same inputs for this job and the upload job (.github/actions/publish-inputs).
       - name: The FFmpeg trees, emscripten and the FFmpeg source
         uses: ./.github/actions/publish-inputs

@@ -1,6 +1,6 @@
 name: The inputs of a KiteFFmpeg publish
 description: >-
-  Fetches and checks the prebuilt FFmpeg trees of all 11 triples, installs the pinned emscripten
+  Fetches and checks the prebuilt FFmpeg trees of all 13 triples, installs the pinned emscripten
   and clones the FFmpeg source the web module builds from. The publish job and the upload job of
   publish.yml run it, so both build from the same inputs (#215).
 inputs:
@@ -15,7 +15,7 @@ runs:
     # LGPL assets from the release tag being published and unpack into the exact layout
     # FFmpegPaths.resolve() expects: native-libs/<license>/<triple>/{include,lib}. The archives
     # and their .sha256 files stay in build/prebuilt-ffmpeg for the bill of materials.
-    - name: Fetch prebuilt FFmpeg (all 11 triples, lgpl, dav1d inside)
+    - name: Fetch prebuilt FFmpeg (all 13 triples, lgpl, dav1d inside)
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
@@ -28,7 +28,7 @@ runs:
             base="https://github.com/${{ github.repository }}/releases/download/${FFMPEG_ASSET_TAG}"
             kept=build/prebuilt-ffmpeg
             mkdir -p "${kept}"
-            for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 \
+            for triple in macos-arm64 macos-x64 ios-arm64 ios-simulator-arm64 ios-x64 tvos-arm64 tvos-simulator-arm64 \
                           linux-x64 linux-arm64 mingw-x64 android-arm64 android-arm32 android-x64; do
               asset="ffmpeg-${FFMPEG_VERSION}-lgpl-${triple}.zip"
               echo "fetching ${asset}"

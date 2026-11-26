@@ -13,11 +13,6 @@ import java.util.UUID
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.deleteRecursively
 
-private val TargetTriple.isIos: Boolean
-    get() = this == TargetTriple.IosArm64 ||
-        this == TargetTriple.IosSimulatorArm64 ||
-        this == TargetTriple.IosX64
-
 /**
  * Cross-compiles a minimal FFmpeg from source for one [target] under one [license] and writes the
  * resulting static archives + headers into `native-libs/<license>/<target.dirName>/{include,lib}`.
@@ -25,8 +20,9 @@ private val TargetTriple.isIos: Boolean
  *
  * Every profile is LGPL and PORTABLE (owner decision 2026-08-22): the shared software playback
  * core plus platform services only, no third-party desktop stack. macOS gets SDK zlib and
- * VideoToolbox/AudioToolbox exactly like iOS, and macOS and the iPhone also get the VideoToolbox
- * encoders, which do not exist on the simulator; Linux and Windows get the reduced W-D4 profile.
+ * VideoToolbox/AudioToolbox exactly like iOS and tvOS, and macOS, the iPhone and the Apple TV also
+ * get the VideoToolbox encoders, which do not exist on the simulators; Linux and Windows get the
+ * reduced W-D4 profile.
  * The fat macOS profile (vpx/aom/opus/lame/webp encoders, freetype/harfbuzz/fribidi/libass,
  * drawtext) is GONE: every one of those had to come from Homebrew, Homebrew ships graphite2
  * shared-only, and a Release asset that only links on a machine with Homebrew is not an asset.
@@ -38,8 +34,8 @@ private val TargetTriple.isIos: Boolean
  * native software decoders and aac encoder. Cross-compiled with the NDK toolchain (env
  * `ANDROID_NDK_HOME` / `ANDROID_NDK_ROOT` / `ANDROID_NDK_LATEST_HOME`, falling back to the SDK's
  * newest `ndk/<version>`).
- * The **iOS** profile is also LGPL-only: the shared software playback core plus SDK zlib, with no
- * desktop encoder/text stack and no VideoToolbox profile.
+ * The **iOS** and **tvOS** profile is also LGPL-only: the shared software playback core plus SDK
+ * zlib, VideoToolbox and AudioToolbox, with no desktop encoder or text stack.
  *
  * Every flavour shares the same demuxer/decoder/filter core: the editor-relevant subset, ~75%
  * smaller than a "full" build (25 MB vs 110 MB per ABI).
@@ -120,7 +116,7 @@ open class BuildFFmpegTask : BuildStep() {
         val outputDir = outputDir.get().asFile
 
         require(license != FFmpegLicense.GPL) {
-            if (target.isIos) IOS_GPL_REFUSAL else LGPL_ONLY_REFUSAL
+            if (target.isMobileApple) IOS_GPL_REFUSAL else LGPL_ONLY_REFUSAL
         }
         VendoredCheckout.requirePristine(
             sourceDir,
@@ -247,11 +243,11 @@ open class BuildFFmpegTask : BuildStep() {
         konanBin: (TargetTriple) -> KonanTools = ::konanCrossTools,
     ): List<String> {
         require(license != FFmpegLicense.GPL) {
-            if (target.isIos) IOS_GPL_REFUSAL else LGPL_ONLY_REFUSAL
+            if (target.isMobileApple) IOS_GPL_REFUSAL else LGPL_ONLY_REFUSAL
         }
         val profileArgs = when {
             target.isAndroid -> androidArgs(target, ndkToolchainBin())
-            target.isIos -> mobileAppleArgs(target, sdkPath)
+            target.isMobileApple -> mobileAppleArgs(target, sdkPath)
             target.isPortableDesktop -> portableDesktopArgs(target) + desktopTargetArgs(target, konanBin)
             // macOS desktop: the portable Apple profile plus VideoToolbox encode.
             else -> desktopAppleArgs() + desktopTargetArgs(target, konanBin)
@@ -719,7 +715,7 @@ open class BuildFFmpegTask : BuildStep() {
         "--enable-hwaccel=h264_d3d11va2,hevc_d3d11va2,vp9_d3d11va2,mpeg2_d3d11va2,vc1_d3d11va2,wmv3_d3d11va2",
     )
 
-    /** Mobile Apple playback profile: shared software codecs plus SDK zlib, and no desktop stack. */
+    /** Mobile Apple playback profile, for iOS and tvOS: shared software codecs plus SDK zlib, and no desktop stack. */
     private fun mobileAppleArgs(target: TargetTriple, sdkPath: (String) -> String): List<String> {
         val crossArgs = when (target) {
             TargetTriple.IosArm64 -> {
@@ -747,9 +743,25 @@ open class BuildFFmpegTask : BuildStep() {
                     "--disable-asm",
                 )
             }
-            else -> error("mobileAppleArgs called for non-iOS target $target")
+            TargetTriple.TvosArm64 -> {
+                val sdk = sdkPath("appletvos")
+                listOf(
+                    "--arch=arm64", "--target-os=darwin",
+                    "--cc=clang -arch arm64 -isysroot $sdk -mtvos-version-min=$TVOS_DEPLOYMENT_TARGET",
+                    "--enable-cross-compile",
+                )
+            }
+            TargetTriple.TvosSimulatorArm64 -> {
+                val sdk = sdkPath("appletvsimulator")
+                listOf(
+                    "--arch=arm64", "--target-os=darwin",
+                    "--cc=clang -arch arm64 -isysroot $sdk -mtvos-simulator-version-min=$TVOS_DEPLOYMENT_TARGET",
+                    "--enable-cross-compile",
+                )
+            }
+            else -> error("mobileAppleArgs called for a target that is not iOS or tvOS: $target")
         }
-        // aarch64 asm is ON for the two arm64 iOS targets and stays off for IosX64, for exactly the
+        // aarch64 asm is ON for the arm64 iOS and tvOS targets and stays off for IosX64, for exactly the
         // reason the Android profile states: x86_64 inline asm needs nasm in the env, arm64 asm does
         // not and it is what makes software decode fast. The arm64 iOS targets carried
         // `--disable-asm` for a long time with no recorded reason, which shipped every iPhone a
@@ -763,10 +775,10 @@ open class BuildFFmpegTask : BuildStep() {
         // available at all. Enabling the framework compiles the `*_at` decoder class; naming one at
         // open is the player's decision, not this build's.
         //
-        // VideoToolbox ENCODE is on for the iPhone only (#78). VTCompressionSession exists from
-        // iOS 8, and FFmpeg's videotoolboxenc supports iOS. The simulators stay without it, because
-        // VideoToolbox encode is not available there.
-        val encodeArgs = if (target == TargetTriple.IosArm64) {
+        // VideoToolbox ENCODE is on for the iPhone (#78) and the Apple TV (#267). VTCompressionSession
+        // exists from iOS 8 and tvOS 10.2, and FFmpeg's videotoolboxenc supports both. The simulators
+        // stay without it, because VideoToolbox encode is not available there.
+        val encodeArgs = if (target == TargetTriple.IosArm64 || target == TargetTriple.TvosArm64) {
             listOf("--enable-encoder=h264_videotoolbox,hevc_videotoolbox")
         } else {
             emptyList()
@@ -921,6 +933,9 @@ open class BuildFFmpegTask : BuildStep() {
 
         /** The iOS floor of every C build: FFmpeg, dav1d, the libass chain and the helper layer. */
         const val IOS_DEPLOYMENT_TARGET = "15.0"
+
+        /** The tvOS floor of FFmpeg, dav1d and the helper layer: `minVersion.tvos` from konan.properties (#267). */
+        const val TVOS_DEPLOYMENT_TARGET = "15.0"
 
         /**
          * The environment that holds a meson or autotools build for [target] to

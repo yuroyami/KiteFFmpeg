@@ -63,7 +63,7 @@ git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ff
 git clone --depth 1 --branch 1.5.5 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 
 ./kotlin do buildFFmpegForMacosArm64
-# or all eleven native targets:
+# or all thirteen native targets:
 ./kotlin do buildFFmpegForAll
 ```
 
@@ -128,10 +128,19 @@ On an arm64 Mac, build the host, device and simulator trees, then compile those 
 ./kotlin build -m kiteffmpeg -p macosArm64 -p iosArm64 -p iosSimulatorArm64
 ```
 
-The iPhone tree carries the VideoToolbox H.264 and HEVC encoders, and the simulator trees carry no
-hardware encoder. Every Apple tree carries the VideoToolbox decoders, which is why the iOS link
-flags in `ffmpeg.def` name VideoToolbox and its frameworks. The iOS targets refuse a GPL tree with
-`iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL.`
+The tvOS trees build the same way:
+
+```bash
+./kotlin do buildFFmpegForTvosArm64
+./kotlin do buildFFmpegForTvosSimulatorArm64
+./kotlin build -m kiteffmpeg -p tvosArm64 -p tvosSimulatorArm64
+```
+
+The iPhone and Apple TV trees carry the VideoToolbox H.264 and HEVC encoders, and the simulator
+trees carry no hardware encoder. Every Apple tree carries the VideoToolbox decoders, which is why
+the iOS and tvOS link flags in `ffmpeg.def` name VideoToolbox and its frameworks. The iOS and tvOS
+targets refuse a GPL tree with
+`iOS and tvOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS and tvOS; use LGPL.`
 
 ## Android
 

@@ -56,6 +56,8 @@ data class ExternalLibraries(val libraries: List<String>, val hardware: List<Str
             TargetTriple.IosArm64 to of("libdav1d zlib | audiotoolbox videotoolbox"),
             TargetTriple.IosSimulatorArm64 to of("libdav1d zlib | audiotoolbox videotoolbox"),
             TargetTriple.IosX64 to of("libdav1d zlib | audiotoolbox videotoolbox"),
+            TargetTriple.TvosArm64 to of("libdav1d zlib | audiotoolbox videotoolbox"),
+            TargetTriple.TvosSimulatorArm64 to of("libdav1d zlib | audiotoolbox videotoolbox"),
             TargetTriple.LinuxX64 to of("iconv libdav1d zlib | v4l2_m2m"),
             TargetTriple.LinuxArm64 to of("iconv libdav1d zlib | v4l2_m2m"),
             TargetTriple.MingwX64 to of("iconv libdav1d zlib | d3d11va dxva2"),

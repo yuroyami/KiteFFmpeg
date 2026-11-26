@@ -1,6 +1,6 @@
 # KiteFFmpeg, for whoever works in this tree
 
-KiteFFmpeg is a Kotlin Multiplatform binding to FFmpeg's libav* libraries, built for thirteen
+KiteFFmpeg is a Kotlin Multiplatform binding to FFmpeg's libav* libraries, built for fifteen
 targets. The player that consumes it lives in the sibling checkout, `../KitePlayer`. Open work
 for both is in GitHub Issues, one tracker per repository.
 
@@ -34,8 +34,8 @@ Each line is something that bit someone. Delete a line when it stops being true.
 
 ### Build and toolchain
 
-- `./kotlin check klibAbi` reads the klibs of all thirteen platforms in `klibPlatforms`, so run
-  `./kotlin build -m kiteffmpeg` with all eleven native trees present first. A machine with one
+- `./kotlin check klibAbi` reads the klibs of all fifteen platforms in `klibPlatforms`, so run
+  `./kotlin build -m kiteffmpeg` with all thirteen native trees present first. A machine with one
   FFmpeg tree builds with `-p` for that platform only.
 - A toolchain publish builds every platform in one run, so a `./kotlin publish mavenLocal -m
   kiteffmpeg -m kiteffmpeg-android-natives` for the sibling player needs every FFmpeg tree, and an
@@ -255,7 +255,7 @@ Do not reopen these without new evidence.
   false rejection into an outage inside a consumer's product.
 - Splitting this library into one module per concern was declined. Payload weight lives in the
   native profile rather than in Kotlin modules, shared types drag the mass into a base module
-  anyway, and thirteen targets multiplied by several modules multiplies the configuration drift.
+  anyway, and fifteen targets multiplied by several modules multiplies the configuration drift.
 
 ## Facts about the pair of repositories
 
@@ -264,8 +264,9 @@ Do not reopen these without new evidence.
 - There is no KiteFFmpeg Gradle plugin, and consumers need no build script. It died when FFmpeg
   moved inside the published klibs, so a dependency line is the whole integration. Any note
   saying a plugin supplies the link-time search path predates that and is wrong.
-- Each `ffmpeg-n*` binaries release carries 11 prebuilt zips, one per triple, all LGPL, each
-  with a `.sha256` beside it, and the FFmpeg source tarball. The `kiteffmpeg-v*` release tags
+- Each `ffmpeg-n*` binaries release carries one prebuilt zip per triple, all LGPL, each with a
+  `.sha256` beside it, and the FFmpeg source tarball. The releases up to `ffmpeg-n9.0.2-r3`
+  carry 11 zips, without the two tvOS triples (#267). The `kiteffmpeg-v*` release tags
   carry no zip. macOS uses the portable profile. Deleted release pages keep their tags.
 - Two artifact names are served publicly. The old `kitecodec-core` line is finished and receives
   nothing further. This repository's artifact is `kiteffmpeg`, and the toolchain module is

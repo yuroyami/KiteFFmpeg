@@ -16,9 +16,9 @@
 # shared software playback core plus platform services, no third-party desktop stack, so every
 # triple builds on a stock runner:
 #   - android arm64 / arm32 / x64: NDK clang, MediaCodec. Self-contained by profile.
-#   - ios-arm64 / ios-simulator-arm64 / ios-x64, macos-arm64 / macos-x64: Xcode clang,
-#     VideoToolbox/AudioToolbox from the SDK. macOS and ios-arm64 also get the VideoToolbox
-#     encoders; the simulators do not.
+#   - ios-arm64 / ios-simulator-arm64 / ios-x64, tvos-arm64 / tvos-simulator-arm64,
+#     macos-arm64 / macos-x64: Xcode clang, VideoToolbox/AudioToolbox from the SDK. macOS,
+#     ios-arm64 and tvos-arm64 also get the VideoToolbox encoders; the simulators do not.
 #   - linux-x64 / linux-arm64 / mingw-x64: konan's own clang over konan's own sysroot (decision
 #     W-D3), which is the toolchain the consumer's Kotlin/Native link uses. The konan warmup step
 #     is what drops that toolchain into ~/.konan/dependencies.
@@ -103,11 +103,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        triple: [ios-arm64, ios-simulator-arm64, ios-x64, macos-arm64, macos-x64]
+        triple: [ios-arm64, ios-simulator-arm64, ios-x64, tvos-arm64, tvos-simulator-arm64, macos-arm64, macos-x64]
         include:
           - { triple: ios-arm64,            task: IosArm64 }
           - { triple: ios-simulator-arm64,  task: IosSimulatorArm64 }
           - { triple: ios-x64,              task: IosX64 }
+          - { triple: tvos-arm64,           task: TvosArm64 }
+          - { triple: tvos-simulator-arm64, task: TvosSimulatorArm64 }
           - { triple: macos-arm64,          task: MacosArm64 }
           - { triple: macos-x64,            task: MacosX64 }
     steps:
@@ -194,7 +196,7 @@ jobs:
   # avoids jobs racing to create/update the same release tag. `if: always()` is deliberate during
   # iteration: publish whatever succeeded, then re-run the failed jobs and this one; softprops
   # updates the existing release, so the missing assets join the same tag. A release only counts
-  # as COMPLETE when all 11 zips (one per triple, dav1d inside every one) are present.
+  # as COMPLETE when all 13 zips (one per triple, dav1d inside every one) are present.
   publish:
     name: publish release
     needs: [android, apple, linux-portable]

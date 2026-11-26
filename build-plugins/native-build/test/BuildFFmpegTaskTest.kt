@@ -269,6 +269,59 @@ class BuildFFmpegTaskTest {
     }
 
     /**
+     * tvOS takes the iOS profile with the tvOS SDK and floor (#267): the Apple TV names the two
+     * VideoToolbox encoders, as the iPhone does, and the simulator does not.
+     */
+    @Test
+    fun tvosProfilesUseTheIosProfileWithTheTvosSdkAndFloor() {
+        val task = BuildFFmpegTask().apply { name = "ffmpeg" }
+        fun arguments(target: TargetTriple) = task.configureArguments(
+            target = target,
+            license = FFmpegLicense.LGPL,
+            installPrefix = "/scratch/install",
+            dav1dRoot = java.io.File("/stub/dav1d"),
+            sdkPath = { "/SDK/${it}" },
+        )
+        val apple = listOf("--disable-autodetect", "--enable-zlib", "--enable-videotoolbox", "--enable-audiotoolbox")
+        val hwaccel = "--enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox"
+        val tail = listOf(
+            "--enable-cross-compile", "--enable-libdav1d", "--enable-decoder=libdav1d", "--pkg-config=pkg-config",
+            "--prefix=/scratch/install",
+        )
+        assertEquals(
+            expectedSharedCoreArguments() + apple + listOf(
+                "--enable-encoder=h264_videotoolbox,hevc_videotoolbox",
+                hwaccel,
+                "--arch=arm64",
+                "--target-os=darwin",
+                "--cc=clang -arch arm64 -isysroot /SDK/appletvos -mtvos-version-min=15.0",
+            ) + tail,
+            arguments(TargetTriple.TvosArm64),
+        )
+        assertEquals(
+            expectedSharedCoreArguments() + apple + listOf(
+                hwaccel,
+                "--arch=arm64",
+                "--target-os=darwin",
+                "--cc=clang -arch arm64 -isysroot /SDK/appletvsimulator -mtvos-simulator-version-min=15.0",
+            ) + tail,
+            arguments(TargetTriple.TvosSimulatorArm64),
+        )
+        listOf(TargetTriple.TvosArm64, TargetTriple.TvosSimulatorArm64).forEach { target ->
+            val refusal = assertFailsWith<IllegalArgumentException> {
+                task.configureArguments(
+                    target = target,
+                    license = FFmpegLicense.GPL,
+                    installPrefix = "/must-not-resolve",
+                    dav1dRoot = java.io.File("/stub/dav1d"),
+                    sdkPath = { error("GPL refusal must happen before SDK resolution") },
+                )
+            }
+            assertEquals(IOS_GPL_REFUSAL, refusal.message)
+        }
+    }
+
+    /**
      * The asm law, stated as a law rather than left to the goldens above.
      *
      * Every arm64 target this project builds must carry aarch64 asm: it is the single biggest lever
@@ -279,7 +332,9 @@ class BuildFFmpegTaskTest {
     fun onlyX8664TargetsMayDisableAsm() {
         val task = BuildFFmpegTask().apply { name = "ffmpeg" }
 
-        listOf(TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64).forEach { target ->
+        listOf(
+            TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64, TargetTriple.TvosArm64, TargetTriple.TvosSimulatorArm64,
+        ).forEach { target ->
             val args = task.configureArguments(
                 target = target,
                 license = FFmpegLicense.LGPL,
@@ -504,18 +559,19 @@ class BuildFFmpegTaskTest {
     @Test
     fun dav1dSupportsExactlyTheTargetsItRegisters() {
         // Every triple since the full-coverage release (2026-08-22): the release workflow ships a
-        // dav1d flavour for all 11, so the task must write a cross file for all 11.
+        // dav1d flavour for each one, so the task must write a cross file for each one.
         assertEquals(TargetTriple.entries.toSet(), BuildDav1dTask.SUPPORTED_TARGETS)
     }
 
     @Test
     fun appleStaticLinkSetsAreExactlyZlibPlusTheMediaFrameworks() {
-        // macOS joined the same portable Apple profile as iOS (2026-08-22), so ALL five Apple
-        // triples share one link set: zlib plus the media frameworks. AudioToolbox is named
-        // because every Apple profile requests --enable-audiotoolbox, so the static archives
-        // hold undefined references into it exactly as they do into VideoToolbox.
+        // macOS joined the same portable Apple profile as iOS (2026-08-22), and tvOS joined it too
+        // (#267), so ALL seven Apple triples share one link set: zlib plus the media frameworks.
+        // AudioToolbox is named because every Apple profile requests --enable-audiotoolbox, so the
+        // static archives hold undefined references into it exactly as they do into VideoToolbox.
         listOf(
             TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64, TargetTriple.IosX64,
+            TargetTriple.TvosArm64, TargetTriple.TvosSimulatorArm64,
             TargetTriple.MacosArm64, TargetTriple.MacosX64,
         ).forEach { target ->
             assertEquals(listOf("libdav1d.a"), StaticLinkFlags.thirdPartyArchives(target, FFmpegLicense.LGPL))
@@ -921,6 +977,8 @@ class BuildFFmpegTaskTest {
             TargetTriple.IosArm64 to ObjectMachine.MachOArm64,
             TargetTriple.IosSimulatorArm64 to ObjectMachine.MachOArm64,
             TargetTriple.IosX64 to ObjectMachine.MachOX64,
+            TargetTriple.TvosArm64 to ObjectMachine.MachOArm64,
+            TargetTriple.TvosSimulatorArm64 to ObjectMachine.MachOArm64,
             TargetTriple.LinuxX64 to ObjectMachine.ElfX64,
             TargetTriple.LinuxArm64 to ObjectMachine.ElfArm64,
             TargetTriple.MingwX64 to ObjectMachine.CoffX64,

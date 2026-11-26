@@ -92,8 +92,8 @@ your usual `dependencies { }` block. On Android the library needs `minSdk` 26 an
 
 | If you build | You also need |
 | --- | --- |
-| An iOS app with a static framework (`isStatic = true`) | Linker flags in Xcode ([iOS setup](#ios-setup)) |
-| Any iOS app | An entry in the privacy manifest ([iOS setup](#ios-setup)) |
+| An iOS or tvOS app with a static framework (`isStatic = true`) | Linker flags in Xcode ([iOS setup](#ios-setup)) |
+| Any iOS or tvOS app | An entry in the privacy manifest ([iOS setup](#ios-setup)) |
 | A web app (`wasmJs`) | The FFmpeg WebAssembly module beside the page ([Web setup](#web-setup)) |
 
 <a name="ios-setup"></a>
@@ -274,7 +274,7 @@ player.
 | Family | Targets |
 | --- | --- |
 | Android | The Android library (`minSdk` 26, with `arm64-v8a`, `armeabi-v7a` and `x86_64`), and `androidNativeArm32`, `androidNativeArm64` and `androidNativeX64` for Kotlin/Native on Android |
-| Apple | `iosArm64`, `iosSimulatorArm64`, `iosX64`, `macosArm64`, `macosX64` |
+| Apple | `iosArm64`, `iosSimulatorArm64`, `iosX64`, `tvosArm64`, `tvosSimulatorArm64`, `macosArm64`, `macosX64` |
 | Desktop | `jvm` (Java 11 or later), `linuxX64`, `linuxArm64`, `mingwX64` |
 | Web | `wasmJs` with the [web module](#web-setup), and `js` as a placeholder |
 
@@ -295,7 +295,8 @@ player.
   ones are `aac`, `opus`, `flac`, `alac`, `ac3`, `eac3` and three PCM formats. There is no MP3
   encoder. FFmpeg marks its `opus` encoder experimental, so it opens only with the encoder option
   `strict` set to `experimental`. The hardware encoders are VideoToolbox H.264 and
-  HEVC on macOS and the iPhone (not the simulator), and MediaCodec H.264 and HEVC on Android.
+  HEVC on macOS, the iPhone and the Apple TV (not the simulators), and MediaCodec H.264 and HEVC
+  on Android.
   Decoding covers far more formats than encoding.
 - No GPL build is published, because a GPL FFmpeg would make your whole app GPL-3.0, which a
   library should not decide for you. You can still build KiteFFmpeg against a GPL FFmpeg of your
@@ -305,9 +306,9 @@ player.
 - Hardware decoding uses VideoToolbox on Apple platforms, MediaCodec on Android and Direct3D 11 on
   Windows. Linux decodes in software. The Direct3D 11 path has not run on a real Windows GPU.
 - You cannot pick a bitstream filter by hand. FFmpeg applies the right one during a stream copy.
-- Some targets build but have not played media yet: `macosX64`, `iosX64`, the Android
-  `armeabi-v7a` and `x86_64` libraries, the desktop JVM on Linux and Windows, and the
-  `androidNative*` targets.
+- Some targets build but have not played media yet: `macosX64`, `iosX64`, `tvosArm64`,
+  `tvosSimulatorArm64`, the Android `armeabi-v7a` and `x86_64` libraries, the desktop JVM on Linux
+  and Windows, and the `androidNative*` targets.
 
 Missing features and known bugs are [open issues](https://github.com/yuroyami/KiteFFmpeg/issues).
 

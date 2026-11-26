@@ -17,9 +17,10 @@ class MacosDeploymentFloorTest {
         val expected = mapOf("MACOSX_DEPLOYMENT_TARGET" to BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET)
         assertEquals(expected, BuildFFmpegTask.macosDeploymentEnv(TargetTriple.MacosArm64))
         assertEquals(expected, BuildFFmpegTask.macosDeploymentEnv(TargetTriple.MacosX64))
-        // iOS passes its own floor, and nothing else is Apple at all.
+        // iOS and tvOS pass their own floor, and nothing else is Apple at all.
         listOf(
             TargetTriple.IosArm64, TargetTriple.IosSimulatorArm64, TargetTriple.IosX64,
+            TargetTriple.TvosArm64, TargetTriple.TvosSimulatorArm64,
             TargetTriple.AndroidArm64, TargetTriple.LinuxX64, TargetTriple.MingwX64,
         ).forEach { target ->
             assertEquals(emptyMap(), BuildFFmpegTask.macosDeploymentEnv(target), "$target is not macOS")

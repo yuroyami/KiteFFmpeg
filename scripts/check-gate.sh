@@ -59,7 +59,7 @@ base() {
     run scan_em_dashes
 }
 ratchets() {
-    # The committed API dump covers every klib platform, so this needs all eleven native trees.
+    # The committed API dump covers every klib platform, so this needs all thirteen native trees.
     # The build also compiles the shared native folders, such as src@native and src@apple.
     kotlin build -m kiteffmpeg
     kotlin check abi klibAbi wasmBindingMirror releaseTargetMirror jniRegistration ffmpegRefs

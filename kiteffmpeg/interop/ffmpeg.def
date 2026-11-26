@@ -28,6 +28,7 @@ staticLibraries = libkitecodec.a libavformat.a libavcodec.a libavfilter.a libsws
 # Apple: SDK zlib plus the media frameworks the VideoToolbox/AudioToolbox codecs reference.
 linkerOpts.osx = -lz -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework AudioToolbox
 linkerOpts.ios = -lz -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework AudioToolbox
+linkerOpts.tvos = -lz -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework AudioToolbox
 # Linux: zlib, maths, dynamic loader, pthreads, all from the konan sysroot / OS.
 linkerOpts.linux = -lz -lm -ldl -lpthread
 # Windows: zlib + iconv from the msys2 sysroot (iconv backs subtitle charset conversion and the

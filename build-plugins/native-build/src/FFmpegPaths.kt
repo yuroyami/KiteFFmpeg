@@ -3,16 +3,11 @@ package io.github.yuroyami.kiteffmpeg.buildtools
 import java.io.File
 
 const val IOS_GPL_REFUSAL =
-    "iOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS; use LGPL."
+    "iOS and tvOS GPL refusal: FFmpegLicense.GPL is unsupported for iOS and tvOS; use LGPL."
 
 const val LGPL_ONLY_REFUSAL =
     "GPL refusal: KiteFFmpeg builds and publishes the LGPL flavour only (owner decision " +
         "2026-08-21). A GPL tree is a consumer-built FFmpegSource.Local tree, never this task's."
-
-private val TargetTriple.isIos: Boolean
-    get() = this == TargetTriple.IosArm64 ||
-        this == TargetTriple.IosSimulatorArm64 ||
-        this == TargetTriple.IosX64
 
 /** Debian's multiarch tuple for a Linux target, the directory component both lookups below need. */
 private fun multiarchTuple(target: TargetTriple): String =
@@ -76,7 +71,7 @@ internal fun stageFFmpegHeaders(systemInclude: File, destination: File) {
  *   - **Vendored static**: for releases. We expect a directory tree like
  *     `<repoRoot>/native-libs/<license>/<targetTriple>/{include,lib}` populated by the
  *     `:buildFFmpegFor<Target>` tasks (and desktop-only `Gpl` variants; see `BuildFFmpegTask.kt`).
- *     iOS supports only the LGPL standard software-playback profile. The resulting binaries fully
+ *     iOS and tvOS support only the LGPL standard software-playback profile. The resulting binaries fully
  *     embed FFmpeg. The `<license>` segment (`lgpl` / `gpl`) keeps the two flavours from colliding.
  *
  * Layered: vendored static wins if present; otherwise fall back to the system install.
@@ -98,7 +93,7 @@ data class FFmpegPaths(
             homebrewPrefix: String? = null,
             buildDir: File = repoRoot.resolve("build"),
         ): FFmpegPaths {
-            if (target.isIos && license == FFmpegLicense.GPL) {
+            if (target.isMobileApple && license == FFmpegLicense.GPL) {
                 throw BuildFailure(IOS_GPL_REFUSAL)
             }
             val vendored = repoRoot.resolve("native-libs/${license.dirName}/${target.dirName}")
@@ -153,7 +148,7 @@ data class FFmpegPaths(
         }
 
         private fun resolveSystem(target: TargetTriple, homebrewPrefix: String?, buildDir: File): FFmpegPaths? {
-            // iOS / mingw / Android never have a system install; every other target only counts
+            // iOS, tvOS, mingw and Android never have a system install; every other target only counts
             // when it IS this host (see hostTriple).
             if (target != hostTriple()) return null
             return when (target) {
@@ -192,7 +187,7 @@ data class FFmpegPaths(
  *     the App Store and closed-source distribution.
  *   - [GPL] labels a tree the CONSUMER built, not one this project produces. The
  *     `:buildFFmpegFor<Target>Gpl` tasks this KDoc used to name were deleted on 2026-08-21, and
- *     [BuildFFmpegTask] refuses a GPL licence outright now. iOS refuses it a second time.
+ *     [BuildFFmpegTask] refuses a GPL licence outright now. iOS and tvOS refuse it a second time.
  *
  * The enum outlived those tasks because it labels a TREE rather than naming a feature: [dirName]
  * keeps the flavours apart under `native-libs/` and rides into the identity report, so a consumer
@@ -210,6 +205,8 @@ enum class TargetTriple(val dirName: String, val commandSuffix: String) {
     IosArm64("ios-arm64", "IosArm64"),
     IosSimulatorArm64("ios-simulator-arm64", "IosSimulatorArm64"),
     IosX64("ios-x64", "IosX64"),
+    TvosArm64("tvos-arm64", "TvosArm64"),
+    TvosSimulatorArm64("tvos-simulator-arm64", "TvosSimulatorArm64"),
     LinuxX64("linux-x64", "LinuxX64"),
     LinuxArm64("linux-arm64", "LinuxArm64"),
     MingwX64("mingw-x64", "MingwX64"),
@@ -219,6 +216,11 @@ enum class TargetTriple(val dirName: String, val commandSuffix: String) {
     ;
 
     val isAndroid: Boolean get() = this == AndroidArm64 || this == AndroidArm32 || this == AndroidX64
+
+    /** iOS and tvOS: the Apple targets of the mobile profile, which also refuse a GPL tree. */
+    val isMobileApple: Boolean
+        get() = this == IosArm64 || this == IosSimulatorArm64 || this == IosX64 ||
+            this == TvosArm64 || this == TvosSimulatorArm64
 
     /**
      * Linux and Windows: desktop targets with no cross-built third-party stack.

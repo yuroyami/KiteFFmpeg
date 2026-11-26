@@ -178,6 +178,7 @@ object Bakes {
 
     private fun floors(target: TargetTriple): List<String> = when {
         target.dirName.startsWith("ios") -> listOf("ios=${BuildFFmpegTask.IOS_DEPLOYMENT_TARGET}")
+        target.dirName.startsWith("tvos") -> listOf("tvos=${BuildFFmpegTask.TVOS_DEPLOYMENT_TARGET}")
         target.dirName.startsWith("macos") -> listOf("macos=${BuildFFmpegTask.MACOS_DEPLOYMENT_TARGET}")
         else -> emptyList()
     }
