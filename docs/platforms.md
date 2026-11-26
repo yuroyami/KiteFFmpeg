@@ -77,12 +77,13 @@ These lists come from the encoders that each shipped `libavcodec.a` registers.
 | --- | --- | --- | --- | --- | --- |
 | Video, software | `mpeg4`, `h263`, `mjpeg`, `png` | same | same | same | same |
 | Video, hardware | `h264_videotoolbox`, `hevc_videotoolbox` | `h264_videotoolbox`, `hevc_videotoolbox` | none | none | `h264_mediacodec`, `hevc_mediacodec` |
-| Audio | `aac`, `flac`, `pcm_s16le`, `pcm_s24le`, `pcm_f32le` | same | same | same | same |
+| Audio | `aac`, `opus`, `flac`, `alac`, `ac3`, `eac3`, `pcm_s16le`, `pcm_s24le`, `pcm_f32le` | same | same | same | same |
 | Subtitles | `mov_text`, `srt`, `subrip`, `ass`, `webvtt` | same | same | same | same |
 
 No third-party encoder is linked: no `libx264`, `libx265`, `libsvtav1`, `libopus` or `libmp3lame`.
 `mpeg4` is in every build, so code that must encode something without a GPL or hardware encoder
-always has one.
+always has one. `opus` is FFmpeg's own encoder, and FFmpeg marks it experimental. It opens only when
+the encoder options set `strict` to `experimental`.
 
 ### Hardware decoding
 

@@ -162,6 +162,18 @@ audio.drive(audioFrames)         // audioFrames: Flow<Frame>
 
 Six channels are 5.1 with back surrounds or 5.1 with side surrounds, and the count alone cannot say which. `0x60FL` is 5.1 with side surrounds, the layout AC-3 decodes to. A mask whose channel count differs from `channels` is refused.
 
+The audio encoders in every build are FFmpeg's own `aac`, `opus`, `flac`, `alac`, `ac3` and `eac3`, and three PCM formats. There is no MP3 encoder. FFmpeg marks its Opus encoder experimental, so it opens only when `options` sets `strict` to `experimental`:
+
+```kotlin
+val opus = sink.addAudioEncoder(
+    AudioEncoderSpec(
+        codec = CodecId.Opus,
+        sampleRate = 48_000,     // the only rate the Opus encoder takes
+        options = mapOf("strict" to "experimental"),
+    )
+)
+```
+
 After the encoder opens, the `AudioEncoder` handle exposes the values that were actually negotiated:
 
 ```kotlin

@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - An `ftp://` address now opens on every native target, through FFmpeg's own `ftp` protocol.
   Before, the native builds had no `ftp` protocol (#268). FTP sends the user name and the password
   in plain text.
+- The native builds now carry FFmpeg's own `opus`, `alac`, `ac3` and `eac3` encoders. Before, the
+  only compressed audio encoders were `aac` and `flac` (#220). FFmpeg marks its Opus encoder
+  experimental, so it opens only when the encoder options set `strict` to `experimental`.
 
 ### Changed
 

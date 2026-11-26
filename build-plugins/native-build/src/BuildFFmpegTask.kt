@@ -416,7 +416,11 @@ open class BuildFFmpegTask : BuildStep() {
         // The text subtitle encoders joined on 2026-09-28 (#86): movtext is how MP4 stores
         // subtitles, and srt and subrip are two names for the one SubRip encoder. They are native
         // FFmpeg code under the LGPL, like everything else on this line.
-        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg,movtext,srt,subrip,ass,webvtt",
+        //
+        // opus, alac, ac3 and eac3 joined on 2026-11-26 (#220). They are FFmpeg's own encoders, so
+        // Opus in Ogg, ALAC and Dolby Digital need no library. FFmpeg marks its Opus encoder
+        // experimental, so it opens only with the encoder option `strict` set to `experimental`.
+        "--enable-encoder=mpeg4,aac,flac,pcm_s16le,pcm_s24le,pcm_f32le,png,mjpeg,movtext,srt,subrip,ass,webvtt,opus,alac,ac3,eac3",
 
         // buffer/buffersink/abuffer/abuffersink are how KiteFFmpeg feeds and drains every graph.
         // Without them ffkmp_graph_build_* returns AVERROR_FILTER_NOT_FOUND.

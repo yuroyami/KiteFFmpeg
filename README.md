@@ -292,7 +292,9 @@ player.
 
 - No third-party encoder is linked: no `libx264`, `libx265`, `libsvtav1`, `libopus` or
   `libmp3lame`. The software video encoders are `mpeg4`, `h263`, `mjpeg` and `png`, and the audio
-  ones are `aac`, `flac` and three PCM formats. The hardware encoders are VideoToolbox H.264 and
+  ones are `aac`, `opus`, `flac`, `alac`, `ac3`, `eac3` and three PCM formats. There is no MP3
+  encoder. FFmpeg marks its `opus` encoder experimental, so it opens only with the encoder option
+  `strict` set to `experimental`. The hardware encoders are VideoToolbox H.264 and
   HEVC on macOS and the iPhone (not the simulator), and MediaCodec H.264 and HEVC on Android.
   Decoding covers far more formats than encoding.
 - No GPL build is published, because a GPL FFmpeg would make your whole app GPL-3.0, which a
