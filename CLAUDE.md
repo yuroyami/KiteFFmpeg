@@ -194,8 +194,10 @@ Each line is something that bit someone. Delete a line when it stops being true.
   match it: `avcodec_send_frame` reads using the encoder's idea of the geometry and runs off the
   end of the buffers. Both mismatches crashed at the same address when measured against the aac
   encoder. A sample-rate mismatch is the quiet half of the same hole, accepted silently and
-  encoded wrong. `requireEncodableAudio` refuses all three before FFmpeg sees the frame, and
-  any new path reaching an audio encoder owes the same check.
+  encoded wrong. `audioForEncoder` converts the channel count and the sample format of every
+  frame before FFmpeg sees it, and the rate too when the encoder takes any chunk size.
+  `requireEncodableAudio` refuses what is left, a rate change into an encoder that takes
+  fixed-size chunks. Any new path reaching an audio encoder owes the same treatment.
 - The neighbouring encode surfaces were probed at the same time and are clean, so do not
   re-check them on a hunch: the frame factories refuse an undersized buffer with a typed error
   naming the geometry they wanted, the video encoder refuses a size mismatch and converts a
