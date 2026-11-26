@@ -31,9 +31,9 @@ concurrency:
 # checkout at any other commit, so a tag changed here alone stops the run before it compiles.
 env:
   KOTLIN_CLI_NO_WELCOME_BANNER: 1
-  FRIBIDI_TAG: v1.0.17
-  FREETYPE_TAG: VER-2-14-3
-  HARFBUZZ_TAG: 14.6.0
+  FRIBIDI_TAG: v1.0.18
+  FREETYPE_TAG: VER-2-15-0
+  HARFBUZZ_TAG: 15.2.0
   LIBASS_TAG: 0.17.5
 
 jobs:

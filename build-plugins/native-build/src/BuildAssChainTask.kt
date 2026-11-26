@@ -101,6 +101,10 @@ open class BuildAssChainTask : BuildStep() {
                 listOf(
                     "-Dharfbuzz=disabled", "-Dbrotli=disabled", "-Dbzip2=disabled",
                     "-Dpng=disabled", "-Dtests=disabled",
+                    // FreeType 2.15 links Apple's libhvf when the SDK has it, and the Xcode 27
+                    // SDKs do. A consumer's link would have to name it, and macOS 12 and iOS 15
+                    // do not carry it.
+                    "-Dhvf=disabled",
                     // mingw takes freetype's own bundled zlib. The system one is present in the
                     // msys2 package, but meson resolves it to a WRAPDB SUBPROJECT that ships its
                     // own `zlib1.rc`, which drags a second file through the resource compiler for
@@ -547,26 +551,26 @@ ${windres?.let { "                windres = '$it'\n" } ?: ""}
         const val LIBASS_PATCH_EVIDENCE = "libass-patches.txt"
 
         /** The chain this repo builds by default; mpv-android ships the same series. */
-        const val DEFAULT_SOURCE_REFS = "fribidi-1.0.17 freetype-2.14.3 harfbuzz-14.6.0 libass-0.17.5"
+        const val DEFAULT_SOURCE_REFS = "fribidi-1.0.18 freetype-2.15.0 harfbuzz-15.2.0 libass-0.17.5"
 
         /**
          * The four checkouts under `vendor/`, each named by its directory, with the tag
          * `release-ass-chain.yml` clones and the commit that tag names upstream, read with
-         * `git ls-remote` on 2026-10-04, and for HarfBuzz on 2026-10-08. Moving a tag means moving
+         * `git ls-remote` on 2026-11-26, and for libass on 2026-10-04. Moving a tag means moving
          * its commit with it.
          */
         val SOURCES: List<PinnedSource> = listOf(
             PinnedSource(
-                "fribidi", "https://github.com/fribidi/fribidi.git", "v1.0.17",
-                "b93119f5fdc7ea47672cc304c1455ffa6dfe7536",
+                "fribidi", "https://github.com/fribidi/fribidi.git", "v1.0.18",
+                "15393e4937aa95bcf865d92143735746aeb654fa",
             ),
             PinnedSource(
-                "freetype", "https://gitlab.freedesktop.org/freetype/freetype.git", "VER-2-14-3",
-                "0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+                "freetype", "https://gitlab.freedesktop.org/freetype/freetype.git", "VER-2-15-0",
+                "37515cf56ba3349656049edbed89ffc6f6466f2d",
             ),
             PinnedSource(
-                "harfbuzz", "https://github.com/harfbuzz/harfbuzz.git", "14.6.0",
-                "c7a7457b7385f33178e8cf87615ca077a810bbe7",
+                "harfbuzz", "https://github.com/harfbuzz/harfbuzz.git", "15.2.0",
+                "ed51d202cfd0c29372d3ee056eb0dc715688a410",
             ),
             PinnedSource(
                 "libass", "https://github.com/libass/libass.git", "0.17.5",

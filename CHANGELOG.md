@@ -33,6 +33,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   emscripten 7 targets Chrome 93, Firefox 92 and Safari 15.4 or later by default, where 6.0.11
   targeted Chrome 85, Firefox 79 and Safari 15.0. `kite-jspi` targets Chrome 137, Firefox 153,
   Safari 27 and Node.js 24 or later.
+- The subtitle chain that KitePlayer links now builds FriBidi 1.0.18, FreeType 2.15.0 and
+  HarfBuzz 15.2.0. Before, it built FriBidi 1.0.17, FreeType 2.14.3 and HarfBuzz 14.6.0. FreeType's
+  new HVF support stays off, so the chain needs no new system library. The published
+  `ass-chain-r2` assets keep the old versions until the chain is built again.
 
 ### Fixed
 
