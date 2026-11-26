@@ -10,9 +10,14 @@ only what reading the code or running the gate would not teach you.
 ## How work happens here
 
 - Always work on `main`. Never create a branch, local or remote. A cloud session makes a
-  `claude/...` branch by default, so commit to `main` there too. Commit locally, never push. The
-  owner pushes, publishes and cuts every release.
-- Commit subject is one imperative sentence about the outcome. Short prose body. No trailers.
+  `claude/...` branch by default, so commit to `main` there too.
+- Push after each batch of commits, without asking. The owner publishes and cuts every release.
+- Commit subject is one imperative sentence about the outcome, in lower case. Short prose body.
+  No trailers.
+- CI is slow, so build and test on this Mac before a push. Push once per batch, then wait until
+  that run ends before the next push, because a new push cancels the run in progress. Add
+  `[skip ci]` to the last commit of a push that only changes docs, removes files or syncs history.
+  Never re-run a failed job or start a `workflow_dispatch` without the owner's yes.
 - AI use is stated once, in the README. AI tools, Claude among them, helped build this project,
   and the owner directs and reviews all of the work. A commit does not repeat that statement in
   a `Co-Authored-By` or session line.
@@ -118,9 +123,13 @@ Each line is something that bit someone. Delete a line when it stops being true.
   than hand-editing the committed copy.
 - `publish.yml` runs the whole of `ci.yml` on the commit it publishes, and the upload waits for it,
   so a release run takes as long as CI plus the upload and one flaky test stops a release (#90).
-- The corpus replay and fuzz jobs build the C layer against Ubuntu 24.04's own FFmpeg 6.1, not
-  the pinned release, so FFmpeg 7 or later API needs a version check in the C source. Nothing on
-  this Mac notices; an `ubuntu:24.04` container with `libavformat-dev` and `clang-18` does.
+- The corpus replay job builds the C layer against Ubuntu 24.04's own FFmpeg 6.1, not the pinned
+  release, so FFmpeg 7 or later API needs a version check in the C source. Nothing on this Mac
+  notices; an `ubuntu:24.04` container with `libavformat-dev` and `clang-18` does. The two fuzz
+  jobs link the pinned release: the prebuilt `linux-x64` tree, and an instrumented build of it
+  from `scripts/build-sanitized-ffmpeg.sh`.
+- `replay-corpus.sh` cannot link against a `KC_FFMPEG_PREFIX` tree: its link line lacks zlib and
+  the other system libraries that a static tree needs.
 
 ### Kotlin and language
 
