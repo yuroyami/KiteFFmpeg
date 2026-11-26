@@ -52,8 +52,8 @@ macOS arm64 is the reference development machine.
 To work on the static-linking path or the FFmpeg build tasks themselves:
 
 ```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
+git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+git clone --depth 1 --branch 1.5.5 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 brew install nasm meson ninja                             # nasm for x86_64 asm, meson/ninja for dav1d
 ./kotlin do buildFFmpegForMacosArm64                     # LGPL, and the only flavor built here
 ```

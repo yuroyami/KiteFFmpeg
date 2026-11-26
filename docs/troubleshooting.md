@@ -63,8 +63,8 @@ The `buildFFmpegFor<Target>` tasks compile FFmpeg from source. They fail early w
 **1. The source checkouts.** The task expects git checkouts of FFmpeg at `vendor/ffmpeg` and of dav1d at `vendor/dav1d`, and stops with the clone command for whichever is missing:
 
 ```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
+git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+git clone --depth 1 --branch 1.5.5 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 ```
 
 Each checkout must hold exactly the commit its tag names upstream, which the build task pins beside the tag, with nothing changed, added or ignored in it. The output carries the tag's name and records only the patches the build applied, so a build from anything else would name a release it is not. A checkout at another commit, one with a change in it, and a directory that is part of another repository rather than a checkout of its own all stop the build before it compiles anything, and the message lists what git reports. Move a change to FFmpeg into a patch under `native/patches/ffmpeg`, and set the checkout's changes aside with `git -C vendor/ffmpeg stash push --all`. A change to libass goes under `native/patches/libass` the same way, and dav1d and the rest of the libass chain carry no patches.

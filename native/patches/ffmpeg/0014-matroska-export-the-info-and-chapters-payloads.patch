@@ -24,10 +24,10 @@ Applied by BuildFFmpegTask before configure, after 0013, whose context fields it
 Part of yuroyami/KiteFFmpeg#173.
 
 diff --git a/libavformat/avio_internal.h b/libavformat/avio_internal.h
-index fadf19d..d053d5c 100644
+index c7f3407..ff2aa0b 100644
 --- a/libavformat/avio_internal.h
 +++ b/libavformat/avio_internal.h
-@@ -190,6 +190,14 @@ int ffio_realloc_buf(AVIOContext *s, int buf_size);
+@@ -192,6 +192,14 @@ int ffio_realloc_buf(AVIOContext *s, int buf_size);
   */
  int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size);
  
@@ -43,10 +43,10 @@ index fadf19d..d053d5c 100644
  
  void ffio_init_checksum(AVIOContext *s,
 diff --git a/libavformat/aviobuf.c b/libavformat/aviobuf.c
-index cc71638..8f5f801 100644
+index 4343138..9eb5652 100644
 --- a/libavformat/aviobuf.c
 +++ b/libavformat/aviobuf.c
-@@ -1023,7 +1023,7 @@ static void update_checksum(AVIOContext *s)
+@@ -991,7 +991,7 @@ static void update_checksum(AVIOContext *s)
      }
  }
  
@@ -55,7 +55,7 @@ index cc71638..8f5f801 100644
  {
      uint8_t *buffer;
      int max_buffer_size = s->max_packet_size ?
-@@ -1038,7 +1038,8 @@ int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
+@@ -1006,7 +1006,8 @@ int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
  
      buf_size += max_buffer_size - 1;
  
@@ -65,7 +65,7 @@ index cc71638..8f5f801 100644
          return 0;
      av_assert0(!s->write_flag);
  
-@@ -1061,6 +1062,16 @@ int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
+@@ -1029,6 +1030,16 @@ int ffio_ensure_seekback(AVIOContext *s, int64_t buf_size)
      return 0;
  }
  
@@ -83,7 +83,7 @@ index cc71638..8f5f801 100644
  {
      FFIOContext *const ctx = ffiocontext(s);
 diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
-index 1730ba7..0f876b8 100644
+index 60e80fb..7621ffe 100644
 --- a/libavformat/matroskadec.c
 +++ b/libavformat/matroskadec.c
 @@ -414,6 +414,14 @@ typedef struct MatroskaDemuxContext {
@@ -160,7 +160,7 @@ index 1730ba7..0f876b8 100644
          break;
      case EBML_STOP:
          return 1;
-@@ -4638,6 +4689,10 @@ static int matroska_read_close(AVFormatContext *s)
+@@ -4657,6 +4708,10 @@ static int matroska_read_close(AVFormatContext *s)
          if (tracks[n].type == MATROSKA_TRACK_TYPE_AUDIO)
              av_freep(&tracks[n].audio.buf);
      ebml_free(matroska_segment, matroska);
@@ -171,7 +171,7 @@ index 1730ba7..0f876b8 100644
  
      return 0;
  }
-@@ -5095,8 +5150,22 @@ const FFInputFormat ff_webm_dash_manifest_demuxer = {
+@@ -5118,8 +5173,22 @@ const FFInputFormat ff_webm_dash_manifest_demuxer = {
  };
  #endif
  

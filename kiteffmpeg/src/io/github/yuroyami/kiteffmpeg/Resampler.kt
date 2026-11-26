@@ -132,7 +132,7 @@ internal fun AudioSpec.layoutMaskOrDefault(): Long = channelLayoutMask ?: defaul
 /**
  * FFmpeg's default layout for [channels] channels, as `av_channel_layout_default` picks it in the
  * linked FFmpeg: the first native layout with that count. Six channels are 5.1 with back
- * surrounds, and in FFmpeg 9.0.2 ten, twelve, fourteen, sixteen and twenty-four channels have one
+ * surrounds, and in FFmpeg 9.1 ten, twelve, fourteen, sixteen and twenty-four channels have one
  * too. 0 when FFmpeg has no native layout with that count.
  *
  * It is asked of FFmpeg rather than copied, because the resampler takes the same default on the C

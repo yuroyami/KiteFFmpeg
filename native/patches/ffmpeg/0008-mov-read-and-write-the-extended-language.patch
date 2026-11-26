@@ -21,10 +21,10 @@ Applied by BuildFFmpegTask before configure, after 0005, which gives mdhd the co
 language, and after 0007. Fixes yuroyami/KiteFFmpeg#157.
 
 diff --git a/libavformat/isom.h b/libavformat/isom.h
-index e02af09..aa7db56 100644
+index 18c2fe4..482a317 100644
 --- a/libavformat/isom.h
 +++ b/libavformat/isom.h
-@@ -278,6 +278,7 @@ typedef struct MOVStreamContext {
+@@ -279,6 +279,7 @@ typedef struct MOVStreamContext {
      uint32_t format;
  
      int has_sidx;  // If there is an sidx entry for this stream.
@@ -33,10 +33,10 @@ index e02af09..aa7db56 100644
          struct AVAESCTR* aes_ctr;
          struct AVAES *aes_ctx;
 diff --git a/libavformat/mov.c b/libavformat/mov.c
-index e7e29d7..867882f 100644
+index 4aeb80a..7540c25 100644
 --- a/libavformat/mov.c
 +++ b/libavformat/mov.c
-@@ -1961,13 +1961,44 @@ static int mov_read_mdhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+@@ -2055,13 +2055,44 @@ static int mov_read_mdhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
      }
  
      lang = avio_rb16(pb); /* language */
@@ -82,7 +82,7 @@ index e7e29d7..867882f 100644
  static int mov_read_mvhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
  {
      int i;
-@@ -9760,6 +9791,7 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
+@@ -10316,6 +10347,7 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
  { MKTAG('D','p','x','E'), mov_read_dpxe },
  { MKTAG('d','r','e','f'), mov_read_dref },
  { MKTAG('e','d','t','s'), mov_read_default },
@@ -91,10 +91,10 @@ index e7e29d7..867882f 100644
  { MKTAG('e','n','d','a'), mov_read_enda },
  { MKTAG('f','i','e','l'), mov_read_fiel },
 diff --git a/libavformat/movenc.c b/libavformat/movenc.c
-index 847f395..c780b11 100644
+index b4e51d0..ca1494a 100644
 --- a/libavformat/movenc.c
 +++ b/libavformat/movenc.c
-@@ -3955,6 +3955,28 @@ static int mov_write_mdhd_tag(AVIOContext *pb, MOVMuxContext *mov,
+@@ -4083,6 +4083,28 @@ static int mov_write_mdhd_tag(AVIOContext *pb, MOVMuxContext *mov,
      return 32;
  }
  
@@ -123,7 +123,7 @@ index 847f395..c780b11 100644
  static int mov_write_mdia_tag(AVFormatContext *s, AVIOContext *pb,
                                MOVMuxContext *mov, MOVTrack *track)
  {
-@@ -3965,6 +3987,7 @@ static int mov_write_mdia_tag(AVFormatContext *s, AVIOContext *pb,
+@@ -4093,6 +4115,7 @@ static int mov_write_mdia_tag(AVFormatContext *s, AVIOContext *pb,
      ffio_wfourcc(pb, "mdia");
      mov_write_mdhd_tag(pb, mov, track);
      mov_write_hdlr_tag(s, pb, track);
@@ -131,7 +131,7 @@ index 847f395..c780b11 100644
      if ((ret = mov_write_minf_tag(s, pb, mov, track)) < 0)
          return ret;
      return update_size(pb, pos);
-@@ -8147,6 +8170,34 @@ static int mov_language_code(const char *lang, int mp4)
+@@ -8349,6 +8372,34 @@ static int mov_language_code(const char *lang, int mp4)
      return ret < 0 ? 32767 : ret; // Unspecified Macintosh language code
  }
  
@@ -166,7 +166,7 @@ index 847f395..c780b11 100644
  static int mov_init(AVFormatContext *s)
  {
      MOVMuxContext *mov = s->priv_data;
-@@ -8475,6 +8526,8 @@ static int mov_init(AVFormatContext *s)
+@@ -8692,6 +8743,8 @@ static int mov_init(AVFormatContext *s)
              continue;
  
          track->language = mov_language_code(lang ? lang->value : "und", mov->mode != MODE_MOV);
@@ -176,7 +176,7 @@ index 847f395..c780b11 100644
          if (!track->tag)
              track->tag  = mov_find_codec_tag(s, track);
 diff --git a/libavformat/movenc.h b/libavformat/movenc.h
-index 5d1e709..dd68fad 100644
+index c375659..76440e2 100644
 --- a/libavformat/movenc.h
 +++ b/libavformat/movenc.h
 @@ -120,6 +120,7 @@ typedef struct MOVTrack {

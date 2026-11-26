@@ -92,7 +92,7 @@ mkdir -p "$archives"
 field() { sed -n "s/^$1: *//p" | head -1 | tr -d '\r'; }
 
 # The dav1d tag with its dots escaped, and optionally the suffix that `git describe` adds, as the
-# version string reads inside libdav1d.a: 1.5.4-0-g54706fc.
+# version string reads inside libdav1d.a: 1.5.5-0-g6c7bee6.
 dav1d_pattern="$(printf '%s' "$dav1d_tag" | sed 's/\./\\./g')(-[0-9]+-g[0-9a-f]+)?"
 
 records="$work/archives.jsonl"

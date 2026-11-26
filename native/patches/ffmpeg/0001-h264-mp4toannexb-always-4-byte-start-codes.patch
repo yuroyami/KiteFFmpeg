@@ -13,7 +13,7 @@ pass and the copy pass share count_or_copy, so sizing stays consistent by constr
 Applied by BuildFFmpegTask before configure; idempotent via git apply --reverse --check.
 
 diff --git a/libavcodec/bsf/h264_mp4toannexb.c b/libavcodec/bsf/h264_mp4toannexb.c
-index 36b09b4..db0a275 100644
+index 216fea9..3c1eca0 100644
 --- a/libavcodec/bsf/h264_mp4toannexb.c
 +++ b/libavcodec/bsf/h264_mp4toannexb.c
 @@ -62,10 +62,11 @@ static void count_or_copy(uint8_t **out, uint64_t *out_size,

@@ -13,6 +13,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The JVM jar now carries the JNI library for Intel Macs (`macos-x64`). Before, the first call on
   an Intel Mac threw `UnsatisfiedLinkError` (#212).
 
+### Changed
+
+- The native libraries are now built from FFmpeg 9.1 and dav1d 1.5.5, and the web codec modules
+  from FFmpeg 9.1. Before, they were built from FFmpeg 9.0.2 and dav1d 1.5.4. FFmpeg 9.1 keeps the
+  library major versions of 9.0, and the fifteen KiteFFmpeg patches carry over. The prebuilt trees
+  of the `ffmpeg-n9.0.2-r3` release keep 9.0.2 until they are built again.
+- FFmpeg 9.1 changes some behaviour that KiteFFmpeg passes on:
+  - A live HLS stream can now report `isSeekable` as true, and a seek moves inside its live
+    window. Before, FFmpeg marked every live HLS stream as not seekable.
+  - A stream with 12 or 14 channels and no channel layout now gets the default layout 5.1.6 or
+    7.1.6. Before, it got 7.1.4 or 9.1.4.
+  - DSD audio now decodes to PCM through libswresample, and FFmpeg logs a deprecation warning
+    when a DSD decoder opens.
+  - Closing an RTSP source now sends `TEARDOWN` and waits up to 0.5 s for the reply. The
+    interrupt callback does not cut that wait short. A source opened with `rtsp_flags=listen`
+    sends no `TEARDOWN`, as before.
+
 ### Fixed
 
 - `AsyncMediaSource.extractFrame` now goes back to the first byte of a stream that cannot seek by

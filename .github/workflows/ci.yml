@@ -4,7 +4,7 @@
 #
 #   - macOS arm64  → the VENDORED LGPL profile, built from source. This job carries the ratchets
 #                    (public API, cinterop coupling, klib metadata, deleted surface). The vendored
-#                    tree is pinned at n9.0.2 by the build, so the frozen metadata constants describe
+#                    tree is pinned at n9.1 by the build, so the frozen metadata constants describe
 #                    the FFmpeg the project actually ships.
 #   - Linux x64    → the prebuilt static tree from this repo's own companion release. A distro
 #                    FFmpeg cannot work: Ubuntu's libav* .so files need glibc 2.29/2.34, while
@@ -78,7 +78,7 @@ jobs:
             kotlin-toolchain-macos-arm64-
       # THE VENDORED TREE, not Homebrew. klib-metadata-baseline.txt freezes 24 FFmpeg version
       # constants down to their micro values, and a pin against the moving Homebrew formula is a
-      # calendar, not a gate. The vendored LGPL tree is pinned at n9.0.2 by the build, and the
+      # calendar, not a gate. The vendored LGPL tree is pinned at n9.1 by the build, and the
       # committed baseline matches it with zero drift. FFmpegPaths prefers native-libs/ over any
       # system install, so building the tree is selecting it.
       #
@@ -96,12 +96,12 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.1-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-          git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
+          git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch 1.5.5 https://code.videolan.org/videolan/dav1d vendor/dav1d
           # shellcheck disable=SC1010
           ./kotlin do buildFFmpegForMacosArm64
       # The ratchets below read this tree. If it is missing they would silently fall back to the
@@ -322,11 +322,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: native-libs/lgpl/wasm32
-          key: ffmpeg-wasm32-lgpl-n9.0.2-emcc-${{ steps.emscripten.outputs.version }}-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-wasm32-lgpl-n9.1-emcc-${{ steps.emscripten.outputs.version }}-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegWasmTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the web FFmpeg from source
         if: steps.ffmpeg-web.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
           # shellcheck disable=SC1010
           ./kotlin do buildFFmpegForWasm
       # The bake skips itself when the restored tree is complete, so this links the module only.
@@ -522,12 +522,12 @@ jobs:
           path: |
             native-libs/lgpl/macos-arm64
             native-libs/deps/macos-arm64
-          key: ffmpeg-macos-arm64-lgpl-n9.0.2-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-macos-arm64-lgpl-n9.1-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Build the vendored LGPL FFmpeg from source
         if: steps.ffmpeg-vendored.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-          git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
+          git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch 1.5.5 https://code.videolan.org/videolan/dav1d vendor/dav1d
           # shellcheck disable=SC1010
           ./kotlin do buildFFmpegForMacosArm64
       - name: Confirm the vendored tree is what gets linked
@@ -584,7 +584,7 @@ jobs:
           path: |
             native-libs/lgpl/${{ matrix.triple }}
             native-libs/deps/${{ matrix.triple }}
-          key: ffmpeg-${{ matrix.triple }}-lgpl-n9.0.2-api24-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
+          key: ffmpeg-${{ matrix.triple }}-lgpl-n9.1-api24-${{ hashFiles('build-plugins/native-build/src/BuildFFmpegTask.kt', 'build-plugins/native-build/src/BuildDav1dTask.kt', 'native/patches/ffmpeg/*.patch') }}
       - name: Install the dav1d build tools
         if: steps.ffmpeg-android.outputs.cache-hit != 'true'
         run: |
@@ -593,8 +593,8 @@ jobs:
       - name: Build FFmpeg and dav1d for Android (NDK)
         if: steps.ffmpeg-android.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-          git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d vendor/dav1d
+          git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+          git clone --depth 1 --branch 1.5.5 https://code.videolan.org/videolan/dav1d vendor/dav1d
           ANDROID_NDK_HOME="$(bash .github/scripts/pinned-ndk.sh)"; export ANDROID_NDK_HOME
           # shellcheck disable=SC1010
           ./kotlin do buildFFmpegFor${{ matrix.task }}

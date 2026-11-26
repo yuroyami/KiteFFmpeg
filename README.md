@@ -20,7 +20,7 @@
   <a href="https://github.com/yuroyami/KiteFFmpeg/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/yuroyami/KiteFFmpeg/ci.yml?label=CI" alt="CI"></a>
   <a href="https://yuroyami.github.io/KiteFFmpeg/"><img src="https://img.shields.io/badge/docs-yuroyami.github.io-1f6feb" alt="Docs"></a>
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.4.21"></a>
-  <a href="https://ffmpeg.org"><img src="https://img.shields.io/badge/FFmpeg-n9.0.2%20LGPL-007808" alt="FFmpeg n9.0.2, LGPL"></a>
+  <a href="https://ffmpeg.org"><img src="https://img.shields.io/badge/FFmpeg-n9.1%20LGPL-007808" alt="FFmpeg n9.1, LGPL"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
 </p>
 

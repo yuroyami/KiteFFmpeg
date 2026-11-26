@@ -18,10 +18,10 @@ Applied by BuildFFmpegTask before configure. The C bridge refuses a nested opene
 FFmpeg lacks this option, so a tree built without the patch fails loudly instead of quietly.
 
 diff --git a/libavformat/hls.c b/libavformat/hls.c
-index 0e1a1ba4..ab8452ee 100644
+index c68b5e8..768424a 100644
 --- a/libavformat/hls.c
 +++ b/libavformat/hls.c
-@@ -244,6 +244,7 @@ typedef struct HLSContext {
+@@ -281,6 +281,7 @@ typedef struct HLSContext {
      int http_multiple;
      int http_seekable;
      int seg_max_retry;
@@ -29,7 +29,7 @@ index 0e1a1ba4..ab8452ee 100644
      AVIOContext *playlist_pb;
      HLSCryptoContext  crypto_ctx;
  } HLSContext;
-@@ -688,6 +689,11 @@ static int open_url(AVFormatContext *s, AVIOContext **pb, const char *url,
+@@ -831,6 +832,11 @@ static int open_url(AVFormatContext *s, AVIOContext **pb, const char *url,
      int ret;
      int is_http = 0;
  
@@ -41,7 +41,7 @@ index 0e1a1ba4..ab8452ee 100644
      if (av_strstart(url, "crypto", NULL)) {
          if (url[6] == '+' || url[6] == ':')
              proto_name = avio_find_protocol_name(url + 7);
-@@ -727,6 +733,7 @@ static int open_url(AVFormatContext *s, AVIOContext **pb, const char *url,
+@@ -870,6 +876,7 @@ static int open_url(AVFormatContext *s, AVIOContext **pb, const char *url,
      else if (strcmp(proto_name, "file") || !strncmp(url, "file,", 5))
          return AVERROR_INVALIDDATA;
  
@@ -49,7 +49,7 @@ index 0e1a1ba4..ab8452ee 100644
      av_dict_copy(&tmp, *opts, 0);
      av_dict_copy(&tmp, opts2, 0);
  
-@@ -3065,6 +3072,8 @@ static const AVOption hls_options[] = {
+@@ -3352,6 +3359,8 @@ static const AVOption hls_options[] = {
          OFFSET(seg_format_opts), AV_OPT_TYPE_DICT, {.str = NULL}, 0, 0, FLAGS},
      {"seg_max_retry", "Maximum number of times to reload a segment on error.",
       OFFSET(seg_max_retry), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, FLAGS},

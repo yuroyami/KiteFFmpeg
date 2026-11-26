@@ -34,7 +34,7 @@
 #define KC_APPLE_STEREO (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 24, 100))
 
 /* The cases of #160 expect values that only libavutil 59.27.100 and later name. The patch they
- * test is written against FFmpeg 9.0.2. */
+ * test is written against FFmpeg 9.1. */
 #define KC_ADDS_UP_CASES (LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(59, 27, 100))
 
 /* A 16x16 H.264 picture in Matroska whose track says an equirectangular projection turned by yaw

@@ -312,12 +312,13 @@ internal class DefaultLayoutContractTest {
 
     private companion object {
         /**
-         * What `av_channel_layout_default` answers in FFmpeg 9.0.2, the first native layout with each
+         * What `av_channel_layout_default` answers in FFmpeg 9.1, the first native layout with each
          * count, measured with a C program against the vendored tree. A count missing here has none.
+         * FFmpeg 9.1 added 5.1.6 and 7.1.6, which became the defaults for 12 and 14 channels.
          */
         val FFMPEG_DEFAULTS: Map<Int, Long> = mapOf(
             1 to 0x4L, 2 to 0x3L, 3 to 0xBL, 4 to 0x107L, 5 to 0x37L, 6 to 0x3FL, 7 to 0x70FL, 8 to 0x63FL,
-            10 to 0x2D60FL, 12 to 0x2D63FL, 14 to 0x2D6FFL, 16 to 0x300002D6FFL, 24 to 0x1F80003FFFFL,
+            10 to 0x2D60FL, 12 to 0x2FE0FL, 14 to 0x2FE3FL, 16 to 0x300002D6FFL, 24 to 0x1F80003FFFFL,
         )
     }
 

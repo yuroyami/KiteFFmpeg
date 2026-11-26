@@ -15,10 +15,10 @@ end flag but a seek.
 Applied by BuildFFmpegTask before configure, after 0002. Fixes yuroyami/KiteFFmpeg#125.
 
 diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
-index 18849af..7ce49b8 100644
+index 1f6cb96..192433a 100644
 --- a/libavformat/matroskadec.c
 +++ b/libavformat/matroskadec.c
-@@ -4486,6 +4486,16 @@ static int matroska_read_packet(AVFormatContext *s, AVPacket *pkt)
+@@ -4505,6 +4505,16 @@ static int matroska_read_packet(AVFormatContext *s, AVPacket *pkt)
          matroska->resync_pos = avio_tell(s->pb);
      }
  

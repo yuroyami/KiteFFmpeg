@@ -26,10 +26,10 @@ a stream's 2-letter tag through it, gave such a stream no language at all.
 Applied by BuildFFmpegTask before configure, after 0004. Fixes yuroyami/KiteFFmpeg#156.
 
 diff --git a/libavformat/Makefile b/libavformat/Makefile
-index 0d2e757..00eae51 100644
+index 6c3fa87..d6c299c 100644
 --- a/libavformat/Makefile
 +++ b/libavformat/Makefile
-@@ -393,7 +393,7 @@ OBJS-$(CONFIG_MOV_DEMUXER)               += mov.o mov_chan.o mov_esds.o \
+@@ -399,7 +399,7 @@ OBJS-$(CONFIG_MOV_DEMUXER)               += mov.o mov_chan.o mov_esds.o \
  OBJS-$(CONFIG_MOV_MUXER)                 += movenc.o \
                                              movenchint.o mov_chan.o rtp.o \
                                              movenccenc.o movenc_ttml.o rawutils.o \
@@ -38,7 +38,7 @@ index 0d2e757..00eae51 100644
  OBJS-$(CONFIG_MP2_MUXER)                 += rawenc.o
  OBJS-$(CONFIG_MP3_DEMUXER)               += mp3dec.o replaygain.o
  OBJS-$(CONFIG_MP3_MUXER)                 += mp3enc.o rawenc.o id3v2enc.o
-@@ -408,7 +408,7 @@ OBJS-$(CONFIG_MPEG2VIDEO_MUXER)          += rawenc.o
+@@ -414,7 +414,7 @@ OBJS-$(CONFIG_MPEG2VIDEO_MUXER)          += rawenc.o
  OBJS-$(CONFIG_MPEG2VOB_MUXER)            += mpegenc.o
  OBJS-$(CONFIG_MPEGPS_DEMUXER)            += mpeg.o
  OBJS-$(CONFIG_MPEGTS_DEMUXER)            += mpegts.o
@@ -175,7 +175,7 @@ index c6986cf..f5de386 100644
  #define MATROSKA_ID_TRACKFLAGDEFAULT 0x88
  #define MATROSKA_ID_TRACKFLAGFORCED 0x55AA
 diff --git a/libavformat/matroskaenc.c b/libavformat/matroskaenc.c
-index f278271..dbb6a95 100644
+index a8408da..a795072 100644
 --- a/libavformat/matroskaenc.c
 +++ b/libavformat/matroskaenc.c
 @@ -1952,6 +1952,7 @@ static int mkv_write_track(AVFormatContext *s, MatroskaMuxContext *mkv,
@@ -207,10 +207,10 @@ index f278271..dbb6a95 100644
      // The default value for TRACKFLAGDEFAULT is 1, so add element
      // if we need to clear it.
 diff --git a/libavformat/movenc.c b/libavformat/movenc.c
-index 6f93eb3..847f395 100644
+index 759ef94..b4e51d0 100644
 --- a/libavformat/movenc.c
 +++ b/libavformat/movenc.c
-@@ -36,6 +36,7 @@
+@@ -37,6 +37,7 @@
  #include "isom.h"
  #include "av1.h"
  #include "avc.h"
@@ -218,7 +218,7 @@ index 6f93eb3..847f395 100644
  #include "evc.h"
  #include "apv.h"
  #include "lcevc.h"
-@@ -8128,6 +8129,24 @@ static int mov_init_iamf_track(AVFormatContext *s)
+@@ -8330,6 +8331,24 @@ static int mov_init_iamf_track(AVFormatContext *s)
  }
  #endif
  
@@ -243,7 +243,7 @@ index 6f93eb3..847f395 100644
  static int mov_init(AVFormatContext *s)
  {
      MOVMuxContext *mov = s->priv_data;
-@@ -8455,9 +8474,7 @@ static int mov_init(AVFormatContext *s)
+@@ -8672,9 +8691,7 @@ static int mov_init(AVFormatContext *s)
          if (!track)
              continue;
  
@@ -255,7 +255,7 @@ index 6f93eb3..847f395 100644
          if (!track->tag)
              track->tag  = mov_find_codec_tag(s, track);
 diff --git a/libavformat/mpegtsenc.c b/libavformat/mpegtsenc.c
-index 7f76883..1abaaf9 100644
+index f5150ce..94397c6 100644
 --- a/libavformat/mpegtsenc.c
 +++ b/libavformat/mpegtsenc.c
 @@ -38,6 +38,7 @@
@@ -264,9 +264,9 @@ index 7f76883..1abaaf9 100644
  #include "avio_internal.h"
 +#include "avlanguage.h"
  #include "internal.h"
+ #include "lcevc.h"
  #include "mpegts.h"
- #include "mux.h"
-@@ -509,6 +510,44 @@ static int get_m2ts_stream_type(AVFormatContext *s, AVStream *st)
+@@ -523,6 +524,44 @@ static int get_m2ts_stream_type(AVFormatContext *s, AVStream *st)
      return stream_type;
  }
  
@@ -311,7 +311,7 @@ index 7f76883..1abaaf9 100644
  static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
  {
      MpegTSWrite *ts = s->priv_data;
-@@ -540,9 +579,14 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
+@@ -554,9 +593,14 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
          MpegTSWriteStream *ts_st = st->priv_data;
          AVDictionaryEntry *lang = av_dict_get(st->metadata, "language", NULL, 0);
          const char default_language[] = "und";

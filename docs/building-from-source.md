@@ -59,8 +59,8 @@ The commands expect git checkouts of FFmpeg at `vendor/ffmpeg` and of dav1d at `
 FFmpeg build compiles dav1d first, so clone both before anything else:
 
 ```bash
-git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
-git clone --depth 1 --branch 1.5.4 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
+git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg
+git clone --depth 1 --branch 1.5.5 https://code.videolan.org/videolan/dav1d.git vendor/dav1d
 
 ./kotlin do buildFFmpegForMacosArm64
 # or all eleven native targets:
@@ -89,7 +89,7 @@ Every tree is LGPL, with no `libx264` or `libx265`. There are no GPL build comma
 ### Patches
 
 A change to FFmpeg belongs in a patch under `native/patches/ffmpeg`, and a change to libass in one
-under `native/patches/libass`. The build applies every patch to the clean checkout. FFmpeg n9.0.2
+under `native/patches/libass`. The build applies every patch to the clean checkout. FFmpeg n9.1
 gets these:
 
 | Patch | What it does |

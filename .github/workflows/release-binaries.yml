@@ -32,16 +32,16 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to attach the binaries to, a new one for every build (ffmpeg-n9.0.2-r4, never one already pinned). Keep it FFmpeg-keyed: the zips are identical across KiteFFmpeg versions and publish.yml fetches from exactly this tag."
+        description: "Release tag to attach the binaries to, a new one for every build (ffmpeg-n9.1, never one already pinned). Keep it FFmpeg-keyed: the zips are identical across KiteFFmpeg versions and publish.yml fetches from exactly this tag."
         required: true
       ffmpeg_version:
         description: "FFmpeg source tag to build (must equal BuildFFmpegTask.DEFAULT_SOURCE_REF; the build refuses a checkout of any other commit)"
         required: true
-        default: "n9.0.2"
+        default: "n9.1"
       dav1d_version:
         description: "dav1d source tag (must equal BuildDav1dTask.DEFAULT_SOURCE_REF; the build refuses a checkout of any other commit)"
         required: true
-        default: "1.5.4"
+        default: "1.5.5"
 
 permissions:
   contents: read

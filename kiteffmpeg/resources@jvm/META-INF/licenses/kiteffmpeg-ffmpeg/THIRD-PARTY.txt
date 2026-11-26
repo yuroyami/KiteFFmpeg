@@ -8,7 +8,7 @@ the two together are the complete corresponding source):
   https://github.com/yuroyami/KiteFFmpeg/tree/main/native/patches/ffmpeg  (the patches)
   https://github.com/FFmpeg/FFmpeg
 
-dav1d 1.5.4: https://code.videolan.org/videolan/dav1d (BSD-2-Clause). It carries no
+dav1d 1.5.5: https://code.videolan.org/videolan/dav1d (BSD-2-Clause). It carries no
 source obligation, but a binary redistribution must reproduce its copyright notice,
 conditions and disclaimer, which are in COPYING.dav1d beside this file.
 

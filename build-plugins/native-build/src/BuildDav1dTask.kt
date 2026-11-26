@@ -10,7 +10,7 @@ import java.nio.file.Files
  * demand-driven, optional).
  *
  * Needs meson, ninja and (for x86 asm) nasm on the host, and a git checkout of dav1d at
- * [sourceDir] holding exactly [sourceCommit]: `git clone --depth 1 --branch 1.5.4
+ * [sourceDir] holding exactly [sourceCommit]: `git clone --depth 1 --branch 1.5.5
  * https://code.videolan.org/videolan/dav1d.git vendor/dav1d`. Like the FFmpeg task, it refuses a
  * checkout at another commit or with anything changed, added or ignored in it, and the checkout's
  * state is an input (#145).
@@ -253,10 +253,10 @@ open class BuildDav1dTask : BuildStep() {
 
     companion object {
         /** The dav1d release this repo builds by default; mpv-android ships the same series. */
-        const val DEFAULT_SOURCE_REF = "1.5.4"
+        const val DEFAULT_SOURCE_REF = "1.5.5"
 
-        /** The commit [DEFAULT_SOURCE_REF] names upstream, read with `git ls-remote` on 2026-10-04. */
-        const val DEFAULT_SOURCE_COMMIT = "54706fc6bc0cdecab7e9593974a4039cc038fca7"
+        /** The commit [DEFAULT_SOURCE_REF] names upstream, read with `git ls-remote` on 2026-11-26. */
+        const val DEFAULT_SOURCE_COMMIT = "6c7bee685677fd997a431302be4fea8ea4017606"
 
         /** Where dav1d's tags are cloned from. */
         const val SOURCE_URL = "https://code.videolan.org/videolan/dav1d.git"

@@ -18,10 +18,10 @@ Applied by BuildFFmpegTask before configure, after 0006, and independent of the 
 it. Fixes yuroyami/KiteFFmpeg#159.
 
 diff --git a/configure b/configure
-index 374bd5c..ff2890d 100755
+index f5e1fbb..1df6a0a 100755
 --- a/configure
 +++ b/configure
-@@ -3970,7 +3970,7 @@ mp3_demuxer_select="mpegaudio_parser"
+@@ -3947,7 +3947,7 @@ mp3_demuxer_select="mpegaudio_parser"
  mp3_muxer_select="mpegaudioheader"
  mp4_muxer_select="mov_muxer"
  mpegts_demuxer_select="iso_media"
@@ -31,10 +31,10 @@ index 374bd5c..ff2890d 100755
  mxf_muxer_select="iso_writer pcm_rechunk_bsf rangecoder"
  mxf_muxer_suggest="eia608_to_smpte436m_bsf"
 diff --git a/libavformat/mpegtsenc.c b/libavformat/mpegtsenc.c
-index 1abaaf9..f1825f9 100644
+index 94397c6..25e4e7d 100644
 --- a/libavformat/mpegtsenc.c
 +++ b/libavformat/mpegtsenc.c
-@@ -2374,6 +2374,12 @@ static int mpegts_check_bitstream(AVFormatContext *s, AVStream *st,
+@@ -2497,6 +2497,12 @@ static int mpegts_check_bitstream(AVFormatContext *s, AVStream *st,
                          ((st->codecpar->extradata[0] & e->mask) == e->value))))
              return ff_stream_add_bitstream_filter(st, e->bsf_name, NULL);
      }

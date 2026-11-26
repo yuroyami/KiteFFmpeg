@@ -57,7 +57,7 @@ The web module carries a smaller set of formats than the other builds:
 
 ## What each build carries
 
-Every build except the web one comes from the same FFmpeg n9.0.2 recipe. It is LGPL, with no
+Every build except the web one comes from the same FFmpeg n9.1 recipe. It is LGPL, with no
 `--enable-gpl`. Besides dav1d it uses only what the platform itself provides: zlib, which the
 recipe enables, and on Linux and Windows the `iconv` of the C library or the msys2 sysroot, which
 FFmpeg's configure finds on its own and uses for subtitle character sets. On Android, Linux and

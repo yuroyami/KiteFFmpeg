@@ -174,7 +174,8 @@ internal class RtspTestServer(private val listener: LoopbackListener, private va
                     keepalives.incrementAndGet()
                     reply(cseq, "200 OK", listOf(session))
                 }
-                // A client sends TEARDOWN as it closes and does not wait for the answer.
+                // FFmpeg 9.1 sends TEARDOWN as it closes and waits up to 0.5 s for an answer. The
+                // tests silence the server first, so no answer comes and the close waits it out.
                 "TEARDOWN" -> {
                     playing = false
                     true

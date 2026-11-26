@@ -17,10 +17,10 @@ changes for a caller that never pauses twice.
 Applied by BuildFFmpegTask before configure.
 
 diff --git a/libavformat/rtspdec.c b/libavformat/rtspdec.c
-index 4f970d4..ee47a30 100644
+index 0e592ee..72ebdc8 100644
 --- a/libavformat/rtspdec.c
 +++ b/libavformat/rtspdec.c
-@@ -594,6 +594,37 @@ static int rtsp_read_play(AVFormatContext *s)
+@@ -608,6 +608,37 @@ static int rtsp_read_play(AVFormatContext *s)
      return 0;
  }
  
@@ -58,7 +58,7 @@ index 4f970d4..ee47a30 100644
  /* pause the stream */
  static int rtsp_read_pause(AVFormatContext *s)
  {
-@@ -619,6 +650,8 @@ static int rtsp_read_set_state(AVFormatContext *s,
+@@ -633,6 +664,8 @@ static int rtsp_read_set_state(AVFormatContext *s,
          case FF_INFMT_STATE_PLAY:
              return rtsp_read_play(s);
          case FF_INFMT_STATE_PAUSE:

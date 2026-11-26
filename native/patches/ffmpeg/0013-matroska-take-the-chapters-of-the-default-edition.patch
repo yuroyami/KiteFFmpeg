@@ -38,7 +38,7 @@ index f5de386..f93aceb 100644
  typedef enum {
    MATROSKA_TRACK_TYPE_NONE     = 0x0,
 diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
-index 95f3510..1730ba7 100644
+index 33e0019..60e80fb 100644
 --- a/libavformat/matroskadec.c
 +++ b/libavformat/matroskadec.c
 @@ -314,10 +314,19 @@ typedef struct MatroskaChapter {
@@ -146,7 +146,7 @@ index 95f3510..1730ba7 100644
                  }
              }
              if (!found) {
-@@ -3424,12 +3438,37 @@ static int matroska_parse_dovi_streams(AVFormatContext *s)
+@@ -3440,12 +3454,37 @@ static int matroska_parse_dovi_streams(AVFormatContext *s)
      return 0;
  }
  
@@ -185,7 +185,7 @@ index 95f3510..1730ba7 100644
      MatroskaAttachment *attachments;
      MatroskaChapter *chapters;
      uint64_t max_start = 0;
-@@ -3557,9 +3596,15 @@ static int matroska_read_header(AVFormatContext *s)
+@@ -3574,9 +3613,15 @@ static int matroska_read_header(AVFormatContext *s)
          }
      }
  

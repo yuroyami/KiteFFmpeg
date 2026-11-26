@@ -42,10 +42,10 @@ index 157252f..f12f2a0 100644
      };
  } FormatContextInternal;
 diff --git a/libavformat/demux.c b/libavformat/demux.c
-index 99029d4..519841c 100644
+index ad539e1..c8c78ec 100644
 --- a/libavformat/demux.c
 +++ b/libavformat/demux.c
-@@ -1169,6 +1169,91 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
+@@ -1193,6 +1193,91 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
          pkt->flags |= AV_PKT_FLAG_KEY;
  }
  
@@ -137,7 +137,7 @@ index 99029d4..519841c 100644
  /**
   * Parse a packet, add all split parts to parse_queue.
   *
-@@ -1301,6 +1386,7 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
+@@ -1325,6 +1410,7 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
          if (sti->parser->key_frame == -1 && sti->parser->pict_type ==AV_PICTURE_TYPE_NONE && (pkt->flags&AV_PKT_FLAG_KEY))
              out_pkt->flags |= AV_PKT_FLAG_KEY;
  
@@ -145,7 +145,7 @@ index 99029d4..519841c 100644
          compute_pkt_fields(s, st, sti->parser, out_pkt, next_dts, next_pts);
  
          ret = ff_packet_list_put(&fci->parse_queue,
-@@ -1497,6 +1583,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
+@@ -1521,6 +1607,7 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
  
          if (!sti->need_parsing || !sti->parser) {
              /* no parsing needed: we just output the packet as is */
@@ -153,7 +153,7 @@ index 99029d4..519841c 100644
              compute_pkt_fields(s, st, NULL, pkt, AV_NOPTS_VALUE, AV_NOPTS_VALUE);
              if ((s->iformat->flags & AVFMT_GENERIC_INDEX) &&
                  (pkt->flags & AV_PKT_FLAG_KEY) && pkt->dts != AV_NOPTS_VALUE) {
-@@ -3193,6 +3280,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
+@@ -3230,6 +3317,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
      }
  
  find_stream_info_err:
@@ -162,10 +162,10 @@ index 99029d4..519841c 100644
          AVStream *const st  = ic->streams[i];
          FFStream *const sti = ffstream(st);
 diff --git a/libavformat/internal.h b/libavformat/internal.h
-index a043439..85bd9ec 100644
+index 53dc7b9..f6c872d 100644
 --- a/libavformat/internal.h
 +++ b/libavformat/internal.h
-@@ -353,6 +353,12 @@ typedef struct FFStream {
+@@ -365,6 +365,12 @@ typedef struct FFStream {
      int64_t cur_dts;
  
      const struct AVCodecDescriptor *codec_desc;

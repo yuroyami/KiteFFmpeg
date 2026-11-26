@@ -46,7 +46,7 @@ private val TargetTriple.isIos: Boolean
  *
  * Expects a git checkout of FFmpeg at [sourceDir] (`vendor/ffmpeg` by convention), a clone or a
  * submodule, at exactly [sourceCommit], the commit the tag [sourceRef] names:
- * `git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg`.
+ * `git clone --depth 1 --branch n9.1 https://github.com/FFmpeg/FFmpeg.git vendor/ffmpeg`.
  * Before it compiles anything the task refuses a checkout at any other commit and one that git
  * does not call clean, counting untracked and ignored files (#145); a change to FFmpeg belongs in
  * a patch under [sourcePatches]. Up-to-date checking is input/output based, and the pin, the
@@ -61,7 +61,7 @@ open class BuildFFmpegTask : BuildStep() {
     /** Licence flavour. Every target is LGPL-only; [FFmpegLicense.GPL] is refused on all of them. */
     val license = Property<FFmpegLicense>("license")
 
-    /** The FFmpeg tag this task builds (for example `n9.0.2`), the name its output carries. */
+    /** The FFmpeg tag this task builds (for example `n9.1`), the name its output carries. */
     val sourceRef = Property<String>("sourceRef")
 
     /** The full commit [sourceRef] names upstream, the only one the [sourceDir] checkout may hold. */
@@ -887,13 +887,13 @@ open class BuildFFmpegTask : BuildStep() {
         }
 
         /** The FFmpeg tag `vendor/ffmpeg` is expected to be checked out at. */
-        const val DEFAULT_SOURCE_REF = "n9.0.2"
+        const val DEFAULT_SOURCE_REF = "n9.1"
 
         /**
-         * The commit [DEFAULT_SOURCE_REF] names upstream, read with `git ls-remote` on 2026-10-04.
+         * The commit [DEFAULT_SOURCE_REF] names upstream, read with `git ls-remote` on 2026-11-26.
          * Moving the tag means moving this with it, after reading what the new commit holds.
          */
-        const val DEFAULT_SOURCE_COMMIT = "946fcce07b6dcd0331c8cc609192aeff5e1924f8"
+        const val DEFAULT_SOURCE_COMMIT = "74e4393595cf2b5857f0da925c4e0dd74ea306e5"
 
         /** Where FFmpeg's tags are cloned from. */
         const val SOURCE_URL = "https://github.com/FFmpeg/FFmpeg.git"

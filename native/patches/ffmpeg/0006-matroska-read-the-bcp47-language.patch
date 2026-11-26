@@ -16,7 +16,7 @@ Applied by BuildFFmpegTask before configure, after 0005, whose writers turn a ta
 code a three-letter field holds. Fixes yuroyami/KiteFFmpeg#150.
 
 diff --git a/libavformat/matroskadec.c b/libavformat/matroskadec.c
-index 7ce49b8..95f3510 100644
+index 192433a..33e0019 100644
 --- a/libavformat/matroskadec.c
 +++ b/libavformat/matroskadec.c
 @@ -270,6 +270,7 @@ typedef struct MatroskaTrack {
@@ -44,7 +44,7 @@ index 7ce49b8..95f3510 100644
      { MATROSKA_ID_TRACKDEFAULTDURATION,  EBML_UINT,  0, 0, offsetof(MatroskaTrack, default_duration) },
      { MATROSKA_ID_TRACKTIMECODESCALE,    EBML_FLOAT, 0, 0, offsetof(MatroskaTrack, time_scale),   { .f = 1.0 } },
      { MATROSKA_ID_TRACKFLAGCOMMENTARY,   EBML_UINT,  0, 0, offsetof(MatroskaTrack, flag_comment), { .u = 0 } },
-@@ -3277,7 +3279,12 @@ static int matroska_parse_tracks(AVFormatContext *s)
+@@ -3293,7 +3295,12 @@ static int matroska_parse_tracks(AVFormatContext *s)
                          AV_DICT_DONT_STRDUP_VAL);
          }
  

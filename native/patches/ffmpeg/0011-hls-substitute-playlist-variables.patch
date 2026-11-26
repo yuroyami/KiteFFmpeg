@@ -24,7 +24,7 @@ uses no reference is read exactly as before.
 Applied by BuildFFmpegTask before configure.
 
 diff --git a/libavformat/hls.c b/libavformat/hls.c
-index b129900..b2b637f 100644
+index 5eac3ec..e953b47 100644
 --- a/libavformat/hls.c
 +++ b/libavformat/hls.c
 @@ -32,6 +32,7 @@
@@ -35,7 +35,7 @@ index b129900..b2b637f 100644
  #include "libavutil/avassert.h"
  #include "libavutil/intreadwrite.h"
  #include "libavutil/mathematics.h"
-@@ -45,6 +46,7 @@
+@@ -46,6 +47,7 @@
  #include "avio_internal.h"
  #include "id3v2.h"
  #include "url.h"
@@ -43,7 +43,7 @@ index b129900..b2b637f 100644
  
  #include "hls_sample_encryption.h"
  
-@@ -245,6 +247,10 @@ typedef struct HLSContext {
+@@ -282,6 +284,10 @@ typedef struct HLSContext {
      int http_seekable;
      int seg_max_retry;
      int trust_io_open;
@@ -54,7 +54,7 @@ index b129900..b2b637f 100644
      AVIOContext *playlist_pb;
      HLSCryptoContext  crypto_ctx;
  } HLSContext;
-@@ -820,6 +826,236 @@ static int test_segment(AVFormatContext *s, const AVInputFormat *in_fmt, struct
+@@ -964,6 +970,236 @@ static int test_segment(AVFormatContext *s, const AVInputFormat *in_fmt, struct
      return 0;
  }
  
@@ -291,17 +291,17 @@ index b129900..b2b637f 100644
  static int parse_playlist(HLSContext *c, const char *url,
                            struct playlist *pls, AVIOContext *in)
  {
-@@ -842,6 +1078,9 @@ static int parse_playlist(HLSContext *c, const char *url,
-     struct segment **prev_segments = NULL;
-     int prev_n_segments = 0;
-     int64_t prev_start_seq_no = -1;
+@@ -990,6 +1226,9 @@ static int parse_playlist(HLSContext *c, const char *url,
+     int64_t start_time_offset = 0;
+     int time_offset_flag = 0;
+     int finished = 0;
 +    /* KiteFFmpeg: this load's variables, and whether this is the demuxer's first playlist. */
 +    AVDictionary *vars = NULL;
 +    int top_level = !pls, saw_variant = 0;
  
      if (is_http && !in && c->http_persistent && c->playlist_pb) {
          in = c->playlist_pb;
-@@ -896,6 +1135,17 @@ static int parse_playlist(HLSContext *c, const char *url,
+@@ -1044,6 +1283,17 @@ static int parse_playlist(HLSContext *c, const char *url,
      }
      while (!avio_feof(in)) {
          ff_get_chomp_line(in, line, sizeof(line));
@@ -319,7 +319,7 @@ index b129900..b2b637f 100644
          if (av_strstart(line, "#EXT-X-STREAM-INF:", &ptr)) {
              if (pls) {
                  av_log(c->ctx, AV_LOG_ERROR,
-@@ -904,6 +1154,7 @@ static int parse_playlist(HLSContext *c, const char *url,
+@@ -1052,6 +1302,7 @@ static int parse_playlist(HLSContext *c, const char *url,
                  goto fail;
              }
              is_variant = 1;
@@ -327,23 +327,27 @@ index b129900..b2b637f 100644
              memset(&variant_info, 0, sizeof(variant_info));
              ff_parse_key_value(ptr, handle_variant_args, &variant_info);
          } else if (av_strstart(line, "#EXT-X-KEY:", &ptr)) {
-@@ -1154,8 +1405,15 @@ static int parse_playlist(HLSContext *c, const char *url,
+@@ -1317,11 +1568,19 @@ static int parse_playlist(HLSContext *c, const char *url,
+         }
      }
-     if (pls)
-         pls->last_load_time = av_gettime_relative();
+ 
 +    if (top_level && saw_variant) {
 +        c->has_master = 1;
 +        av_dict_free(&c->master_vars);
 +        c->master_vars = vars;
 +        vars = NULL;
 +    }
- 
++
  fail:
+     free_segment_dynarray(prev_segments, prev_n_segments);
+     av_freep(&prev_segments);
+     if (pls)
+         pls->last_load_time = load_start;
 +    av_dict_free(&vars);
      av_free(new_url);
      if (close_in)
          ff_format_io_close(c->ctx, &in);
-@@ -2261,6 +2519,7 @@ static int hls_close(AVFormatContext *s)
+@@ -2471,6 +2730,7 @@ static int hls_close(AVFormatContext *s)
          av_free(c->crypto_ctx.aes_ctx);
  
      av_dict_free(&c->avio_opts);

@@ -153,7 +153,7 @@ following, its licence and its obligations become yours, not this project's.
 dav1d's licence, which every binary redistribution must reproduce
 --------------------------------------------------------------------------------
 
-dav1d 1.5.4 is linked into every release zip, native klib, JVM jar and Android
+dav1d 1.5.5 is linked into every release zip, native klib, JVM jar and Android
 library. The jar and the Android library carry this text as
 META-INF/licenses/kiteffmpeg-ffmpeg/COPYING.dav1d, and each release zip as
 COPYING.dav1d; the native klibs have no place for it, so an application linked

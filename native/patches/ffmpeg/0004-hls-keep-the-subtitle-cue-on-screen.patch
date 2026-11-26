@@ -13,10 +13,10 @@ Pictures and sound keep the comparison of their start.
 Applied by BuildFFmpegTask before configure, after 0003. Fixes yuroyami/KiteFFmpeg#126.
 
 diff --git a/libavformat/hls.c b/libavformat/hls.c
-index ab8452e..b129900 100644
+index 768424a..5eac3ec 100644
 --- a/libavformat/hls.c
 +++ b/libavformat/hls.c
-@@ -2709,7 +2709,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
+@@ -2930,7 +2930,7 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
           * stream */
          if (pls->needed && !pls->pkt->data) {
              while (1) {
@@ -25,11 +25,11 @@ index ab8452e..b129900 100644
                  AVRational tb;
                  struct segment *seg = NULL;
                  if (pls->is_subtitle)
-@@ -2774,7 +2774,15 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
+@@ -3018,7 +3018,15 @@ static int hls_read_packet(AVFormatContext *s, AVPacket *pkt)
                      }
  
                      tb = get_timebase(pls);
--                    ts_diff = av_rescale_rnd(pls->pkt->dts, AV_TIME_BASE,
+-                    ts_diff = av_rescale_q_rnd(pls->pkt->dts, tb,
 +                    pkt_ts = pls->pkt->dts;
 +                    /* KiteFFmpeg: a subtitle cue that began before the target and is still on
 +                     * screen there belongs to it, so its last tick is compared rather than its
@@ -38,7 +38,7 @@ index ab8452e..b129900 100644
 +                    if (pls->pkt->duration > 0 &&
 +                        pls->ctx->streams[pls->pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE)
 +                        pkt_ts += pls->pkt->duration - 1;
-+                    ts_diff = av_rescale_rnd(pkt_ts, AV_TIME_BASE,
-                                             tb.den, AV_ROUND_DOWN) -
++                    ts_diff = av_rescale_q_rnd(pkt_ts, tb,
+                                                AV_TIME_BASE_Q, AV_ROUND_DOWN) -
                              pls->seek_timestamp;
                      if (ts_diff >= 0 && (pls->seek_flags  & AVSEEK_FLAG_ANY ||
