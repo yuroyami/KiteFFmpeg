@@ -304,7 +304,9 @@ player.
 - FFmpeg has no TLS here. Fetch `https` bytes with your own HTTP client and open them through a
   `MediaByteSource`, with a `MediaByteOpener` for HLS.
 - Hardware decoding uses VideoToolbox on Apple platforms, MediaCodec on Android and Direct3D 11 on
-  Windows. Linux decodes in software. The Direct3D 11 path has not run on a real Windows GPU.
+  Windows. On Linux, you ask for the V4L2 M2M decoders by name, and they need a board whose kernel
+  has a V4L2 memory-to-memory decoder. Other Linux machines decode in software. Neither the V4L2 M2M
+  decoders nor the Direct3D 11 path has run on real hardware.
 - You cannot pick a bitstream filter by hand. FFmpeg applies the right one during a stream copy.
 - Some targets build but have not played media yet: `macosX64`, `iosX64`, `tvosArm64`,
   `tvosSimulatorArm64`, the Android `armeabi-v7a` and `x86_64` libraries, the desktop JVM on Linux
