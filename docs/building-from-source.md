@@ -109,6 +109,7 @@ gets these:
 | `0013` | Takes the chapters of a Matroska file's default edition |
 | `0014` | Exports the Matroska info and chapters payloads |
 | `0015` | Takes the parameters of an audio stream that the probe never saw from its first packet |
+| `0016` | Places the cues of an HLS WebVTT segment on the media's clock by the segment's `X-TIMESTAMP-MAP` |
 
 ## Apple targets
 

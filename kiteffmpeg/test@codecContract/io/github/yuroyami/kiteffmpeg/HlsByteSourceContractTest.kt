@@ -20,8 +20,9 @@ import kotlin.test.assertTrue
  *
  * A linked FFmpeg without the trust_io_open patch, such as a prebuilt tree from an older release,
  * refuses the opener with [FFmpegError.Unsupported]. Each test then checks that refusal and stops.
- * The Matroska and subtitle tests need two later FFmpeg patches as well, `0003` and `0004`, and the
- * two variable tests need `0011`, and each fails on a tree built before its patch. The location
+ * The Matroska and subtitle tests need two later FFmpeg patches as well, `0003` and `0004`, the
+ * two variable tests need `0011`, and the two timestamp map tests need `0016`. Each fails on a tree
+ * built before its patch. The location
  * tests need no patch of their own: the C layer hands FFmpeg the address, as its own http does.
  */
 @OptIn(KiteFFmpegLowLevelApi::class)
@@ -236,6 +237,84 @@ class HlsByteSourceContractTest {
             assertTrue(cues[0] in -100_000L..100_000L, "the cue showing at 1 s starts at 0 s, not at ${cues[0]} us")
         }
     }
+
+    /**
+     * A WebVTT segment's X-TIMESTAMP-MAP places its cues on the clock of the video (#262). The video
+     * starts after 10 s, as MPEG-TS video often does, and the map says that a cue at 0 s belongs at
+     * 10 s. FFmpeg read the cue at 1 s as written, before the video started, and the catch-up of the
+     * subtitle rendition then dropped it.
+     */
+    @Test
+    fun aTimestampMapPlacesTheCueOnTheVideoClock() {
+        val opener = RecordingOpener(
+            mapOf(
+                "$BASE_URL/video.m3u8" to mediaPlaylist("seg0.ts", seconds = 4).encodeToByteArray(),
+                "$BASE_URL/seg0.ts" to offsetSegment(offset = "10", frames = 120),
+                "$BASE_URL/subs.m3u8" to mediaPlaylist("s0.vtt", seconds = 4).encodeToByteArray(),
+                "$BASE_URL/s0.vtt" to mappedCue("MPEGTS:900000,LOCAL:00:00:00.000", "00:00:01.000", "00:00:04.000"),
+            ),
+        )
+        val media = openPlaylist(opener, playlist = MASTER_PLAYLIST) ?: return
+        media.use {
+            val (firstVideo, cues) = videoAndCueTimes(media)
+            assertTrue(firstVideo >= 10_000_000L, "the video must start after 10 s, not at $firstVideo us")
+            assertEquals(1, cues.size, "expected the one cue, got cues at $cues us")
+            assertTrue(cues[0] in 10_998_000L..11_002_000L, "the cue belongs at 11 s, not at ${cues[0]} us")
+        }
+    }
+
+    /**
+     * The MPEGTS value of a timestamp map is 33 bits wide, so on a long stream it wraps where the
+     * video's timestamps wrap. The video here crosses the wrap, and the second segment's map is
+     * written after it. Both cues land on the video's clock, 3 s apart, where FFmpeg put the video.
+     */
+    @Test
+    fun aTimestampMapFollowsTheVideoAcrossTheMpegTsWrap() {
+        // 95440 s and 95444 s on the 33-bit 90 kHz clock, which wraps at about 95443.7 s.
+        val first = 95_440L * 90_000L % WRAP_TICKS
+        val second = 95_444L * 90_000L % WRAP_TICKS
+        val opener = RecordingOpener(
+            mapOf(
+                "$BASE_URL/video.m3u8" to mediaPlaylist("seg0.ts", seconds = 6).encodeToByteArray(),
+                "$BASE_URL/seg0.ts" to offsetSegment(offset = "95440", frames = 180),
+                "$BASE_URL/subs.m3u8" to TWO_SEGMENT_SUBTITLE_PLAYLIST.encodeToByteArray(),
+                "$BASE_URL/s0.vtt" to mappedCue("MPEGTS:$first,LOCAL:00:00:00.000", "00:00:02.000", "00:00:03.000"),
+                "$BASE_URL/s1.vtt" to mappedCue("LOCAL:00:00:00.000,MPEGTS:$second", "00:00:01.000", "00:00:02.000"),
+            ),
+        )
+        val media = openPlaylist(opener, playlist = MASTER_PLAYLIST) ?: return
+        media.use {
+            val (firstVideo, cues) = videoAndCueTimes(media)
+            assertEquals(2, cues.size, "expected both cues, got cues at $cues us")
+            val expected = listOf(first + 2 * 90_000L, second + 90_000L).map { onClockOf(firstVideo, it) }
+            cues.zip(expected).forEach { (cue, wanted) ->
+                assertTrue(cue in wanted - 2_000L..wanted + 2_000L, "a cue belongs at $wanted us, not at $cue us; all: $cues")
+            }
+        }
+    }
+
+    /** The first video timestamp and the start of every cue that one reader of both streams meets, in microseconds. */
+    private fun videoAndCueTimes(media: MediaSource): Pair<Long, List<Long>> {
+        val video = media.primaryVideo ?: error("the playlist has no video stream")
+        val subtitle = media.streams.firstOrNull { it.type == MediaType.Subtitle } ?: error("the playlist has no subtitle stream")
+        var firstVideo: Long? = null
+        val cues = mutableListOf<Long>()
+        media.openPacketReader(listOf(video, subtitle)).use { reader ->
+            while (true) {
+                val packet = reader.read() ?: break
+                packet.use {
+                    val pts = it.ptsMicros ?: return@use
+                    if (it.streamIndex == subtitle.index) cues += pts else if (firstVideo == null) firstVideo = pts
+                }
+            }
+        }
+        println("HLS contract: video from $firstVideo us, cues at $cues us")
+        return (firstVideo ?: error("the reader met no video packet")) to cues
+    }
+
+    /** [ticks] on the 90 kHz clock, moved by whole wraps to where it is nearest [nearMicros], in microseconds. */
+    private fun onClockOf(nearMicros: Long, ticks: Long): Long =
+        (-1L..1L).map { (ticks + it * WRAP_TICKS) * 100L / 9L }.minBy { kotlin.math.abs(it - nearMicros) }
 
     /**
      * A token handed down through playlist variables reaches every address it is written into
@@ -477,8 +556,61 @@ class HlsByteSourceContractTest {
             #EXT-X-ENDLIST
         """.trimIndent() + "\n"
 
+        /** Two WebVTT segments of three seconds. */
+        val TWO_SEGMENT_SUBTITLE_PLAYLIST = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-TARGETDURATION:3
+            #EXT-X-MEDIA-SEQUENCE:0
+            #EXT-X-PLAYLIST-TYPE:VOD
+            #EXTINF:3.0,
+            s0.vtt
+            #EXTINF:3.0,
+            s1.vtt
+            #EXT-X-ENDLIST
+        """.trimIndent() + "\n"
+
+        /** Where the 33-bit MPEG-TS clock wraps, in 90 kHz ticks. */
+        const val WRAP_TICKS = 1L shl 33
+
         /** A WebVTT segment that holds one cue. */
         fun cue(start: String, end: String, text: String): ByteArray = "WEBVTT\n\n$start --> $end\n$text\n".encodeToByteArray()
+
+        /** A WebVTT segment that holds one cue and names its place on the media clock with [map]. */
+        fun mappedCue(map: String, start: String, end: String): ByteArray =
+            "WEBVTT\nX-TIMESTAMP-MAP=$map\n\n$start --> $end\nmapped\n".encodeToByteArray()
+
+        /**
+         * [frames] frames of MPEG-TS video at 30 per second, whose timestamps start [offset] seconds
+         * in, as a broadcast or a live packager writes them.
+         */
+        fun offsetSegment(offset: String, frames: Int): ByteArray {
+            val path = contractOutputPath("ts")
+            try {
+                MediaSink.open(path, options = mapOf("output_ts_offset" to offset)).use { sink ->
+                    val encoder = sink.addVideoEncoder(
+                        VideoEncoderSpec(
+                            codec = CodecId("mpeg4"),
+                            width = 320,
+                            height = 240,
+                            frameRate = Rational(30, 1),
+                            bitrateBps = 800_000,
+                            keyframeIntervalFrames = 30,
+                        ),
+                    )
+                    runBlocking {
+                        encoder.drive(
+                            (0 until frames).asFlow().map { index ->
+                                Frame.ofVideo(frameBytes(index), 320, 240, PixelFormat.Yuv420p, index * 1_000_000L / 30)
+                            },
+                        )
+                    }
+                }
+                return readContractBytes(path)
+            } finally {
+                deleteContractPath(path)
+            }
+        }
 
         /** A 320x240 YUV 4:2:0 frame whose bytes change with [index], so every frame costs the encoder work. */
         fun frameBytes(index: Int): ByteArray = ByteArray(320 * 240 * 3 / 2) { ((it * 31 + index * 17) % 251).toByte() }

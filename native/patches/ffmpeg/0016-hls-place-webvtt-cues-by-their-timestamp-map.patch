@@ -1,0 +1,186 @@
+Place the cues of an HLS WebVTT segment by the segment's X-TIMESTAMP-MAP.
+
+An HLS WebVTT segment can name, in its header, the MPEG-2 timestamp that its cue times map to: an
+X-TIMESTAMP-MAP=MPEGTS:<ticks>,LOCAL:<time> line (RFC 8216, section 3.5). FFmpeg's WebVTT reader
+skips the header block, and the HLS reader returns the cues as they are written. So a cue kept its
+LOCAL time while the picture and the sound kept their MPEG-TS time. With the common
+MPEGTS:900000,LOCAL:00:00:00.000, every cue came 10 s early. On a live stream the MPEG-TS clock can
+hold any value, so the error had no bound. A cue that early also ended before the newest packet
+read when the subtitle rendition started, so the catch-up dropped it and nothing showed.
+
+The HLS reader now keeps the start of each WebVTT segment as it reads it and takes the map from the
+header block. Each cue of the segment then moves by MPEGTS / 90000 - LOCAL seconds. MPEGTS is a
+33-bit value, so the reader takes it at the wrap nearest the newest packet read, which already
+carries the wrap correction of the media. A segment without a map keeps its cue times, as the RFC
+has it.
+
+Applied by BuildFFmpegTask before configure, after 0015. Fixes yuroyami/KiteFFmpeg#262.
+
+diff --git a/libavformat/hls.c b/libavformat/hls.c
+index e953b47..56bdbd2 100644
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -192,6 +192,15 @@ struct playlist {
+     struct segment **init_sections;
+     int is_subtitle; /* Indicates if it's a subtitle playlist */
+ 
++    /* KiteFFmpeg: the start of the WebVTT segment being read, which holds its header block, and
++     * its length, or -1 when nothing is collected. vtt_shift moves the segment's cues onto the
++     * clock of the other renditions, in subdemuxer ticks, and is AV_NOPTS_VALUE until the first
++     * cue. vtt_mpegts is the last X-TIMESTAMP-MAP MPEGTS value, unwrapped. */
++    char vtt_header[1024];
++    int vtt_header_len;
++    int64_t vtt_shift;
++    int64_t vtt_mpegts;
++
+     /* Some HLS streams repeat the current timed-ID3 metadata at every segment
+      * boundary so late-joining clients get a fresh copy. Track the last seen
+      * value to avoid raising AVSTREAM_EVENT_FLAG_METADATA_UPDATED spuriously
+@@ -430,6 +439,10 @@ static struct playlist *new_playlist(HLSContext *c, const char *url,
+     pls->id3_mpegts_timestamp = AV_NOPTS_VALUE;
+     pls->timed_id3_stream_index = -1;
+ 
++    pls->vtt_header_len = -1;
++    pls->vtt_shift = AV_NOPTS_VALUE;
++    pls->vtt_mpegts = AV_NOPTS_VALUE;
++
+     if (av_dynarray_add_nofree(&c->playlists, &c->n_playlists, pls) < 0)
+         goto fail;
+     av_tree_insert(&c->playlists_by_url, pls, cmp_playlist_url, &node);
+@@ -2320,7 +2333,16 @@ static int read_data_subtitle_segment(void *opaque, uint8_t *buf, int buf_size)
+             v->first_read_seq_no = v->cur_seq_no;
+     }
+ 
+-    return read_from_url(v, seg, buf, buf_size);
++    ret = read_from_url(v, seg, buf, buf_size);
++    /* KiteFFmpeg: keeps the start of the segment, where its header block is, because the WebVTT
++     * reader drops the header and with it the X-TIMESTAMP-MAP. */
++    if (ret > 0 && v->vtt_header_len >= 0) {
++        int n = FFMIN(ret, (int)sizeof(v->vtt_header) - 1 - v->vtt_header_len);
++        memcpy(v->vtt_header + v->vtt_header_len, buf, n);
++        v->vtt_header_len += n;
++        v->vtt_header[v->vtt_header_len] = 0;
++    }
++    return ret;
+ }
+ 
+ static int nested_io_open(AVFormatContext *s, AVIOContext **pb, const char *url,
+@@ -2358,6 +2380,11 @@ static int init_subtitle_context(struct playlist *pls)
+     pls->ctx->pb       = &pls->pb.pub;
+     pls->ctx->io_open  = nested_io_open;
+ 
++    /* KiteFFmpeg: a new segment, with a header block of its own. */
++    pls->vtt_header_len = 0;
++    pls->vtt_header[0]  = 0;
++    pls->vtt_shift      = AV_NOPTS_VALUE;
++
+     ret = ff_copy_whiteblacklists(pls->ctx, pls->parent);
+     if (ret < 0) {
+         avformat_free_context(pls->ctx);
+@@ -2373,6 +2400,98 @@ static int init_subtitle_context(struct playlist *pls)
+     return ret;
+ }
+ 
++/* KiteFFmpeg: reads a WebVTT timestamp, [hh:]mm:ss.ttt, in milliseconds. */
++static int read_vtt_time(const char *p, int64_t *ms)
++{
++    int64_t parts[3];
++    int n = 0;
++
++    for (;;) {
++        char *end;
++        if (!av_isdigit(*p) || n == 3)
++            return AVERROR_INVALIDDATA;
++        parts[n] = strtoll(p, &end, 10);
++        if (parts[n++] > INT32_MAX)
++            return AVERROR_INVALIDDATA;
++        p = end;
++        if (*p != ':')
++            break;
++        p++;
++    }
++    if (n < 2 || p[0] != '.' || !av_isdigit(p[1]) || !av_isdigit(p[2]) || !av_isdigit(p[3]))
++        return AVERROR_INVALIDDATA;
++    *ms = ((n == 3 ? parts[0] * 3600 : 0) + parts[n - 2] * 60 + parts[n - 1]) * 1000 +
++          (p[1] - '0') * 100 + (p[2] - '0') * 10 + (p[3] - '0');
++    return 0;
++}
++
++/* KiteFFmpeg: reads X-TIMESTAMP-MAP=MPEGTS:<ticks>,LOCAL:<time> from the header block of a WebVTT
++ * segment, the text before its first blank line (RFC 8216, section 3.5). The two settings may come
++ * in either order. */
++static int read_timestamp_map(const char *header, int64_t *mpegts, int64_t *local)
++{
++    static const char *const blank_lines[] = { "\n\n", "\r\n\r\n", "\r\r" };
++    const char *end = header + strlen(header), *p;
++    int have_mpegts = 0, have_local = 0;
++
++    for (int i = 0; i < FF_ARRAY_ELEMS(blank_lines); i++) {
++        const char *blank = strstr(header, blank_lines[i]);
++        if (blank && blank < end)
++            end = blank;
++    }
++    p = strstr(header, "X-TIMESTAMP-MAP=");
++    if (!p || p >= end)
++        return AVERROR_INVALIDDATA;
++    p += strlen("X-TIMESTAMP-MAP=");
++    while (p < end && *p != '\r' && *p != '\n') {
++        const char *value;
++        while (*p == ' ' || *p == '\t')
++            p++;
++        if (av_strstart(p, "MPEGTS:", &value) && av_isdigit(*value)) {
++            *mpegts = strtoll(value, NULL, 10);
++            have_mpegts = 1;
++        } else if (av_strstart(p, "LOCAL:", &value)) {
++            have_local = read_vtt_time(value, local) >= 0;
++        }
++        p += strcspn(p, ",\r\n");
++        if (*p == ',')
++            p++;
++    }
++    return have_mpegts && have_local ? 0 : AVERROR_INVALIDDATA;
++}
++
++/* KiteFFmpeg: moves a cue of the WebVTT segment being read onto the clock of the other renditions,
++ * by the segment's X-TIMESTAMP-MAP: a cue at LOCAL belongs at MPEGTS. A segment without a map keeps
++ * its cue times, as RFC 8216 has it. MPEGTS is 33 bits wide, so it is unwrapped next to the newest
++ * packet read, which carries the wrap correction the media got, or else next to the last map. */
++static void shift_vtt_cue(HLSContext *c, struct playlist *v)
++{
++    AVPacket *pkt = v->pkt;
++
++    if (v->vtt_shift == AV_NOPTS_VALUE) {
++        const int64_t wrap = INT64_C(1) << 33;
++        AVRational tb = v->ctx->streams[pkt->stream_index]->time_base;
++        int64_t mpegts, local, ref;
++
++        v->vtt_shift = 0;
++        if (v->vtt_header_len <= 0 || read_timestamp_map(v->vtt_header, &mpegts, &local) < 0)
++            return;
++        ref = c->cur_timestamp != AV_NOPTS_VALUE ?
++              av_rescale_q(c->cur_timestamp, AV_TIME_BASE_Q, MPEG_TIME_BASE_Q) : v->vtt_mpegts;
++        if (ref != AV_NOPTS_VALUE) {
++            int64_t d = ref - mpegts;
++            mpegts += (d >= 0 ? (d + wrap / 2) / wrap : -((wrap / 2 - d) / wrap)) * wrap;
++        }
++        v->vtt_mpegts = mpegts;
++        v->vtt_shift  = av_rescale_q(mpegts, MPEG_TIME_BASE_Q, tb) -
++                        av_rescale_q(local, (AVRational){ 1, 1000 }, tb);
++    }
++    if (pkt->pts != AV_NOPTS_VALUE)
++        pkt->pts = av_sat_add64(pkt->pts, v->vtt_shift);
++    if (pkt->dts != AV_NOPTS_VALUE)
++        pkt->dts = av_sat_add64(pkt->dts, v->vtt_shift);
++}
++
+ static int read_subtitle_packet(struct playlist *v, AVPacket *pkt)
+ {
+     HLSContext *c = v->parent->priv_data;
+@@ -2394,6 +2513,7 @@ restart:
+ 
+     ret = av_read_frame(v->ctx, v->pkt);
+     if (!ret) {
++        shift_vtt_cue(c, v);
+         return ret;
+     }
+     ff_format_io_close(v->parent, &v->input);

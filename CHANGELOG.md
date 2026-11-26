@@ -40,6 +40,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A cue of an HLS WebVTT segment now shows at the time that the segment's `X-TIMESTAMP-MAP` gives
+  it on the clock of the video. Before, FFmpeg ignored the map, so with the common
+  `MPEGTS:900000,LOCAL:00:00:00.000` every cue came 10 s early, and on a live stream the error had
+  no bound (#262). The reader takes the 33-bit wrap of the MPEG-2 clock into account.
 - `AsyncMediaSource.extractFrame` now goes back to the first byte of a stream that cannot seek by
   time, such as raw H.264, and decodes forward, as `MediaSource.extractFrame` does. Before, it
   refused such a stream with `FFmpegError.Unsupported` (#253).
